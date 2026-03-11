@@ -19,7 +19,12 @@
     "module:new": "node cli/index.js new-module",
     "module:move": "node cli/index.js move-module",
     "module:rename": "node cli/index.js rename-module",
-    "module:delete": "node cli/index.js delete-module"
+    "module:delete": "node cli/index.js delete-module",
+    "item:new": "node cli/index.js new-item",
+    "item:move": "node cli/index.js move-item",
+    "item:movetomodule": "node cli/index.js movetomodule-item",
+    "item:rename": "node cli/index.js rename-item",
+    "item:delete": "node cli/index.js delete-item"
   },
   "dependencies": {
     "@docusaurus/core": "^3.7.0",

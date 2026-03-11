@@ -20,7 +20,14 @@ npm run module:new     # Create a new course module interactively
 npm run module:move    # Move a module to a different position
 npm run module:rename  # Rename a module
 npm run module:delete  # Delete a module and renumber remaining
+npm run item:new       # Create a new item (page, assignment, url, subsection, file)
+npm run item:move      # Move an item to a new position within its module
+npm run item:movetomodule  # Move an item to a different module
+npm run item:rename    # Rename an item
+npm run item:delete    # Delete an item and renumber remaining
 ```
+
+Item commands auto-detect the current module when run from inside a module folder.
 
 Push supports `--dry-run` and `--module <folder-name>` flags.
 

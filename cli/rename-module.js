@@ -5,19 +5,10 @@ const {
   prompt,
   getExistingModules,
   pad,
+  toSlug,
   createRL,
   printModules,
 } = require('./module-utils');
-
-/**
- * Convert a module name to a folder slug: lowercase, hyphenated.
- */
-function toSlug(name) {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
 
 async function renameModule() {
   const rl = createRL();

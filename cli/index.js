@@ -54,4 +54,29 @@ program
   .description('Delete a course module and renumber remaining modules')
   .action(require('./delete-module'));
 
+program
+  .command('new-item')
+  .description('Create a new item (page, assignment, url, subsection, file) in a module')
+  .action(require('./new-item'));
+
+program
+  .command('move-item')
+  .description('Move an item to a new position within its module')
+  .action(require('./move-item'));
+
+program
+  .command('movetomodule-item')
+  .description('Move an item to a different module')
+  .action(require('./movetomodule-item'));
+
+program
+  .command('rename-item')
+  .description('Rename an item in a module')
+  .action(require('./rename-item'));
+
+program
+  .command('delete-item')
+  .description('Delete an item from a module and renumber remaining items')
+  .action(require('./delete-item'));
+
 program.parse();

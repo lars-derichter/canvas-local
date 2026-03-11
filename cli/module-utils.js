@@ -77,6 +77,17 @@ function createRL() {
 }
 
 /**
+ * Convert a name to a folder slug: lowercase, hyphenated.
+ * "My New Module" -> "my-new-module"
+ */
+function toSlug(name) {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+/**
  * Print the list of existing modules.
  */
 function printModules(modules) {
@@ -93,6 +104,7 @@ module.exports = {
   prompt,
   getExistingModules,
   pad,
+  toSlug,
   renameModule,
   createRL,
   printModules,

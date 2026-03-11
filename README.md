@@ -43,6 +43,18 @@ npm run module:delete  # delete a module and renumber remaining
 
 All commands are interactive and handle renumbering automatically.
 
+## Managing Items
+
+```bash
+npm run item:new           # create a page, assignment, url, subsection, or add a file
+npm run item:move          # reorder an item within its module
+npm run item:movetomodule  # move an item to a different module
+npm run item:rename        # rename an item
+npm run item:delete        # delete an item and renumber remaining
+```
+
+Item commands auto-detect the current module when run from inside a module folder. Items can be added to the module root or into subsections.
+
 ## Course Structure
 
 ```

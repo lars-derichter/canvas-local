@@ -5,21 +5,11 @@ const {
   prompt,
   getExistingModules,
   pad,
+  toSlug,
   renameModule,
   createRL,
   printModules,
 } = require('./module-utils');
-
-/**
- * Convert a module name to a folder slug: lowercase, hyphenated.
- * "My New Module" -> "my-new-module"
- */
-function toSlug(name) {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
 
 /**
  * Renumber modules at or above the given position by incrementing their prefix by 1.
