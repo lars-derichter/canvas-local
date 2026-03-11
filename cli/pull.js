@@ -125,20 +125,54 @@ async function pullModule(courseId, mod, syncData) {
   }
 
   let itemPosition = 0;
+  let currentSubfolder = null; // Track active subfolder for indented items
+
   for (const item of items) {
     itemPosition++;
-    await pullItem(courseId, item, moduleDir, itemPosition);
+
+    if (item.type === 'SubHeader') {
+      // Create a subfolder for this SubHeader
+      const subfolderName = toFolderName(item.title, itemPosition);
+      const subfolderDir = path.join(moduleDir, subfolderName);
+
+      console.log(`  [pull] SubHeader: ${item.title} -> ${subfolderName}/`);
+
+      if (!fs.existsSync(subfolderDir)) {
+        fs.mkdirSync(subfolderDir, { recursive: true });
+      }
+
+      // Write _category_.json for the subfolder
+      const categoryData = {
+        label: item.title,
+        position: itemPosition,
+      };
+      fs.writeFileSync(
+        path.join(subfolderDir, '_category_.json'),
+        JSON.stringify(categoryData, null, 2) + '\n',
+        'utf8'
+      );
+
+      currentSubfolder = subfolderDir;
+      continue;
+    }
+
+    // Items with indent > 0 go into the current subfolder
+    const targetDir = (item.indent > 0 && currentSubfolder)
+      ? currentSubfolder
+      : moduleDir;
+
+    // If indent is 0, we're no longer inside a subfolder
+    if (item.indent === 0) {
+      currentSubfolder = null;
+    }
+
+    await pullItem(courseId, item, targetDir, itemPosition);
   }
 }
 
 async function pullItem(courseId, item, moduleDir, position) {
   const itemType = item.type;
   const title = item.title || 'Untitled';
-
-  if (itemType === 'SubHeader') {
-    console.log(`  [pull] SubHeader: ${title} (skipping file creation)`);
-    return;
-  }
 
   if (itemType === 'Page') {
     const pageUrl = item.page_url;
