@@ -16,6 +16,7 @@ npm run canvas:init    # Interactive Canvas API setup
 npm run canvas:push    # Push course content to Canvas
 npm run canvas:pull    # Pull Canvas course into markdown
 npm run canvas:status  # Compare local vs Canvas state
+npm run module:new     # Create a new course module interactively
 ```
 
 Push supports `--dry-run` and `--module <folder-name>` flags.

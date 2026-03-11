@@ -32,6 +32,14 @@ npm run canvas:pull              # import existing Canvas course
 npm run canvas:status            # compare local vs Canvas state
 ```
 
+## Creating Modules
+
+```bash
+npm run module:new     # interactive: asks for name and position
+```
+
+Creates the numbered folder and `_category_.json` for you. If you pick a position that's already taken, existing modules are renumbered automatically.
+
 ## Course Structure
 
 ```

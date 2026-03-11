@@ -34,4 +34,9 @@ program
   .description('Compare local course content with Canvas sync state')
   .action(require('./status'));
 
+program
+  .command('new-module')
+  .description('Create a new course module folder with _category_.json')
+  .action(require('./new-module'));
+
 program.parse();

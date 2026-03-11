@@ -15,7 +15,8 @@
     "canvas:init": "node cli/index.js init",
     "canvas:push": "node cli/index.js push",
     "canvas:pull": "node cli/index.js pull",
-    "canvas:status": "node cli/index.js status"
+    "canvas:status": "node cli/index.js status",
+    "module:new": "node cli/index.js new-module"
   },
   "dependencies": {
     "@docusaurus/core": "^3.7.0",
