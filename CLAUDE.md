@@ -17,6 +17,7 @@ npm run canvas:push    # Push course content to Canvas
 npm run canvas:pull    # Pull Canvas course into markdown
 npm run canvas:status  # Compare local vs Canvas state
 npm run module:new     # Create a new course module interactively
+npm run module:move    # Move a module to a different position
 ```
 
 Push supports `--dry-run` and `--module <folder-name>` flags.

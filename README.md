@@ -32,13 +32,16 @@ npm run canvas:pull              # import existing Canvas course
 npm run canvas:status            # compare local vs Canvas state
 ```
 
-## Creating Modules
+## Managing Modules
 
 ```bash
 npm run module:new     # interactive: asks for name and position
+npm run module:move    # move a module to a different position
 ```
 
-Creates the numbered folder and `_category_.json` for you. If you pick a position that's already taken, existing modules are renumbered automatically.
+`module:new` creates the numbered folder and `_category_.json` for you. If you pick a position that's already taken, existing modules are renumbered automatically.
+
+`module:move` lets you reorder modules by specifying a module number and its new position. All affected modules are renumbered.
 
 ## Course Structure
 

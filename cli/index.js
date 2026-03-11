@@ -39,4 +39,9 @@ program
   .description('Create a new course module folder with _category_.json')
   .action(require('./new-module'));
 
+program
+  .command('move-module')
+  .description('Move a course module to a different position')
+  .action(require('./move-module'));
+
 program.parse();
