@@ -17,7 +17,9 @@
     "canvas:pull": "node cli/index.js pull",
     "canvas:status": "node cli/index.js status",
     "module:new": "node cli/index.js new-module",
-    "module:move": "node cli/index.js move-module"
+    "module:move": "node cli/index.js move-module",
+    "module:rename": "node cli/index.js rename-module",
+    "module:delete": "node cli/index.js delete-module"
   },
   "dependencies": {
     "@docusaurus/core": "^3.7.0",

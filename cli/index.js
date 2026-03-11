@@ -44,4 +44,14 @@ program
   .description('Move a course module to a different position')
   .action(require('./move-module'));
 
+program
+  .command('rename-module')
+  .description('Rename a course module')
+  .action(require('./rename-module'));
+
+program
+  .command('delete-module')
+  .description('Delete a course module and renumber remaining modules')
+  .action(require('./delete-module'));
+
 program.parse();

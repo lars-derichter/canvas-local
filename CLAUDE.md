@@ -18,6 +18,8 @@ npm run canvas:pull    # Pull Canvas course into markdown
 npm run canvas:status  # Compare local vs Canvas state
 npm run module:new     # Create a new course module interactively
 npm run module:move    # Move a module to a different position
+npm run module:rename  # Rename a module
+npm run module:delete  # Delete a module and renumber remaining
 ```
 
 Push supports `--dry-run` and `--module <folder-name>` flags.
