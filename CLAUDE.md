@@ -12,19 +12,19 @@ Course development system that lets you write course materials as markdown, serv
 npm start              # Docusaurus dev server
 npm run build          # Production build (output in build/)
 npm run serve          # Serve production build locally
-npm run canvas:init    # Interactive Canvas API setup
-npm run canvas:push    # Push course content to Canvas
-npm run canvas:pull    # Pull Canvas course into markdown
-npm run canvas:status  # Compare local vs Canvas state
-npm run module:new     # Create a new course module interactively
-npm run module:move    # Move a module to a different position
-npm run module:rename  # Rename a module
-npm run module:delete  # Delete a module and renumber remaining
-npm run item:new       # Create a new item (page, assignment, url, subsection, file)
-npm run item:move      # Move an item to a new position within its module
-npm run item:movetomodule  # Move an item to a different module
-npm run item:rename    # Rename an item
-npm run item:delete    # Delete an item and renumber remaining
+npx course init        # Interactive Canvas API setup
+npx course push        # Push course content to Canvas
+npx course pull        # Pull Canvas course into markdown
+npx course status      # Compare local vs Canvas state
+npx course new-module     # Create a new course module interactively
+npx course move-module    # Move a module to a different position
+npx course rename-module  # Rename a module
+npx course delete-module  # Delete a module and renumber remaining
+npx course new-item       # Create a new item (page, assignment, url, subsection, file)
+npx course move-item      # Move an item to a new position within its module
+npx course movetomodule-item  # Move an item to a different module
+npx course rename-item    # Rename an item
+npx course delete-item    # Delete an item and renumber remaining
 ```
 
 Item commands auto-detect the current module when run from inside a module folder.

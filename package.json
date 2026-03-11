@@ -5,7 +5,7 @@
   "description": "Template and utility scripts for course materials",
   "license": "Unlicense",
   "bin": {
-    "course-cli": "./cli/index.js"
+    "course": "./cli/index.js"
   },
   "scripts": {
     "start": "docusaurus start",
