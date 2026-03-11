@@ -1,0 +1,40 @@
+{
+  "name": "course-template",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Template and utility scripts for course materials",
+  "license": "Unlicense",
+  "bin": {
+    "course-cli": "./cli/index.js"
+  },
+  "scripts": {
+    "start": "docusaurus start",
+    "build": "docusaurus build",
+    "serve": "docusaurus serve",
+    "clear": "docusaurus clear",
+    "canvas:init": "node cli/index.js init",
+    "canvas:push": "node cli/index.js push",
+    "canvas:pull": "node cli/index.js pull",
+    "canvas:status": "node cli/index.js status"
+  },
+  "dependencies": {
+    "@docusaurus/core": "^3.7.0",
+    "@docusaurus/preset-classic": "^3.7.0",
+    "@mdx-js/react": "^3.0.0",
+    "clsx": "^2.1.0",
+    "commander": "^12.1.0",
+    "dotenv": "^16.4.0",
+    "gray-matter": "^4.0.3",
+    "marked": "^15.0.0",
+    "prism-react-renderer": "^2.3.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "turndown": "^7.2.0"
+  },
+  "devDependencies": {
+    "@docusaurus/module-type-aliases": "^3.7.0"
+  },
+  "engines": {
+    "node": ">=18.0"
+  }
+}

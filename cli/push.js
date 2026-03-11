@@ -1,0 +1,299 @@
+const fs = require('fs');
+const path = require('path');
+
+const { scanCourse } = require('../lib/convert/course-scanner');
+const { parseFrontmatter, updateFrontmatter } = require('../lib/convert/frontmatter');
+const { markdownToHtml } = require('../lib/convert/markdown-to-html');
+const { createModule, updateModule, createModuleItem } = require('../lib/canvas/modules');
+const { createPage, updatePage } = require('../lib/canvas/pages');
+const { createAssignment, updateAssignment } = require('../lib/canvas/assignments');
+const { uploadFile } = require('../lib/canvas/files');
+
+const COURSE_DIR = path.resolve(process.cwd(), 'course');
+const SYNC_FILE = path.resolve(process.cwd(), '.canvas-sync.json');
+
+function loadSyncFile() {
+  if (fs.existsSync(SYNC_FILE)) {
+    try {
+      return JSON.parse(fs.readFileSync(SYNC_FILE, 'utf8'));
+    } catch (_) {
+      // Fall through to create empty
+    }
+  }
+  return {
+    canvas_base_url: process.env.CANVAS_API_URL || '',
+    course_id: Number(process.env.CANVAS_COURSE_ID) || 0,
+    modules: {},
+    last_sync: null,
+  };
+}
+
+function saveSyncFile(syncData) {
+  fs.writeFileSync(SYNC_FILE, JSON.stringify(syncData, null, 2) + '\n', 'utf8');
+}
+
+async function push(options) {
+  const courseId = process.env.CANVAS_COURSE_ID;
+  if (!courseId) {
+    console.error('[push] Error: CANVAS_COURSE_ID is not set. Run "course-cli init" first.');
+    process.exit(1);
+  }
+
+  const dryRun = options.dryRun || false;
+  const moduleFilter = options.module || null;
+
+  const syncData = loadSyncFile();
+  const modules = scanCourse(COURSE_DIR);
+
+  if (modules.length === 0) {
+    console.log('[push] No modules found in course/ directory.');
+    return;
+  }
+
+  const filteredModules = moduleFilter
+    ? modules.filter((m) => m.folderName === moduleFilter)
+    : modules;
+
+  if (moduleFilter && filteredModules.length === 0) {
+    console.error(`[push] Error: Module "${moduleFilter}" not found in course/ directory.`);
+    process.exit(1);
+  }
+
+  console.log(`[push] Found ${filteredModules.length} module(s) to push.`);
+  if (dryRun) console.log('[push] DRY RUN - no changes will be made.\n');
+
+  for (const mod of filteredModules) {
+    await pushModule(courseId, mod, syncData, dryRun);
+  }
+
+  // Update last_sync timestamp
+  syncData.last_sync = new Date().toISOString();
+
+  if (!dryRun) {
+    saveSyncFile(syncData);
+    console.log(`\n[push] Sync file updated: ${SYNC_FILE}`);
+  }
+
+  console.log('[push] Done.');
+}
+
+async function pushModule(courseId, mod, syncData, dryRun) {
+  const syncModule = syncData.modules[mod.folderName] || {};
+  const canvasModuleId = syncModule.canvas_module_id;
+
+  let moduleId;
+
+  if (canvasModuleId) {
+    console.log(`[push] Updating module: ${mod.moduleName} (id: ${canvasModuleId})`);
+    if (!dryRun) {
+      const result = await updateModule(courseId, canvasModuleId, {
+        name: mod.moduleName,
+        position: mod.position,
+      });
+      moduleId = result.id;
+    } else {
+      moduleId = canvasModuleId;
+    }
+  } else {
+    console.log(`[push] Creating module: ${mod.moduleName}`);
+    if (!dryRun) {
+      const result = await createModule(courseId, {
+        name: mod.moduleName,
+        position: mod.position,
+      });
+      moduleId = result.id;
+    } else {
+      moduleId = '<new>';
+    }
+  }
+
+  // Save module ID
+  if (!dryRun) {
+    syncData.modules[mod.folderName] = syncData.modules[mod.folderName] || {};
+    syncData.modules[mod.folderName].canvas_module_id = moduleId;
+  }
+
+  // Process items (including subheader items)
+  const flatItems = flattenItems(mod.items);
+
+  for (const item of flatItems) {
+    await pushItem(courseId, moduleId, item, dryRun);
+  }
+}
+
+/**
+ * Flatten items list, inserting SubHeader entries and their nested items.
+ */
+function flattenItems(items) {
+  const result = [];
+  for (const item of items) {
+    if (item.type === 'subheader') {
+      // Add the subheader itself as a module item
+      result.push({
+        type: 'subheader',
+        title: item.title,
+        position: item.position,
+        indent: item.indent,
+      });
+      // Then add its child items
+      if (item.items) {
+        for (const child of item.items) {
+          result.push(child);
+        }
+      }
+    } else {
+      result.push(item);
+    }
+  }
+  return result;
+}
+
+async function pushItem(courseId, moduleId, item, dryRun) {
+  if (item.type === 'subheader') {
+    console.log(`  [push] Adding SubHeader: ${item.title}`);
+    if (!dryRun) {
+      await createModuleItem(courseId, moduleId, {
+        title: item.title,
+        type: 'SubHeader',
+        position: item.position,
+        indent: item.indent,
+      });
+    }
+    return;
+  }
+
+  const { canvasType, title, frontmatter, relativePath, position, indent } = item;
+  const filePath = path.resolve(COURSE_DIR, relativePath);
+  const canvasId = frontmatter.canvas_id || null;
+
+  if (canvasType === 'page') {
+    await pushPage(courseId, moduleId, { title, filePath, relativePath, canvasId, position, indent, frontmatter }, dryRun);
+  } else if (canvasType === 'assignment') {
+    await pushAssignment(courseId, moduleId, { title, filePath, relativePath, canvasId, position, indent, frontmatter }, dryRun);
+  } else if (canvasType === 'external_url') {
+    await pushExternalUrl(courseId, moduleId, { title, position, indent, frontmatter }, dryRun);
+  } else if (canvasType === 'file') {
+    await pushFile(courseId, moduleId, { title, filePath, position, indent }, dryRun);
+  } else {
+    console.log(`  [push] Skipping unknown type "${canvasType}": ${title}`);
+  }
+}
+
+async function pushPage(courseId, moduleId, { title, filePath, relativePath, canvasId, position, indent, frontmatter }, dryRun) {
+  const raw = fs.readFileSync(filePath, 'utf8');
+  const html = markdownToHtml(raw);
+
+  let pageId = canvasId;
+
+  if (canvasId) {
+    console.log(`  [push] Updating page: ${title} (id: ${canvasId})`);
+    if (!dryRun) {
+      const result = await updatePage(courseId, canvasId, { title, body: html });
+      pageId = result.page_id || result.url;
+    }
+  } else {
+    console.log(`  [push] Creating page: ${title}`);
+    if (!dryRun) {
+      const result = await createPage(courseId, { title, body: html });
+      pageId = result.page_id || result.url;
+      // Write canvas_id back to frontmatter
+      updateFrontmatter(filePath, { canvas_id: pageId });
+      console.log(`    [push] Wrote canvas_id=${pageId} to ${relativePath}`);
+    }
+  }
+
+  // Create module item linking to the page
+  if (!dryRun && pageId) {
+    await createModuleItem(courseId, moduleId, {
+      title,
+      type: 'Page',
+      contentId: pageId,
+      position,
+      indent,
+    });
+  }
+}
+
+async function pushAssignment(courseId, moduleId, { title, filePath, relativePath, canvasId, position, indent, frontmatter }, dryRun) {
+  const raw = fs.readFileSync(filePath, 'utf8');
+  const html = markdownToHtml(raw);
+
+  const assignmentOpts = {
+    name: title,
+    description: html,
+  };
+
+  // Map frontmatter fields to assignment options
+  if (frontmatter.points_possible != null) assignmentOpts.pointsPossible = frontmatter.points_possible;
+  if (frontmatter.submission_types) assignmentOpts.submissionTypes = frontmatter.submission_types;
+  if (frontmatter.due_at) assignmentOpts.dueAt = frontmatter.due_at;
+  if (frontmatter.published != null) assignmentOpts.published = frontmatter.published;
+
+  let assignmentId = canvasId;
+
+  if (canvasId) {
+    console.log(`  [push] Updating assignment: ${title} (id: ${canvasId})`);
+    if (!dryRun) {
+      const result = await updateAssignment(courseId, canvasId, assignmentOpts);
+      assignmentId = result.id;
+    }
+  } else {
+    console.log(`  [push] Creating assignment: ${title}`);
+    if (!dryRun) {
+      const result = await createAssignment(courseId, assignmentOpts);
+      assignmentId = result.id;
+      updateFrontmatter(filePath, { canvas_id: assignmentId });
+      console.log(`    [push] Wrote canvas_id=${assignmentId} to ${relativePath}`);
+    }
+  }
+
+  // Create module item linking to the assignment
+  if (!dryRun && assignmentId) {
+    await createModuleItem(courseId, moduleId, {
+      title,
+      type: 'Assignment',
+      contentId: assignmentId,
+      position,
+      indent,
+    });
+  }
+}
+
+async function pushExternalUrl(courseId, moduleId, { title, position, indent, frontmatter }, dryRun) {
+  const url = frontmatter.external_url;
+  if (!url) {
+    console.log(`  [push] Skipping external_url "${title}": no external_url in frontmatter`);
+    return;
+  }
+
+  console.log(`  [push] Creating external URL module item: ${title} -> ${url}`);
+  if (!dryRun) {
+    await createModuleItem(courseId, moduleId, {
+      title,
+      type: 'ExternalUrl',
+      externalUrl: url,
+      position,
+      indent,
+      newTab: frontmatter.new_tab !== false,
+    });
+  }
+}
+
+async function pushFile(courseId, moduleId, { title, filePath, position, indent }, dryRun) {
+  console.log(`  [push] Uploading file: ${title}`);
+  if (!dryRun) {
+    const result = await uploadFile(courseId, filePath);
+    const fileId = result.id;
+
+    await createModuleItem(courseId, moduleId, {
+      title,
+      type: 'File',
+      contentId: fileId,
+      position,
+      indent,
+    });
+    console.log(`    [push] Uploaded file id=${fileId}`);
+  }
+}
+
+module.exports = push;
