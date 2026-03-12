@@ -2,39 +2,13 @@ const fs = require('fs');
 const path = require('path');
 const { prompt, pad, toSlug, createRL } = require('./module-utils');
 const { getItems, printItems, selectModule, selectTargetDir } = require('./item-utils');
+const { renumberUp } = require('./renumber');
 
 const VALID_TYPES = ['page', 'assignment', 'url', 'subsection', 'file'];
 
 function getNextPosition(items) {
   if (items.length === 0) return 1;
   return items[items.length - 1].prefix + 1;
-}
-
-function renumberItemsUp(dirPath, items, fromPosition) {
-  const toRenumber = items
-    .filter((i) => i.prefix >= fromPosition)
-    .sort((a, b) => b.prefix - a.prefix);
-
-  const renamed = [];
-  for (const item of toRenumber) {
-    const newName = item.name.replace(/^\d+/, pad(item.prefix + 1));
-    if (newName === item.name) continue;
-    fs.renameSync(
-      path.join(dirPath, item.name),
-      path.join(dirPath, newName)
-    );
-    // Update _category_.json for subsections
-    if (item.isDirectory) {
-      const catFile = path.join(dirPath, newName, '_category_.json');
-      if (fs.existsSync(catFile)) {
-        const cat = JSON.parse(fs.readFileSync(catFile, 'utf8'));
-        cat.position = item.prefix + 1;
-        fs.writeFileSync(catFile, JSON.stringify(cat, null, 2) + '\n', 'utf8');
-      }
-    }
-    renamed.push({ from: item.name, to: newName });
-  }
-  return renamed;
 }
 
 async function newItem() {
@@ -79,7 +53,7 @@ async function newItem() {
 
     // Renumber if conflict
     if (items.some((i) => i.prefix >= position)) {
-      renumberItemsUp(targetDir, items, position);
+      renumberUp(targetDir, items, position);
     }
 
     const originalName = path.basename(filePath);
@@ -98,7 +72,7 @@ async function newItem() {
     const position = parseInt(positionStr, 10);
 
     if (items.some((i) => i.prefix >= position)) {
-      renumberItemsUp(targetDir, items, position);
+      renumberUp(targetDir, items, position);
     }
 
     const slug = toSlug(name);
@@ -139,7 +113,7 @@ async function newItem() {
     const position = parseInt(positionStr, 10);
 
     if (items.some((i) => i.prefix >= position)) {
-      renumberItemsUp(targetDir, items, position);
+      renumberUp(targetDir, items, position);
     }
 
     const canvasType = type === 'url' ? 'external_url' : type;

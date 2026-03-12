@@ -1,14 +1,11 @@
-const fs = require('fs');
-const path = require('path');
 const {
   COURSE_DIR,
   prompt,
   getExistingModules,
-  pad,
-  renameModule,
   createRL,
   printModules,
 } = require('./module-utils');
+const { reorder } = require('./renumber');
 
 async function moveModule() {
   const rl = createRL();
@@ -49,50 +46,15 @@ async function moveModule() {
     return;
   }
 
-  // Build the new order:
-  // 1. Remove the source module from the list
-  const remaining = modules.filter((m) => m.prefix !== sourcePrefix);
-  // 2. Insert it at the target position (0-indexed: targetPosition - 1)
-  remaining.splice(targetPosition - 1, 0, sourceModule);
+  // Map modules to the format expected by reorder()
+  const entries = modules.map((m) => ({
+    prefix: m.prefix,
+    name: m.folderName,
+    isDirectory: true,
+  }));
 
-  // 3. Rename all folders sequentially, using a temp name first to avoid collisions
-  const tempPrefix = '__move_temp_';
-  const renames = [];
+  const renames = reorder(COURSE_DIR, entries, sourcePrefix, targetPosition);
 
-  // First pass: rename all to temporary names
-  for (let i = 0; i < remaining.length; i++) {
-    const mod = remaining[i];
-    const tempName = `${tempPrefix}${pad(i + 1)}-${mod.folderName.replace(/^\d+-/, '')}`;
-    const oldPath = path.join(COURSE_DIR, mod.folderName);
-    const tempPath = path.join(COURSE_DIR, tempName);
-    fs.renameSync(oldPath, tempPath);
-    remaining[i] = { ...mod, _tempName: tempName };
-  }
-
-  // Second pass: rename from temp to final names
-  for (let i = 0; i < remaining.length; i++) {
-    const mod = remaining[i];
-    const newPrefix = i + 1;
-    const newFolderName = mod.folderName.replace(/^\d+/, pad(newPrefix));
-    const tempPath = path.join(COURSE_DIR, mod._tempName);
-    const finalPath = path.join(COURSE_DIR, newFolderName);
-
-    fs.renameSync(tempPath, finalPath);
-
-    // Update _category_.json
-    const categoryFile = path.join(finalPath, '_category_.json');
-    if (fs.existsSync(categoryFile)) {
-      const category = JSON.parse(fs.readFileSync(categoryFile, 'utf8'));
-      category.position = newPrefix;
-      fs.writeFileSync(categoryFile, JSON.stringify(category, null, 2) + '\n', 'utf8');
-    }
-
-    if (newFolderName !== mod.folderName) {
-      renames.push({ from: mod.folderName, to: newFolderName });
-    }
-  }
-
-  // Summary
   if (renames.length > 0) {
     console.log('[move-module] Reordered modules:');
     for (const r of renames) {

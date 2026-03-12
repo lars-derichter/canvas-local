@@ -2,67 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { prompt, pad, createRL, getExistingModules, printModules, COURSE_DIR } = require('./module-utils');
 const { getItems, printItems, selectModule, selectTargetDir } = require('./item-utils');
-
-/**
- * Renumber items sequentially to close gaps after removal.
- */
-function renumberSequential(dirPath) {
-  const items = getItems(dirPath);
-  const tempPrefix = '__renumber_temp_';
-  const renames = [];
-
-  // First pass: temp names
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-    const tempName = `${tempPrefix}${pad(i + 1)}-${item.name.replace(/^\d+-/, '')}`;
-    fs.renameSync(path.join(dirPath, item.name), path.join(dirPath, tempName));
-    items[i] = { ...item, _tempName: tempName };
-  }
-
-  // Second pass: final names
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-    const newPrefix = i + 1;
-    const newName = item.name.replace(/^\d+/, pad(newPrefix));
-    fs.renameSync(path.join(dirPath, item._tempName), path.join(dirPath, newName));
-    if (item.isDirectory) {
-      const catFile = path.join(dirPath, newName, '_category_.json');
-      if (fs.existsSync(catFile)) {
-        const cat = JSON.parse(fs.readFileSync(catFile, 'utf8'));
-        cat.position = newPrefix;
-        fs.writeFileSync(catFile, JSON.stringify(cat, null, 2) + '\n', 'utf8');
-      }
-    }
-    if (newName !== item.name) {
-      renames.push({ from: item.name, to: newName });
-    }
-  }
-
-  return renames;
-}
-
-/**
- * Make room at a position in destination by renumbering items upward.
- */
-function renumberItemsUp(dirPath, items, fromPosition) {
-  const toRenumber = items
-    .filter((i) => i.prefix >= fromPosition)
-    .sort((a, b) => b.prefix - a.prefix);
-
-  for (const item of toRenumber) {
-    const newName = item.name.replace(/^\d+/, pad(item.prefix + 1));
-    if (newName === item.name) continue;
-    fs.renameSync(path.join(dirPath, item.name), path.join(dirPath, newName));
-    if (item.isDirectory) {
-      const catFile = path.join(dirPath, newName, '_category_.json');
-      if (fs.existsSync(catFile)) {
-        const cat = JSON.parse(fs.readFileSync(catFile, 'utf8'));
-        cat.position = item.prefix + 1;
-        fs.writeFileSync(catFile, JSON.stringify(cat, null, 2) + '\n', 'utf8');
-      }
-    }
-  }
-}
+const { renumberSequential, renumberUp } = require('./renumber');
 
 async function moveToModule() {
   const rl = createRL();
@@ -120,7 +60,7 @@ async function moveToModule() {
 
   // Make room at destination
   if (destItems.some((i) => i.prefix >= position)) {
-    renumberItemsUp(destDir, destItems, position);
+    renumberUp(destDir, destItems, position);
   }
 
   // Move the item
@@ -131,7 +71,7 @@ async function moveToModule() {
   fs.renameSync(sourcePath, destPath);
 
   // Renumber source to close gap
-  const sourceRenames = renumberSequential(sourceDir);
+  const sourceRenames = renumberSequential(sourceDir, getItems);
 
   console.log(`[movetomodule] Moved ${item.name} -> ${path.relative(process.cwd(), destPath)}`);
   if (sourceRenames.length > 0) {

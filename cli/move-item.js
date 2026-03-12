@@ -1,7 +1,6 @@
-const fs = require('fs');
-const path = require('path');
-const { prompt, pad, createRL } = require('./module-utils');
+const { prompt, createRL } = require('./module-utils');
 const { getItems, printItems, selectModule, selectTargetDir } = require('./item-utils');
+const { reorder } = require('./renumber');
 
 async function moveItem() {
   const rl = createRL();
@@ -44,48 +43,7 @@ async function moveItem() {
     return;
   }
 
-  // Build new order
-  const remaining = items.filter((i) => i.prefix !== sourcePrefix);
-  remaining.splice(targetPosition - 1, 0, sourceItem);
-
-  // Two-pass rename via temp names to avoid collisions
-  const tempPrefix = '__item_move_temp_';
-  const renames = [];
-
-  for (let i = 0; i < remaining.length; i++) {
-    const item = remaining[i];
-    const tempName = `${tempPrefix}${pad(i + 1)}-${item.name.replace(/^\d+-/, '')}`;
-    fs.renameSync(
-      path.join(targetDir, item.name),
-      path.join(targetDir, tempName)
-    );
-    remaining[i] = { ...item, _tempName: tempName };
-  }
-
-  for (let i = 0; i < remaining.length; i++) {
-    const item = remaining[i];
-    const newPrefix = i + 1;
-    const newName = item.name.replace(/^\d+/, pad(newPrefix));
-
-    fs.renameSync(
-      path.join(targetDir, item._tempName),
-      path.join(targetDir, newName)
-    );
-
-    // Update _category_.json for subsections
-    if (item.isDirectory) {
-      const catFile = path.join(targetDir, newName, '_category_.json');
-      if (fs.existsSync(catFile)) {
-        const cat = JSON.parse(fs.readFileSync(catFile, 'utf8'));
-        cat.position = newPrefix;
-        fs.writeFileSync(catFile, JSON.stringify(cat, null, 2) + '\n', 'utf8');
-      }
-    }
-
-    if (newName !== item.name) {
-      renames.push({ from: item.name, to: newName });
-    }
-  }
+  const renames = reorder(targetDir, items, sourcePrefix, targetPosition);
 
   if (renames.length > 0) {
     console.log('[move-item] Reordered items:');
