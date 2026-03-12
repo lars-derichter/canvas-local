@@ -63,8 +63,11 @@ async function push(options) {
   if (dryRun) console.log('[push] DRY RUN - no changes will be made.\n');
 
   const errors = [];
+  const totalModules = filteredModules.length;
 
-  for (const mod of filteredModules) {
+  for (let mi = 0; mi < filteredModules.length; mi++) {
+    const mod = filteredModules[mi];
+    console.log(`\n[push] Module ${mi + 1}/${totalModules}: ${mod.moduleName}`);
     try {
       await pushModule(courseId, mod, syncData, dryRun);
     } catch (err) {
@@ -133,12 +136,15 @@ async function pushModule(courseId, mod, syncData, dryRun) {
 
   // Process items (including subheader items)
   const flatItems = flattenItems(mod.items);
+  const totalItems = flatItems.length;
 
-  for (const item of flatItems) {
+  for (let ii = 0; ii < flatItems.length; ii++) {
+    const item = flatItems[ii];
+    const itemTitle = item.title || item.file || 'unknown';
+    console.log(`  [push] Item ${ii + 1}/${totalItems}: ${itemTitle}`);
     try {
       await pushItem(courseId, moduleId, item, dryRun);
     } catch (err) {
-      const itemTitle = item.title || item.file || 'unknown';
       console.error(`  [push] Error pushing item "${itemTitle}": ${err.message}`);
     }
   }

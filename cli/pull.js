@@ -80,8 +80,11 @@ async function pull() {
   }
 
   const errors = [];
+  const totalModules = modules.length;
 
-  for (const mod of modules) {
+  for (let mi = 0; mi < modules.length; mi++) {
+    const mod = modules[mi];
+    console.log(`[pull] Module ${mi + 1}/${totalModules}: ${mod.name}`);
     try {
       await pullModule(courseId, mod, syncData);
     } catch (err) {
@@ -141,11 +144,14 @@ async function pullModule(courseId, mod, syncData) {
     return;
   }
 
+  const totalItems = items.length;
   let itemPosition = 0;
   let currentSubfolder = null; // Track active subfolder for indented items
 
-  for (const item of items) {
+  for (let ii = 0; ii < items.length; ii++) {
+    const item = items[ii];
     itemPosition++;
+    console.log(`  [pull] Item ${ii + 1}/${totalItems}: ${item.title || item.type}`);
 
     if (item.type === 'SubHeader') {
       // Create a subfolder for this SubHeader
