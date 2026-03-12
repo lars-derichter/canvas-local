@@ -4,13 +4,20 @@ require('dotenv').config();
 
 const { Command } = require('commander');
 const pkg = require('../package.json');
+const log = require('./logger');
 
 const program = new Command();
 
 program
   .name('canvas-local')
   .description('Sync course content with Canvas LMS')
-  .version(pkg.version);
+  .version(pkg.version)
+  .option('-v, --verbose', 'Show detailed output including API request info')
+  .option('-q, --quiet', 'Only show errors')
+  .hook('preAction', () => {
+    const opts = program.opts();
+    log.configure({ verbose: opts.verbose, quiet: opts.quiet });
+  });
 
 program
   .command('init')
