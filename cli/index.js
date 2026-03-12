@@ -32,6 +32,7 @@ program
 program
   .command('status')
   .description('Compare local course content with Canvas sync state')
+  .option('-r, --remote', 'Also fetch and compare against Canvas course data')
   .action(require('./status'));
 
 program
