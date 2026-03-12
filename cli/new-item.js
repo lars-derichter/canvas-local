@@ -105,6 +105,13 @@ async function newItem() {
         console.error('[new-item] Error: URL is required.');
         process.exit(1);
       }
+      try {
+        new URL(url);
+      } catch (_) {
+        rl.close();
+        console.error(`[new-item] Error: "${url}" is not a valid URL.`);
+        process.exit(1);
+      }
       extraFrontmatter = `external_url: ${url}\n`;
     }
 

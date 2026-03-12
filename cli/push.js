@@ -297,7 +297,7 @@ async function pushAssignment(courseId, moduleId, { title, filePath, relativePat
 async function pushExternalUrl(courseId, moduleId, { title, position, indent, frontmatter }, dryRun) {
   const url = frontmatter.external_url;
   if (!url) {
-    console.log(`  [push] Skipping external_url "${title}": no external_url in frontmatter`);
+    console.warn(`  [push] WARNING: Skipping "${title}" — canvas_type is external_url but external_url field is missing in frontmatter`);
     return;
   }
 
