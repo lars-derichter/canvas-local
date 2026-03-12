@@ -21,6 +21,7 @@ function loadSyncFile() {
     }
   }
   return {
+    schema_version: 2,
     canvas_base_url: process.env.CANVAS_API_URL || '',
     course_id: Number(process.env.CANVAS_COURSE_ID) || 0,
     modules: {},
@@ -134,10 +135,11 @@ async function pushModule(courseId, mod, syncData, dryRun) {
     }
   }
 
-  // Save module ID
+  // Save module ID and initialize items tracking
   if (!dryRun) {
     syncData.modules[mod.folderName] = syncData.modules[mod.folderName] || {};
     syncData.modules[mod.folderName].canvas_module_id = moduleId;
+    syncData.modules[mod.folderName].items = syncData.modules[mod.folderName].items || {};
   }
 
   // Process items (including subheader items)
@@ -150,6 +152,13 @@ async function pushModule(courseId, mod, syncData, dryRun) {
     console.log(`  [push] Item ${ii + 1}/${totalItems}: ${itemTitle}`);
     try {
       await pushItem(courseId, moduleId, item, dryRun);
+      // Track item in sync file
+      if (!dryRun && item.relativePath && item.frontmatter && item.frontmatter.canvas_id) {
+        syncData.modules[mod.folderName].items[item.relativePath] = {
+          canvas_id: item.frontmatter.canvas_id,
+          canvas_type: item.canvasType || 'page',
+        };
+      }
     } catch (err) {
       console.error(`  [push] Error pushing item "${itemTitle}": ${err.message}`);
     }

@@ -65,6 +65,7 @@ async function init() {
 
   // Create .canvas-sync.json
   const syncData = {
+    schema_version: 2,
     canvas_base_url: baseUrl.replace(/\/api\/v1$/, ''),
     course_id: Number(courseId),
     modules: {},

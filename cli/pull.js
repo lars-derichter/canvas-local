@@ -18,6 +18,7 @@ function loadSyncFile() {
     }
   }
   return {
+    schema_version: 2,
     canvas_base_url: process.env.CANVAS_API_URL || '',
     course_id: Number(process.env.CANVAS_COURSE_ID) || 0,
     modules: {},
