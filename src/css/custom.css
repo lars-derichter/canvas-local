@@ -1,20 +1,395 @@
+/* Thomas More inspired theme — orange accent, light geometric sans-serif */
+
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600&family=Inconsolata:wght@400&display=swap');
+
+/* ---------------------------------------------------------------------------
+   CSS Custom Properties
+   --------------------------------------------------------------------------- */
+
 :root {
-  --ifm-color-primary: #2e8555;
-  --ifm-color-primary-dark: #29784c;
-  --ifm-color-primary-darker: #277148;
-  --ifm-color-primary-darkest: #205d3b;
-  --ifm-color-primary-light: #33925d;
-  --ifm-color-primary-lighter: #359962;
-  --ifm-color-primary-lightest: #3cad6e;
-  --ifm-code-font-size: 95%;
+  /* Primary orange palette */
+  --ifm-color-primary: #fa6432;
+  --ifm-color-primary-dark: #f94d14;
+  --ifm-color-primary-darker: #ef4209;
+  --ifm-color-primary-darkest: #c53707;
+  --ifm-color-primary-light: #fb7d52;
+  --ifm-color-primary-lighter: #fb8a63;
+  --ifm-color-primary-lightest: #fcab8e;
+
+  /* Dark accent (navy) */
+  --tm-color-dark: #00283c;
+
+  /* Neutrals */
+  --tm-color-text: #000a1e;
+  --tm-color-border: #e8ebee;
+  --tm-color-tint-1: #dee1e4;
+  --tm-color-tint-2: #e8ebee;
+  --tm-color-tint-3: #f2f5f8;
+
+  /* Typography */
+  --ifm-font-family-base: 'Nunito', 'Century Gothic', CenturyGothic, AppleGothic,
+    'Gill Sans', sans-serif;
+  --ifm-font-family-monospace: 'Inconsolata', Consolas, Menlo, Monaco,
+    'Courier New', monospace;
+  --ifm-font-size-base: 1.2rem;
+  --ifm-font-weight-base: 300;
+  --ifm-line-height-base: 1.75;
+  --ifm-heading-font-weight: 400;
+  --ifm-font-weight-semibold: 600;
+  --ifm-font-weight-bold: 600;
+
+  /* Code */
+  --ifm-code-font-size: 1rem;
+  --ifm-code-border-radius: 3px;
+  --ifm-code-padding-horizontal: 0.35rem;
+  --ifm-code-padding-vertical: 0.1rem;
+  --ifm-code-background: var(--tm-color-tint-2);
+
+  /* Headings */
+  --ifm-heading-color: #fa6432;
+
+  /* Links */
+  --ifm-link-color: #fa6432;
+  --ifm-link-decoration: underline;
+  --ifm-link-hover-decoration: underline;
+
+  /* Layout */
+  --ifm-global-radius: 4px;
+  --ifm-color-emphasis-300: var(--tm-color-border);
+  --doc-sidebar-width: 17rem;
+
+  /* Backgrounds */
+  --ifm-background-color: #ffffff;
+  --ifm-color-content-secondary: var(--tm-color-text);
+  --ifm-font-color-base: var(--tm-color-text);
+
+  /* Navbar */
+  --ifm-navbar-background-color: #ffffff;
+  --ifm-navbar-shadow: none;
+
+  /* Footer */
+  --ifm-footer-background-color: var(--tm-color-dark);
+  --ifm-footer-color: #ffffff;
 }
 
-[data-theme='dark'] {
-  --ifm-color-primary: #25c2a0;
-  --ifm-color-primary-dark: #21af90;
-  --ifm-color-primary-darker: #1fa588;
-  --ifm-color-primary-darkest: #1a8870;
-  --ifm-color-primary-light: #29d5b0;
-  --ifm-color-primary-lighter: #32d8b4;
-  --ifm-color-primary-lightest: #4fddbf;
+/* ---------------------------------------------------------------------------
+   Typography
+   --------------------------------------------------------------------------- */
+
+strong,
+b {
+  color: var(--tm-color-dark);
+  font-weight: 600;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--ifm-heading-color);
+  font-weight: 400;
+  font-family: var(--ifm-font-family-base);
+}
+
+h2 {
+  border-bottom: 1px solid var(--tm-color-border);
+  padding-bottom: 0.4rem;
+}
+
+/* ---------------------------------------------------------------------------
+   Inline code
+   --------------------------------------------------------------------------- */
+
+code {
+  background: var(--tm-color-tint-2);
+  color: var(--tm-color-text);
+  border: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Code blocks — override background inside pre
+   --------------------------------------------------------------------------- */
+
+pre code {
+  background: transparent;
+  color: inherit;
+}
+
+div[class*='codeBlockContainer'] {
+  border: none;
+  border-radius: var(--ifm-global-radius);
+  overflow: hidden;
+}
+
+/* Language label in top-right */
+div[class*='codeBlockTitle'] {
+  background: transparent;
+  color: #999999;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ---------------------------------------------------------------------------
+   Navbar
+   --------------------------------------------------------------------------- */
+
+.navbar {
+  border-bottom: 1px solid var(--tm-color-border);
+}
+
+.navbar__brand,
+.navbar__brand:hover {
+  text-decoration: none;
+}
+
+.navbar__title {
+  color: #fa6432;
+  font-weight: 400;
+  font-size: 1.3rem;
+}
+
+.navbar__link {
+  text-decoration: none;
+}
+
+/* Hide color mode toggle (we disable it in config, but belt-and-suspenders) */
+[class*='colorModeToggle'] {
+  display: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Sidebar
+   --------------------------------------------------------------------------- */
+
+.theme-doc-sidebar-container {
+  background: var(--tm-color-tint-3);
+  border-right: 1px solid var(--tm-color-border) !important;
+}
+
+nav.menu {
+  background: var(--tm-color-tint-3);
+  padding: 1rem;
+}
+
+/* Sidebar links */
+.menu__link {
+  color: var(--tm-color-text);
+  text-decoration: none;
+  font-weight: 300;
+  border-radius: 0;
+  padding-left: 0.75rem;
+  border-left: 3px solid transparent;
+}
+
+.menu__link:hover {
+  background: transparent;
+  color: var(--ifm-color-primary);
+}
+
+/* Active sidebar item — orange left bar */
+.menu__link--active:not(.menu__link--sublist) {
+  color: #fa6432;
+  font-weight: 400;
+  background: transparent;
+  border-left: 4px solid #fa6432;
+}
+
+/* Subcategory labels (collapsible) */
+.menu__link--sublist {
+  font-weight: 400;
+}
+
+.menu__caret::before,
+.menu__link--sublist-caret::after {
+  background-size: 1.2em 1.2em;
+  opacity: 0.4;
+}
+
+/* ---------------------------------------------------------------------------
+   Content area layout
+   --------------------------------------------------------------------------- */
+
+/* Let the doc main area fill the available width so the TOC can sit far right */
+[class*='docMainContainer'] {
+  max-width: 100%;
+}
+
+/* Wide container so content + TOC can spread across the viewport */
+[class*='docItemContainer'] > .container,
+.container {
+  max-width: 1400px;
+}
+
+/* Override the default 75% col cap — content + TOC side by side */
+@media (min-width: 997px) {
+  [class*='docItemCol'] {
+    max-width: 48rem !important;
+    flex: 0 0 48rem !important;
+    padding: 0 2rem;
+  }
+
+  /* TOC sits next to content with generous gap */
+  div.col.col--3 {
+    max-width: none !important;
+    margin-left: 4rem;
+  }
+}
+
+article {
+  padding: 0 1rem;
+}
+
+.markdown {
+  --ifm-link-color: #fa6432;
+}
+
+.markdown a {
+  text-decoration: underline;
+}
+
+/* ---------------------------------------------------------------------------
+   Table of Contents (right sidebar)
+   --------------------------------------------------------------------------- */
+
+.table-of-contents {
+  border-left: 3px solid var(--tm-color-border);
+  font-size: 0.85rem;
+  width: 14rem;
+}
+
+.table-of-contents__link {
+  color: var(--tm-color-text);
+  text-decoration: none;
+}
+
+.table-of-contents__link--active,
+.table-of-contents__link:hover {
+  color: #fa6432;
+}
+
+/* ---------------------------------------------------------------------------
+   Admonitions / Callout boxes
+   --------------------------------------------------------------------------- */
+
+/* Shared admonition base */
+.alert {
+  border: none;
+  border-left: 5px solid;
+  border-top: 1px solid var(--tm-color-border);
+  border-bottom: 1px solid var(--tm-color-border);
+  border-radius: 0;
+  background: #ffffff;
+  padding: 1.25rem 1.5rem;
+  --ifm-alert-foreground-color: var(--tm-color-text);
+}
+
+/* Orange variants: tip, warning, caution */
+.alert--warning,
+.alert--danger,
+.alert--tip {
+  border-left-color: #fa6432;
+  background: rgba(250, 100, 50, 0.04);
+}
+
+.alert--warning .admonitionHeading_node_modules-\@docusaurus-theme-classic-lib-theme-Admonition-Layout-styles-module,
+.alert--danger .admonitionHeading_node_modules-\@docusaurus-theme-classic-lib-theme-Admonition-Layout-styles-module,
+.alert--tip .admonitionHeading_node_modules-\@docusaurus-theme-classic-lib-theme-Admonition-Layout-styles-module {
+  color: #fa6432;
+}
+
+/* Use more stable selectors for admonition headings */
+.alert--warning [class*='admonitionHeading'],
+.alert--danger [class*='admonitionHeading'],
+.alert--tip [class*='admonitionHeading'] {
+  color: #fa6432;
+}
+
+.alert--warning svg,
+.alert--danger svg,
+.alert--tip svg {
+  fill: #fa6432;
+}
+
+/* Navy variants: info, note */
+.alert--info,
+.alert--secondary {
+  border-left-color: var(--tm-color-dark);
+  background: rgba(0, 40, 60, 0.03);
+}
+
+.alert--info [class*='admonitionHeading'],
+.alert--secondary [class*='admonitionHeading'] {
+  color: var(--tm-color-dark);
+}
+
+.alert--info svg,
+.alert--secondary svg {
+  fill: var(--tm-color-dark);
+}
+
+/* Success variant — treat like info/navy */
+.alert--success {
+  border-left-color: var(--tm-color-dark);
+  background: rgba(0, 40, 60, 0.03);
+}
+
+.alert--success [class*='admonitionHeading'] {
+  color: var(--tm-color-dark);
+}
+
+.alert--success svg {
+  fill: var(--tm-color-dark);
+}
+
+/* ---------------------------------------------------------------------------
+   Pagination (prev / next)
+   --------------------------------------------------------------------------- */
+
+.pagination-nav {
+  border-top: 1px solid var(--tm-color-border);
+  padding-top: 1.5rem;
+}
+
+.pagination-nav__link {
+  border: none;
+  border-radius: 0;
+  padding: 0.75rem 0;
+  text-decoration: none;
+}
+
+.pagination-nav__link:hover {
+  border: none;
+  background: transparent;
+}
+
+.pagination-nav__link:hover .pagination-nav__label {
+  color: #fa6432;
+}
+
+.pagination-nav__sublabel {
+  font-size: 0.85rem;
+  color: var(--tm-color-text);
+}
+
+.pagination-nav__label {
+  font-size: 1.1rem;
+  color: var(--tm-color-text);
+  font-weight: 400;
+}
+
+/* ---------------------------------------------------------------------------
+   Breadcrumbs
+   --------------------------------------------------------------------------- */
+
+.breadcrumbs__link {
+  text-decoration: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Scrollbar & misc
+   --------------------------------------------------------------------------- */
+
+::selection {
+  background: rgba(250, 100, 50, 0.2);
 }

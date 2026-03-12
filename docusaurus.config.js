@@ -43,6 +43,11 @@ const config = {
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
+      colorMode: {
+        defaultMode: 'light',
+        disableSwitch: true,
+        respectPrefersColorScheme: false,
+      },
       navbar: {
         title: 'Canvas Local',
         items: [],
@@ -50,6 +55,9 @@ const config = {
       footer: {
         style: 'dark',
         copyright: `Copyright © ${new Date().getFullYear()}`,
+      },
+      prism: {
+        theme: require('prism-react-renderer').themes.oneDark,
       },
     }),
 };
