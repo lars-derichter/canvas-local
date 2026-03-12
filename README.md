@@ -27,11 +27,21 @@ npm run build      # production build
 ## Canvas Sync
 
 ```bash
-npx course push              # push all modules to Canvas
-npx course push --dry-run   # preview without making changes
-npx course push -m 01-intro # push a single module
-npx course pull              # import existing Canvas course
-npx course status            # compare local vs Canvas state
+npx course push                  # push all modules to Canvas
+npx course push --dry-run        # preview without making changes
+npx course push -m 01-intro      # push a single module
+npx course push --prune          # also delete Canvas modules removed locally
+npx course pull                  # import existing Canvas course
+npx course pull --force           # overwrite locally modified files
+npx course status                # compare local vs Canvas state
+npx course status --remote       # also fetch and compare against Canvas
+```
+
+### Global flags
+
+```bash
+npx course --verbose <command>   # show API request details
+npx course --quiet <command>     # only show errors
 ```
 
 ## Managing Modules
@@ -88,15 +98,22 @@ evaluations/
       solution/              # example solution
 ```
 
+## Resilience & Conflict Detection
+
+- **Retry logic**: API calls automatically retry on 429 (rate limit) and 5xx errors with exponential backoff (up to 3 attempts).
+- **Error recovery**: If a single module or item fails during push/pull, the remaining items continue and a summary of errors is shown at the end.
+- **Conflict detection**: `pull` checks if local files have been modified since the last sync and skips them to avoid overwriting your work. Use `--force` to override.
+- **Progress counters**: Push and pull show progress like `Module 2/5`, `Item 3/12`.
+
 ## VS Code Integration
 
-All course commands are available in the VS Code command palette. To install:
+All course commands are available in the VS Code command palette. The extension validates that a `course/` directory exists before running commands and shows notification messages when commands start. To install:
 
 ```bash
 npm run vscode:install
 ```
 
-Then open the command palette (Cmd+Shift+P) and type "Course:" to see all available commands.
+Then open the command palette (Cmd+Shift+P) and type "Canvas Local:" to see all available commands.
 
 ## Environment Variables
 
