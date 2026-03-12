@@ -31,6 +31,27 @@ function getWorkingDir() {
   return workspaceRoot;
 }
 
+/**
+ * Check if the workspace has a course/ directory.
+ * Shows an error message if not found.
+ */
+function validateWorkspace() {
+  const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  if (!workspaceRoot) {
+    vscode.window.showErrorMessage('Canvas Local: No workspace folder open.');
+    return null;
+  }
+
+  const courseDir = path.join(workspaceRoot, 'course');
+  if (!fs.existsSync(courseDir)) {
+    vscode.window.showWarningMessage(
+      'Canvas Local: No course/ directory found. Run "Canvas Local: Init" first.'
+    );
+  }
+
+  return workspaceRoot;
+}
+
 function runInTerminal(commandStr, cwd) {
   const terminal = vscode.window.createTerminal({
     name: 'Canvas Local',
@@ -38,18 +59,27 @@ function runInTerminal(commandStr, cwd) {
   });
   terminal.show();
   terminal.sendText(commandStr);
+  vscode.window.showInformationMessage(`Canvas Local: Running "${commandStr.replace('npx course ', '')}"`);
 }
 
 function activate(context) {
+  // Commands that don't need workspace validation (init creates the workspace)
+  const noValidationCommands = new Set(['course.init']);
+
   for (const [id, cmd] of Object.entries(commands)) {
     context.subscriptions.push(
-      vscode.commands.registerCommand(id, () => runInTerminal(cmd))
+      vscode.commands.registerCommand(id, () => {
+        if (!noValidationCommands.has(id)) {
+          if (!validateWorkspace()) return;
+        }
+        runInTerminal(cmd);
+      })
     );
   }
 
   context.subscriptions.push(
     vscode.commands.registerCommand('course.pushModule', async () => {
-      const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      const workspaceRoot = validateWorkspace();
       if (!workspaceRoot) return;
 
       const courseDir = path.join(workspaceRoot, 'course');
