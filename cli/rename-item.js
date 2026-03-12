@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const matter = require('gray-matter');
-const { prompt, pad, toSlug, createRL } = require('./module-utils');
+const { prompt, pad, toSlug, createRL, safeReadJSON } = require('./module-utils');
 const { getItems, printItems, selectModule, selectTargetDir } = require('./item-utils');
 
 async function renameItem() {
@@ -53,7 +53,7 @@ async function renameItem() {
 
     const catFile = path.join(newPath, '_category_.json');
     if (fs.existsSync(catFile)) {
-      const cat = JSON.parse(fs.readFileSync(catFile, 'utf8'));
+      const cat = safeReadJSON(catFile);
       cat.label = newName;
       fs.writeFileSync(catFile, JSON.stringify(cat, null, 2) + '\n', 'utf8');
     } else {

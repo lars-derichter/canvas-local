@@ -1,18 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { pad } = require('./module-utils');
-const { getItems } = require('./item-utils');
-
-/**
- * Read and safely parse a JSON file. Returns null on failure.
- */
-function readJSON(filePath) {
-  try {
-    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-  } catch (_) {
-    return null;
-  }
-}
+const { pad, safeReadJSON } = require('./module-utils');
 
 /**
  * Update the position field in a _category_.json file inside a directory entry.
@@ -20,7 +8,7 @@ function readJSON(filePath) {
 function updateCategoryPosition(dirPath, entryName, newPosition) {
   const catFile = path.join(dirPath, entryName, '_category_.json');
   if (!fs.existsSync(catFile)) return;
-  const cat = readJSON(catFile);
+  const cat = safeReadJSON(catFile, null);
   if (!cat) return;
   cat.position = newPosition;
   fs.writeFileSync(catFile, JSON.stringify(cat, null, 2) + '\n', 'utf8');

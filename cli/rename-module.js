@@ -8,6 +8,7 @@ const {
   toSlug,
   createRL,
   printModules,
+  safeReadJSON,
 } = require('./module-utils');
 
 async function renameModule() {
@@ -56,7 +57,7 @@ async function renameModule() {
   // Update _category_.json
   const categoryFile = path.join(newFolder, '_category_.json');
   if (fs.existsSync(categoryFile)) {
-    const category = JSON.parse(fs.readFileSync(categoryFile, 'utf8'));
+    const category = safeReadJSON(categoryFile);
     category.label = newName;
     fs.writeFileSync(categoryFile, JSON.stringify(category, null, 2) + '\n', 'utf8');
   } else {

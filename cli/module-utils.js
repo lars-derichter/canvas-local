@@ -58,7 +58,7 @@ function renameModule(folderName, newPrefix) {
   // Update _category_.json if it exists
   const categoryFile = path.join(newFolder, '_category_.json');
   if (fs.existsSync(categoryFile)) {
-    const category = JSON.parse(fs.readFileSync(categoryFile, 'utf8'));
+    const category = safeReadJSON(categoryFile);
     category.position = newPrefix;
     fs.writeFileSync(categoryFile, JSON.stringify(category, null, 2) + '\n', 'utf8');
   }
@@ -88,6 +88,25 @@ function toSlug(name) {
 }
 
 /**
+ * Safely read and parse a JSON file. Returns the parsed object, or
+ * a fallback value if the file is missing or contains invalid JSON.
+ *
+ * @param {string} filePath - Path to the JSON file.
+ * @param {*} [fallback={}] - Value to return on failure.
+ * @returns {*} Parsed JSON or the fallback value.
+ */
+function safeReadJSON(filePath, fallback = {}) {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch (err) {
+    if (err.code !== 'ENOENT') {
+      console.warn(`[warn] Failed to parse ${path.basename(filePath)}: ${err.message}`);
+    }
+    return fallback;
+  }
+}
+
+/**
  * Print the list of existing modules.
  */
 function printModules(modules) {
@@ -108,4 +127,5 @@ module.exports = {
   renameModule,
   createRL,
   printModules,
+  safeReadJSON,
 };
