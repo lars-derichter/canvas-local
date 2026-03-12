@@ -47,6 +47,7 @@ Three layers:
 
 - `course/` — Course materials (replaces default Docusaurus `docs/`). One folder per module, numbered 00-99 for ordering. Subfolders become Canvas "Text Header" items.
 - `evaluations/` — Exam/test materials organized by academic year (e.g., `2526/`). Each test has `instructions.md`, optional `start/` and `solution/` folders. Not served by Docusaurus.
+- `sources/` — Reference materials, inspiration, and notes. Not served by Docusaurus or synced to Canvas. See `sources/README.md` for conventions.
 - `lib/canvas/` — Canvas REST API client (`client.js`) and resource-specific modules (`modules.js`, `pages.js`, `assignments.js`, `files.js`)
 - `lib/convert/` — Bidirectional content conversion: `frontmatter.js` (gray-matter), `markdown-to-html.js` (marked), `html-to-markdown.js` (turndown), `course-scanner.js` (walks course/ directory)
 - `cli/` — CLI entry point and command handlers
