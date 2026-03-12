@@ -86,6 +86,9 @@ async function init() {
   fs.writeFileSync(SYNC_FILE, JSON.stringify(syncData, null, 2) + '\n', 'utf8');
   console.log(`[init] Wrote ${SYNC_FILE}`);
 
+  console.log('\n[init] ⚠ Security reminder: .env contains your Canvas API token.');
+  console.log('[init]   Make sure .env is listed in .gitignore and never committed to version control.');
+
   console.log('\n[init] Setup complete. You can now run:');
   console.log('  course-cli push   - push local content to Canvas');
   console.log('  course-cli pull   - pull Canvas content locally');
