@@ -1,7 +1,7 @@
-# course-template
+# Canvas Local
 
-Course development system: write course materials as markdown, preview via
-Docusaurus, and sync with Canvas LMS.
+Write course materials as markdown, preview via Docusaurus, and sync with
+Canvas LMS.
 
 ## Setup
 

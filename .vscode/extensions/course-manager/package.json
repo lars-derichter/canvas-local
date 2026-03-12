@@ -1,7 +1,7 @@
 {
-  "name": "course-manager",
-  "displayName": "Course Manager",
-  "description": "VS Code palette commands for the course CLI",
+  "name": "canvas-local",
+  "displayName": "Canvas Local",
+  "description": "VS Code palette commands for Canvas Local CLI",
   "version": "0.1.0",
   "publisher": "local",
   "engines": {

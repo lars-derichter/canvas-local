@@ -33,7 +33,7 @@ function getWorkingDir() {
 
 function runInTerminal(commandStr, cwd) {
   const terminal = vscode.window.createTerminal({
-    name: 'Course CLI',
+    name: 'Canvas Local',
     cwd: cwd || getWorkingDir(),
   });
   terminal.show();

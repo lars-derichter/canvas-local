@@ -2,7 +2,7 @@
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
-  title: 'Course Template',
+  title: 'Canvas Local',
   tagline: 'Course materials',
   favicon: 'img/favicon.ico',
 
@@ -44,7 +44,7 @@ const config = {
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
       navbar: {
-        title: 'Course Template',
+        title: 'Canvas Local',
         items: [],
       },
       footer: {

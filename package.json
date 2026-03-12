@@ -1,8 +1,8 @@
 {
-  "name": "course-template",
+  "name": "canvas-local",
   "version": "0.1.0",
   "private": true,
-  "description": "Template and utility scripts for course materials",
+  "description": "Write course materials locally, sync to Canvas LMS",
   "license": "Unlicense",
   "bin": {
     "course": "./cli/index.js"
@@ -25,8 +25,8 @@
     "item:movetomodule": "node cli/index.js movetomodule-item",
     "item:rename": "node cli/index.js rename-item",
     "item:delete": "node cli/index.js delete-item",
-    "vscode:package": "cd .vscode/extensions/course-manager && npx @vscode/vsce package -o course-manager.vsix",
-    "vscode:install": "npm run vscode:package && code --install-extension .vscode/extensions/course-manager/course-manager.vsix"
+    "vscode:package": "cd .vscode/extensions/course-manager && npx @vscode/vsce package -o canvas-local.vsix",
+    "vscode:install": "npm run vscode:package && code --install-extension .vscode/extensions/course-manager/canvas-local.vsix"
   },
   "dependencies": {
     "@docusaurus/core": "^3.7.0",

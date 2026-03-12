@@ -8,7 +8,7 @@ const pkg = require('../package.json');
 const program = new Command();
 
 program
-  .name('course-cli')
+  .name('canvas-local')
   .description('Sync course content with Canvas LMS')
   .version(pkg.version);
 
