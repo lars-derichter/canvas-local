@@ -55,13 +55,14 @@ function toFileName(title, position) {
   return `${prefix}-${slug}.md`;
 }
 
-async function pull() {
+async function pull(options) {
   const courseId = process.env.CANVAS_COURSE_ID;
   if (!courseId) {
     console.error('[pull] Error: CANVAS_COURSE_ID is not set. Run "course-cli init" first.');
     process.exit(1);
   }
 
+  const force = options && options.force;
   const syncData = loadSyncFile();
 
   console.log(`[pull] Fetching modules for course ${courseId}...`);
@@ -86,7 +87,7 @@ async function pull() {
     const mod = modules[mi];
     console.log(`[pull] Module ${mi + 1}/${totalModules}: ${mod.name}`);
     try {
-      await pullModule(courseId, mod, syncData);
+      await pullModule(courseId, mod, syncData, force);
     } catch (err) {
       console.error(`[pull] Error pulling module "${mod.name}": ${err.message}`);
       errors.push({ module: mod.name, error: err.message });
@@ -111,7 +112,7 @@ async function pull() {
   }
 }
 
-async function pullModule(courseId, mod, syncData) {
+async function pullModule(courseId, mod, syncData, force) {
   const position = mod.position || 0;
   const folderName = toFolderName(mod.name, position);
   const moduleDir = path.join(COURSE_DIR, folderName);
@@ -190,14 +191,27 @@ async function pullModule(courseId, mod, syncData) {
     }
 
     try {
-      await pullItem(courseId, item, targetDir, itemPosition);
+      await pullItem(courseId, item, targetDir, itemPosition, syncData, force);
     } catch (err) {
       console.error(`  [pull] Error pulling item "${item.title || 'unknown'}": ${err.message}`);
     }
   }
 }
 
-async function pullItem(courseId, item, moduleDir, position) {
+/**
+ * Check if a local file has been modified since the last sync.
+ * Returns true if the file exists and was modified after last_sync.
+ */
+function isLocallyModified(filePath, syncData) {
+  if (!fs.existsSync(filePath)) return false;
+  if (!syncData.last_sync) return false;
+
+  const stat = fs.statSync(filePath);
+  const lastSync = new Date(syncData.last_sync);
+  return stat.mtime > lastSync;
+}
+
+async function pullItem(courseId, item, moduleDir, position, syncData, force) {
   const itemType = item.type;
   const title = item.title || 'Untitled';
 
@@ -208,11 +222,17 @@ async function pullItem(courseId, item, moduleDir, position) {
       return;
     }
 
+    const fileName = toFileName(title, position);
+    const filePath = path.join(moduleDir, fileName);
+
+    if (!force && isLocallyModified(filePath, syncData)) {
+      console.log(`    [pull] SKIPPED ${fileName} (locally modified since last sync, use --force to overwrite)`);
+      return;
+    }
+
     console.log(`  [pull] Fetching page: ${title}`);
     const page = await getPage(courseId, pageUrl);
     const markdown = canvasItemToMarkdown(page, 'page');
-    const fileName = toFileName(title, position);
-    const filePath = path.join(moduleDir, fileName);
     fs.writeFileSync(filePath, markdown, 'utf8');
     console.log(`    [pull] Wrote ${fileName}`);
     return;
@@ -225,24 +245,36 @@ async function pullItem(courseId, item, moduleDir, position) {
       return;
     }
 
+    const fileName = toFileName(title, position);
+    const filePath = path.join(moduleDir, fileName);
+
+    if (!force && isLocallyModified(filePath, syncData)) {
+      console.log(`    [pull] SKIPPED ${fileName} (locally modified since last sync, use --force to overwrite)`);
+      return;
+    }
+
     console.log(`  [pull] Fetching assignment: ${title}`);
     const assignment = await getAssignment(courseId, contentId);
     const markdown = canvasItemToMarkdown(assignment, 'assignment');
-    const fileName = toFileName(title, position);
-    const filePath = path.join(moduleDir, fileName);
     fs.writeFileSync(filePath, markdown, 'utf8');
     console.log(`    [pull] Wrote ${fileName}`);
     return;
   }
 
   if (itemType === 'ExternalUrl') {
+    const fileName = toFileName(title, position);
+    const filePath = path.join(moduleDir, fileName);
+
+    if (!force && isLocallyModified(filePath, syncData)) {
+      console.log(`    [pull] SKIPPED ${fileName} (locally modified since last sync, use --force to overwrite)`);
+      return;
+    }
+
     console.log(`  [pull] Fetching external URL: ${title}`);
     const markdown = canvasItemToMarkdown(
       { title, external_url: item.external_url, id: item.id },
       'external_url'
     );
-    const fileName = toFileName(title, position);
-    const filePath = path.join(moduleDir, fileName);
     fs.writeFileSync(filePath, markdown, 'utf8');
     console.log(`    [pull] Wrote ${fileName}`);
     return;

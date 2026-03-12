@@ -28,6 +28,7 @@ program
 program
   .command('pull')
   .description('Pull course content from Canvas into local markdown files')
+  .option('-f, --force', 'Overwrite locally modified files without warning')
   .action(require('./pull'));
 
 program
