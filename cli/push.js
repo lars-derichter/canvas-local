@@ -4,7 +4,7 @@ const path = require('path');
 const { scanCourse } = require('../lib/convert/course-scanner');
 const { parseFrontmatter, updateFrontmatter } = require('../lib/convert/frontmatter');
 const { markdownToHtml } = require('../lib/convert/markdown-to-html');
-const { createModule, updateModule, createModuleItem } = require('../lib/canvas/modules');
+const { createModule, updateModule, createModuleItem, deleteModule: deleteCanvasModule, listModuleItems, deleteModuleItem } = require('../lib/canvas/modules');
 const { createPage, updatePage } = require('../lib/canvas/pages');
 const { createAssignment, updateAssignment } = require('../lib/canvas/assignments');
 const { uploadFile } = require('../lib/canvas/files');
@@ -41,6 +41,7 @@ async function push(options) {
 
   const dryRun = options.dryRun || false;
   const moduleFilter = options.module || null;
+  const prune = options.prune || false;
 
   const syncData = loadSyncFile();
   const modules = scanCourse(COURSE_DIR);
@@ -78,6 +79,11 @@ async function push(options) {
     if (!dryRun) {
       saveSyncFile(syncData);
     }
+  }
+
+  // Prune: remove Canvas modules that no longer exist locally
+  if (prune && !moduleFilter) {
+    await pruneDeletedModules(courseId, syncData, modules, dryRun, errors);
   }
 
   // Update last_sync timestamp
@@ -322,6 +328,42 @@ async function pushFile(courseId, moduleId, { title, filePath, position, indent 
       indent,
     });
     console.log(`    [push] Uploaded file id=${fileId}`);
+  }
+}
+
+/**
+ * Detect modules in the sync file that no longer exist locally and delete them from Canvas.
+ */
+async function pruneDeletedModules(courseId, syncData, localModules, dryRun, errors) {
+  const localFolders = new Set(localModules.map((m) => m.folderName));
+  const syncModules = syncData.modules || {};
+  const toDelete = [];
+
+  for (const [folder, data] of Object.entries(syncModules)) {
+    if (!localFolders.has(folder) && data.canvas_module_id) {
+      toDelete.push({ folder, canvasModuleId: data.canvas_module_id });
+    }
+  }
+
+  if (toDelete.length === 0) {
+    console.log('\n[push] Prune: no deleted modules to remove from Canvas.');
+    return;
+  }
+
+  console.log(`\n[push] Prune: ${toDelete.length} locally-deleted module(s) to remove from Canvas.`);
+
+  for (const { folder, canvasModuleId } of toDelete) {
+    console.log(`  [push] Pruning module: ${folder} (canvas_module_id: ${canvasModuleId})`);
+    if (!dryRun) {
+      try {
+        await deleteCanvasModule(courseId, canvasModuleId);
+        delete syncData.modules[folder];
+        console.log(`    [push] Deleted from Canvas.`);
+      } catch (err) {
+        console.error(`    [push] Error deleting module "${folder}": ${err.message}`);
+        errors.push({ module: folder, error: err.message });
+      }
+    }
   }
 }
 
