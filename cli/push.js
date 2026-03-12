@@ -62,8 +62,19 @@ async function push(options) {
   console.log(`[push] Found ${filteredModules.length} module(s) to push.`);
   if (dryRun) console.log('[push] DRY RUN - no changes will be made.\n');
 
+  const errors = [];
+
   for (const mod of filteredModules) {
-    await pushModule(courseId, mod, syncData, dryRun);
+    try {
+      await pushModule(courseId, mod, syncData, dryRun);
+    } catch (err) {
+      console.error(`[push] Error pushing module "${mod.moduleName}": ${err.message}`);
+      errors.push({ module: mod.moduleName, error: err.message });
+    }
+    // Save sync state after each module so progress is preserved on failure
+    if (!dryRun) {
+      saveSyncFile(syncData);
+    }
   }
 
   // Update last_sync timestamp
@@ -74,7 +85,14 @@ async function push(options) {
     console.log(`\n[push] Sync file updated: ${SYNC_FILE}`);
   }
 
-  console.log('[push] Done.');
+  if (errors.length > 0) {
+    console.log(`\n[push] Completed with ${errors.length} error(s):`);
+    for (const e of errors) {
+      console.log(`  - ${e.module}: ${e.error}`);
+    }
+  } else {
+    console.log('[push] Done.');
+  }
 }
 
 async function pushModule(courseId, mod, syncData, dryRun) {
@@ -117,7 +135,12 @@ async function pushModule(courseId, mod, syncData, dryRun) {
   const flatItems = flattenItems(mod.items);
 
   for (const item of flatItems) {
-    await pushItem(courseId, moduleId, item, dryRun);
+    try {
+      await pushItem(courseId, moduleId, item, dryRun);
+    } catch (err) {
+      const itemTitle = item.title || item.file || 'unknown';
+      console.error(`  [push] Error pushing item "${itemTitle}": ${err.message}`);
+    }
   }
 }
 

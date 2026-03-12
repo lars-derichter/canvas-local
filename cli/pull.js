@@ -79,8 +79,17 @@ async function pull() {
     fs.mkdirSync(COURSE_DIR, { recursive: true });
   }
 
+  const errors = [];
+
   for (const mod of modules) {
-    await pullModule(courseId, mod, syncData);
+    try {
+      await pullModule(courseId, mod, syncData);
+    } catch (err) {
+      console.error(`[pull] Error pulling module "${mod.name}": ${err.message}`);
+      errors.push({ module: mod.name, error: err.message });
+    }
+    // Save sync state after each module so progress is preserved on failure
+    saveSyncFile(syncData);
   }
 
   // Update last_sync
@@ -88,7 +97,15 @@ async function pull() {
   saveSyncFile(syncData);
 
   console.log(`\n[pull] Sync file updated: ${SYNC_FILE}`);
-  console.log('[pull] Done.');
+
+  if (errors.length > 0) {
+    console.log(`\n[pull] Completed with ${errors.length} error(s):`);
+    for (const e of errors) {
+      console.log(`  - ${e.module}: ${e.error}`);
+    }
+  } else {
+    console.log('[pull] Done.');
+  }
 }
 
 async function pullModule(courseId, mod, syncData) {
@@ -166,7 +183,11 @@ async function pullModule(courseId, mod, syncData) {
       currentSubfolder = null;
     }
 
-    await pullItem(courseId, item, targetDir, itemPosition);
+    try {
+      await pullItem(courseId, item, targetDir, itemPosition);
+    } catch (err) {
+      console.error(`  [pull] Error pulling item "${item.title || 'unknown'}": ${err.message}`);
+    }
   }
 }
 
