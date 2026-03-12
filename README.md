@@ -88,6 +88,16 @@ evaluations/
       solution/              # example solution
 ```
 
+## VS Code Integration
+
+All course commands are available in the VS Code command palette. To install:
+
+```bash
+npm run vscode:install
+```
+
+Then open the command palette (Cmd+Shift+P) and type "Course:" to see all available commands.
+
 ## Environment Variables
 
 | Variable           | Description                                                  |

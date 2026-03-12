@@ -31,6 +31,10 @@ Item commands auto-detect the current module when run from inside a module folde
 
 Push supports `--dry-run` and `--module <folder-name>` flags.
 
+## VS Code Extension
+
+`.vscode/extensions/course-manager/` contains a local VS Code extension that exposes all CLI commands in the command palette. Install with `npm run vscode:install`.
+
 ## Architecture
 
 Three layers:

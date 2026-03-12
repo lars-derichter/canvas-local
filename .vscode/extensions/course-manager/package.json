@@ -1,0 +1,32 @@
+{
+  "name": "course-manager",
+  "displayName": "Course Manager",
+  "description": "VS Code palette commands for the course CLI",
+  "version": "0.1.0",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": [],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "course.init", "title": "Course: Init (Canvas Setup)" },
+      { "command": "course.push", "title": "Course: Push to Canvas" },
+      { "command": "course.pushDryRun", "title": "Course: Push to Canvas (Dry Run)" },
+      { "command": "course.pushModule", "title": "Course: Push Module to Canvas..." },
+      { "command": "course.pull", "title": "Course: Pull from Canvas" },
+      { "command": "course.status", "title": "Course: Status" },
+      { "command": "course.newModule", "title": "Course: New Module" },
+      { "command": "course.moveModule", "title": "Course: Move Module" },
+      { "command": "course.renameModule", "title": "Course: Rename Module" },
+      { "command": "course.deleteModule", "title": "Course: Delete Module" },
+      { "command": "course.newItem", "title": "Course: New Item" },
+      { "command": "course.moveItem", "title": "Course: Move Item" },
+      { "command": "course.moveItemToModule", "title": "Course: Move Item to Module" },
+      { "command": "course.renameItem", "title": "Course: Rename Item" },
+      { "command": "course.deleteItem", "title": "Course: Delete Item" }
+    ]
+  }
+}

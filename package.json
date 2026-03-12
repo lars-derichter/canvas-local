@@ -24,7 +24,9 @@
     "item:move": "node cli/index.js move-item",
     "item:movetomodule": "node cli/index.js movetomodule-item",
     "item:rename": "node cli/index.js rename-item",
-    "item:delete": "node cli/index.js delete-item"
+    "item:delete": "node cli/index.js delete-item",
+    "vscode:package": "cd .vscode/extensions/course-manager && npx @vscode/vsce package -o course-manager.vsix",
+    "vscode:install": "npm run vscode:package && code --install-extension .vscode/extensions/course-manager/course-manager.vsix"
   },
   "dependencies": {
     "@docusaurus/core": "^3.7.0",
