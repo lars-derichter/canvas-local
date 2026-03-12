@@ -43,6 +43,14 @@ Three layers:
 2. **Canvas API library** (`lib/canvas/`) — HTTP client with pagination and rate limiting, plus CRUD modules for Canvas modules, pages, assignments, and files
 3. **CLI tool** (`cli/`) — `commander`-based CLI with init/push/pull/status commands
 
+### Theme
+
+Thomas More-inspired styling in `src/css/custom.css` with color mode config in `docusaurus.config.js`. Dark mode is disabled.
+
+- Primary accent: `#fa6432` (orange) — headings, links, active sidebar, callouts
+- Dark accent: `#00283c` (navy) — bold text, info callouts
+- Font: Nunito via Google Fonts (300 base weight, 600 bold, 400 headings)
+
 ### Key directories
 
 - `course/` — Course materials (replaces default Docusaurus `docs/`). One folder per module, numbered 00-99 for ordering. Subfolders become Canvas "Text Header" items.

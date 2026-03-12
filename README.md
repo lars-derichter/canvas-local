@@ -24,6 +24,10 @@ npm start          # start Docusaurus dev server
 npm run build      # production build
 ```
 
+## Theme
+
+Thomas More-inspired styling (orange `#fa6432` accent, Nunito font, light weights). Customise in `src/css/custom.css`.
+
 ## Canvas Sync
 
 ```bash
