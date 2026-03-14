@@ -2,7 +2,7 @@
 
 Write course materials as markdown, preview via
 [Docusaurus](https://docusaurus.io/), and sync with
-[Canvas LMS](https://www.instructure.com/canvas) LMS.
+[Canvas LMS](https://www.instructure.com/canvas).
 
 ## Course Structure
 
