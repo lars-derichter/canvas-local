@@ -164,15 +164,6 @@ npx course --verbose <command>   # show API request details
 npx course --quiet <command>     # only show errors
 ```
 
-### Development Commands
-
-Only use these commands if you really know what you are doing!
-
-```bash
-npx course reset-sync-state   # remove all canvas_id fields and delete .canvas-sync.json
-npx course reset-canvas        # delete all modules, pages, assignments, and files from Canvas
-```
-
 ### Resilience & Conflict Detection
 
 - **Retry logic**: API calls automatically retry on 429 (rate limit) and 5xx
@@ -205,3 +196,8 @@ available commands.
 
 The Docusaurus preview uses Thomas More-inspired styling (orange `#fa6432`
 accent, Nunito font, light weights). Customise in `src/css/custom.css`.
+
+## Development & Tooling
+
+See [Development Guide](docs/development.md) for advanced commands
+(`reset-sync-state`, `reset-canvas`) and Claude Code integration.
