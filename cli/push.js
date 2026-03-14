@@ -122,25 +122,33 @@ async function pushModule(courseId, mod, syncData, dryRun, iconUrls) {
   if (canvasModuleId) {
     console.log(`[push] Updating module: ${mod.moduleName} (id: ${canvasModuleId})`);
     if (!dryRun) {
-      const result = await updateModule(courseId, canvasModuleId, {
-        name: mod.moduleName,
-        position: mod.position,
-      });
-      moduleId = result.id;
+      try {
+        const result = await updateModule(courseId, canvasModuleId, {
+          name: mod.moduleName,
+          position: mod.position,
+        });
+        moduleId = result.id;
+      } catch (err) {
+        if (err.message.includes('404')) {
+          console.warn(`[push] Module ${canvasModuleId} not found on Canvas, creating new`);
+        } else {
+          throw err;
+        }
+      }
     } else {
       moduleId = canvasModuleId;
     }
-  } else {
+  }
+
+  if (!moduleId && !dryRun) {
     console.log(`[push] Creating module: ${mod.moduleName}`);
-    if (!dryRun) {
-      const result = await createModule(courseId, {
-        name: mod.moduleName,
-        position: mod.position,
-      });
-      moduleId = result.id;
-    } else {
-      moduleId = '<new>';
-    }
+    const result = await createModule(courseId, {
+      name: mod.moduleName,
+      position: mod.position,
+    });
+    moduleId = result.id;
+  } else if (!moduleId) {
+    moduleId = '<new>';
   }
 
   // Save module ID and initialize items tracking
@@ -197,6 +205,11 @@ function flattenItems(items) {
       result.push(item);
     }
   }
+  // Reassign sequential positions so subfolder children get correct
+  // absolute positions instead of their within-folder positions.
+  for (let i = 0; i < result.length; i++) {
+    result[i].position = i + 1;
+  }
   return result;
 }
 
@@ -236,30 +249,44 @@ async function pushPage(courseId, moduleId, { title, filePath, relativePath, can
   const html = markdownToHtml(raw, { iconUrls });
 
   let pageId = canvasId;
+  let pageSlug = null;
 
   if (canvasId) {
     console.log(`  [push] Updating page: ${title} (id: ${canvasId})`);
     if (!dryRun) {
-      const result = await updatePage(courseId, canvasId, { title, body: html });
-      pageId = result.page_id || result.url;
+      try {
+        const result = await updatePage(courseId, canvasId, { title, body: html });
+        pageId = result.page_id || result.url;
+        pageSlug = result.url;
+      } catch (err) {
+        if (err.message.includes('404')) {
+          console.warn(`    [push] Page ${canvasId} not found on Canvas, creating new`);
+          canvasId = null;
+        } else {
+          throw err;
+        }
+      }
     }
-  } else {
+  }
+
+  if (!canvasId) {
     console.log(`  [push] Creating page: ${title}`);
     if (!dryRun) {
       const result = await createPage(courseId, { title, body: html });
       pageId = result.page_id || result.url;
+      pageSlug = result.url;
       // Write canvas_id back to frontmatter
       updateFrontmatter(filePath, { canvas_id: pageId });
       console.log(`    [push] Wrote canvas_id=${pageId} to ${relativePath}`);
     }
   }
 
-  // Create module item linking to the page
-  if (!dryRun && pageId) {
+  // Create module item linking to the page (Canvas requires page_url for Page type)
+  if (!dryRun && pageSlug) {
     await createModuleItem(courseId, moduleId, {
       title,
       type: 'Page',
-      contentId: pageId,
+      pageUrl: pageSlug,
       position,
       indent,
     });
@@ -286,10 +313,21 @@ async function pushAssignment(courseId, moduleId, { title, filePath, relativePat
   if (canvasId) {
     console.log(`  [push] Updating assignment: ${title} (id: ${canvasId})`);
     if (!dryRun) {
-      const result = await updateAssignment(courseId, canvasId, assignmentOpts);
-      assignmentId = result.id;
+      try {
+        const result = await updateAssignment(courseId, canvasId, assignmentOpts);
+        assignmentId = result.id;
+      } catch (err) {
+        if (err.message.includes('404')) {
+          console.warn(`    [push] Assignment ${canvasId} not found on Canvas, creating new`);
+          canvasId = null;
+        } else {
+          throw err;
+        }
+      }
     }
-  } else {
+  }
+
+  if (!canvasId) {
     console.log(`  [push] Creating assignment: ${title}`);
     if (!dryRun) {
       const result = await createAssignment(courseId, assignmentOpts);

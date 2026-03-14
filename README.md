@@ -170,6 +170,9 @@ npx course --quiet <command>     # only show errors
 - **Conflict detection**: `pull` checks if local files have been modified since
   the last sync and skips them to avoid overwriting your work. Use `--force` to
   override.
+- **Stale ID recovery**: If a module, page, or assignment was deleted on Canvas
+  but still has a stored ID locally, push detects the 404 and automatically
+  creates a new resource.
 - **Progress counters**: Push and pull show progress like `Module 2/5`,
   `Item 3/12`.
 

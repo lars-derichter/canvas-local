@@ -69,6 +69,7 @@ Three layers:
 
 - API calls retry automatically on 429 and 5xx with exponential backoff (up to 3 attempts)
 - Push and pull recover from individual item/module errors and report a summary at the end
+- Push detects stale Canvas IDs (deleted modules, pages, or assignments) via 404 responses and automatically re-creates the resource
 - Pull detects locally modified files (mtime > last_sync) and skips them unless `--force` is used
 - Push with `--prune` removes Canvas modules that no longer exist locally
 - File uploads use MIME type detection based on file extension (35+ types supported)
