@@ -110,6 +110,30 @@ npx course init
 | `CANVAS_API_TOKEN` | Canvas API access token                                      |
 | `CANVAS_COURSE_ID` | Target course ID                                             |
 
+### Managing Modules
+
+```bash
+npx course new-module     # create a new module (asks for name and position)
+npx course move-module    # move a module to a different position
+npx course rename-module  # rename a module
+npx course delete-module  # delete a module and renumber remaining
+```
+
+All commands are interactive and handle renumbering automatically.
+
+### Managing Items
+
+```bash
+npx course new-item           # create a page, assignment, url, subsection, or add a file
+npx course move-item          # reorder an item within its module
+npx course movetomodule-item  # move an item to a different module
+npx course rename-item        # rename an item
+npx course delete-item        # delete an item and renumber remaining
+```
+
+Item commands auto-detect the current module when run from inside a module
+folder. Items can be added to the module root or into subsections.
+
 ### Docusaurus preview
 
 ```bash
@@ -136,30 +160,6 @@ npx course status --remote       # also fetch and compare against Canvas
 npx course --verbose <command>   # show API request details
 npx course --quiet <command>     # only show errors
 ```
-
-### Managing Modules
-
-```bash
-npx course new-module     # create a new module (asks for name and position)
-npx course move-module    # move a module to a different position
-npx course rename-module  # rename a module
-npx course delete-module  # delete a module and renumber remaining
-```
-
-All commands are interactive and handle renumbering automatically.
-
-### Managing Items
-
-```bash
-npx course new-item           # create a page, assignment, url, subsection, or add a file
-npx course move-item          # reorder an item within its module
-npx course movetomodule-item  # move an item to a different module
-npx course rename-item        # rename an item
-npx course delete-item        # delete an item and renumber remaining
-```
-
-Item commands auto-detect the current module when run from inside a module
-folder. Items can be added to the module root or into subsections.
 
 ### Resilience & Conflict Detection
 
