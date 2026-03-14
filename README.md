@@ -110,6 +110,9 @@ npx course init
 | `CANVAS_API_TOKEN` | Canvas API access token                                      |
 | `CANVAS_COURSE_ID` | Target course ID                                             |
 
+See [Canvas Setup Guide](docs/canvas-setup.md) for detailed instructions on
+obtaining these credentials.
+
 ### Managing Modules
 
 ```bash
