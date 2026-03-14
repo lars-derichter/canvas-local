@@ -89,4 +89,9 @@ program
   .description('Delete an item from a module and renumber remaining items')
   .action(require('./delete-item'));
 
+program
+  .command('reset-sync-state')
+  .description('Remove all canvas_id fields from course files and delete .canvas-sync.json')
+  .action(require('./reset-sync-state'));
+
 program.parse();

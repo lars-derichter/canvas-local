@@ -25,6 +25,7 @@ npx course move-item      # Move an item to a new position within its module
 npx course movetomodule-item  # Move an item to a different module
 npx course rename-item    # Rename an item
 npx course delete-item    # Delete an item and renumber remaining
+npx course reset-sync-state  # Remove all canvas_id fields and delete .canvas-sync.json
 ```
 
 Item commands auto-detect the current module when run from inside a module folder.

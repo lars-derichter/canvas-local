@@ -161,6 +161,12 @@ npx course --verbose <command>   # show API request details
 npx course --quiet <command>     # only show errors
 ```
 
+### Reset Sync State
+
+```bash
+npx course reset-sync-state   # remove all canvas_id fields and delete .canvas-sync.json
+```
+
 ### Resilience & Conflict Detection
 
 - **Retry logic**: API calls automatically retry on 429 (rate limit) and 5xx
