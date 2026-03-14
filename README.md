@@ -133,21 +133,6 @@ npx course --verbose <command>   # show API request details
 npx course --quiet <command>     # only show errors
 ```
 
-### Resilience & Conflict Detection
-
-- **Retry logic**: API calls automatically retry on 429 (rate limit) and 5xx
-  errors with exponential backoff (up to 3 attempts).
-- **Error recovery**: If a single module or item fails during push/pull, the
-  remaining items continue and a summary of errors is shown at the end.
-- **Conflict detection**: `pull` checks if local files have been modified since
-  the last sync and skips them to avoid overwriting your work. Use `--force` to
-  override.
-- **Stale ID recovery**: If a module, page, or assignment was deleted on Canvas
-  but still has a stored ID locally, push detects the 404 and automatically
-  creates a new resource.
-- **Progress counters**: Push and pull show progress like `Module 2/5`,
-  `Item 3/12`.
-
 ## VS Code Integration
 
 All course commands are available in the VS Code command palette. The extension
