@@ -40,7 +40,7 @@ evaluations/
 ### Sources (private)
 
 Reference materials, inspiration, and notes. Not served by Docusaurus or synced
-to Canvas. See [sources/README.md](sources/README.md) for conventions.
+to Canvas. See [Sources Guide](docs/sources.md) for conventions.
 
 ## Markdown
 
