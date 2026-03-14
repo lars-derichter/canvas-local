@@ -12,6 +12,46 @@ Write course materials as markdown, preview via
 [Docusaurus](https://docusaurus.io/), and sync with
 [Canvas LMS](https://www.instructure.com/canvas).
 
+## Getting Started
+
+1. **Fork this repository** — forking gives you full git versioning for your
+   course content while letting you pull upstream tooling updates.
+
+2. **Install Node.js 18+** — download the LTS version from
+   [nodejs.org](https://nodejs.org/). Canvas Local uses native `fetch`, which
+   requires Node.js 18 or later.
+
+3. **Install dependencies**
+
+   ```bash
+   npm install
+   ```
+
+4. **Connect to Canvas** — run the interactive setup to configure your Canvas
+   API credentials:
+
+   ```bash
+   npx course init
+   ```
+
+   Or copy `.env.example` to `.env` and fill in the values manually. See the
+   [Canvas Setup Guide](docs/canvas-setup.md) for detailed instructions on
+   obtaining your API URL, token, and course ID.
+
+   | Variable           | Description                                                  |
+   | ------------------ | ------------------------------------------------------------ |
+   | `CANVAS_API_URL`   | Canvas instance URL (e.g., `https://school.instructure.com`) |
+   | `CANVAS_API_TOKEN` | Canvas API access token                                      |
+   | `CANVAS_COURSE_ID` | Target course ID                                             |
+
+5. **Start writing** — delete the example content in `course/`, create your
+   first module, and preview it locally:
+
+   ```bash
+   npx course new-module    # create a module (asks for name and position)
+   npm start                # start the Docusaurus dev server
+   ```
+
 ## Course Structure
 
 ### Course Modules (sync with Canvas / preview locally with Docusaurus)
@@ -55,34 +95,7 @@ to Canvas. See [Sources Guide](docs/sources.md) for conventions.
 See [Markdown Guide](docs/markdown.md) for supported syntax and custom
 alerts/admonitions.
 
-## Managing Course Materials and Syncing
-
-### Setup
-
-Requires Node.js 18+ (uses native fetch).
-
-```bash
-npm install
-cp .env.example .env   # then fill in your Canvas credentials
-```
-
-Or use the interactive setup:
-
-```bash
-npm install
-npx course init
-```
-
-#### Environment Variables
-
-| Variable           | Description                                                  |
-| ------------------ | ------------------------------------------------------------ |
-| `CANVAS_API_URL`   | Canvas instance URL (e.g., `https://school.instructure.com`) |
-| `CANVAS_API_TOKEN` | Canvas API access token                                      |
-| `CANVAS_COURSE_ID` | Target course ID                                             |
-
-See [Canvas Setup Guide](docs/canvas-setup.md) for detailed instructions on
-obtaining these credentials.
+## Managing Course Materials
 
 ### Managing Modules
 
