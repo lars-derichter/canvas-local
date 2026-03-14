@@ -1,8 +1,10 @@
 # Canvas Local
 
-- **Write in markdown** — use familiar tools (VS Code, Git) instead of the Canvas web editor
+- **Write in markdown** — use familiar tools (VS Code, Git) instead of the
+  Canvas web editor
 - **Version control** — full Git history for all course materials
-- **Local preview** — Docusaurus dev server for instant feedback before publishing
+- **Local preview** — Docusaurus dev server for instant feedback before
+  publishing
 - **Batch sync** — push/pull entire courses or individual modules in one command
 - **Portable content** — markdown files work independently of Canvas
 
@@ -135,16 +137,8 @@ npx course --quiet <command>     # only show errors
 
 ## VS Code Integration
 
-All course commands are available in the VS Code command palette. The extension
-validates that a `course/` directory exists before running commands and shows
-notification messages when commands start. To install:
-
-```bash
-npm run vscode:install
-```
-
-Then open the command palette (Cmd+Shift+P) and type "Canvas Local:" to see all
-available commands.
+All course commands are available in the VS Code command palette. See the
+[VS Code Guide](docs/vscode.md) for setup and the full command list.
 
 ## Theme
 
