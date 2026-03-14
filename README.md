@@ -1,5 +1,11 @@
 # Canvas Local
 
+- **Write in markdown** — use familiar tools (VS Code, Git) instead of the Canvas web editor
+- **Version control** — full Git history for all course materials
+- **Local preview** — Docusaurus dev server for instant feedback before publishing
+- **Batch sync** — push/pull entire courses or individual modules in one command
+- **Portable content** — markdown files work independently of Canvas
+
 Write course materials as markdown, preview via
 [Docusaurus](https://docusaurus.io/), and sync with
 [Canvas LMS](https://www.instructure.com/canvas).
