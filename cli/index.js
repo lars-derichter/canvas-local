@@ -94,4 +94,9 @@ program
   .description('Remove all canvas_id fields from course files and delete .canvas-sync.json')
   .action(require('./reset-sync-state'));
 
+program
+  .command('reset-canvas')
+  .description('Delete all modules, pages, assignments, and files from the Canvas course')
+  .action(require('./reset-canvas'));
+
 program.parse();

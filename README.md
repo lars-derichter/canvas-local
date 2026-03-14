@@ -161,10 +161,13 @@ npx course --verbose <command>   # show API request details
 npx course --quiet <command>     # only show errors
 ```
 
-### Reset Sync State
+### Development Commands
+
+Only use these commands if you really know what you are doing!
 
 ```bash
 npx course reset-sync-state   # remove all canvas_id fields and delete .canvas-sync.json
+npx course reset-canvas        # delete all modules, pages, assignments, and files from Canvas
 ```
 
 ### Resilience & Conflict Detection
