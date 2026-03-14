@@ -110,3 +110,4 @@ Thomas More-inspired styling in `src/css/custom.css` with color mode config in `
 
 - Node.js 18+ required (uses native fetch)
 - Docusaurus `_category_.json` files control sidebar labels/ordering and are skipped by the course scanner
+- `canvas_id` values in course file frontmatter are instance-specific and must not be committed. If they are the only changes to files in `course/`, those files should be left unstaged.
