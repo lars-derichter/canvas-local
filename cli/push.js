@@ -167,7 +167,7 @@ async function pushModule(courseId, mod, syncData, dryRun, iconUrls) {
     const itemTitle = item.title || item.file || 'unknown';
     console.log(`  [push] Item ${ii + 1}/${totalItems}: ${itemTitle}`);
     try {
-      await pushItem(courseId, moduleId, item, dryRun, iconUrls);
+      await pushItem(courseId, moduleId, item, dryRun, iconUrls, mod.folderName);
       // Track item in sync file
       if (!dryRun && item.relativePath && item.frontmatter && item.frontmatter.canvas_id) {
         syncData.modules[mod.folderName].items[item.relativePath] = {
@@ -213,7 +213,7 @@ function flattenItems(items) {
   return result;
 }
 
-async function pushItem(courseId, moduleId, item, dryRun, iconUrls) {
+async function pushItem(courseId, moduleId, item, dryRun, iconUrls, folderName) {
   if (item.type === 'subheader') {
     console.log(`  [push] Adding SubHeader: ${item.title}`);
     if (!dryRun) {
@@ -238,7 +238,7 @@ async function pushItem(courseId, moduleId, item, dryRun, iconUrls) {
   } else if (canvasType === 'external_url') {
     await pushExternalUrl(courseId, moduleId, { title, position, indent, frontmatter }, dryRun);
   } else if (canvasType === 'file') {
-    await pushFile(courseId, moduleId, { title, filePath, position, indent }, dryRun);
+    await pushFile(courseId, moduleId, { title, filePath, position, indent, folderName }, dryRun);
   } else {
     console.log(`  [push] Skipping unknown type "${canvasType}": ${title}`);
   }
@@ -369,10 +369,10 @@ async function pushExternalUrl(courseId, moduleId, { title, position, indent, fr
   }
 }
 
-async function pushFile(courseId, moduleId, { title, filePath, position, indent }, dryRun) {
+async function pushFile(courseId, moduleId, { title, filePath, position, indent, folderName }, dryRun) {
   console.log(`  [push] Uploading file: ${title}`);
   if (!dryRun) {
-    const result = await uploadFile(courseId, filePath);
+    const result = await uploadFile(courseId, filePath, { parentFolderPath: folderName });
     const fileId = result.id;
 
     await createModuleItem(courseId, moduleId, {
