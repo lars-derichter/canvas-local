@@ -1,6 +1,7 @@
 ---
 slug: /
 title: Course Home
+sidebar_position: 0
 ---
 
 # Welcome
