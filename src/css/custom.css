@@ -343,6 +343,79 @@ article {
 }
 
 /* ---------------------------------------------------------------------------
+   GFM Blockquote Alerts (markdown-alert)
+   --------------------------------------------------------------------------- */
+
+.markdown-alert {
+  border: none;
+  border-left: .25em solid;
+  border-radius: 0;
+  padding: 0.75rem 1rem;
+  margin: 1rem 0;
+}
+
+.markdown-alert p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-alert-title {
+  font-weight: 600;
+  font-size: 1.1em;
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+  margin-bottom: 0.25em;
+}
+
+.markdown-alert-icon {
+  height: 1em;
+  width: 1em;
+  flex-shrink: 0;
+}
+
+/* Note — blue */
+.markdown-alert-note {
+  border-left-color: #4bafe1;
+  background: rgba(75, 175, 225, 0.06);
+}
+.markdown-alert-note .markdown-alert-title { color: #4bafe1; }
+
+/* Tip — teal */
+.markdown-alert-tip {
+  border-left-color: #64c8c8;
+  background: rgba(100, 200, 200, 0.06);
+}
+.markdown-alert-tip .markdown-alert-title { color: #64c8c8; }
+
+/* Important — purple */
+.markdown-alert-important {
+  border-left-color: #967dc8;
+  background: rgba(150, 125, 200, 0.06);
+}
+.markdown-alert-important .markdown-alert-title { color: #967dc8; }
+
+/* Warning — yellow */
+.markdown-alert-warning {
+  border-left-color: #ffc87d;
+  background: rgba(255, 200, 125, 0.06);
+}
+.markdown-alert-warning .markdown-alert-title { color: #ffc87d; }
+
+/* Caution / Attention — orange */
+.markdown-alert-caution {
+  border-left-color: #fa6432;
+  background: rgba(250, 100, 50, 0.06);
+}
+.markdown-alert-caution .markdown-alert-title { color: #fa6432; }
+
+/* Check — navy */
+.markdown-alert-check {
+  border-left-color: #00283c;
+  background: rgba(0, 40, 60, 0.04);
+}
+.markdown-alert-check .markdown-alert-title { color: #00283c; }
+
+/* ---------------------------------------------------------------------------
    Pagination (prev / next)
    --------------------------------------------------------------------------- */
 

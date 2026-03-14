@@ -8,6 +8,7 @@ const { createModule, updateModule, createModuleItem, deleteModule: deleteCanvas
 const { createPage, updatePage } = require('../lib/canvas/pages');
 const { createAssignment, updateAssignment } = require('../lib/canvas/assignments');
 const { uploadFile } = require('../lib/canvas/files');
+const { ensureIcons, getIconUrls } = require('../lib/canvas/icons');
 
 const COURSE_DIR = path.resolve(process.cwd(), 'course');
 const SYNC_FILE = path.resolve(process.cwd(), '.canvas-sync.json');
@@ -64,6 +65,13 @@ async function push(options) {
   console.log(`[push] Found ${filteredModules.length} module(s) to push.`);
   if (dryRun) console.log('[push] DRY RUN - no changes will be made.\n');
 
+  // Ensure admonition icons are uploaded to Canvas
+  if (!dryRun) {
+    await ensureIcons(courseId, syncData);
+    saveSyncFile(syncData);
+  }
+  const iconUrls = getIconUrls(syncData);
+
   const errors = [];
   const totalModules = filteredModules.length;
 
@@ -71,7 +79,7 @@ async function push(options) {
     const mod = filteredModules[mi];
     console.log(`\n[push] Module ${mi + 1}/${totalModules}: ${mod.moduleName}`);
     try {
-      await pushModule(courseId, mod, syncData, dryRun);
+      await pushModule(courseId, mod, syncData, dryRun, iconUrls);
     } catch (err) {
       console.error(`[push] Error pushing module "${mod.moduleName}": ${err.message}`);
       errors.push({ module: mod.moduleName, error: err.message });
@@ -105,7 +113,7 @@ async function push(options) {
   }
 }
 
-async function pushModule(courseId, mod, syncData, dryRun) {
+async function pushModule(courseId, mod, syncData, dryRun, iconUrls) {
   const syncModule = syncData.modules[mod.folderName] || {};
   const canvasModuleId = syncModule.canvas_module_id;
 
@@ -151,7 +159,7 @@ async function pushModule(courseId, mod, syncData, dryRun) {
     const itemTitle = item.title || item.file || 'unknown';
     console.log(`  [push] Item ${ii + 1}/${totalItems}: ${itemTitle}`);
     try {
-      await pushItem(courseId, moduleId, item, dryRun);
+      await pushItem(courseId, moduleId, item, dryRun, iconUrls);
       // Track item in sync file
       if (!dryRun && item.relativePath && item.frontmatter && item.frontmatter.canvas_id) {
         syncData.modules[mod.folderName].items[item.relativePath] = {
@@ -192,7 +200,7 @@ function flattenItems(items) {
   return result;
 }
 
-async function pushItem(courseId, moduleId, item, dryRun) {
+async function pushItem(courseId, moduleId, item, dryRun, iconUrls) {
   if (item.type === 'subheader') {
     console.log(`  [push] Adding SubHeader: ${item.title}`);
     if (!dryRun) {
@@ -211,9 +219,9 @@ async function pushItem(courseId, moduleId, item, dryRun) {
   const canvasId = frontmatter.canvas_id || null;
 
   if (canvasType === 'page') {
-    await pushPage(courseId, moduleId, { title, filePath, relativePath, canvasId, position, indent, frontmatter }, dryRun);
+    await pushPage(courseId, moduleId, { title, filePath, relativePath, canvasId, position, indent, frontmatter }, dryRun, iconUrls);
   } else if (canvasType === 'assignment') {
-    await pushAssignment(courseId, moduleId, { title, filePath, relativePath, canvasId, position, indent, frontmatter }, dryRun);
+    await pushAssignment(courseId, moduleId, { title, filePath, relativePath, canvasId, position, indent, frontmatter }, dryRun, iconUrls);
   } else if (canvasType === 'external_url') {
     await pushExternalUrl(courseId, moduleId, { title, position, indent, frontmatter }, dryRun);
   } else if (canvasType === 'file') {
@@ -223,9 +231,9 @@ async function pushItem(courseId, moduleId, item, dryRun) {
   }
 }
 
-async function pushPage(courseId, moduleId, { title, filePath, relativePath, canvasId, position, indent, frontmatter }, dryRun) {
+async function pushPage(courseId, moduleId, { title, filePath, relativePath, canvasId, position, indent, frontmatter }, dryRun, iconUrls) {
   const raw = fs.readFileSync(filePath, 'utf8');
-  const html = markdownToHtml(raw);
+  const html = markdownToHtml(raw, { iconUrls });
 
   let pageId = canvasId;
 
@@ -258,9 +266,9 @@ async function pushPage(courseId, moduleId, { title, filePath, relativePath, can
   }
 }
 
-async function pushAssignment(courseId, moduleId, { title, filePath, relativePath, canvasId, position, indent, frontmatter }, dryRun) {
+async function pushAssignment(courseId, moduleId, { title, filePath, relativePath, canvasId, position, indent, frontmatter }, dryRun, iconUrls) {
   const raw = fs.readFileSync(filePath, 'utf8');
-  const html = markdownToHtml(raw);
+  const html = markdownToHtml(raw, { iconUrls });
 
   const assignmentOpts = {
     name: title,
