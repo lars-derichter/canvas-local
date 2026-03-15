@@ -1,8 +1,8 @@
 {
   "name": "canvas-local",
   "displayName": "Canvas Local",
-  "description": "VS Code palette commands for Canvas Local CLI",
-  "version": "0.1.0",
+  "description": "VS Code sidebar and palette commands for Canvas Local CLI",
+  "version": "0.2.0",
   "publisher": "local",
   "engines": {
     "vscode": "^1.85.0"
@@ -11,6 +11,23 @@
   "activationEvents": [],
   "main": "./extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "course-manager",
+          "title": "Course Manager",
+          "icon": "$(book)"
+        }
+      ]
+    },
+    "views": {
+      "course-manager": [
+        {
+          "id": "courseTree",
+          "name": "Course Modules"
+        }
+      ]
+    },
     "commands": [
       { "command": "course.init", "title": "Course: Init (Canvas Setup)" },
       { "command": "course.push", "title": "Course: Push to Canvas" },
@@ -26,7 +43,31 @@
       { "command": "course.moveItem", "title": "Course: Move Item" },
       { "command": "course.moveItemToModule", "title": "Course: Move Item to Module" },
       { "command": "course.renameItem", "title": "Course: Rename Item" },
-      { "command": "course.deleteItem", "title": "Course: Delete Item" }
-    ]
+      { "command": "course.deleteItem", "title": "Course: Delete Item" },
+      { "command": "course.refreshTree", "title": "Course: Refresh Tree", "icon": "$(refresh)" },
+      { "command": "course.openInCanvas", "title": "Open in Canvas", "icon": "$(link-external)" },
+      { "command": "course.pushItem", "title": "Push Module", "icon": "$(cloud-upload)" }
+    ],
+    "menus": {
+      "view/title": [
+        { "command": "course.refreshTree", "when": "view == courseTree", "group": "navigation" },
+        { "command": "course.push", "when": "view == courseTree" },
+        { "command": "course.pull", "when": "view == courseTree" },
+        { "command": "course.status", "when": "view == courseTree" }
+      ],
+      "view/item/context": [
+        { "command": "course.pushItem", "when": "view == courseTree && viewItem =~ /^(page|assignment|external_url|file|module)$/", "group": "inline" },
+        { "command": "course.openInCanvas", "when": "view == courseTree && viewItem =~ /^(page|assignment|external_url|file|module)$/", "group": "inline" },
+        { "command": "course.newItem", "when": "view == courseTree && viewItem =~ /^(module|subheader)$/", "group": "0_new" },
+        { "command": "course.newModule", "when": "view == courseTree && viewItem == module", "group": "0_new" },
+        { "command": "course.renameItem", "when": "view == courseTree && viewItem =~ /^(page|assignment|external_url|file|subheader)$/", "group": "1_edit" },
+        { "command": "course.moveItem", "when": "view == courseTree && viewItem =~ /^(page|assignment|external_url|file)$/", "group": "1_edit" },
+        { "command": "course.moveItemToModule", "when": "view == courseTree && viewItem =~ /^(page|assignment|external_url|file)$/", "group": "1_edit" },
+        { "command": "course.renameModule", "when": "view == courseTree && viewItem == module", "group": "1_edit" },
+        { "command": "course.moveModule", "when": "view == courseTree && viewItem == module", "group": "1_edit" },
+        { "command": "course.deleteItem", "when": "view == courseTree && viewItem =~ /^(page|assignment|external_url|file|subheader)$/", "group": "2_danger" },
+        { "command": "course.deleteModule", "when": "view == courseTree && viewItem == module", "group": "2_danger" }
+      ]
+    }
   }
 }

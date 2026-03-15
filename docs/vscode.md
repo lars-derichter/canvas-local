@@ -49,6 +49,66 @@ Requires the `code` CLI to be available on your PATH.
 | Course: Rename Item         | Rename an item                                            |
 | Course: Delete Item         | Delete an item and renumber remaining                     |
 
+## Sidebar
+
+The extension adds a **Course Manager** panel to the VS Code activity bar
+(book icon on the left). It shows a tree view of all modules and items in the
+`course/` directory.
+
+### Tree structure
+
+- **Modules** — shown as folders, labeled from `_category_.json` or derived
+  from the folder name. The numeric prefix is shown as a description.
+- **Subheaders** — subfolders within a module, shown as collapsible groups.
+- **Items** — course pages, assignments, external URLs, and files. Each type
+  has a distinct icon. Clicking an item opens the file in the editor.
+
+### Inline actions
+
+Hover over a tree item to see inline action buttons:
+
+| Button | Action |
+| ------ | ------ |
+| Cloud upload | Push the item's module to Canvas |
+| External link | Open the item in Canvas (browser) |
+
+"Open in Canvas" requires the item to have been pushed at least once. It reads
+the `canvas_id` from the file's frontmatter and the Canvas URL from `.env`.
+
+### Context menu
+
+Right-click a module or item to access management commands:
+
+- **New Item / New Module** — create items or modules
+- **Rename / Move** — rename or reorder items and modules
+- **Move Item to Module** — move an item to a different module
+- **Delete** — delete an item or module
+
+These commands run the same CLI operations as the command palette equivalents.
+
+### Drag and drop
+
+Drag tree items to reorder them:
+
+- **Modules** — drag a module onto another module to change its position.
+  All modules are renumbered sequentially.
+- **Items** — drag an item within the same module to reorder, or drag it
+  onto a different module or subheader to move it there. Both source and
+  target directories are renumbered automatically.
+- **External files** — drag files from Finder or Explorer onto a module or
+  item to copy them into the course structure. Files are automatically
+  numbered and renamed to match the naming convention (lowercase, hyphenated).
+
+### Auto-refresh
+
+The tree refreshes automatically when files in `course/` are created, deleted,
+or modified. Use the refresh button in the view title bar to manually refresh.
+
+### Title bar menu
+
+The view title bar dropdown includes **Push to Canvas**, **Pull from Canvas**,
+and **Status** for quick access to sync commands.
+
 ## How It Works
 
 - Commands run in a dedicated **Canvas Local** terminal inside VS Code.
