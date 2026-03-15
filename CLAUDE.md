@@ -56,7 +56,7 @@ Three layers:
 - `evaluations/` — Exam/test materials organized by academic year (e.g., `2526/`). Each test has `instructions.md`, optional `start/` and `solution/` folders. Not served by Docusaurus.
 - `sources/` — Reference materials, inspiration, and notes. Not served by Docusaurus or synced to Canvas. See `sources/README.md` for conventions.
 - `lib/canvas/` — Canvas REST API client (`client.js`) and resource-specific modules (`modules.js`, `pages.js`, `assignments.js`, `files.js`, `icons.js`)
-- `lib/convert/` — Bidirectional content conversion: `frontmatter.js` (gray-matter), `markdown-to-html.js` (marked + marked-alert), `html-to-markdown.js` (turndown), `course-scanner.js` (walks course/ directory)
+- `lib/convert/` — Bidirectional content conversion: `frontmatter.js` (gray-matter), `markdown-to-html.js` (marked + marked-alert), `html-to-markdown.js` (turndown), `course-scanner.js` (walks course/ directory), `link-resolver.js` (internal link resolution between relative paths and Canvas URLs)
 - `cli/` — CLI entry point and command handlers
 - `cli/logger.js` — Simple logger supporting `--verbose` and `--quiet` modes
 - `cli/renumber.js` — Shared renumbering utility used by all module/item management commands
@@ -95,6 +95,16 @@ GitHub-style blockquote alerts (`> [!NOTE]`, `> [!TIP]`, `> [!IMPORTANT]`, `> [!
 - **Pull** (`html-to-markdown.js`): Turndown rules detect `div.markdown-alert` elements and convert back to GFM blockquote syntax.
 - **Docusaurus** (`src/plugins/remark-gfm-alerts.js`): Custom remark plugin transforms GFM alerts into styled `<div>` elements with Dutch titles and inline SVG icons, styled via `src/css/custom.css`.
 - **Icons** (`lib/canvas/icons.js`): SVG icons in `src/svg-icons/` are auto-uploaded to Canvas on first push and tracked in `.canvas-sync.json` under the `icons` key.
+
+### Internal links
+
+Relative markdown links between course pages (e.g. `[Setup](../02-module/01-setup.md)`) are resolved bidirectionally:
+
+- **Push** (`link-resolver.js` + `markdown-to-html.js`): relative `.md` paths are mapped to Canvas internal URLs (`/courses/ID/pages/slug` or `/courses/ID/assignments/ID`) using the sync state. A second pass automatically re-pushes items that referenced not-yet-created pages, so all links resolve in a single `npx course push`.
+- **Pull** (`link-resolver.js` + `html-to-markdown.js`): Canvas internal URLs are converted back to relative markdown paths using the reverse link map.
+- **Docusaurus**: relative links work natively with no transformation needed.
+
+External URLs, fragment-only links, and non-markdown file links are left unchanged.
 
 ### Naming conventions
 

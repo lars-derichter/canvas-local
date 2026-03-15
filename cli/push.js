@@ -9,6 +9,7 @@ const { createPage, updatePage } = require('../lib/canvas/pages');
 const { createAssignment, updateAssignment } = require('../lib/canvas/assignments');
 const { uploadFile } = require('../lib/canvas/files');
 const { ensureIcons, getIconUrls } = require('../lib/canvas/icons');
+const { buildLinkMap, resolveRelativeLink } = require('../lib/convert/link-resolver');
 
 const COURSE_DIR = path.resolve(process.cwd(), 'course');
 const SYNC_FILE = path.resolve(process.cwd(), '.canvas-sync.json');
@@ -72,6 +73,35 @@ async function push(options) {
   }
   const iconUrls = getIconUrls(syncData);
 
+  // Pre-populate sync items from frontmatter so the link map is available
+  // even if .canvas-sync.json items were empty (e.g. after reset or first use)
+  for (const mod of modules) {
+    if (!syncData.modules[mod.folderName]) {
+      syncData.modules[mod.folderName] = { items: {} };
+    }
+    if (!syncData.modules[mod.folderName].items) {
+      syncData.modules[mod.folderName].items = {};
+    }
+    const allItems = flattenItems(mod.items);
+    for (const item of allItems) {
+      if (item.relativePath && item.frontmatter && item.frontmatter.canvas_id) {
+        const existing = syncData.modules[mod.folderName].items[item.relativePath];
+        if (!existing) {
+          syncData.modules[mod.folderName].items[item.relativePath] = {
+            canvas_id: item.frontmatter.canvas_id,
+            canvas_type: item.canvasType || 'page',
+          };
+        }
+      }
+    }
+  }
+
+  // Build link map from sync state for resolving internal links
+  let { relativeToCanvas } = buildLinkMap(syncData);
+
+  // Track items that had unresolved internal links for a second pass
+  const unresolvedItems = [];
+
   const errors = [];
   const totalModules = filteredModules.length;
 
@@ -79,7 +109,7 @@ async function push(options) {
     const mod = filteredModules[mi];
     console.log(`\n[push] Module ${mi + 1}/${totalModules}: ${mod.moduleName}`);
     try {
-      await pushModule(courseId, mod, syncData, dryRun, iconUrls);
+      await pushModule(courseId, mod, syncData, dryRun, iconUrls, relativeToCanvas, unresolvedItems);
     } catch (err) {
       console.error(`[push] Error pushing module "${mod.moduleName}": ${err.message}`);
       errors.push({ module: mod.moduleName, error: err.message });
@@ -87,6 +117,33 @@ async function push(options) {
     // Save sync state after each module so progress is preserved on failure
     if (!dryRun) {
       saveSyncFile(syncData);
+    }
+  }
+
+  // Second pass: re-push items that had unresolved internal links
+  if (unresolvedItems.length > 0 && !dryRun) {
+    console.log(`\n[push] Resolving internal links for ${unresolvedItems.length} item(s) that referenced newly-created pages...`);
+    ({ relativeToCanvas } = buildLinkMap(syncData));
+
+    for (const { courseId: cId, relativePath, filePath, canvasId, canvasType, iconUrls: iu } of unresolvedItems) {
+      try {
+        const linkResolver = (href) => {
+          const { resolved } = resolveRelativeLink(href, relativePath, relativeToCanvas, cId);
+          return resolved;
+        };
+        const raw = fs.readFileSync(filePath, 'utf8');
+        const html = markdownToHtml(raw, { iconUrls: iu, linkResolver });
+
+        if (canvasType === 'page') {
+          await updatePage(cId, canvasId, { body: html });
+        } else if (canvasType === 'assignment') {
+          await updateAssignment(cId, canvasId, { description: html });
+        }
+        console.log(`  [push] Updated links in: ${relativePath}`);
+      } catch (err) {
+        console.error(`  [push] Error updating links in "${relativePath}": ${err.message}`);
+        errors.push({ module: relativePath, error: err.message });
+      }
     }
   }
 
@@ -113,7 +170,7 @@ async function push(options) {
   }
 }
 
-async function pushModule(courseId, mod, syncData, dryRun, iconUrls) {
+async function pushModule(courseId, mod, syncData, dryRun, iconUrls, relativeToCanvas, unresolvedItems) {
   const syncModule = syncData.modules[mod.folderName] || {};
   const canvasModuleId = syncModule.canvas_module_id;
 
@@ -167,13 +224,18 @@ async function pushModule(courseId, mod, syncData, dryRun, iconUrls) {
     const itemTitle = item.title || item.file || 'unknown';
     console.log(`  [push] Item ${ii + 1}/${totalItems}: ${itemTitle}`);
     try {
-      await pushItem(courseId, moduleId, item, dryRun, iconUrls, mod.folderName);
+      await pushItem(courseId, moduleId, item, dryRun, iconUrls, mod.folderName, relativeToCanvas, unresolvedItems);
       // Track item in sync file
       if (!dryRun && item.relativePath && item.frontmatter && item.frontmatter.canvas_id) {
-        syncData.modules[mod.folderName].items[item.relativePath] = {
+        const itemSync = {
           canvas_id: item.frontmatter.canvas_id,
           canvas_type: item.canvasType || 'page',
         };
+        // Store page slug for link resolution (pages use slugs in URLs, not numeric IDs)
+        if (item._pageUrl) {
+          itemSync.page_url = item._pageUrl;
+        }
+        syncData.modules[mod.folderName].items[item.relativePath] = itemSync;
       }
     } catch (err) {
       console.error(`  [push] Error pushing item "${itemTitle}": ${err.message}`);
@@ -213,7 +275,7 @@ function flattenItems(items) {
   return result;
 }
 
-async function pushItem(courseId, moduleId, item, dryRun, iconUrls, folderName) {
+async function pushItem(courseId, moduleId, item, dryRun, iconUrls, folderName, relativeToCanvas, unresolvedItems) {
   if (item.type === 'subheader') {
     console.log(`  [push] Adding SubHeader: ${item.title}`);
     if (!dryRun) {
@@ -232,9 +294,10 @@ async function pushItem(courseId, moduleId, item, dryRun, iconUrls, folderName) 
   const canvasId = frontmatter.canvas_id || null;
 
   if (canvasType === 'page') {
-    await pushPage(courseId, moduleId, { title, filePath, relativePath, canvasId, position, indent, frontmatter }, dryRun, iconUrls);
+    const pageUrl = await pushPage(courseId, moduleId, { title, filePath, relativePath, canvasId, position, indent, frontmatter }, dryRun, iconUrls, relativeToCanvas, unresolvedItems);
+    if (pageUrl) item._pageUrl = pageUrl;
   } else if (canvasType === 'assignment') {
-    await pushAssignment(courseId, moduleId, { title, filePath, relativePath, canvasId, position, indent, frontmatter }, dryRun, iconUrls);
+    await pushAssignment(courseId, moduleId, { title, filePath, relativePath, canvasId, position, indent, frontmatter }, dryRun, iconUrls, relativeToCanvas, unresolvedItems);
   } else if (canvasType === 'external_url') {
     await pushExternalUrl(courseId, moduleId, { title, position, indent, frontmatter }, dryRun);
   } else if (canvasType === 'file') {
@@ -244,9 +307,17 @@ async function pushItem(courseId, moduleId, item, dryRun, iconUrls, folderName) 
   }
 }
 
-async function pushPage(courseId, moduleId, { title, filePath, relativePath, canvasId, position, indent, frontmatter }, dryRun, iconUrls) {
+async function pushPage(courseId, moduleId, { title, filePath, relativePath, canvasId, position, indent, frontmatter }, dryRun, iconUrls, relativeToCanvas, unresolvedItems) {
   const raw = fs.readFileSync(filePath, 'utf8');
-  const html = markdownToHtml(raw, { iconUrls });
+
+  // Create link resolver that tracks unresolved internal links
+  let hasUnresolved = false;
+  const linkResolver = (href) => {
+    const { resolved, wasInternal } = resolveRelativeLink(href, relativePath, relativeToCanvas, courseId);
+    if (wasInternal) hasUnresolved = true;
+    return resolved;
+  };
+  const html = markdownToHtml(raw, { iconUrls, linkResolver });
 
   let pageId = canvasId;
   let pageSlug = null;
@@ -277,6 +348,7 @@ async function pushPage(courseId, moduleId, { title, filePath, relativePath, can
       pageSlug = result.url;
       // Write canvas_id back to frontmatter
       updateFrontmatter(filePath, { canvas_id: pageId });
+      frontmatter.canvas_id = pageId;
       console.log(`    [push] Wrote canvas_id=${pageId} to ${relativePath}`);
     }
   }
@@ -291,11 +363,26 @@ async function pushPage(courseId, moduleId, { title, filePath, relativePath, can
       indent,
     });
   }
+
+  // Track for second pass if there were unresolved internal links
+  if (hasUnresolved && !dryRun && pageId) {
+    unresolvedItems.push({ courseId, relativePath, filePath, canvasId: pageId, canvasType: 'page', iconUrls });
+  }
+
+  return pageSlug || null;
 }
 
-async function pushAssignment(courseId, moduleId, { title, filePath, relativePath, canvasId, position, indent, frontmatter }, dryRun, iconUrls) {
+async function pushAssignment(courseId, moduleId, { title, filePath, relativePath, canvasId, position, indent, frontmatter }, dryRun, iconUrls, relativeToCanvas, unresolvedItems) {
   const raw = fs.readFileSync(filePath, 'utf8');
-  const html = markdownToHtml(raw, { iconUrls });
+
+  // Create link resolver that tracks unresolved internal links
+  let hasUnresolved = false;
+  const linkResolver = (href) => {
+    const { resolved, wasInternal } = resolveRelativeLink(href, relativePath, relativeToCanvas, courseId);
+    if (wasInternal) hasUnresolved = true;
+    return resolved;
+  };
+  const html = markdownToHtml(raw, { iconUrls, linkResolver });
 
   const assignmentOpts = {
     name: title,
@@ -333,6 +420,7 @@ async function pushAssignment(courseId, moduleId, { title, filePath, relativePat
       const result = await createAssignment(courseId, assignmentOpts);
       assignmentId = result.id;
       updateFrontmatter(filePath, { canvas_id: assignmentId });
+      frontmatter.canvas_id = assignmentId;
       console.log(`    [push] Wrote canvas_id=${assignmentId} to ${relativePath}`);
     }
   }
@@ -346,6 +434,11 @@ async function pushAssignment(courseId, moduleId, { title, filePath, relativePat
       position,
       indent,
     });
+  }
+
+  // Track for second pass if there were unresolved internal links
+  if (hasUnresolved && !dryRun && assignmentId) {
+    unresolvedItems.push({ courseId, relativePath, filePath, canvasId: assignmentId, canvasType: 'assignment', iconUrls });
   }
 }
 

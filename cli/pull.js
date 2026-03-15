@@ -5,6 +5,7 @@ const { listModules, listModuleItems } = require('../lib/canvas/modules');
 const { getPage } = require('../lib/canvas/pages');
 const { getAssignment } = require('../lib/canvas/assignments');
 const { canvasItemToMarkdown } = require('../lib/convert/html-to-markdown');
+const { buildLinkMap, resolveCanvasLink } = require('../lib/convert/link-resolver');
 
 const COURSE_DIR = path.resolve(process.cwd(), 'course');
 const SYNC_FILE = path.resolve(process.cwd(), '.canvas-sync.json');
@@ -76,6 +77,9 @@ async function pull(options) {
 
   console.log(`[pull] Found ${modules.length} module(s).\n`);
 
+  // Build reverse link map for resolving Canvas internal links back to relative paths
+  const { canvasToRelative } = buildLinkMap(syncData);
+
   // Ensure course directory exists
   if (!fs.existsSync(COURSE_DIR)) {
     fs.mkdirSync(COURSE_DIR, { recursive: true });
@@ -88,7 +92,7 @@ async function pull(options) {
     const mod = modules[mi];
     console.log(`[pull] Module ${mi + 1}/${totalModules}: ${mod.name}`);
     try {
-      await pullModule(courseId, mod, syncData, force);
+      await pullModule(courseId, mod, syncData, force, canvasToRelative);
     } catch (err) {
       console.error(`[pull] Error pulling module "${mod.name}": ${err.message}`);
       errors.push({ module: mod.name, error: err.message });
@@ -113,7 +117,7 @@ async function pull(options) {
   }
 }
 
-async function pullModule(courseId, mod, syncData, force) {
+async function pullModule(courseId, mod, syncData, force, canvasToRelative) {
   const position = mod.position || 0;
   const folderName = toFolderName(mod.name, position);
   const moduleDir = path.join(COURSE_DIR, folderName);
@@ -192,7 +196,7 @@ async function pullModule(courseId, mod, syncData, force) {
     }
 
     try {
-      await pullItem(courseId, item, targetDir, itemPosition, syncData, force);
+      await pullItem(courseId, item, targetDir, itemPosition, syncData, force, folderName, canvasToRelative);
     } catch (err) {
       console.error(`  [pull] Error pulling item "${item.title || 'unknown'}": ${err.message}`);
     }
@@ -212,7 +216,7 @@ function isLocallyModified(filePath, syncData) {
   return stat.mtime > lastSync;
 }
 
-async function pullItem(courseId, item, moduleDir, position, syncData, force) {
+async function pullItem(courseId, item, moduleDir, position, syncData, force, folderName, canvasToRelative) {
   const itemType = item.type;
   const title = item.title || 'Untitled';
 
@@ -233,7 +237,9 @@ async function pullItem(courseId, item, moduleDir, position, syncData, force) {
 
     console.log(`  [pull] Fetching page: ${title}`);
     const page = await getPage(courseId, pageUrl);
-    const markdown = canvasItemToMarkdown(page, 'page');
+    const relativePath = path.posix.join(folderName, path.relative(path.join(COURSE_DIR, folderName), path.join(moduleDir, fileName)).split(path.sep).join('/'));
+    const linkResolver = (href) => resolveCanvasLink(href, relativePath, canvasToRelative);
+    const markdown = canvasItemToMarkdown(page, 'page', { linkResolver });
     fs.writeFileSync(filePath, markdown, 'utf8');
     console.log(`    [pull] Wrote ${fileName}`);
     return;
@@ -256,7 +262,9 @@ async function pullItem(courseId, item, moduleDir, position, syncData, force) {
 
     console.log(`  [pull] Fetching assignment: ${title}`);
     const assignment = await getAssignment(courseId, contentId);
-    const markdown = canvasItemToMarkdown(assignment, 'assignment');
+    const relativePath = path.posix.join(folderName, path.relative(path.join(COURSE_DIR, folderName), path.join(moduleDir, fileName)).split(path.sep).join('/'));
+    const linkResolver = (href) => resolveCanvasLink(href, relativePath, canvasToRelative);
+    const markdown = canvasItemToMarkdown(assignment, 'assignment', { linkResolver });
     fs.writeFileSync(filePath, markdown, 'utf8');
     console.log(`    [pull] Wrote ${fileName}`);
     return;
