@@ -110,5 +110,5 @@ Thomas More-inspired styling in `src/css/custom.css` with color mode config in `
 
 ## Notes
 
-- Node.js 18+ required (uses native fetch)
+- Node.js 24+ required (LTS)
 - Docusaurus `_category_.json` files control sidebar labels/ordering and are skipped by the course scanner
