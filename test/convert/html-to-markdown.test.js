@@ -79,6 +79,16 @@ describe('htmlToMarkdown admonitions', () => {
     assert.match(md, /\[!CHECK\]/);
   });
 
+  it('preserves plain text nodes inside admonitions', () => {
+    const html = `<div class="markdown-alert markdown-alert-note" style="border-left: .25em solid #ccc; padding-left: 1em;">
+      <p class="markdown-alert-title" style="font-size: 1.2em;">Info</p>
+      Some plain text without a wrapper element.
+    </div>`;
+    const md = htmlToMarkdown(html);
+    assert.match(md, /\[!NOTE\]/);
+    assert.match(md, /Some plain text without a wrapper element\./);
+  });
+
   it('strips spacer paragraphs after admonitions', () => {
     const html = admonitionHtml('note', 'Info', 'Content.');
     const md = htmlToMarkdown(html);
