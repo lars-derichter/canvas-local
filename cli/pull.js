@@ -7,30 +7,9 @@ const { getAssignment } = require('../lib/canvas/assignments');
 const { canvasItemToMarkdown } = require('../lib/convert/html-to-markdown');
 const { buildLinkMap, resolveCanvasLink, buildFileMap } = require('../lib/convert/link-resolver');
 const { downloadFile } = require('../lib/canvas/files');
+const { SYNC_FILE, loadSyncFile, saveSyncFile } = require('./sync-utils');
 
 const COURSE_DIR = path.resolve(process.cwd(), 'course');
-const SYNC_FILE = path.resolve(process.cwd(), '.canvas-sync.json');
-
-function loadSyncFile() {
-  if (fs.existsSync(SYNC_FILE)) {
-    try {
-      return JSON.parse(fs.readFileSync(SYNC_FILE, 'utf8'));
-    } catch (_) {
-      // Fall through
-    }
-  }
-  return {
-    schema_version: 2,
-    canvas_base_url: process.env.CANVAS_API_URL || '',
-    course_id: Number(process.env.CANVAS_COURSE_ID) || 0,
-    modules: {},
-    last_sync: null,
-  };
-}
-
-function saveSyncFile(syncData) {
-  fs.writeFileSync(SYNC_FILE, JSON.stringify(syncData, null, 2) + '\n', 'utf8');
-}
 
 /**
  * Create a numbered folder name from a module name and position.

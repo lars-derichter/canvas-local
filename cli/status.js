@@ -3,23 +3,12 @@ const path = require('path');
 
 const { scanCourse } = require('../lib/convert/course-scanner');
 const { listModules, listModuleItems } = require('../lib/canvas/modules');
+const { loadSyncFile } = require('./sync-utils');
 
 const COURSE_DIR = path.resolve(process.cwd(), 'course');
-const SYNC_FILE = path.resolve(process.cwd(), '.canvas-sync.json');
-
-function loadSyncFile() {
-  if (fs.existsSync(SYNC_FILE)) {
-    try {
-      return JSON.parse(fs.readFileSync(SYNC_FILE, 'utf8'));
-    } catch (_) {
-      // Fall through
-    }
-  }
-  return null;
-}
 
 async function status(options) {
-  const syncData = loadSyncFile();
+  const syncData = loadSyncFile({ allowNull: true });
 
   if (!syncData) {
     console.log('[status] No .canvas-sync.json found. Run "npx course init" first.');

@@ -11,30 +11,9 @@ const { createAssignment, updateAssignment } = require('../lib/canvas/assignment
 const { uploadFile } = require('../lib/canvas/files');
 const { ensureIcons, getIconUrls } = require('../lib/canvas/icons');
 const { buildLinkMap, resolveRelativeLink, extractFileReferences } = require('../lib/convert/link-resolver');
+const { SYNC_FILE, loadSyncFile, saveSyncFile } = require('./sync-utils');
 
 const COURSE_DIR = path.resolve(process.cwd(), 'course');
-const SYNC_FILE = path.resolve(process.cwd(), '.canvas-sync.json');
-
-function loadSyncFile() {
-  if (fs.existsSync(SYNC_FILE)) {
-    try {
-      return JSON.parse(fs.readFileSync(SYNC_FILE, 'utf8'));
-    } catch (_) {
-      // Fall through to create empty
-    }
-  }
-  return {
-    schema_version: 2,
-    canvas_base_url: process.env.CANVAS_API_URL || '',
-    course_id: Number(process.env.CANVAS_COURSE_ID) || 0,
-    modules: {},
-    last_sync: null,
-  };
-}
-
-function saveSyncFile(syncData) {
-  fs.writeFileSync(SYNC_FILE, JSON.stringify(syncData, null, 2) + '\n', 'utf8');
-}
 
 async function push(options) {
   const courseId = process.env.CANVAS_COURSE_ID;
