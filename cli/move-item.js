@@ -19,31 +19,30 @@ async function moveItem() {
 
   printItems(items);
 
-  const sourceStr = await prompt(rl, 'Item to move (number)');
-  const sourcePrefix = parseInt(sourceStr, 10);
-  const sourceItem = items.find((i) => i.prefix === sourcePrefix);
-
-  if (!sourceItem) {
-    rl.close();
-    console.error(`[move-item] Error: No item found with number ${sourceStr}.`);
-    process.exit(1);
+  let sourceItem;
+  while (true) {
+    const sourceStr = await prompt(rl, 'Item to move (number)');
+    const sourcePrefix = parseInt(sourceStr, 10);
+    sourceItem = items.find((i) => i.prefix === sourcePrefix);
+    if (sourceItem) break;
+    console.log(`  No item found with number ${sourceStr}. Please try again.`);
   }
 
-  const targetStr = await prompt(rl, 'New position');
+  let targetPosition;
+  while (true) {
+    const targetStr = await prompt(rl, 'New position');
+    targetPosition = parseInt(targetStr, 10);
+    if (!isNaN(targetPosition) && targetPosition >= 1 && targetPosition <= items.length) break;
+    console.log(`  Position must be between 1 and ${items.length}. Please try again.`);
+  }
   rl.close();
 
-  const targetPosition = parseInt(targetStr, 10);
-  if (isNaN(targetPosition) || targetPosition < 1 || targetPosition > items.length) {
-    console.error(`[move-item] Error: Position must be between 1 and ${items.length}.`);
-    process.exit(1);
-  }
-
-  if (sourcePrefix === targetPosition) {
+  if (sourceItem.prefix === targetPosition) {
     console.log('[move-item] Item is already at that position.');
     return;
   }
 
-  const renames = reorder(targetDir, items, sourcePrefix, targetPosition);
+  const renames = reorder(targetDir, items, sourceItem.prefix, targetPosition);
 
   if (renames.length > 0) {
     console.log('[move-item] Reordered items:');

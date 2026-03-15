@@ -21,30 +21,29 @@ async function newItem() {
   const items = getItems(targetDir);
   printItems(items);
 
-  const typeInput = await prompt(rl, `Item type (${VALID_TYPES.join('/')})`);
-  const type = typeInput.toLowerCase();
-
-  if (!VALID_TYPES.includes(type)) {
-    rl.close();
-    console.error(`[new-item] Error: Invalid type. Must be one of: ${VALID_TYPES.join(', ')}`);
-    process.exit(1);
-  }
-
-  // Subsections only at module root
-  if (type === 'subsection' && targetDir !== modulePath) {
-    rl.close();
-    console.error('[new-item] Error: Subsections can only be created at module root level.');
-    process.exit(1);
+  let type;
+  while (true) {
+    const typeInput = await prompt(rl, `Item type (${VALID_TYPES.join('/')})`);
+    type = typeInput.toLowerCase();
+    if (!VALID_TYPES.includes(type)) {
+      console.log(`  Invalid type. Must be one of: ${VALID_TYPES.join(', ')}. Please try again.`);
+      continue;
+    }
+    if (type === 'subsection' && targetDir !== modulePath) {
+      console.log('  Subsections can only be created at module root level. Please choose another type.');
+      continue;
+    }
+    break;
   }
 
   let createdName;
 
   if (type === 'file') {
-    const filePath = await prompt(rl, 'Path to file');
-    if (!filePath || !fs.existsSync(filePath)) {
-      rl.close();
-      console.error('[new-item] Error: File not found.');
-      process.exit(1);
+    let filePath;
+    while (true) {
+      filePath = await prompt(rl, 'Path to file');
+      if (filePath && fs.existsSync(filePath)) break;
+      console.log('  File not found. Please try again.');
     }
 
     const positionStr = await prompt(rl, 'Position', pad(getNextPosition(items)));
@@ -60,11 +59,11 @@ async function newItem() {
     createdName = `${pad(position)}-${originalName}`;
     fs.copyFileSync(filePath, path.join(targetDir, createdName));
   } else if (type === 'subsection') {
-    const name = await prompt(rl, 'Subsection name');
-    if (!name) {
-      rl.close();
-      console.error('[new-item] Error: Name is required.');
-      process.exit(1);
+    let name;
+    while (true) {
+      name = await prompt(rl, 'Subsection name');
+      if (name) break;
+      console.log('  Name is required. Please try again.');
     }
 
     const positionStr = await prompt(rl, 'Position', pad(getNextPosition(items)));
@@ -86,11 +85,11 @@ async function newItem() {
     );
   } else {
     // page, assignment, url
-    const name = await prompt(rl, 'Item name');
-    if (!name) {
-      rl.close();
-      console.error('[new-item] Error: Name is required.');
-      process.exit(1);
+    let name;
+    while (true) {
+      name = await prompt(rl, 'Item name');
+      if (name) break;
+      console.log('  Name is required. Please try again.');
     }
 
     let extraFrontmatter = '';
@@ -99,18 +98,13 @@ async function newItem() {
       const points = await prompt(rl, 'Points possible', '100');
       extraFrontmatter = `points_possible: ${points}\nsubmission_types:\n  - online_upload\n`;
     } else if (type === 'url') {
-      const url = await prompt(rl, 'URL');
-      if (!url) {
-        rl.close();
-        console.error('[new-item] Error: URL is required.');
-        process.exit(1);
-      }
-      try {
-        new URL(url);
-      } catch (_) {
-        rl.close();
-        console.error(`[new-item] Error: "${url}" is not a valid URL.`);
-        process.exit(1);
+      let url;
+      while (true) {
+        url = await prompt(rl, 'URL');
+        if (!url) { console.log('  URL is required. Please try again.'); continue; }
+        try { new URL(url); break; } catch (_) {
+          console.log(`  "${url}" is not a valid URL. Please try again.`);
+        }
       }
       extraFrontmatter = `external_url: ${url}\n`;
     }

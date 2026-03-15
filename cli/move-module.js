@@ -22,26 +22,25 @@ async function moveModule() {
 
   printModules(modules);
 
-  const sourceStr = await prompt(rl, 'Module to move (number)');
-  const sourcePrefix = parseInt(sourceStr, 10);
-  const sourceModule = modules.find((m) => m.prefix === sourcePrefix);
-
-  if (!sourceModule) {
-    rl.close();
-    console.error(`[move-module] Error: No module found with number ${sourceStr}.`);
-    process.exit(1);
+  let sourceModule;
+  while (true) {
+    const sourceStr = await prompt(rl, 'Module to move (number)');
+    const sourceModule.prefix = parseInt(sourceStr, 10);
+    sourceModule = modules.find((m) => m.prefix === sourceModule.prefix);
+    if (sourceModule) break;
+    console.log(`  No module found with number ${sourceStr}. Please try again.`);
   }
 
-  const targetStr = await prompt(rl, 'New position');
+  let targetPosition;
+  while (true) {
+    const targetStr = await prompt(rl, 'New position');
+    targetPosition = parseInt(targetStr, 10);
+    if (!isNaN(targetPosition) && targetPosition >= 1 && targetPosition <= modules.length) break;
+    console.log(`  Position must be between 1 and ${modules.length}. Please try again.`);
+  }
   rl.close();
 
-  const targetPosition = parseInt(targetStr, 10);
-  if (isNaN(targetPosition) || targetPosition < 1 || targetPosition > modules.length) {
-    console.error(`[move-module] Error: Position must be between 1 and ${modules.length}.`);
-    process.exit(1);
-  }
-
-  if (sourcePrefix === targetPosition) {
+  if (sourceModule.prefix === targetPosition) {
     console.log('[move-module] Module is already at that position.');
     return;
   }
@@ -53,7 +52,7 @@ async function moveModule() {
     isDirectory: true,
   }));
 
-  const renames = reorder(COURSE_DIR, entries, sourcePrefix, targetPosition);
+  const renames = reorder(COURSE_DIR, entries, sourceModule.prefix, targetPosition);
 
   if (renames.length > 0) {
     console.log('[move-module] Reordered modules:');

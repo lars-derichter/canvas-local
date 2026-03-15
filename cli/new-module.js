@@ -37,25 +37,25 @@ async function newModule() {
   const modules = getExistingModules();
   printModules(modules);
 
-  const name = await prompt(rl, 'Module name');
-  if (!name) {
-    rl.close();
-    console.error('[new-module] Error: Module name is required.');
-    process.exit(1);
+  let name;
+  while (true) {
+    name = await prompt(rl, 'Module name');
+    if (name) break;
+    console.log('  Module name is required. Please try again.');
   }
 
   const nextAvailable = modules.length > 0
     ? modules[modules.length - 1].prefix + 1
     : 1;
 
-  const positionStr = await prompt(rl, 'Position number', pad(nextAvailable));
-  rl.close();
-
-  const position = parseInt(positionStr, 10);
-  if (isNaN(position) || position < 1 || position > 99) {
-    console.error('[new-module] Error: Position must be a number between 1 and 99.');
-    process.exit(1);
+  let position;
+  while (true) {
+    const positionStr = await prompt(rl, 'Position number', pad(nextAvailable));
+    position = parseInt(positionStr, 10);
+    if (!isNaN(position) && position >= 1 && position <= 99) break;
+    console.log('  Position must be a number between 1 and 99. Please try again.');
   }
+  rl.close();
 
   // Renumber if there's a conflict
   const conflicting = modules.some((m) => m.prefix >= position);
