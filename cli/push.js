@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const readline = require('readline');
 
 const { scanCourse } = require('../lib/convert/course-scanner');
 const { parseFrontmatter, updateFrontmatter } = require('../lib/convert/frontmatter');
@@ -566,7 +567,23 @@ async function pruneDeletedModules(courseId, syncData, localModules, dryRun, err
     return;
   }
 
-  console.log(`\n[push] Prune: ${toDelete.length} locally-deleted module(s) to remove from Canvas.`);
+  console.log(`\n[push] Prune: ${toDelete.length} locally-deleted module(s) to remove from Canvas:`);
+  for (const { folder } of toDelete) {
+    console.log(`  - ${folder}`);
+  }
+
+  if (!dryRun) {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    const answer = await new Promise((resolve) => {
+      rl.question('[push] Delete these modules from Canvas? (y/N) ', resolve);
+    });
+    rl.close();
+
+    if (answer.toLowerCase() !== 'y') {
+      console.log('[push] Prune cancelled.');
+      return;
+    }
+  }
 
   for (const { folder, canvasModuleId } of toDelete) {
     console.log(`  [push] Pruning module: ${folder} (canvas_module_id: ${canvasModuleId})`);
