@@ -103,6 +103,14 @@ async function push(options) {
     }
   }
 
+  // Report unresolved links in dry-run mode
+  if (unresolvedItems.length > 0 && dryRun) {
+    console.log(`\n[push] ${unresolvedItems.length} item(s) have unresolved internal links (will be resolved in a second pass during actual push):`);
+    for (const { relativePath } of unresolvedItems) {
+      console.log(`  - ${relativePath}`);
+    }
+  }
+
   // Second pass: re-push items that had unresolved internal links
   if (unresolvedItems.length > 0 && !dryRun) {
     console.log(`\n[push] Resolving internal links for ${unresolvedItems.length} item(s) that referenced newly-created pages...`);
