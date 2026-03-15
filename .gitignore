@@ -55,3 +55,6 @@ dist/
 
 ### Course CLI ###
 .canvas-sync.json
+
+### Claude Code ###
+.claude/worktrees/
