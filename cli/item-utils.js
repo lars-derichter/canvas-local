@@ -92,6 +92,15 @@ async function selectModule(rl) {
     process.exit(1);
   }
 
+  if (modules.length === 1) {
+    const mod = modules[0];
+    console.log(`Auto-selected module: ${mod.folderName}\n`);
+    return {
+      modulePath: path.join(COURSE_DIR, mod.folderName),
+      folderName: mod.folderName,
+    };
+  }
+
   printModules(modules);
 
   const moduleStr = await prompt(rl, 'Which module? (number)');
