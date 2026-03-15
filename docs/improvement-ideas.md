@@ -8,6 +8,11 @@ These items are rendered like any other markdown document. Instead they should
 render as a document showing the link from the external_link frontmatter field.
 These files should not have any real contents apart from the frontmatter.
 
+## Push with --prune should delete individual items as well as modules
+
+Push with --prune should remove Canvas items of all types (not only modules)
+that no longer exist locally.
+
 ## Update Claude `/commit` Skill
 
 The Claude commit skill ignores changes to canvas_id changes in course
