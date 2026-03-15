@@ -30,6 +30,7 @@ async function status(options) {
   let syncedModules = 0;
   let syncedItems = 0;
   let deletedModules = 0;
+  let modifiedItems = 0;
 
   console.log('[status] Comparing local course/ with .canvas-sync.json\n');
 
@@ -53,7 +54,19 @@ async function status(options) {
 
       const canvasId = item.frontmatter && item.frontmatter.canvas_id;
       if (canvasId) {
-        console.log(`    SYNCED  ${item.relativePath} (canvas_id: ${canvasId})`);
+        // Check if locally modified since last sync
+        const filePath = path.join(COURSE_DIR, item.relativePath);
+        let modified = false;
+        if (syncData.last_sync && fs.existsSync(filePath)) {
+          const mtime = fs.statSync(filePath).mtime;
+          modified = mtime > new Date(syncData.last_sync);
+        }
+        if (modified) {
+          console.log(`    MODIFIED ${item.relativePath} (changed since last sync)`);
+          modifiedItems++;
+        } else {
+          console.log(`    SYNCED  ${item.relativePath} (canvas_id: ${canvasId})`);
+        }
         syncedItems++;
       } else {
         console.log(`    NEW     ${item.relativePath}`);
@@ -76,6 +89,7 @@ async function status(options) {
   console.log(`  Modules not pushed:  ${notPushedModules}`);
   console.log(`  Modules deleted:     ${deletedModules}`);
   console.log(`  Items synced:        ${syncedItems}`);
+  console.log(`  Items modified:      ${modifiedItems}`);
   console.log(`  Items not pushed:    ${notPushedItems}`);
 
   if (syncData.last_sync) {
