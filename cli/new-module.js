@@ -52,8 +52,8 @@ async function newModule() {
   rl.close();
 
   const position = parseInt(positionStr, 10);
-  if (isNaN(position) || position < 0 || position > 99) {
-    console.error('[new-module] Error: Position must be a number between 0 and 99.');
+  if (isNaN(position) || position < 1 || position > 99) {
+    console.error('[new-module] Error: Position must be a number between 1 and 99.');
     process.exit(1);
   }
 
