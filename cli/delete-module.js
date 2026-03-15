@@ -8,6 +8,7 @@ const {
   printModules,
 } = require('./module-utils');
 const { renumberSequential } = require('./renumber');
+const { loadSyncFile, saveSyncFile } = require('./sync-utils');
 
 /**
  * Get module entries in the format expected by renumberSequential.
@@ -70,6 +71,12 @@ async function deleteModule() {
   fs.rmSync(folderPath, { recursive: true });
   console.log(`[delete-module] Deleted ${sourceModule.folderName}/`);
 
+  // Remove from sync state and update renamed module keys
+  const syncData = loadSyncFile({ allowNull: true });
+  if (syncData && syncData.modules) {
+    delete syncData.modules[sourceModule.folderName];
+  }
+
   // Renumber remaining modules sequentially to close the gap
   const renames = renumberSequential(COURSE_DIR, getModuleEntries);
 
@@ -78,6 +85,20 @@ async function deleteModule() {
     for (const r of renames) {
       console.log(`  ${r.from} -> ${r.to}`);
     }
+    // Update sync state keys for renamed modules
+    if (syncData && syncData.modules) {
+      for (const { from, to } of renames) {
+        if (syncData.modules[from]) {
+          syncData.modules[to] = syncData.modules[from];
+          delete syncData.modules[from];
+        }
+      }
+    }
+  }
+
+  if (syncData) {
+    saveSyncFile(syncData);
+    console.log('[delete-module] Sync state updated.');
   }
 }
 
