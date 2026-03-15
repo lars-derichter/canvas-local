@@ -60,11 +60,19 @@ Try them here:
 
 ## Images
 
-Images use the same syntax as links, prefixed with `!`:
+Images use the same syntax as links, prefixed with `!`. Store image files in
+the `_files/` subdirectory of your module:
 
 ```markdown
-![Alt text](path/to/image.png)
+![Alt text](./_files/example-image.svg)
 ```
+
+Here is an embedded example:
+
+![Example image](./_files/example-image.svg)
+
+During push, images are automatically uploaded to Canvas and their paths are
+rewritten to Canvas file URLs. During pull, they are downloaded back.
 
 ## Code Blocks
 

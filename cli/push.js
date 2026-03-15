@@ -9,7 +9,7 @@ const { createPage, updatePage } = require('../lib/canvas/pages');
 const { createAssignment, updateAssignment } = require('../lib/canvas/assignments');
 const { uploadFile } = require('../lib/canvas/files');
 const { ensureIcons, getIconUrls } = require('../lib/canvas/icons');
-const { buildLinkMap, resolveRelativeLink } = require('../lib/convert/link-resolver');
+const { buildLinkMap, resolveRelativeLink, extractFileReferences } = require('../lib/convert/link-resolver');
 
 const COURSE_DIR = path.resolve(process.cwd(), 'course');
 const SYNC_FILE = path.resolve(process.cwd(), '.canvas-sync.json');
@@ -73,6 +73,9 @@ async function push(options) {
   }
   const iconUrls = getIconUrls(syncData);
 
+  // Initialize file tracking
+  if (!syncData.files) syncData.files = {};
+
   // Pre-populate sync items from frontmatter so the link map is available
   // even if .canvas-sync.json items were empty (e.g. after reset or first use)
   for (const mod of modules) {
@@ -131,8 +134,9 @@ async function push(options) {
           const { resolved } = resolveRelativeLink(href, relativePath, relativeToCanvas, cId);
           return resolved;
         };
+        const fileResolver = buildFileResolver(relativePath, syncData);
         const raw = fs.readFileSync(filePath, 'utf8');
-        const html = markdownToHtml(raw, { iconUrls: iu, linkResolver });
+        const html = markdownToHtml(raw, { iconUrls: iu, linkResolver, fileResolver });
 
         if (canvasType === 'page') {
           await updatePage(cId, canvasId, { body: html });
@@ -215,8 +219,45 @@ async function pushModule(courseId, mod, syncData, dryRun, iconUrls, relativeToC
     syncData.modules[mod.folderName].items = syncData.modules[mod.folderName].items || {};
   }
 
-  // Process items (including subheader items)
+  // Upload embedded files (images, etc.) referenced from markdown content
   const flatItems = flattenItems(mod.items);
+  const referencedFiles = new Set();
+
+  if (!dryRun) {
+    for (const item of flatItems) {
+      if (!item.relativePath || !item.relativePath.endsWith('.md')) continue;
+      const filePath = path.resolve(COURSE_DIR, item.relativePath);
+      try {
+        const raw = fs.readFileSync(filePath, 'utf8');
+        const refs = extractFileReferences(raw, item.relativePath);
+        for (const ref of refs) referencedFiles.add(ref);
+      } catch (_) {
+        // File may not exist yet during dry run
+      }
+    }
+
+    for (const ref of referencedFiles) {
+      const localPath = path.resolve(COURSE_DIR, ref);
+      if (!fs.existsSync(localPath)) {
+        console.warn(`  [push] WARNING: Referenced file not found: ${ref}`);
+        continue;
+      }
+      if (syncData.files[ref]) continue; // Already uploaded
+
+      console.log(`  [push] Uploading embedded file: ${ref}`);
+      try {
+        const result = await uploadFile(courseId, localPath, { parentFolderPath: mod.folderName });
+        syncData.files[ref] = {
+          canvas_file_id: result.id,
+          canvas_url: `/courses/${courseId}/files/${result.id}/preview`,
+        };
+      } catch (err) {
+        console.error(`  [push] Error uploading file "${ref}": ${err.message}`);
+      }
+    }
+  }
+
+  // Process items (including subheader items)
   const totalItems = flatItems.length;
 
   for (let ii = 0; ii < flatItems.length; ii++) {
@@ -224,7 +265,7 @@ async function pushModule(courseId, mod, syncData, dryRun, iconUrls, relativeToC
     const itemTitle = item.title || item.file || 'unknown';
     console.log(`  [push] Item ${ii + 1}/${totalItems}: ${itemTitle}`);
     try {
-      await pushItem(courseId, moduleId, item, dryRun, iconUrls, mod.folderName, relativeToCanvas, unresolvedItems);
+      await pushItem(courseId, moduleId, item, dryRun, iconUrls, mod.folderName, relativeToCanvas, unresolvedItems, syncData);
       // Track item in sync file
       if (!dryRun && item.relativePath && item.frontmatter && item.frontmatter.canvas_id) {
         const itemSync = {
@@ -275,7 +316,7 @@ function flattenItems(items) {
   return result;
 }
 
-async function pushItem(courseId, moduleId, item, dryRun, iconUrls, folderName, relativeToCanvas, unresolvedItems) {
+async function pushItem(courseId, moduleId, item, dryRun, iconUrls, folderName, relativeToCanvas, unresolvedItems, syncData) {
   if (item.type === 'subheader') {
     console.log(`  [push] Adding SubHeader: ${item.title}`);
     if (!dryRun) {
@@ -294,10 +335,10 @@ async function pushItem(courseId, moduleId, item, dryRun, iconUrls, folderName, 
   const canvasId = frontmatter.canvas_id || null;
 
   if (canvasType === 'page') {
-    const pageUrl = await pushPage(courseId, moduleId, { title, filePath, relativePath, canvasId, position, indent, frontmatter }, dryRun, iconUrls, relativeToCanvas, unresolvedItems);
+    const pageUrl = await pushPage(courseId, moduleId, { title, filePath, relativePath, canvasId, position, indent, frontmatter }, dryRun, iconUrls, relativeToCanvas, unresolvedItems, syncData);
     if (pageUrl) item._pageUrl = pageUrl;
   } else if (canvasType === 'assignment') {
-    await pushAssignment(courseId, moduleId, { title, filePath, relativePath, canvasId, position, indent, frontmatter }, dryRun, iconUrls, relativeToCanvas, unresolvedItems);
+    await pushAssignment(courseId, moduleId, { title, filePath, relativePath, canvasId, position, indent, frontmatter }, dryRun, iconUrls, relativeToCanvas, unresolvedItems, syncData);
   } else if (canvasType === 'external_url') {
     await pushExternalUrl(courseId, moduleId, { title, position, indent, frontmatter }, dryRun);
   } else if (canvasType === 'file') {
@@ -307,7 +348,7 @@ async function pushItem(courseId, moduleId, item, dryRun, iconUrls, folderName, 
   }
 }
 
-async function pushPage(courseId, moduleId, { title, filePath, relativePath, canvasId, position, indent, frontmatter }, dryRun, iconUrls, relativeToCanvas, unresolvedItems) {
+async function pushPage(courseId, moduleId, { title, filePath, relativePath, canvasId, position, indent, frontmatter }, dryRun, iconUrls, relativeToCanvas, unresolvedItems, syncData) {
   const raw = fs.readFileSync(filePath, 'utf8');
 
   // Create link resolver that tracks unresolved internal links
@@ -317,7 +358,11 @@ async function pushPage(courseId, moduleId, { title, filePath, relativePath, can
     if (wasInternal) hasUnresolved = true;
     return resolved;
   };
-  const html = markdownToHtml(raw, { iconUrls, linkResolver });
+
+  // Create file resolver for images and non-.md file references
+  const fileResolver = buildFileResolver(relativePath, syncData);
+
+  const html = markdownToHtml(raw, { iconUrls, linkResolver, fileResolver });
 
   let pageId = canvasId;
   let pageSlug = null;
@@ -372,7 +417,7 @@ async function pushPage(courseId, moduleId, { title, filePath, relativePath, can
   return pageSlug || null;
 }
 
-async function pushAssignment(courseId, moduleId, { title, filePath, relativePath, canvasId, position, indent, frontmatter }, dryRun, iconUrls, relativeToCanvas, unresolvedItems) {
+async function pushAssignment(courseId, moduleId, { title, filePath, relativePath, canvasId, position, indent, frontmatter }, dryRun, iconUrls, relativeToCanvas, unresolvedItems, syncData) {
   const raw = fs.readFileSync(filePath, 'utf8');
 
   // Create link resolver that tracks unresolved internal links
@@ -382,7 +427,11 @@ async function pushAssignment(courseId, moduleId, { title, filePath, relativePat
     if (wasInternal) hasUnresolved = true;
     return resolved;
   };
-  const html = markdownToHtml(raw, { iconUrls, linkResolver });
+
+  // Create file resolver for images and non-.md file references
+  const fileResolver = buildFileResolver(relativePath, syncData);
+
+  const html = markdownToHtml(raw, { iconUrls, linkResolver, fileResolver });
 
   const assignmentOpts = {
     name: title,
@@ -440,6 +489,25 @@ async function pushAssignment(courseId, moduleId, { title, filePath, relativePat
   if (hasUnresolved && !dryRun && assignmentId) {
     unresolvedItems.push({ courseId, relativePath, filePath, canvasId: assignmentId, canvasType: 'assignment', iconUrls });
   }
+}
+
+/**
+ * Build a file resolver callback for a given markdown file.
+ * Resolves relative file paths to Canvas file URLs using syncData.files.
+ */
+function buildFileResolver(currentFilePath, syncData) {
+  return (href) => {
+    if (!href || /^(https?:\/\/|\/\/|#|mailto:)/.test(href)) return null;
+    if (href.endsWith('.md')) return null;
+
+    const currentDir = path.posix.dirname(currentFilePath);
+    const resolved = path.posix.normalize(path.posix.join(currentDir, href));
+    const entry = syncData.files[resolved];
+    if (!entry) return null;
+
+    const baseUrl = syncData.canvas_base_url || '';
+    return `${baseUrl}${entry.canvas_url}`;
+  };
 }
 
 async function pushExternalUrl(courseId, moduleId, { title, position, indent, frontmatter }, dryRun) {

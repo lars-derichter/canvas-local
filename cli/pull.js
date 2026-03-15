@@ -5,7 +5,8 @@ const { listModules, listModuleItems } = require('../lib/canvas/modules');
 const { getPage } = require('../lib/canvas/pages');
 const { getAssignment } = require('../lib/canvas/assignments');
 const { canvasItemToMarkdown } = require('../lib/convert/html-to-markdown');
-const { buildLinkMap, resolveCanvasLink } = require('../lib/convert/link-resolver');
+const { buildLinkMap, resolveCanvasLink, buildFileMap } = require('../lib/convert/link-resolver');
+const { downloadFile } = require('../lib/canvas/files');
 
 const COURSE_DIR = path.resolve(process.cwd(), 'course');
 const SYNC_FILE = path.resolve(process.cwd(), '.canvas-sync.json');
@@ -77,8 +78,14 @@ async function pull(options) {
 
   console.log(`[pull] Found ${modules.length} module(s).\n`);
 
+  // Initialize file tracking
+  if (!syncData.files) syncData.files = {};
+
   // Build reverse link map for resolving Canvas internal links back to relative paths
   const { canvasToRelative } = buildLinkMap(syncData);
+
+  // Build reverse file map for resolving Canvas file URLs back to local paths
+  const { canvasToLocal } = buildFileMap(syncData);
 
   // Ensure course directory exists
   if (!fs.existsSync(COURSE_DIR)) {
@@ -92,7 +99,7 @@ async function pull(options) {
     const mod = modules[mi];
     console.log(`[pull] Module ${mi + 1}/${totalModules}: ${mod.name}`);
     try {
-      await pullModule(courseId, mod, syncData, force, canvasToRelative);
+      await pullModule(courseId, mod, syncData, force, canvasToRelative, canvasToLocal);
     } catch (err) {
       console.error(`[pull] Error pulling module "${mod.name}": ${err.message}`);
       errors.push({ module: mod.name, error: err.message });
@@ -117,7 +124,7 @@ async function pull(options) {
   }
 }
 
-async function pullModule(courseId, mod, syncData, force, canvasToRelative) {
+async function pullModule(courseId, mod, syncData, force, canvasToRelative, canvasToLocal) {
   const position = mod.position || 0;
   const folderName = toFolderName(mod.name, position);
   const moduleDir = path.join(COURSE_DIR, folderName);
@@ -196,7 +203,7 @@ async function pullModule(courseId, mod, syncData, force, canvasToRelative) {
     }
 
     try {
-      await pullItem(courseId, item, targetDir, itemPosition, syncData, force, folderName, canvasToRelative);
+      await pullItem(courseId, item, targetDir, itemPosition, syncData, force, folderName, canvasToRelative, canvasToLocal);
     } catch (err) {
       console.error(`  [pull] Error pulling item "${item.title || 'unknown'}": ${err.message}`);
     }
@@ -216,7 +223,7 @@ function isLocallyModified(filePath, syncData) {
   return stat.mtime > lastSync;
 }
 
-async function pullItem(courseId, item, moduleDir, position, syncData, force, folderName, canvasToRelative) {
+async function pullItem(courseId, item, moduleDir, position, syncData, force, folderName, canvasToRelative, canvasToLocal) {
   const itemType = item.type;
   const title = item.title || 'Untitled';
 
@@ -239,7 +246,8 @@ async function pullItem(courseId, item, moduleDir, position, syncData, force, fo
     const page = await getPage(courseId, pageUrl);
     const relativePath = path.posix.join(folderName, path.relative(path.join(COURSE_DIR, folderName), path.join(moduleDir, fileName)).split(path.sep).join('/'));
     const linkResolver = (href) => resolveCanvasLink(href, relativePath, canvasToRelative);
-    const markdown = canvasItemToMarkdown(page, 'page', { linkResolver });
+    const fileResolver = await buildPullFileResolver(courseId, page.body || '', relativePath, folderName, syncData, canvasToLocal);
+    const markdown = canvasItemToMarkdown(page, 'page', { linkResolver, fileResolver });
     fs.writeFileSync(filePath, markdown, 'utf8');
     console.log(`    [pull] Wrote ${fileName}`);
     return;
@@ -264,7 +272,8 @@ async function pullItem(courseId, item, moduleDir, position, syncData, force, fo
     const assignment = await getAssignment(courseId, contentId);
     const relativePath = path.posix.join(folderName, path.relative(path.join(COURSE_DIR, folderName), path.join(moduleDir, fileName)).split(path.sep).join('/'));
     const linkResolver = (href) => resolveCanvasLink(href, relativePath, canvasToRelative);
-    const markdown = canvasItemToMarkdown(assignment, 'assignment', { linkResolver });
+    const fileResolver = await buildPullFileResolver(courseId, assignment.description || '', relativePath, folderName, syncData, canvasToLocal);
+    const markdown = canvasItemToMarkdown(assignment, 'assignment', { linkResolver, fileResolver });
     fs.writeFileSync(filePath, markdown, 'utf8');
     console.log(`    [pull] Wrote ${fileName}`);
     return;
@@ -291,6 +300,87 @@ async function pullItem(courseId, item, moduleDir, position, syncData, force, fo
 
   // File, Discussion, Quiz, ExternalTool, etc.
   console.log(`  [pull] Skipping unsupported item type "${itemType}": ${title}`);
+}
+
+/**
+ * Scan HTML for Canvas file URLs, download files locally, and return a resolver callback.
+ */
+async function buildPullFileResolver(courseId, html, currentFilePath, folderName, syncData, canvasToLocal) {
+  // Find all Canvas file references in the HTML
+  const filePattern = /\/courses\/\d+\/files\/(\d+)/g;
+  const fileIds = new Set();
+  let match;
+  while ((match = filePattern.exec(html)) !== null) {
+    fileIds.add(match[1]);
+  }
+
+  if (fileIds.size === 0) return null;
+
+  // Download files that aren't already tracked locally
+  const filesDir = path.join(COURSE_DIR, folderName, '_files');
+  for (const fileId of fileIds) {
+    // Check if already in canvasToLocal map
+    const canvasUrlPattern = `/courses/${courseId}/files/${fileId}/preview`;
+    if (canvasToLocal.has(canvasUrlPattern)) {
+      const localPath = canvasToLocal.get(canvasUrlPattern);
+      if (fs.existsSync(path.resolve(COURSE_DIR, localPath))) continue;
+    }
+
+    try {
+      // Get file metadata to determine filename
+      const { get } = require('../lib/canvas/client');
+      const fileMeta = await get(`/api/v1/files/${fileId}`);
+      const fileName = fileMeta.display_name || `file-${fileId}`;
+      const localRelPath = path.posix.join(folderName, '_files', fileName);
+      const destPath = path.resolve(COURSE_DIR, localRelPath);
+
+      // Download the file
+      console.log(`    [pull] Downloading file: ${fileName}`);
+      await downloadFile(fileId, destPath);
+
+      // Track in sync data
+      syncData.files[localRelPath] = {
+        canvas_file_id: Number(fileId),
+        canvas_url: canvasUrlPattern,
+      };
+
+      // Update the canvasToLocal map for immediate use
+      canvasToLocal.set(canvasUrlPattern, localRelPath);
+    } catch (err) {
+      console.error(`    [pull] Error downloading file ${fileId}: ${err.message}`);
+    }
+  }
+
+  // Return a resolver that converts Canvas file URLs to relative paths
+  return (href) => {
+    if (!href) return null;
+
+    // Strip domain if present
+    let urlPath = href;
+    try {
+      const url = new URL(href, 'https://placeholder.com');
+      urlPath = url.pathname;
+    } catch {
+      // Already a path
+    }
+
+    // Try to match against known file URLs
+    const fileMatch = urlPath.match(/\/courses\/\d+\/files\/(\d+)/);
+    if (!fileMatch) return null;
+
+    const fId = fileMatch[1];
+    const pattern = `/courses/${courseId}/files/${fId}/preview`;
+    const localPath = canvasToLocal.get(pattern);
+    if (!localPath) return null;
+
+    // Compute relative path from current file
+    const currentDir = path.posix.dirname(currentFilePath);
+    let relative = path.posix.relative(currentDir, localPath);
+    if (!relative.startsWith('.') && !relative.startsWith('/')) {
+      relative = './' + relative;
+    }
+    return relative;
+  };
 }
 
 module.exports = pull;

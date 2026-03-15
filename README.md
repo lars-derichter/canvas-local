@@ -59,6 +59,8 @@ Write course materials as markdown, preview via
 course/
   01-module-name/
     _category_.json          # Docusaurus sidebar label/order
+    _files/                  # Embedded assets (images, PDFs)
+      diagram.png
     01-page-name.md          # Canvas Page
     02-assignment-name.md    # Canvas Assignment
     03-link-name.md          # Canvas ExternalUrl
@@ -67,11 +69,16 @@ course/
 ```
 
 - Filenames are lowercase, hyphenated, prefixed with 00-99 for ordering
+- Files and folders prefixed with `_` are internal and excluded from Canvas
+  syncing (e.g. `_files/`, `_category_.json`)
 - Canvas item type is set via `canvas_type` in frontmatter (default: `page`)
 - Assignment frontmatter supports: `points_possible`, `submission_types`,
   `due_at`
 - External URL frontmatter requires: `external_url`
-- Non-markdown files (images, PDFs, etc.) are synced as Canvas File items
+- Images and files in `_files/` are referenced from markdown
+  (`![Alt](./_files/image.png)`) and automatically uploaded to Canvas during
+  push — they are embedded in page content, not added as module items
+- Non-markdown files outside `_files/` are synced as Canvas File items
 
 ### Evaluations (private)
 

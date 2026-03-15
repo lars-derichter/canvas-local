@@ -27,6 +27,46 @@ These links work across all three layers:
 Only `.md` links are transformed. External URLs, fragment-only links
 (`#heading`), and non-markdown file links are left unchanged.
 
+## Images and Files
+
+Store images and other embedded files in a `_files/` subdirectory within
+your module folder:
+
+```
+course/
+  01-getting-started/
+    _files/
+      diagram.png
+      handout.pdf
+    01-welcome.md
+```
+
+Reference them with standard markdown syntax:
+
+```md
+![Diagram](./_files/diagram.png)
+[Download handout](./_files/handout.pdf)
+```
+
+These references work across all three layers:
+
+- **Docusaurus** — relative paths work natively.
+- **Push to Canvas** — files are uploaded to Canvas file storage and
+  paths are rewritten to Canvas file URLs. Files in `_files/` are NOT
+  added as module items — they only appear inline.
+- **Pull from Canvas** — Canvas file URLs are downloaded to `_files/`
+  and converted back to relative paths.
+
+## Underscore Prefix Convention
+
+Files and folders whose names start with `_` (underscore) are treated as
+internal and are excluded from Canvas syncing. Docusaurus also skips them
+by convention. Examples:
+
+- `_files/` — embedded assets (images, PDFs)
+- `_category_.json` — Docusaurus sidebar configuration
+- `_draft-notes.md` — any file you want to keep local-only
+
 ## Custom Alerts / Callouts / Admonitions
 
 Use GitHub-style blockquote alerts for callout boxes. These render with
