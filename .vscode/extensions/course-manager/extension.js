@@ -18,6 +18,8 @@ const commands = {
   'course.moveItemToModule': 'npx course movetomodule-item',
   'course.renameItem': 'npx course rename-item',
   'course.deleteItem': 'npx course delete-item',
+  'course.diff': 'npx course diff',
+  'course.validate': 'npx course validate',
 };
 
 function getWorkingDir() {
