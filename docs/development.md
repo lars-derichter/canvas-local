@@ -63,6 +63,11 @@ npx course --verbose reset-canvas
 both Canvas and local state back to a clean slate, then `push` to re-create
 everything.
 
+## Architecture
+
+See [Architecture](architecture.md) for a technical overview of the three-layer
+design, sync state format, push/pull algorithms, and link resolution.
+
 ## Tests
 
 The project uses the built-in [Node.js test runner](https://nodejs.org/api/test.html)
