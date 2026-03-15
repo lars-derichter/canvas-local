@@ -135,6 +135,20 @@ describe('markdownToHtml link/file resolvers', () => {
     });
     assert.match(html, /href="https:\/\/canvas\.example\.com\/files\/600\/download"/);
   });
+
+  it('escapes quotes in link title attributes', () => {
+    const md = '[Link](https://example.com "a \\"quoted\\" title")';
+    const html = markdownToHtml(md, { linkResolver: () => null });
+    assert.match(html, /title="a &quot;quoted&quot; title"/);
+  });
+
+  it('escapes special characters in image alt text', () => {
+    const md = '![alt with "quotes" & <angle>](./_files/img.png)';
+    const html = markdownToHtml(md, {
+      fileResolver: () => null,
+    });
+    assert.match(html, /alt="alt with &quot;quotes&quot; &amp; &lt;angle&gt;"/);
+  });
 });
 
 describe('ADMONITION_CONFIG', () => {
