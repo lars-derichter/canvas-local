@@ -101,6 +101,8 @@ to Canvas. See [Sources Guide](docs/sources.md) for conventions.
 See [Markdown Guide](docs/markdown.md) for supported syntax and custom
 alerts/admonitions.
 
+See [Frontmatter Guide](docs/frontmatter.md) for supported frontmatter syntax.
+
 ## Managing Course Materials
 
 ### Managing Modules
