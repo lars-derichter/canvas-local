@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const readline = require('readline');
 const log = require('./logger');
 const { parseFrontmatter, serializeFrontmatter } = require('../lib/convert/frontmatter');
 
@@ -7,6 +8,17 @@ const COURSE_DIR = path.resolve(process.cwd(), 'course');
 const SYNC_FILE = path.resolve(process.cwd(), '.canvas-sync.json');
 
 async function resetSyncState() {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  const answer = await new Promise((resolve) => {
+    rl.question('[reset] This will remove all canvas_id fields and delete .canvas-sync.json. Continue? (y/N) ', resolve);
+  });
+  rl.close();
+
+  if (answer.toLowerCase() !== 'y') {
+    console.log('[reset] Cancelled.');
+    return;
+  }
+
   let count = 0;
 
   // Remove canvas_id from all markdown files in course/
