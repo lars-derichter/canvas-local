@@ -26,6 +26,7 @@
     "item:rename": "node cli/index.js rename-item",
     "item:delete": "node cli/index.js delete-item",
     "vscode:package": "cd .vscode/extensions/course-manager && npx @vscode/vsce package -o canvas-local.vsix",
+    "test": "node --test 'test/**/*.test.js'",
     "vscode:install": "npm run vscode:package && code --install-extension .vscode/extensions/course-manager/canvas-local.vsix"
   },
   "dependencies": {
