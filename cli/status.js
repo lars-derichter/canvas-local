@@ -22,7 +22,7 @@ async function status(options) {
   const syncData = loadSyncFile();
 
   if (!syncData) {
-    console.log('[status] No .canvas-sync.json found. Run "course-cli init" first.');
+    console.log('[status] No .canvas-sync.json found. Run "npx course init" first.');
     return;
   }
 

@@ -38,7 +38,7 @@ function saveSyncFile(syncData) {
 async function push(options) {
   const courseId = process.env.CANVAS_COURSE_ID;
   if (!courseId) {
-    console.error('[push] Error: CANVAS_COURSE_ID is not set. Run "course-cli init" first.');
+    console.error('[push] Error: CANVAS_COURSE_ID is not set. Run "npx course init" first.');
     process.exit(1);
   }
 

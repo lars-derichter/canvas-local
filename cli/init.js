@@ -91,9 +91,9 @@ async function init() {
   console.log('[init]   Make sure .env is listed in .gitignore and never committed to version control.');
 
   console.log('\n[init] Setup complete. You can now run:');
-  console.log('  course-cli push   - push local content to Canvas');
-  console.log('  course-cli pull   - pull Canvas content locally');
-  console.log('  course-cli status - compare local vs Canvas state');
+  console.log('  npx course push   - push local content to Canvas');
+  console.log('  npx course pull   - pull Canvas content locally');
+  console.log('  npx course status - compare local vs Canvas state');
 }
 
 module.exports = init;

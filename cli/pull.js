@@ -61,7 +61,7 @@ function toFileName(title, position) {
 async function pull(options) {
   const courseId = process.env.CANVAS_COURSE_ID;
   if (!courseId) {
-    console.error('[pull] Error: CANVAS_COURSE_ID is not set. Run "course-cli init" first.');
+    console.error('[pull] Error: CANVAS_COURSE_ID is not set. Run "npx course init" first.');
     process.exit(1);
   }
 
