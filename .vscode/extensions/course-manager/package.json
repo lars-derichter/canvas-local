@@ -4,6 +4,10 @@
   "description": "VS Code sidebar and palette commands for Canvas Local CLI",
   "version": "0.2.0",
   "publisher": "local",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lars-derichter/canvas-local"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
