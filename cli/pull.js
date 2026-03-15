@@ -8,6 +8,7 @@ const { canvasItemToMarkdown } = require('../lib/convert/html-to-markdown');
 const { buildLinkMap, resolveCanvasLink, buildFileMap } = require('../lib/convert/link-resolver');
 const { downloadFile } = require('../lib/canvas/files');
 const { SYNC_FILE, loadSyncFile, saveSyncFile } = require('./sync-utils');
+const log = require('./logger');
 
 const COURSE_DIR = path.resolve(process.cwd(), 'course');
 
@@ -143,14 +144,14 @@ async function pullModule(courseId, mod, syncData, force, canvasToRelative, canv
   for (let ii = 0; ii < items.length; ii++) {
     const item = items[ii];
     itemPosition++;
-    console.log(`  [pull] Item ${ii + 1}/${totalItems}: ${item.title || item.type}`);
+    log.verbose(`Item ${ii + 1}/${totalItems}: ${item.title || item.type}`);
 
     if (item.type === 'SubHeader') {
       // Create a subfolder for this SubHeader
       const subfolderName = toFolderName(item.title, itemPosition);
       const subfolderDir = path.join(moduleDir, subfolderName);
 
-      console.log(`  [pull] SubHeader: ${item.title} -> ${subfolderName}/`);
+      log.verbose(`SubHeader: ${item.title} -> ${subfolderName}/`);
 
       if (!fs.existsSync(subfolderDir)) {
         fs.mkdirSync(subfolderDir, { recursive: true });
@@ -221,14 +222,14 @@ async function pullItem(courseId, item, moduleDir, position, syncData, force, fo
       return;
     }
 
-    console.log(`  [pull] Fetching page: ${title}`);
+    log.verbose(`Fetching page: ${title}`);
     const page = await getPage(courseId, pageUrl);
     const relativePath = path.posix.join(folderName, path.relative(path.join(COURSE_DIR, folderName), path.join(moduleDir, fileName)).split(path.sep).join('/'));
     const linkResolver = (href) => resolveCanvasLink(href, relativePath, canvasToRelative);
     const fileResolver = await buildPullFileResolver(courseId, page.body || '', relativePath, folderName, syncData, canvasToLocal);
     const markdown = canvasItemToMarkdown(page, 'page', { linkResolver, fileResolver });
     fs.writeFileSync(filePath, markdown, 'utf8');
-    console.log(`    [pull] Wrote ${fileName}`);
+    log.verbose(`Wrote ${fileName}`);
     return;
   }
 
@@ -247,14 +248,14 @@ async function pullItem(courseId, item, moduleDir, position, syncData, force, fo
       return;
     }
 
-    console.log(`  [pull] Fetching assignment: ${title}`);
+    log.verbose(`Fetching assignment: ${title}`);
     const assignment = await getAssignment(courseId, contentId);
     const relativePath = path.posix.join(folderName, path.relative(path.join(COURSE_DIR, folderName), path.join(moduleDir, fileName)).split(path.sep).join('/'));
     const linkResolver = (href) => resolveCanvasLink(href, relativePath, canvasToRelative);
     const fileResolver = await buildPullFileResolver(courseId, assignment.description || '', relativePath, folderName, syncData, canvasToLocal);
     const markdown = canvasItemToMarkdown(assignment, 'assignment', { linkResolver, fileResolver });
     fs.writeFileSync(filePath, markdown, 'utf8');
-    console.log(`    [pull] Wrote ${fileName}`);
+    log.verbose(`Wrote ${fileName}`);
     return;
   }
 
@@ -267,18 +268,18 @@ async function pullItem(courseId, item, moduleDir, position, syncData, force, fo
       return;
     }
 
-    console.log(`  [pull] Fetching external URL: ${title}`);
+    log.verbose(`Fetching external URL: ${title}`);
     const markdown = canvasItemToMarkdown(
       { title, external_url: item.external_url, id: item.id },
       'external_url'
     );
     fs.writeFileSync(filePath, markdown, 'utf8');
-    console.log(`    [pull] Wrote ${fileName}`);
+    log.verbose(`Wrote ${fileName}`);
     return;
   }
 
   // File, Discussion, Quiz, ExternalTool, etc.
-  console.log(`  [pull] Skipping unsupported item type "${itemType}": ${title}`);
+  log.warn(`  [pull] Skipping unsupported item type "${itemType}": ${title}`);
 }
 
 /**

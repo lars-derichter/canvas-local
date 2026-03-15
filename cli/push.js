@@ -12,6 +12,7 @@ const { uploadFile } = require('../lib/canvas/files');
 const { ensureIcons, getIconUrls } = require('../lib/canvas/icons');
 const { buildLinkMap, resolveRelativeLink, extractFileReferences } = require('../lib/convert/link-resolver');
 const { SYNC_FILE, loadSyncFile, saveSyncFile } = require('./sync-utils');
+const log = require('./logger');
 
 const COURSE_DIR = path.resolve(process.cwd(), 'course');
 
@@ -232,7 +233,7 @@ async function pushModule(courseId, mod, syncData, dryRun, iconUrls, relativeToC
       }
       if (syncData.files[ref]) continue; // Already uploaded
 
-      console.log(`  [push] Uploading embedded file: ${ref}`);
+      log.verbose(`Uploading embedded file: ${ref}`);
       try {
         const result = await uploadFile(courseId, localPath, { parentFolderPath: mod.folderName });
         syncData.files[ref] = {
@@ -251,7 +252,7 @@ async function pushModule(courseId, mod, syncData, dryRun, iconUrls, relativeToC
   for (let ii = 0; ii < flatItems.length; ii++) {
     const item = flatItems[ii];
     const itemTitle = item.title || item.file || 'unknown';
-    console.log(`  [push] Item ${ii + 1}/${totalItems}: ${itemTitle}`);
+    log.verbose(`Item ${ii + 1}/${totalItems}: ${itemTitle}`);
     try {
       await pushItem(courseId, moduleId, item, dryRun, iconUrls, mod.folderName, relativeToCanvas, unresolvedItems, syncData);
       // Track item in sync file
@@ -306,7 +307,7 @@ function flattenItems(items) {
 
 async function pushItem(courseId, moduleId, item, dryRun, iconUrls, folderName, relativeToCanvas, unresolvedItems, syncData) {
   if (item.type === 'subheader') {
-    console.log(`  [push] Adding SubHeader: ${item.title}`);
+    log.verbose(`Adding SubHeader: ${item.title}`);
     if (!dryRun) {
       await createModuleItem(courseId, moduleId, {
         title: item.title,
@@ -332,7 +333,7 @@ async function pushItem(courseId, moduleId, item, dryRun, iconUrls, folderName, 
   } else if (canvasType === 'file') {
     await pushFile(courseId, moduleId, { title, filePath, position, indent, folderName }, dryRun);
   } else {
-    console.log(`  [push] Skipping unknown type "${canvasType}": ${title}`);
+    log.warn(`  [push] Skipping unknown type "${canvasType}": ${title}`);
   }
 }
 
@@ -356,7 +357,7 @@ async function pushPage(courseId, moduleId, { title, filePath, relativePath, can
   let pageSlug = null;
 
   if (canvasId) {
-    console.log(`  [push] Updating page: ${title} (id: ${canvasId})`);
+    log.verbose(`Updating page: ${title} (id: ${canvasId})`);
     if (!dryRun) {
       try {
         const result = await updatePage(courseId, canvasId, { title, body: html });
@@ -374,7 +375,7 @@ async function pushPage(courseId, moduleId, { title, filePath, relativePath, can
   }
 
   if (!canvasId) {
-    console.log(`  [push] Creating page: ${title}`);
+    log.verbose(`Creating page: ${title}`);
     if (!dryRun) {
       const result = await createPage(courseId, { title, body: html });
       pageId = result.page_id || result.url;
@@ -382,7 +383,7 @@ async function pushPage(courseId, moduleId, { title, filePath, relativePath, can
       // Write canvas_id back to frontmatter
       updateFrontmatter(filePath, { canvas_id: pageId });
       frontmatter.canvas_id = pageId;
-      console.log(`    [push] Wrote canvas_id=${pageId} to ${relativePath}`);
+      log.verbose(`Wrote canvas_id=${pageId} to ${relativePath}`);
     }
   }
 
@@ -435,7 +436,7 @@ async function pushAssignment(courseId, moduleId, { title, filePath, relativePat
   let assignmentId = canvasId;
 
   if (canvasId) {
-    console.log(`  [push] Updating assignment: ${title} (id: ${canvasId})`);
+    log.verbose(`Updating assignment: ${title} (id: ${canvasId})`);
     if (!dryRun) {
       try {
         const result = await updateAssignment(courseId, canvasId, assignmentOpts);
@@ -452,13 +453,13 @@ async function pushAssignment(courseId, moduleId, { title, filePath, relativePat
   }
 
   if (!canvasId) {
-    console.log(`  [push] Creating assignment: ${title}`);
+    log.verbose(`Creating assignment: ${title}`);
     if (!dryRun) {
       const result = await createAssignment(courseId, assignmentOpts);
       assignmentId = result.id;
       updateFrontmatter(filePath, { canvas_id: assignmentId });
       frontmatter.canvas_id = assignmentId;
-      console.log(`    [push] Wrote canvas_id=${assignmentId} to ${relativePath}`);
+      log.verbose(`Wrote canvas_id=${assignmentId} to ${relativePath}`);
     }
   }
 
