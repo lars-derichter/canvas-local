@@ -182,4 +182,4 @@ See [Development Guide](docs/development.md) for advanced commands
 ## Ideas
 
 See [Improvement Ideas](docs/improvement-ideas.md) for feature ideas under
-consideration, like a VS Code sidebar, PDF export, and content templates.
+consideration, like a ~~VS Code sidebar~~, PDF export, and content templates.

@@ -2,7 +2,7 @@
 
 Feature ideas for future development. Not currently planned for implementation.
 
-## VS Code Sidebar for Course Structure
+## ~~VS Code Sidebar for Course Structure~~ [DONE]
 
 A tree view in the VS Code sidebar showing modules and items, with inline
 actions like push single item, open in Canvas, move, and rename. Would be much
