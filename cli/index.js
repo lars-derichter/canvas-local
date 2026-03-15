@@ -90,6 +90,16 @@ program
   .action(require('./delete-item'));
 
 program
+  .command('diff')
+  .description('Show what changed locally since the last sync')
+  .action(require('./diff'));
+
+program
+  .command('validate')
+  .description('Check course content for errors before pushing')
+  .action(require('./validate'));
+
+program
   .command('reset-sync-state')
   .description('Remove all canvas_id fields from course files and delete .canvas-sync.json')
   .action(require('./reset-sync-state'));

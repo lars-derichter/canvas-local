@@ -25,6 +25,8 @@ npx course move-item      # Move an item to a new position within its module
 npx course movetomodule-item  # Move an item to a different module
 npx course rename-item    # Rename an item
 npx course delete-item    # Delete an item and renumber remaining
+npx course diff           # Show what changed locally since last sync
+npx course validate       # Check course content for errors before pushing
 npx course reset-sync-state  # Remove all canvas_id fields and delete .canvas-sync.json
 npx course reset-canvas      # Delete all modules, pages, assignments, and files from Canvas
 ```
