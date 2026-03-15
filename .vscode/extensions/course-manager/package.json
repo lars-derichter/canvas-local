@@ -46,12 +46,14 @@
       { "command": "course.deleteItem", "title": "Course: Delete Item" },
       { "command": "course.diff", "title": "Course: Diff (Changes Since Last Sync)" },
       { "command": "course.validate", "title": "Course: Validate" },
+      { "command": "course.preview", "title": "Course: Preview", "icon": "$(open-preview)" },
       { "command": "course.refreshTree", "title": "Course: Refresh Tree", "icon": "$(refresh)" },
       { "command": "course.openInCanvas", "title": "Open in Canvas", "icon": "$(link-external)" },
       { "command": "course.pushItem", "title": "Push Module", "icon": "$(cloud-upload)" }
     ],
     "menus": {
       "view/title": [
+        { "command": "course.preview", "when": "view == courseTree", "group": "navigation" },
         { "command": "course.refreshTree", "when": "view == courseTree", "group": "navigation" },
         { "command": "course.push", "when": "view == courseTree" },
         { "command": "course.pull", "when": "view == courseTree" },

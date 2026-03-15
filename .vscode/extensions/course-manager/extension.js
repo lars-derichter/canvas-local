@@ -178,6 +178,26 @@ function activate(context) {
     })
   );
 
+  // Preview (Docusaurus dev server)
+  context.subscriptions.push(
+    vscode.commands.registerCommand('course.preview', () => {
+      if (!validateWorkspace()) return;
+      let previewTerminal = vscode.window.terminals.find(
+        (t) => t.name === 'Canvas Local: Preview'
+      );
+      if (!previewTerminal) {
+        previewTerminal = vscode.window.createTerminal({
+          name: 'Canvas Local: Preview',
+          cwd: workspaceRoot,
+        });
+        previewTerminal.sendText('npm start');
+      }
+      setTimeout(() => {
+        vscode.env.openExternal(vscode.Uri.parse('http://localhost:3000'));
+      }, 2000);
+    })
+  );
+
   // --- Standard CLI commands ---
   const noValidationCommands = new Set(['course.init']);
 

@@ -69,8 +69,10 @@ or modified. Use the refresh button in the view title bar to manually refresh.
 
 ### Title bar menu
 
-The view title bar dropdown includes **Push to Canvas**, **Pull from Canvas**,
-**Status**, **Diff**, and **Validate** for quick access to sync commands.
+The title bar has a **Preview** button that starts the Docusaurus dev server (if
+not already running) and opens the course in the browser. The dropdown includes
+**Push to Canvas**, **Pull from Canvas**, **Status**, **Diff**, and **Validate**
+for quick access to sync commands.
 
 ## Commands
 
