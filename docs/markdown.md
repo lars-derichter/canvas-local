@@ -9,28 +9,28 @@ is supported.
 Use standard relative markdown links to reference other course pages:
 
 ```md
-[Admonitions](./03-admonitions.md)
-[Folder Layout](./04-course-structure/01-folder-layout.md)
+[Admonitions](03-admonitions.md)
+[Folder Layout](04-course-structure/01-folder-layout.md)
 [Section heading](../02-other-module/01-page.md#section)
 ```
 
 These links work across all three layers:
 
 - **Docusaurus** — resolved natively as relative links.
-- **Push to Canvas** — automatically converted to Canvas internal URLs
-  (e.g. `/courses/ID/pages/admonitions`). On the first push, pages are
-  created first, then any items with forward references are updated in a
-  second pass so all links resolve in one go.
-- **Pull from Canvas** — Canvas internal URLs are converted back to
-  relative markdown paths.
+- **Push to Canvas** — automatically converted to Canvas internal URLs (e.g.
+  `/courses/ID/pages/admonitions`). On the first push, pages are created first,
+  then any items with forward references are updated in a second pass so all
+  links resolve in one go.
+- **Pull from Canvas** — Canvas internal URLs are converted back to relative
+  markdown paths.
 
 Only `.md` links are transformed. External URLs, fragment-only links
 (`#heading`), and non-markdown file links are left unchanged.
 
 ## Images and Files
 
-Store images and other embedded files in a `_files/` subdirectory within
-your module folder:
+Store images and other embedded files in a `_files/` subdirectory within your
+module folder:
 
 ```
 course/
@@ -44,24 +44,23 @@ course/
 Reference them with standard markdown syntax:
 
 ```md
-![Diagram](./_files/diagram.png)
-[Download handout](./_files/handout.pdf)
+![Diagram](_files/diagram.png) [Download handout](_files/handout.pdf)
 ```
 
 These references work across all three layers:
 
 - **Docusaurus** — relative paths work natively.
-- **Push to Canvas** — files are uploaded to Canvas file storage and
-  paths are rewritten to Canvas file URLs. Files in `_files/` are NOT
-  added as module items — they only appear inline.
-- **Pull from Canvas** — Canvas file URLs are downloaded to `_files/`
-  and converted back to relative paths.
+- **Push to Canvas** — files are uploaded to Canvas file storage and paths are
+  rewritten to Canvas file URLs. Files in `_files/` are NOT added as module
+  items — they only appear inline.
+- **Pull from Canvas** — Canvas file URLs are downloaded to `_files/` and
+  converted back to relative paths.
 
 ## Underscore Prefix Convention
 
 Files and folders whose names start with `_` (underscore) are treated as
-internal and are excluded from Canvas syncing. Docusaurus also skips them
-by convention. Examples:
+internal and are excluded from Canvas syncing. Docusaurus also skips them by
+convention. Examples:
 
 - `_files/` — embedded assets (images, PDFs)
 - `_category_.json` — Docusaurus sidebar configuration
