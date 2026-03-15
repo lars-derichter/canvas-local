@@ -128,5 +128,5 @@ Thomas More-inspired styling in `src/css/custom.css` with color mode config in `
 
 ## Notes
 
-- Node.js 24+ required (LTS)
+- Node.js 20+ required (built-in test runner stable from v20)
 - Docusaurus `_category_.json` files control sidebar labels/ordering and are skipped by the course scanner

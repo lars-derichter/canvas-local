@@ -17,7 +17,7 @@ Write course materials as markdown, preview via
 1. **Fork this repository** — forking gives you full git versioning for your
    course content while letting you pull upstream tooling updates.
 
-2. **Install Node.js 24+** — download the LTS version from
+2. **Install Node.js 20+** — download the LTS version from
    [nodejs.org](https://nodejs.org/).
 
 3. **Install dependencies**
