@@ -140,6 +140,11 @@ npx course status                # compare local vs Canvas state
 npx course status --remote       # also fetch and compare against Canvas
 ```
 
+#### New Academic Year
+
+See the [New Academic Year Guide](docs/new-academic-year.md) for switching your
+materials to a new Canvas course at the start of a new academic year.
+
 #### Global flags
 
 ```bash
