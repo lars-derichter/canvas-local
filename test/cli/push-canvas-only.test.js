@@ -1,5 +1,6 @@
 const { describe, it, mock, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
+const { mockCanvas } = require('../helpers/canvas-mock');
 const fs = require('fs');
 
 // Set required env vars before requiring anything that loads the client.
@@ -778,43 +779,3 @@ describe('pushModule: the Canvas-only guard', () => {
     assert.equal(written.mock.callCount(), 0);
   });
 });
-
-/** A fake Response object compatible with the fetch API. */
-function fakeResponse(body, { status = 200 } = {}) {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    headers: { get: () => null },
-    json: async () => body,
-    text: async () => JSON.stringify(body),
-  };
-}
-
-/**
- * Answer Canvas requests from a route table of { method, path, body, status },
- * and record every request that was made. An unrouted request gets a 400, so a
- * missing route fails the test instead of hanging on the client's retries.
- */
-function mockCanvas(routes) {
-  const calls = [];
-  const remaining = routes.map((route) => ({ ...route }));
-  mock.method(global, 'fetch', async (url, opts) => {
-    calls.push({
-      url,
-      method: opts.method,
-      body: opts.body ? JSON.parse(opts.body) : null,
-    });
-    const index = remaining.findIndex(
-      (route) => route.method === opts.method && url.includes(route.path),
-    );
-    if (index === -1) {
-      return fakeResponse(
-        { message: `unrouted ${opts.method} ${url}` },
-        { status: 400 },
-      );
-    }
-    const [route] = remaining.splice(index, 1);
-    return fakeResponse(route.body, { status: route.status || 200 });
-  });
-  return calls;
-}
