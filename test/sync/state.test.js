@@ -1,0 +1,902 @@
+const { describe, it, beforeEach, afterEach } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
+const {
+  SCHEMA_VERSION,
+  allItems,
+  assertStateMatchesEnv,
+  deleteItem,
+  deleteModule,
+  emptyState,
+  ensureModule,
+  findModuleByCanvasId,
+  getItem,
+  getModule,
+  loadState,
+  normaliseBaseUrl,
+  renameFolder,
+  renamePath,
+  saveState,
+  setItem,
+  toPosixPath,
+} = require('../../lib/sync/state');
+
+const URL = 'https://school.instructure.com';
+const ENV = { CANVAS_COURSE_ID: '45083', CANVAS_API_URL: URL };
+
+/** An item row as the sync engine leaves it, fingerprints and all. */
+function row(overrides = {}) {
+  return {
+    canvas_type: 'page',
+    canvas_id: 1234,
+    page_url: 'welcome',
+    module_item_id: 5678,
+    local_hash: 'sha256-local',
+    canvas_hash: 'sha256-canvas',
+    canvas_updated_at: '2026-08-19T09:59:00.000Z',
+    synced_at: '2026-08-19T10:00:00.000Z',
+    ...overrides,
+  };
+}
+
+/** A two-module state with two items in the first module. */
+function twoModules() {
+  const state = emptyState(ENV);
+  ensureModule(state, '01-introduction', {
+    canvas_module_id: 100,
+    name: 'Introduction',
+    position: 1,
+  });
+  ensureModule(state, '02-basics', {
+    canvas_module_id: 200,
+    name: 'Basics',
+    position: 2,
+  });
+  setItem(state, '01-introduction', '01-introduction/01-welcome.md', row());
+  setItem(
+    state,
+    '01-introduction',
+    '01-introduction/02-setup.md',
+    row({ canvas_id: 1235, page_url: 'setup', module_item_id: 5679 }),
+  );
+  return state;
+}
+
+describe('toPosixPath', () => {
+  it('stores a Windows path the way every other platform reads it', () => {
+    assert.equal(
+      toPosixPath('01-intro\\01-welcome.md'),
+      '01-intro/01-welcome.md',
+    );
+    assert.equal(
+      toPosixPath('01-intro/01-welcome.md'),
+      '01-intro/01-welcome.md',
+    );
+  });
+});
+
+describe('emptyState', () => {
+  it('seeds the schema version and all four containers', () => {
+    const state = emptyState(ENV);
+    assert.equal(state.schema_version, 4);
+    assert.equal(SCHEMA_VERSION, 4);
+    assert.deepEqual(state.modules, {});
+    assert.deepEqual(state.icons, {});
+    assert.deepEqual(state.files, {});
+    assert.equal(state.last_sync, null);
+  });
+
+  it('takes its identity from the environment, normalised', () => {
+    const state = emptyState({
+      CANVAS_COURSE_ID: '45083',
+      CANVAS_API_URL: `${URL}/api/v1/`,
+    });
+    assert.equal(state.course_id, 45083);
+    assert.equal(state.canvas_base_url, URL);
+  });
+
+  it('claims nothing when the environment names nothing', () => {
+    const state = emptyState({});
+    assert.equal(state.course_id, 0);
+    assert.equal(state.canvas_base_url, '');
+  });
+});
+
+describe('normaliseBaseUrl', () => {
+  it('strips trailing slashes and an /api/v1 suffix', () => {
+    assert.equal(normaliseBaseUrl(`${URL}/`), URL);
+    assert.equal(normaliseBaseUrl(`${URL}/api/v1`), URL);
+    assert.equal(normaliseBaseUrl(`${URL}/api/v1/`), URL);
+  });
+
+  it('handles a missing value', () => {
+    assert.equal(normaliseBaseUrl(undefined), '');
+    assert.equal(normaliseBaseUrl(''), '');
+    assert.equal(normaliseBaseUrl(null), '');
+  });
+});
+
+describe('assertStateMatchesEnv', () => {
+  /** Sync state as a course that has been pushed to leaves it. */
+  function synced(overrides = {}) {
+    return {
+      schema_version: SCHEMA_VERSION,
+      canvas_base_url: URL,
+      course_id: 45083,
+      modules: {
+        '01-intro': { canvas_module_id: 100, item_order: [], items: {} },
+      },
+      icons: {},
+      files: {},
+      ...overrides,
+    };
+  }
+
+  it('accepts a file that describes the course in the environment', () => {
+    const state = synced();
+    assert.equal(assertStateMatchesEnv(state, ENV), state);
+  });
+
+  it('accepts a course id given as a number against a string env var', () => {
+    assert.doesNotThrow(() =>
+      assertStateMatchesEnv(synced({ course_id: 45083 }), ENV),
+    );
+  });
+
+  it('refuses a file describing a different course', () => {
+    assert.throws(
+      () =>
+        assertStateMatchesEnv(synced(), {
+          CANVAS_COURSE_ID: '58155',
+          CANVAS_API_URL: URL,
+        }),
+      (err) => {
+        assert.match(err.message, /describes course 45083/);
+        assert.match(err.message, /`\.env` names course 58155/);
+        return true;
+      },
+    );
+  });
+
+  it('names the global file id in the refusal', () => {
+    assert.throws(
+      () =>
+        assertStateMatchesEnv(synced(), {
+          CANVAS_COURSE_ID: '58155',
+          CANVAS_API_URL: URL,
+        }),
+      // The one id that is not scoped to a course is the reason this is a
+      // refusal rather than a warning; the message has to say so.
+      /a file id is global/,
+    );
+  });
+
+  it('offers both remedies', () => {
+    assert.throws(
+      () =>
+        assertStateMatchesEnv(synced(), {
+          CANVAS_COURSE_ID: '58155',
+          CANVAS_API_URL: URL,
+        }),
+      (err) => {
+        assert.match(err.message, /point `\.env` back at the course/);
+        assert.match(err.message, /npx course reset-sync-state/);
+        assert.match(
+          err.message,
+          /creates everything fresh/,
+          'the remedy has a consequence worth stating before it is followed',
+        );
+        return true;
+      },
+    );
+  });
+
+  it('refuses the same course id on a different Canvas instance', () => {
+    assert.throws(
+      () =>
+        assertStateMatchesEnv(synced(), {
+          CANVAS_COURSE_ID: '45083',
+          CANVAS_API_URL: 'https://other.instructure.com',
+        }),
+      /describes https:\/\/school\.instructure\.com/,
+    );
+  });
+
+  it('reports both differences at once', () => {
+    assert.throws(
+      () =>
+        assertStateMatchesEnv(synced(), {
+          CANVAS_COURSE_ID: '58155',
+          CANVAS_API_URL: 'https://other.instructure.com',
+        }),
+      (err) => {
+        assert.match(err.message, /describes course 45083/);
+        assert.match(err.message, /and https:\/\/school\.instructure\.com/);
+        return true;
+      },
+    );
+  });
+
+  it('ignores a base URL that differs only by punctuation', () => {
+    assert.doesNotThrow(() =>
+      assertStateMatchesEnv(synced({ canvas_base_url: `${URL}/api/v1` }), {
+        CANVAS_COURSE_ID: '45083',
+        CANVAS_API_URL: `${URL}/`,
+      }),
+    );
+  });
+
+  it('adopts the environment when the file claims no course', () => {
+    const state = synced({ course_id: 0, canvas_base_url: '' });
+
+    assertStateMatchesEnv(state, {
+      CANVAS_COURSE_ID: '45083',
+      CANVAS_API_URL: `${URL}/`,
+    });
+
+    assert.equal(
+      state.course_id,
+      45083,
+      'a file written before the env var was set gains a claim, so the next ' +
+        'save protects it like any other',
+    );
+    assert.equal(state.canvas_base_url, URL);
+  });
+
+  it('treats a missing course_id as no claim rather than a mismatch', () => {
+    const state = synced();
+    delete state.course_id;
+
+    assert.doesNotThrow(() => assertStateMatchesEnv(state, ENV));
+    assert.equal(state.course_id, 45083);
+  });
+
+  it('cannot be contradicted by an environment that names nothing', () => {
+    const state = synced();
+
+    assert.doesNotThrow(() => assertStateMatchesEnv(state, {}));
+    assert.equal(state.course_id, 45083, 'and the claim is left as it was');
+    assert.equal(state.canvas_base_url, URL);
+  });
+
+  it('handles a null sync state', () => {
+    assert.equal(assertStateMatchesEnv(null, { CANVAS_COURSE_ID: '1' }), null);
+  });
+});
+
+describe('loadState and saveState', () => {
+  let dir;
+  let file;
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ccb-state-'));
+    file = path.join(dir, '.canvas-sync.json');
+  });
+
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  /** Write a state file straight to disk, whatever shape the test needs. */
+  function writeRaw(data) {
+    fs.writeFileSync(file, JSON.stringify(data, null, 2) + '\n', 'utf8');
+  }
+
+  it('returns a fresh state when the file is missing', () => {
+    assert.deepEqual(loadState({ file, env: ENV }), emptyState(ENV));
+  });
+
+  it('returns null for a missing file under allowNull', () => {
+    assert.equal(loadState({ file, env: ENV, allowNull: true }), null);
+  });
+
+  it('falls back to a fresh state when the file is corrupt', () => {
+    fs.writeFileSync(file, '{ this is not json', 'utf8');
+    assert.deepEqual(loadState({ file, env: ENV }), emptyState(ENV));
+    assert.equal(loadState({ file, env: ENV, allowNull: true }), null);
+  });
+
+  it('refuses the v3 schema and names the way out', () => {
+    writeRaw({ schema_version: 3, modules: {} });
+    assert.throws(
+      () => loadState({ file, env: ENV }),
+      (err) => {
+        assert.match(err.message, /schema_version 3/);
+        assert.match(err.message, /only reads 4/);
+        assert.match(err.message, /npx course reset-sync-state/);
+        return true;
+      },
+    );
+  });
+
+  it('refuses a schema from the future just as firmly', () => {
+    // Reading a newer file with older rules is the same guess as reading an
+    // older one, and it ends the same way: duplicates on Canvas.
+    writeRaw({ schema_version: 5, modules: {} });
+    assert.throws(
+      () => loadState({ file, env: ENV }),
+      /schema_version 5[\s\S]*npx course reset-sync-state/,
+    );
+  });
+
+  it('refuses a file describing another course', () => {
+    writeRaw({
+      schema_version: SCHEMA_VERSION,
+      canvas_base_url: URL,
+      course_id: 45083,
+      modules: {},
+      icons: {},
+      files: {},
+    });
+    assert.throws(
+      () =>
+        loadState({
+          file,
+          env: { CANVAS_COURSE_ID: '58155', CANVAS_API_URL: URL },
+        }),
+      /describes course 45083/,
+    );
+  });
+
+  it('skips the course check for the command that repairs it', () => {
+    writeRaw({
+      schema_version: SCHEMA_VERSION,
+      canvas_base_url: URL,
+      course_id: 45083,
+      modules: {},
+      icons: {},
+      files: {},
+    });
+    const state = loadState({
+      file,
+      skipEnvCheck: true,
+      env: { CANVAS_COURSE_ID: '58155', CANVAS_API_URL: URL },
+    });
+    assert.equal(state.course_id, 45083);
+  });
+
+  it('hands back the containers a hand-edited file dropped', () => {
+    writeRaw({ schema_version: SCHEMA_VERSION, course_id: 45083 });
+    const state = loadState({ file, env: ENV });
+    assert.deepEqual(state.modules, {});
+    assert.deepEqual(state.icons, {});
+    assert.deepEqual(state.files, {});
+  });
+
+  it('round-trips a state and leaves no .tmp behind', () => {
+    const state = twoModules();
+    state.last_sync = '2026-08-19T10:00:00.000Z';
+    state.icons.note = {
+      canvas_file_id: 1,
+      preview_url: `${URL}/courses/45083/files/1/preview`,
+      theme: 'abc',
+    };
+    state.files['01-introduction/_files/diagram.png'] = {
+      canvas_file_id: 222,
+      canvas_url: '/courses/45083/files/222/preview',
+      sha256: '9f2c',
+    };
+
+    saveState(state, file);
+
+    assert.deepEqual(fs.readdirSync(dir), ['.canvas-sync.json']);
+    assert.deepEqual(loadState({ file, env: ENV }), state);
+  });
+
+  it('replaces the previous state rather than merging with it', () => {
+    saveState(twoModules(), file);
+    const replacement = emptyState(ENV);
+    saveState(replacement, file);
+    assert.deepEqual(loadState({ file, env: ENV }), replacement);
+  });
+});
+
+describe('ensureModule', () => {
+  it('creates a module with its Canvas identity and both containers', () => {
+    const state = emptyState(ENV);
+    const entry = ensureModule(state, '01-introduction', {
+      canvas_module_id: 100,
+      name: 'Introduction',
+      position: 1,
+    });
+
+    assert.deepEqual(entry, {
+      canvas_module_id: 100,
+      name: 'Introduction',
+      position: 1,
+      item_order: [],
+      items: {},
+    });
+    assert.equal(state.modules['01-introduction'], entry);
+  });
+
+  it('merges later fields without touching the items it holds', () => {
+    const state = twoModules();
+    ensureModule(state, '01-introduction', { position: 3 });
+
+    const entry = getModule(state, '01-introduction');
+    assert.equal(entry.position, 3);
+    assert.equal(entry.name, 'Introduction', 'an unmentioned field stays');
+    assert.equal(entry.item_order.length, 2);
+    assert.ok(entry.items['01-introduction/01-welcome.md']);
+  });
+
+  it('ignores an undefined field rather than blanking what is stored', () => {
+    const state = twoModules();
+    ensureModule(state, '01-introduction', { name: undefined, position: 9 });
+
+    assert.equal(getModule(state, '01-introduction').name, 'Introduction');
+    assert.equal(getModule(state, '01-introduction').position, 9);
+  });
+});
+
+describe('getModule, findModuleByCanvasId and deleteModule', () => {
+  it('finds a module by folder, and returns null for an unknown one', () => {
+    const state = twoModules();
+    assert.equal(getModule(state, '02-basics').canvas_module_id, 200);
+    assert.equal(getModule(state, '99-nope'), null);
+  });
+
+  it('finds a module by the Canvas id it carries', () => {
+    const state = twoModules();
+    const [folder, entry] = findModuleByCanvasId(state, 200);
+    assert.equal(folder, '02-basics');
+    assert.equal(entry.name, 'Basics');
+  });
+
+  it('matches a numeric id against a stored string, and vice versa', () => {
+    const state = emptyState(ENV);
+    ensureModule(state, '01-introduction', { canvas_module_id: '100' });
+    assert.equal(findModuleByCanvasId(state, 100)[0], '01-introduction');
+  });
+
+  it('returns null for an unknown or absent Canvas id', () => {
+    const state = twoModules();
+    ensureModule(state, '03-unpushed', { name: 'Not on Canvas yet' });
+
+    assert.equal(findModuleByCanvasId(state, 999), null);
+    assert.equal(
+      findModuleByCanvasId(state, undefined),
+      null,
+      'a module that names no Canvas id must not answer for one',
+    );
+  });
+
+  it('deletes a module and reports what it removed', () => {
+    const state = twoModules();
+    const removed = deleteModule(state, '02-basics');
+
+    assert.equal(removed.canvas_module_id, 200);
+    assert.equal(getModule(state, '02-basics'), null);
+    assert.equal(deleteModule(state, '02-basics'), null);
+  });
+});
+
+describe('setItem', () => {
+  it('writes the row and gives it a place in the base order', () => {
+    const state = twoModules();
+    assert.deepEqual(getModule(state, '01-introduction').item_order, [
+      '01-introduction/01-welcome.md',
+      '01-introduction/02-setup.md',
+    ]);
+    assert.equal(
+      getModule(state, '01-introduction').items['01-introduction/01-welcome.md']
+        .canvas_id,
+      1234,
+    );
+  });
+
+  it('rewrites a row in place without duplicating its order slot', () => {
+    const state = twoModules();
+    setItem(
+      state,
+      '01-introduction',
+      '01-introduction/01-welcome.md',
+      row({ canvas_hash: 'sha256-fresher' }),
+    );
+
+    assert.deepEqual(getModule(state, '01-introduction').item_order, [
+      '01-introduction/01-welcome.md',
+      '01-introduction/02-setup.md',
+    ]);
+    assert.equal(
+      getItem(state, '01-introduction/01-welcome.md').entry.canvas_hash,
+      'sha256-fresher',
+    );
+  });
+
+  it('leaves no copy of the path in another module', () => {
+    const state = twoModules();
+    // The state that pull produces when it finds the item in a new module: the
+    // same path must not be claimed by two modules at once.
+    setItem(state, '02-basics', '01-introduction/01-welcome.md', row());
+
+    assert.equal(
+      getModule(state, '01-introduction').items[
+        '01-introduction/01-welcome.md'
+      ],
+      undefined,
+    );
+    assert.deepEqual(getModule(state, '01-introduction').item_order, [
+      '01-introduction/02-setup.md',
+    ]);
+    assert.equal(
+      getItem(state, '01-introduction/01-welcome.md').folder,
+      '02-basics',
+    );
+  });
+
+  it('refuses to invent a module for a row', () => {
+    const state = twoModules();
+    assert.throws(
+      () => setItem(state, '09-missing', '09-missing/01-x.md', row()),
+      /no module 09-missing[\s\S]*ensureModule/,
+    );
+  });
+});
+
+describe('getItem', () => {
+  it('finds a row without being told which module holds it', () => {
+    const state = twoModules();
+    const found = getItem(state, '01-introduction/02-setup.md');
+
+    assert.equal(found.folder, '01-introduction');
+    assert.equal(found.entry.page_url, 'setup');
+  });
+
+  it('returns null for a path the state does not know', () => {
+    assert.equal(getItem(twoModules(), '01-introduction/99-nope.md'), null);
+  });
+});
+
+describe('deleteItem', () => {
+  it('removes the row and its slot in the base order', () => {
+    const state = twoModules();
+    const removed = deleteItem(state, '01-introduction/01-welcome.md');
+
+    assert.equal(removed.canvas_id, 1234);
+    assert.equal(getItem(state, '01-introduction/01-welcome.md'), null);
+    assert.deepEqual(getModule(state, '01-introduction').item_order, [
+      '01-introduction/02-setup.md',
+    ]);
+  });
+
+  it('returns null for a path nothing holds', () => {
+    assert.equal(deleteItem(twoModules(), '01-introduction/99-nope.md'), null);
+  });
+});
+
+describe('renamePath', () => {
+  it('keeps the renamed item at the same index in the base order', () => {
+    const state = twoModules();
+    assert.equal(
+      renamePath(
+        state,
+        '01-introduction/01-welcome.md',
+        '01-introduction/01-hello.md',
+      ),
+      true,
+    );
+
+    assert.deepEqual(
+      getModule(state, '01-introduction').item_order,
+      ['01-introduction/01-hello.md', '01-introduction/02-setup.md'],
+      'a rename is not a reorder: the slot is the same one',
+    );
+    assert.equal(getItem(state, '01-introduction/01-welcome.md'), null);
+  });
+
+  it('carries the Canvas ids and both fingerprints across unchanged', () => {
+    const state = twoModules();
+    const before = structuredClone(
+      getItem(state, '01-introduction/01-welcome.md').entry,
+    );
+
+    renamePath(
+      state,
+      '01-introduction/01-welcome.md',
+      '01-introduction/03-welcome.md',
+    );
+
+    assert.deepEqual(
+      getItem(state, '01-introduction/03-welcome.md').entry,
+      before,
+      'the row travels with the file; only sync itself may touch a fingerprint',
+    );
+  });
+
+  it('re-keys in place rather than moving the row to the end', () => {
+    const state = twoModules();
+    renamePath(
+      state,
+      '01-introduction/01-welcome.md',
+      '01-introduction/01-hello.md',
+    );
+
+    assert.deepEqual(Object.keys(getModule(state, '01-introduction').items), [
+      '01-introduction/01-hello.md',
+      '01-introduction/02-setup.md',
+    ]);
+  });
+
+  it('moves a row between modules, updating both base orders', () => {
+    const state = twoModules();
+    setItem(
+      state,
+      '02-basics',
+      '02-basics/01-loops.md',
+      row({ canvas_id: 22 }),
+    );
+
+    assert.equal(
+      renamePath(
+        state,
+        '01-introduction/01-welcome.md',
+        '02-basics/02-welcome.md',
+      ),
+      true,
+    );
+
+    assert.deepEqual(getModule(state, '01-introduction').item_order, [
+      '01-introduction/02-setup.md',
+    ]);
+    assert.deepEqual(getModule(state, '02-basics').item_order, [
+      '02-basics/01-loops.md',
+      '02-basics/02-welcome.md',
+    ]);
+    assert.equal(
+      getModule(state, '01-introduction').items[
+        '01-introduction/01-welcome.md'
+      ],
+      undefined,
+    );
+    assert.deepEqual(
+      getItem(state, '02-basics/02-welcome.md').entry,
+      row(),
+      'the ids and fingerprints cross the module boundary untouched',
+    );
+  });
+
+  it('leaves the state alone for a path that was never synced', () => {
+    const state = twoModules();
+    const before = structuredClone(state);
+
+    assert.equal(
+      renamePath(
+        state,
+        '01-introduction/09-draft.md',
+        '01-introduction/10-draft.md',
+      ),
+      false,
+      'the tool renames untracked files all the time; that is not an error',
+    );
+    assert.deepEqual(state, before);
+  });
+
+  it('does nothing when the two paths are the same', () => {
+    const state = twoModules();
+    const before = structuredClone(state);
+
+    assert.equal(
+      renamePath(
+        state,
+        '01-introduction/01-welcome.md',
+        '01-introduction/01-welcome.md',
+      ),
+      false,
+    );
+    assert.deepEqual(state, before);
+  });
+
+  it('refuses to rename onto a path the state already holds', () => {
+    const state = twoModules();
+    const before = structuredClone(state);
+
+    assert.throws(
+      () =>
+        renamePath(
+          state,
+          '01-introduction/01-welcome.md',
+          '01-introduction/02-setup.md',
+        ),
+      /already holds a row[\s\S]*duplicate content/,
+    );
+    assert.deepEqual(state, before, 'and nothing is half-applied');
+  });
+
+  it('refuses a move into a module the state does not know', () => {
+    const state = twoModules();
+    const before = structuredClone(state);
+
+    assert.throws(
+      () =>
+        renamePath(
+          state,
+          '01-introduction/01-welcome.md',
+          '09-missing/01-welcome.md',
+        ),
+      /no module 09-missing[\s\S]*ensureModule/,
+    );
+    assert.deepEqual(state, before);
+  });
+
+  it('reads a Windows path as the POSIX key it is stored under', () => {
+    const state = twoModules();
+
+    assert.equal(
+      renamePath(
+        state,
+        '01-introduction\\01-welcome.md',
+        '01-introduction\\01-hello.md',
+      ),
+      true,
+    );
+    assert.deepEqual(getModule(state, '01-introduction').item_order, [
+      '01-introduction/01-hello.md',
+      '01-introduction/02-setup.md',
+    ]);
+  });
+});
+
+describe('renameFolder', () => {
+  it('re-keys the module and every path inside it', () => {
+    const state = twoModules();
+
+    assert.equal(renameFolder(state, '01-introduction', '01-intro'), true);
+
+    assert.equal(getModule(state, '01-introduction'), null);
+    const entry = getModule(state, '01-intro');
+    assert.equal(entry.canvas_module_id, 100);
+    assert.deepEqual(entry.item_order, [
+      '01-intro/01-welcome.md',
+      '01-intro/02-setup.md',
+    ]);
+    assert.deepEqual(Object.keys(entry.items), [
+      '01-intro/01-welcome.md',
+      '01-intro/02-setup.md',
+    ]);
+    assert.equal(getItem(state, '01-intro/02-setup.md').folder, '01-intro');
+  });
+
+  it('keeps the module in the slot it had, and its neighbours untouched', () => {
+    const state = twoModules();
+    renameFolder(state, '01-introduction', '01-intro');
+
+    assert.deepEqual(Object.keys(state.modules), ['01-intro', '02-basics']);
+    assert.equal(getModule(state, '02-basics').canvas_module_id, 200);
+  });
+
+  it('renumbering a module keeps the base order as it was', () => {
+    const state = twoModules();
+    renameFolder(state, '01-introduction', '03-introduction');
+
+    assert.deepEqual(
+      getModule(state, '03-introduction').item_order,
+      ['03-introduction/01-welcome.md', '03-introduction/02-setup.md'],
+      'the items did not move relative to each other, so neither does the base',
+    );
+  });
+
+  it('takes the embedded files of that folder with it', () => {
+    const state = twoModules();
+    const diagram = {
+      canvas_file_id: 222,
+      canvas_url: '/courses/45083/files/222/preview',
+      sha256: '9f2c',
+    };
+    state.files['01-introduction/_files/diagram.png'] = diagram;
+
+    renameFolder(state, '01-introduction', '03-introduction');
+
+    // The binary never moved on Canvas; only its local address did. A row left
+    // under the old path would send the next push to upload it a second time.
+    assert.deepEqual(Object.keys(state.files), [
+      '03-introduction/_files/diagram.png',
+    ]);
+    assert.deepEqual(
+      state.files['03-introduction/_files/diagram.png'],
+      diagram,
+    );
+  });
+
+  it('leaves the embedded files of other modules where they are', () => {
+    const state = twoModules();
+    state.files['01-introduction/_files/diagram.png'] = { canvas_file_id: 222 };
+    state.files['02-basics/_files/loop.png'] = { canvas_file_id: 333 };
+
+    renameFolder(state, '01-introduction', '03-introduction');
+
+    assert.deepEqual(Object.keys(state.files), [
+      '03-introduction/_files/diagram.png',
+      '02-basics/_files/loop.png',
+    ]);
+  });
+
+  it('rewrites what is under the folder, not what merely mentions it', () => {
+    const state = twoModules();
+    // A screenshot of the intro module, filed under another module. Matching on
+    // `01-introduction/` and not on the bare name is what keeps it put.
+    state.files['02-basics/_files/01-introduction.png'] = {
+      canvas_file_id: 444,
+    };
+    state.files['00-01-introduction/_files/x.png'] = { canvas_file_id: 555 };
+
+    renameFolder(state, '01-introduction', '03-introduction');
+
+    assert.deepEqual(Object.keys(state.files), [
+      '02-basics/_files/01-introduction.png',
+      '00-01-introduction/_files/x.png',
+    ]);
+  });
+
+  it('copes with a hand-trimmed file that has no files section', () => {
+    const state = twoModules();
+    delete state.files;
+
+    assert.doesNotThrow(() =>
+      renameFolder(state, '01-introduction', '03-introduction'),
+    );
+    assert.equal(state.files, undefined);
+  });
+
+  it('does nothing for a folder the state does not know', () => {
+    const state = twoModules();
+    const before = structuredClone(state);
+
+    assert.equal(renameFolder(state, '09-missing', '09-renamed'), false);
+    assert.deepEqual(state, before);
+  });
+
+  it('refuses to merge two modules into one', () => {
+    const state = twoModules();
+    const before = structuredClone(state);
+
+    assert.throws(
+      () => renameFolder(state, '01-introduction', '02-basics'),
+      /already holds a module[\s\S]*unreachable/,
+    );
+    assert.deepEqual(state, before);
+  });
+});
+
+describe('allItems', () => {
+  it('lists every row with the module that holds it', () => {
+    const state = twoModules();
+    setItem(
+      state,
+      '02-basics',
+      '02-basics/01-loops.md',
+      row({ canvas_id: 22 }),
+    );
+
+    assert.deepEqual(
+      allItems(state).map((r) => [r.folder, r.itemPath]),
+      [
+        ['01-introduction', '01-introduction/01-welcome.md'],
+        ['01-introduction', '01-introduction/02-setup.md'],
+        ['02-basics', '02-basics/01-loops.md'],
+      ],
+    );
+    assert.equal(allItems(state)[0].entry.canvas_id, 1234);
+  });
+
+  it('reports a row the base order forgot, after the ones it names', () => {
+    const state = twoModules();
+    // A hand-edited file, or a row written before item_order existed.
+    getModule(state, '01-introduction').item_order = [
+      '01-introduction/02-setup.md',
+    ];
+
+    assert.deepEqual(
+      allItems(state).map((r) => r.itemPath),
+      ['01-introduction/02-setup.md', '01-introduction/01-welcome.md'],
+    );
+  });
+
+  it('returns an empty list for a fresh state', () => {
+    assert.deepEqual(allItems(emptyState(ENV)), []);
+  });
+});
