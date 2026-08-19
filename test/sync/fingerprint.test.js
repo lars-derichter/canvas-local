@@ -46,6 +46,7 @@ const EXPECTED_FIELDS = {
     'title',
   ],
   quiz: ['indent', 'title'],
+  sub_header: ['indent', 'title'],
   external_url: ['external_url', 'indent', 'new_tab', 'title'],
   external_tool: ['external_url', 'indent', 'new_tab', 'title'],
   file: ['content_title', 'indent', 'size', 'title', 'updated_at'],
@@ -619,6 +620,30 @@ describe('canvasFingerprint on reference types', () => {
       canvasFingerprint({ item }, 'quiz'),
     );
   });
+
+  it('fingerprints a text header, which is a title and an indent and no more', () => {
+    // Every subfolder inside a module folder becomes one of these, so a course
+    // laid out the way this project documents is full of them. Leaving the type
+    // out of the table made an ordinary module read as ununderstandable.
+    const item = { title: 'Theory', indent: 0 };
+
+    assert.deepEqual(canvasPayload({ item }, 'sub_header'), {
+      title: 'Theory',
+      indent: 0,
+    });
+    let hash;
+    assert.doesNotThrow(() => {
+      hash = canvasFingerprint({ item }, 'sub_header');
+    });
+    assert.notEqual(
+      canvasFingerprint({ item: { ...item, title: 'Practice' } }, 'sub_header'),
+      hash,
+    );
+    assert.notEqual(
+      canvasFingerprint({ item: { ...item, indent: 1 } }, 'sub_header'),
+      hash,
+    );
+  });
 });
 
 describe('canvasFingerprint on a file', () => {
@@ -653,12 +678,18 @@ describe('canvasFingerprint on a file', () => {
 describe('unknown types', () => {
   it('refuses to fingerprint one rather than hashing half of it', () => {
     assert.throws(
-      () => canvasFingerprint({ item: { title: 'Mystery' } }, 'SubHeader'),
+      () => canvasFingerprint({ item: { title: 'Mystery' } }, 'wiki_gadget'),
       (err) => {
-        assert.match(err.message, /"SubHeader"/);
+        assert.match(err.message, /"wiki_gadget"/);
         assert.match(err.message, /reported and skipped/);
         return true;
       },
+    );
+    // The table is keyed by the normalised type, so Canvas's own spelling of a
+    // type this version *does* know is still not one of its keys.
+    assert.throws(
+      () => canvasFingerprint({ item: {} }, 'SubHeader'),
+      /Cannot fingerprint/,
     );
     assert.throws(
       () => canvasPayload({ item: {} }, undefined),
