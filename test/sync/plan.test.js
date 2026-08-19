@@ -1,0 +1,1830 @@
+const { describe, it } = require('node:test');
+const assert = require('node:assert/strict');
+
+const { ACTION_RANK, plan } = require('../../lib/sync/plan');
+
+// ---------------------------------------------------------------------------
+// Fixtures
+//
+// One builder per side, all three agreeing by default, so a case says only what
+// it changes. Ids and fingerprints are derived from the item path, which keeps
+// them consistent across the three sides without any test having to repeat one.
+// ---------------------------------------------------------------------------
+
+const FOLDER = '01-intro';
+const PATH = '01-intro/01-welcome.md';
+const CANVAS_TIME = '2026-08-19T09:00:00.000Z';
+const LOCAL_TIME = Date.parse('2026-08-19T08:00:00.000Z');
+
+/**
+ * Canvas ids derived from both numeric prefixes, so the three sides agree and
+ * no two items in different modules end up sharing an id.
+ */
+function ids(itemPath) {
+  const [folder, file] = itemPath.split('/');
+  const module = Number(folder.match(/^(\d+)/)[1]);
+  const item = Number(file.match(/^(\d+)/)[1]);
+  return {
+    canvasId: 1000 + module * 10 + item,
+    moduleItemId: 5000 + module * 10 + item,
+    pageUrl: `page-${module}-${item}`,
+  };
+}
+
+/** The de-prefixed filename, which is what every side calls the item. */
+function titleOf(itemPath) {
+  return itemPath.split('/').pop().replace(/^\d+-/, '').replace(/\.md$/, '');
+}
+
+/** A base row, fingerprinted as `L:<path>` locally and `C:<path>` on Canvas. */
+function bRow(itemPath, overrides = {}) {
+  const { canvasId, moduleItemId, pageUrl } = ids(itemPath);
+  return {
+    canvas_type: 'page',
+    canvas_id: canvasId,
+    page_url: pageUrl,
+    module_item_id: moduleItemId,
+    local_hash: `L:${itemPath}`,
+    canvas_hash: `C:${itemPath}`,
+    title: titleOf(itemPath),
+    ...overrides,
+  };
+}
+
+function bMod(paths, extra = {}) {
+  const items = {};
+  for (const itemPath of paths) {
+    items[itemPath] = bRow(itemPath, (extra.rows || {})[itemPath]);
+  }
+  return {
+    canvas_module_id: extra.canvasModuleId ?? 100,
+    name: extra.name ?? 'Introduction',
+    position: extra.position ?? 1,
+    item_order: extra.order ?? paths,
+    items,
+  };
+}
+
+function lItem(itemPath, overrides = {}) {
+  return {
+    itemPath,
+    title: titleOf(itemPath),
+    canvasType: 'page',
+    indent: 0,
+    position: 1,
+    localHash: `L:${itemPath}`,
+    localMtimeMs: LOCAL_TIME,
+    dirty: false,
+    ...overrides,
+  };
+}
+
+function lMod(folder, paths, extra = {}) {
+  return {
+    folder,
+    name: extra.name ?? 'Introduction',
+    position: extra.position ?? 1,
+    items: paths.map((itemPath, index) =>
+      lItem(itemPath, {
+        position: index + 1,
+        ...(extra.items || {})[itemPath],
+      }),
+    ),
+  };
+}
+
+function cItem(itemPath, overrides = {}) {
+  const { canvasId, moduleItemId, pageUrl } = ids(itemPath);
+  return {
+    moduleItemId,
+    canvasType: 'page',
+    rawType: 'Page',
+    canvasId,
+    pageUrl,
+    title: titleOf(itemPath),
+    indent: 0,
+    position: 1,
+    canvasHash: `C:${itemPath}`,
+    canvasUpdatedAt: CANVAS_TIME,
+    suggestedPath: itemPath,
+    recognised: true,
+    ...overrides,
+  };
+}
+
+function cMod(paths, extra = {}) {
+  return {
+    canvasModuleId: extra.canvasModuleId ?? 100,
+    name: extra.name ?? 'Introduction',
+    position: extra.position ?? 1,
+    suggestedFolder: extra.suggestedFolder ?? null,
+    items: [
+      ...paths.map((itemPath, index) =>
+        cItem(itemPath, {
+          position: index + 1,
+          ...(extra.items || {})[itemPath],
+        }),
+      ),
+      ...(extra.extraItems || []),
+    ],
+  };
+}
+
+/**
+ * A text header, on all three sides. Hand-built rather than derived from the
+ * path like everything else: a subfolder has no numeric prefix on its own name,
+ * and Canvas gives a SubHeader no content id, so its only identity is the
+ * module item it is.
+ */
+const HEADER = '01-intro/theory';
+
+function plainHeader() {
+  return {
+    row: {
+      canvas_type: 'sub_header',
+      canvas_id: null,
+      page_url: null,
+      module_item_id: 7001,
+      local_hash: 'L:header',
+      canvas_hash: 'C:header',
+      title: 'Theory',
+    },
+    local: {
+      itemPath: HEADER,
+      title: 'Theory',
+      canvasType: 'sub_header',
+      indent: 0,
+      position: 0,
+      localHash: 'L:header',
+      localMtimeMs: LOCAL_TIME,
+      dirty: false,
+    },
+    canvas: {
+      moduleItemId: 7001,
+      canvasType: 'sub_header',
+      rawType: 'SubHeader',
+      canvasId: null,
+      pageUrl: null,
+      title: 'Theory',
+      indent: 0,
+      position: 1,
+      canvasHash: 'C:header',
+      canvasUpdatedAt: CANVAS_TIME,
+      suggestedPath: HEADER,
+    },
+  };
+}
+
+/**
+ * The one-item course every truth-table row is a variation on: module
+ * `01-intro`, page 1234 at `01-intro/01-welcome.md`, in step on all three
+ * sides. Drop a side, or override its fields, to build a row.
+ */
+function single({
+  base = true,
+  local = true,
+  canvas = true,
+  localFields = {},
+  canvasFields = {},
+} = {}) {
+  return {
+    base: { modules: { [FOLDER]: bMod(base ? [PATH] : []) } },
+    local: {
+      modules: [
+        lMod(FOLDER, local ? [PATH] : [], { items: { [PATH]: localFields } }),
+      ],
+    },
+    canvas: {
+      modules: [
+        cMod(canvas ? [PATH] : [], { items: { [PATH]: canvasFields } }),
+      ],
+    },
+  };
+}
+
+/** A module of three items, with each side's order given as a path list. */
+const A = '01-intro/01-a.md';
+const B = '01-intro/02-b.md';
+const C = '01-intro/03-c.md';
+
+function ordered({
+  base = [A, B, C],
+  local = [A, B, C],
+  canvas = [A, B, C],
+  extraItems = [],
+} = {}) {
+  return {
+    base: { modules: { [FOLDER]: bMod(base) } },
+    local: { modules: [lMod(FOLDER, local)] },
+    canvas: { modules: [cMod(canvas, { extraItems })] },
+  };
+}
+
+/** The action types, in the order the plan puts them. */
+function types(result) {
+  return result.actions.map((action) => action.type);
+}
+
+/** The one action of a type, asserting there is exactly one. */
+function only(result, type) {
+  const matches = result.actions.filter((action) => action.type === type);
+  assert.equal(matches.length, 1, `expected exactly one ${type}`);
+  return matches[0];
+}
+
+// ---------------------------------------------------------------------------
+
+describe('plan: the truth table, row by row', () => {
+  it('in base, unchanged, unchanged: nothing', () => {
+    const result = plan({ ...single(), policy: {} });
+
+    assert.deepEqual(types(result), []);
+    assert.deepEqual(result.conflicts, []);
+    assert.deepEqual(result.orphans, { canvas: [], local: [] });
+  });
+
+  it('in base, changed locally, unchanged on Canvas: update Canvas, same ids', () => {
+    const result = plan({
+      ...single({ localFields: { localHash: 'edited' } }),
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), ['update-canvas-item']);
+    const action = only(result, 'update-canvas-item');
+    assert.equal(action.canvasId, 1011);
+    assert.equal(action.moduleItemId, 5011);
+    assert.equal(action.pageUrl, 'page-1-1');
+    assert.equal(action.canvasType, 'page');
+    assert.equal(action.itemPath, PATH);
+  });
+
+  it('in base, unchanged locally, changed on Canvas: write the file', () => {
+    const result = plan({
+      ...single({ canvasFields: { canvasHash: 'edited' } }),
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), ['update-local-item']);
+    const action = only(result, 'update-local-item');
+    assert.equal(action.itemPath, PATH);
+    assert.equal(action.canvasHash, 'edited');
+    assert.equal(action.canvasUpdatedAt, CANVAS_TIME);
+  });
+
+  it('in base, changed on both sides: a conflict, not a write of either', () => {
+    const result = plan({
+      ...single({
+        localFields: { localHash: 'edited' },
+        canvasFields: { canvasHash: 'edited' },
+      }),
+      policy: { conflict: 'ask' },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.equal(result.pending.conflicts.length, 1);
+    assert.equal(result.pending.conflicts[0].itemPath, PATH);
+  });
+
+  it('not in base, present locally, absent on Canvas: create on Canvas', () => {
+    const result = plan({
+      ...single({ base: false, canvas: false }),
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), ['create-canvas-item']);
+    const action = only(result, 'create-canvas-item');
+    assert.equal(action.itemPath, PATH);
+    assert.equal(action.canvasModuleId, 100);
+    assert.equal(action.position, 1);
+  });
+
+  it('not in base, absent locally, present on Canvas: create the file', () => {
+    const result = plan({
+      ...single({ base: false, local: false }),
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), ['create-local-item']);
+    const action = only(result, 'create-local-item');
+    assert.equal(action.itemPath, PATH);
+    assert.equal(action.canvasId, 1011);
+    assert.equal(action.moduleItemId, 5011);
+  });
+
+  it('in base, gone locally, unchanged on Canvas: an orphan, never a delete', () => {
+    const result = plan({ ...single({ local: false }), policy: {} });
+
+    assert.deepEqual(types(result), []);
+    assert.equal(result.orphans.canvas.length, 1);
+    assert.deepEqual(result.orphans.local, []);
+    const orphan = result.orphans.canvas[0];
+    assert.equal(orphan.itemPath, PATH);
+    assert.equal(orphan.pruned, false);
+    assert.equal(orphan.canvasId, 1011);
+  });
+
+  it('in base, unchanged locally, gone from Canvas: an orphan here', () => {
+    const result = plan({ ...single({ canvas: false }), policy: {} });
+
+    assert.deepEqual(types(result), []);
+    assert.equal(result.orphans.local.length, 1);
+    assert.deepEqual(result.orphans.canvas, []);
+    assert.equal(result.orphans.local[0].itemPath, PATH);
+    assert.equal(result.orphans.local[0].pruned, false);
+  });
+
+  it('in base, gone locally, changed on Canvas: a decision, no action', () => {
+    const result = plan({
+      ...single({ local: false, canvasFields: { canvasHash: 'edited' } }),
+      policy: { pruneCanvas: true },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.deepEqual(result.orphans.canvas, []);
+    assert.equal(result.decisions.length, 1);
+    assert.equal(result.decisions[0].kind, 'local-deleted-canvas-changed');
+    assert.equal(result.decisions[0].itemPath, PATH);
+    assert.match(result.decisions[0].summary, /discard that work/);
+  });
+
+  it('in base, changed locally, gone from Canvas: a decision, no action', () => {
+    const result = plan({
+      ...single({ canvas: false, localFields: { localHash: 'edited' } }),
+      policy: { pruneLocal: true },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.deepEqual(result.orphans.local, []);
+    assert.equal(result.decisions.length, 1);
+    assert.equal(result.decisions[0].kind, 'local-changed-canvas-deleted');
+  });
+
+  it('in base, gone from both sides: converged, and reported nowhere', () => {
+    const result = plan({
+      ...single({ local: false, canvas: false }),
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), ['drop-base-row']);
+    assert.deepEqual(result.orphans, { canvas: [], local: [] });
+    assert.deepEqual(result.decisions, []);
+    assert.deepEqual(result.conflicts, []);
+    assert.deepEqual(result.skipped, []);
+  });
+});
+
+describe('plan: unknown fingerprints point towards local', () => {
+  it('reads a row with no stored local hash as changed here', () => {
+    const course = single();
+    course.base.modules[FOLDER].items[PATH].local_hash = null;
+
+    // A row repaired by hand to adopt an existing Canvas object: pushing is
+    // what records the fingerprints, and it is the direction git can undo.
+    assert.deepEqual(types(plan({ ...course, policy: {} })), [
+      'update-canvas-item',
+    ]);
+  });
+
+  it('reads a row with no stored Canvas hash as unchanged there', () => {
+    const course = single();
+    course.base.modules[FOLDER].items[PATH].canvas_hash = null;
+
+    assert.deepEqual(types(plan({ ...course, policy: {} })), []);
+  });
+
+  it('reads an unfingerprinted Canvas item as unchanged', () => {
+    const result = plan({
+      ...single({ canvasFields: { canvasHash: null } }),
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), []);
+  });
+});
+
+describe('plan: conflict resolution', () => {
+  const conflicted = (localFields = {}, canvasFields = {}) =>
+    single({
+      localFields: { localHash: 'edited', ...localFields },
+      canvasFields: { canvasHash: 'edited', ...canvasFields },
+    });
+
+  it('newest: Canvas wins when its timestamp is later', () => {
+    const result = plan({ ...conflicted(), policy: { conflict: 'newest' } });
+
+    assert.deepEqual(types(result), ['update-local-item']);
+    assert.equal(result.conflicts.length, 1);
+    assert.equal(result.conflicts[0].winner, 'canvas');
+    assert.equal(result.conflicts[0].applied, true);
+    assert.match(result.conflicts[0].reason, /newest/);
+  });
+
+  it('newest: local wins when the file is the later of the two', () => {
+    const result = plan({
+      ...conflicted({}, { canvasUpdatedAt: '2026-08-19T07:00:00.000Z' }),
+      policy: { conflict: 'newest' },
+    });
+
+    assert.deepEqual(types(result), ['update-canvas-item']);
+    assert.equal(result.conflicts[0].winner, 'local');
+  });
+
+  it('newest: local wins a tie', () => {
+    const result = plan({
+      ...conflicted(
+        {},
+        { canvasUpdatedAt: new Date(LOCAL_TIME).toISOString() },
+      ),
+      policy: { conflict: 'newest' },
+    });
+
+    assert.equal(result.conflicts[0].winner, 'local');
+  });
+
+  it('newest: local wins when Canvas gives no timestamp', () => {
+    const result = plan({
+      ...conflicted({}, { canvasUpdatedAt: null }),
+      policy: { conflict: 'newest' },
+    });
+
+    assert.deepEqual(types(result), ['update-canvas-item']);
+    assert.equal(result.conflicts[0].winner, 'local');
+    assert.match(result.conflicts[0].reason, /cannot prove it is newer/);
+  });
+
+  it('newest: local wins when the Canvas timestamp will not parse', () => {
+    const result = plan({
+      ...conflicted({}, { canvasUpdatedAt: 'last Tuesday' }),
+      policy: { conflict: 'newest' },
+    });
+
+    assert.equal(result.conflicts[0].winner, 'local');
+  });
+
+  it('local: pins the local side whatever the timestamps say', () => {
+    const result = plan({ ...conflicted(), policy: { conflict: 'local' } });
+
+    assert.deepEqual(types(result), ['update-canvas-item']);
+    assert.equal(result.conflicts[0].winner, 'local');
+    assert.equal(result.conflicts[0].reason, 'policy local');
+  });
+
+  it('canvas: pins the Canvas side', () => {
+    const result = plan({
+      ...conflicted({}, { canvasUpdatedAt: '2026-01-01T00:00:00.000Z' }),
+      policy: { conflict: 'canvas' },
+    });
+
+    assert.deepEqual(types(result), ['update-local-item']);
+    assert.equal(result.conflicts[0].winner, 'canvas');
+  });
+
+  it('ask: pends the item and decides nothing', () => {
+    const result = plan({ ...conflicted(), policy: { conflict: 'ask' } });
+
+    assert.deepEqual(types(result), []);
+    assert.deepEqual(result.conflicts, []);
+    assert.equal(result.pending.conflicts.length, 1);
+    assert.deepEqual(result.pending.conflicts[0].localMtimeMs, LOCAL_TIME);
+    assert.equal(result.pending.conflicts[0].canvasUpdatedAt, CANVAS_TIME);
+  });
+
+  it('an answer beats every one of the four policies', () => {
+    for (const conflict of ['newest', 'local', 'canvas', 'ask']) {
+      const result = plan({
+        ...conflicted(),
+        policy: { conflict, resolved: { conflicts: { [PATH]: 'canvas' } } },
+      });
+
+      assert.deepEqual(types(result), ['update-local-item'], conflict);
+      assert.equal(result.conflicts[0].winner, 'canvas', conflict);
+      assert.equal(result.conflicts[0].reason, 'answered', conflict);
+      assert.deepEqual(result.pending.conflicts, [], conflict);
+    }
+  });
+
+  it('an answer of local beats a canvas policy too', () => {
+    const result = plan({
+      ...conflicted(),
+      policy: {
+        conflict: 'canvas',
+        resolved: { conflicts: { [PATH]: 'local' } },
+      },
+    });
+
+    assert.deepEqual(types(result), ['update-canvas-item']);
+  });
+
+  it('an answer of skip reports a remedy rather than a winner', () => {
+    const result = plan({
+      ...conflicted(),
+      policy: { conflict: 'ask', resolved: { conflicts: { [PATH]: 'skip' } } },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.deepEqual(result.pending.conflicts, []);
+    assert.equal(result.skipped.length, 1);
+    assert.equal(result.skipped[0].reason, 'conflict-unresolved');
+    assert.match(result.skipped[0].remedy, /--conflict local/);
+  });
+
+  it('refuses a policy value it does not know', () => {
+    assert.throws(
+      () => plan({ ...single(), policy: { conflict: 'newst' } }),
+      /Unknown conflict policy "newst"/,
+    );
+    assert.throws(
+      () => plan({ ...single(), policy: { order: 'whatever' } }),
+      /Unknown order policy/,
+    );
+    assert.throws(
+      () =>
+        plan({
+          ...single(),
+          policy: { resolved: { conflicts: { [PATH]: 'mine' } } },
+        }),
+      /Unknown conflict answer "mine"/,
+    );
+  });
+});
+
+describe('plan: the git guard', () => {
+  it('blocks a write into a file with uncommitted changes', () => {
+    const result = plan({
+      ...single({
+        localFields: { dirty: true },
+        canvasFields: { canvasHash: 'edited' },
+      }),
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.equal(result.skipped.length, 1);
+    assert.equal(result.skipped[0].reason, 'git-dirty');
+    assert.equal(result.skipped[0].action, 'update-local-item');
+    assert.match(result.skipped[0].remedy, /01-intro\/01-welcome\.md/);
+    assert.match(result.skipped[0].remedy, /Commit or stash/);
+  });
+
+  it('blocks a write the author asked for, when the file is dirty', () => {
+    const result = plan({
+      ...single({
+        localFields: { dirty: true, localHash: 'edited' },
+        canvasFields: { canvasHash: 'edited' },
+      }),
+      policy: {
+        conflict: 'ask',
+        resolved: { conflicts: { [PATH]: 'canvas' } },
+      },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.equal(result.conflicts[0].winner, 'canvas');
+    assert.equal(
+      result.conflicts[0].applied,
+      false,
+      'the answer is recorded, and the write it asked for still did not happen',
+    );
+    assert.equal(result.skipped[0].reason, 'git-dirty');
+  });
+
+  it('blocks a local prune of a dirty file', () => {
+    const result = plan({
+      ...single({ canvas: false, localFields: { dirty: true } }),
+      policy: { pruneLocal: true },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.equal(result.orphans.local[0].pruned, false);
+    assert.equal(result.skipped[0].reason, 'git-dirty');
+    assert.equal(result.skipped[0].action, 'delete-local-item');
+  });
+
+  it('does not block a write to Canvas', () => {
+    const result = plan({
+      ...single({ localFields: { dirty: true, localHash: 'edited' } }),
+      policy: {},
+    });
+
+    assert.deepEqual(
+      types(result),
+      ['update-canvas-item'],
+      'Canvas is not where the undo lives, so a dirty file is no reason to ' +
+        'refuse a push',
+    );
+    assert.deepEqual(result.skipped, []);
+  });
+
+  it('does not block a Canvas prune', () => {
+    const result = plan({
+      ...single({ local: false }),
+      policy: { pruneCanvas: true },
+    });
+
+    assert.deepEqual(types(result), ['delete-canvas-item']);
+  });
+});
+
+describe('plan: what the write policy forbids is withheld, not lost', () => {
+  it('push leaves a remote edit alone and says so', () => {
+    const result = plan({
+      ...single({ canvasFields: { canvasHash: 'edited' } }),
+      policy: { write: { canvas: true, local: false } },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.equal(result.withheld.length, 1);
+    assert.equal(result.withheld[0].type, 'update-local-item');
+    assert.equal(result.withheld[0].side, 'local');
+    assert.equal(result.withheld[0].reason, 'write-policy');
+    assert.equal(result.withheld[0].itemPath, PATH);
+  });
+
+  it('pull leaves a local edit alone and says so', () => {
+    const result = plan({
+      ...single({ localFields: { localHash: 'edited' } }),
+      policy: { write: { canvas: false, local: true } },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.equal(result.withheld[0].type, 'update-canvas-item');
+    assert.equal(result.withheld[0].side, 'canvas');
+  });
+
+  it('status writes nothing and reports everything', () => {
+    const course = {
+      base: {
+        modules: {
+          [FOLDER]: bMod([A, B, C]),
+          '02-basics': bMod([], { canvasModuleId: 200, name: 'Basics' }),
+        },
+      },
+      local: {
+        modules: [
+          lMod(FOLDER, [A, C, B], {
+            items: { [A]: { localHash: 'edited' } },
+          }),
+          lMod('02-basics', [], { name: 'Basics', position: 2 }),
+        ],
+      },
+      canvas: {
+        modules: [
+          cMod([A, B, C], { items: { [B]: { canvasHash: 'edited' } } }),
+          cMod([], { canvasModuleId: 200, name: 'Basics', position: 2 }),
+        ],
+      },
+    };
+
+    const preview = plan({
+      ...course,
+      policy: { write: { canvas: false, local: false } },
+    });
+    const real = plan({ ...course, policy: {} });
+
+    assert.deepEqual(preview.actions, [], 'status writes nothing');
+    assert.deepEqual(
+      preview.withheld.map((entry) => entry.type),
+      types(real),
+      'and withholds exactly what a real run would have done',
+    );
+    assert.deepEqual(
+      preview.ordering.map(({ applied: _applied, ...rest }) => rest),
+      real.ordering.map(({ applied: _applied, ...rest }) => rest),
+      'the same ordering decision, only not carried out',
+    );
+    assert.equal(real.ordering[0].applied, true);
+    assert.equal(preview.ordering[0].applied, false);
+    assert.deepEqual(preview.orphans, real.orphans);
+  });
+
+  it('withholds the state-file writes too, since status writes no file either', () => {
+    const result = plan({
+      ...single({ local: false, canvas: false }),
+      policy: { write: { canvas: false, local: false } },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.equal(result.withheld[0].type, 'drop-base-row');
+  });
+});
+
+describe('plan: ordering', () => {
+  it('says nothing when neither side moved', () => {
+    const result = plan({ ...ordered(), policy: { order: 'ask' } });
+
+    assert.deepEqual(types(result), []);
+    assert.deepEqual(result.ordering, []);
+  });
+
+  it('takes the local order when only local moved', () => {
+    const result = plan({
+      ...ordered({ local: [B, A, C] }),
+      policy: { order: 'ask' },
+    });
+
+    assert.deepEqual(types(result), ['reorder-canvas-module']);
+    assert.equal(result.ordering.length, 1);
+    assert.equal(result.ordering[0].winner, 'local');
+    assert.equal(result.ordering[0].reason, 'only this side reordered');
+    assert.deepEqual(result.pending.order, []);
+    assert.deepEqual(
+      only(result, 'reorder-canvas-module').order.map((o) => [
+        o.itemPath,
+        o.moduleItemId,
+        o.position,
+      ]),
+      [
+        [B, 5012, 1],
+        [A, 5011, 2],
+        [C, 5013, 3],
+      ],
+    );
+  });
+
+  it('takes the Canvas order when only Canvas moved', () => {
+    const result = plan({
+      ...ordered({ canvas: [B, A, C] }),
+      policy: { order: 'ask' },
+    });
+
+    assert.deepEqual(types(result), ['reorder-local-module']);
+    assert.equal(result.ordering[0].winner, 'canvas');
+    assert.deepEqual(
+      only(result, 'reorder-local-module').order.map((o) => o.itemPath),
+      [B, A, C],
+    );
+  });
+
+  it('says nothing when both sides moved to the same order', () => {
+    const result = plan({
+      ...ordered({ local: [C, A, B], canvas: [C, A, B] }),
+      policy: { order: 'ask' },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.deepEqual(result.ordering, []);
+  });
+
+  it('asks once per module when both moved differently', () => {
+    const result = plan({
+      ...ordered({ local: [B, A, C], canvas: [C, A, B] }),
+      policy: { order: 'ask' },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.equal(result.pending.order.length, 1);
+    assert.deepEqual(result.pending.order[0], {
+      folder: FOLDER,
+      base: [A, B, C],
+      local: [B, A, C],
+      canvas: [C, A, B],
+    });
+    assert.equal(result.ordering[0].skipped, true);
+    assert.match(result.ordering[0].reason, /awaiting an answer/);
+  });
+
+  it('resolves a contested order by policy', () => {
+    for (const [order, action] of [
+      ['local', 'reorder-canvas-module'],
+      ['canvas', 'reorder-local-module'],
+    ]) {
+      const result = plan({
+        ...ordered({ local: [B, A, C], canvas: [C, A, B] }),
+        policy: { order },
+      });
+
+      assert.deepEqual(types(result), [action], order);
+      assert.equal(result.ordering[0].winner, order);
+      assert.equal(result.ordering[0].reason, `policy ${order}`);
+      assert.equal(result.ordering[0].applied, true);
+    }
+  });
+
+  it('an answer beats the order policy', () => {
+    const result = plan({
+      ...ordered({ local: [B, A, C], canvas: [C, A, B] }),
+      policy: { order: 'ask', resolved: { order: { [FOLDER]: 'canvas' } } },
+    });
+
+    assert.deepEqual(types(result), ['reorder-local-module']);
+    assert.equal(result.ordering[0].reason, 'answered');
+    assert.deepEqual(result.pending.order, []);
+  });
+
+  it('an answer of skip records the skip and reorders nothing', () => {
+    const result = plan({
+      ...ordered({ local: [B, A, C], canvas: [C, A, B] }),
+      policy: { order: 'ask', resolved: { order: { [FOLDER]: 'skip' } } },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.deepEqual(result.pending.order, []);
+    assert.equal(result.ordering[0].skipped, true);
+    assert.match(result.ordering[0].reason, /neither was chosen/);
+  });
+
+  it('an item added at the top is a membership change, not a reorder', () => {
+    // The one that is easy to get wrong: unrestricted, [new, b, c] against a
+    // base of [b, c] looks like every item moved down one.
+    const result = plan({
+      ...ordered({ base: [B, C], local: [A, B, C], canvas: [B, C] }),
+      policy: { order: 'ask' },
+    });
+
+    assert.deepEqual(types(result), ['create-canvas-item']);
+    assert.deepEqual(result.ordering, []);
+    assert.deepEqual(result.pending.order, []);
+  });
+
+  it('an item removed from the middle is not a reorder either', () => {
+    const result = plan({
+      ...ordered({ base: [A, B, C], local: [A, C], canvas: [A, B, C] }),
+      policy: { order: 'ask' },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.deepEqual(result.ordering, []);
+    assert.equal(result.orphans.canvas.length, 1);
+  });
+
+  it('is suppressed for a module holding an unrecognised item, with the reason', () => {
+    const result = plan({
+      ...ordered({
+        local: [B, A, C],
+        extraItems: [
+          {
+            moduleItemId: 9999,
+            canvasType: null,
+            rawType: 'AssessmentQuestion',
+            title: 'Something new',
+            position: 99,
+            recognised: false,
+          },
+        ],
+      }),
+      policy: { order: 'ask', pruneCanvas: true },
+    });
+
+    assert.deepEqual(
+      types(result),
+      [],
+      'membership and content are still reconciled; only the order is not',
+    );
+    assert.equal(result.ordering.length, 1);
+    assert.equal(result.ordering[0].skipped, true);
+    assert.match(result.ordering[0].reason, /does not understand/);
+    assert.deepEqual(result.ordering[0].unrecognised, ['AssessmentQuestion']);
+
+    assert.deepEqual(result.unrecognised, [
+      {
+        moduleFolder: FOLDER,
+        canvasModuleId: 100,
+        moduleItemId: 9999,
+        rawType: 'AssessmentQuestion',
+        canvasType: null,
+        title: 'Something new',
+      },
+    ]);
+  });
+
+  it('never fabricates a local file for an unrecognised item', () => {
+    const result = plan({
+      ...ordered({
+        extraItems: [
+          {
+            moduleItemId: 9999,
+            rawType: 'Wiki',
+            title: 'Mystery',
+            position: 99,
+            recognised: false,
+          },
+        ],
+      }),
+      policy: { pruneCanvas: true, pruneLocal: true },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.deepEqual(result.orphans.canvas, []);
+  });
+
+  it('treats a type this version does not know as unrecognised by default', () => {
+    const result = plan({
+      ...ordered({
+        local: [B, A, C],
+        extraItems: [
+          {
+            moduleItemId: 9999,
+            canvasType: 'wiki_gadget',
+            rawType: 'WikiGadget',
+            title: 'Part one',
+            position: 99,
+          },
+        ],
+      }),
+      policy: { order: 'ask' },
+    });
+
+    assert.equal(
+      result.unrecognised.length,
+      1,
+      'a caller that forgets the flag gets the cautious answer',
+    );
+    assert.deepEqual(
+      types(result),
+      [],
+      'and the cautious answer still switches ordering off for the module',
+    );
+    assert.equal(result.ordering[0].skipped, true);
+  });
+
+  it('reconciles the order of a module holding a text header', () => {
+    // The regression: every subfolder inside a module folder becomes a Canvas
+    // text header, so treating that type as ununderstandable switched ordering
+    // off for most real modules. Note that `recognised` is deliberately not
+    // set here — the default is the thing under test.
+    const header = plainHeader();
+    const base = bMod([A, B, C]);
+    base.item_order = [HEADER, A, B, C];
+    base.items = { [HEADER]: header.row, ...base.items };
+
+    const local = lMod(FOLDER, [B, A, C]);
+    local.items = [header.local, ...local.items];
+
+    const canvas = cMod([A, B, C]);
+    canvas.items = [
+      header.canvas,
+      ...canvas.items.map((item) => ({ ...item, position: item.position + 1 })),
+    ];
+
+    const result = plan({
+      base: { modules: { [FOLDER]: base } },
+      local: { modules: [local] },
+      canvas: { modules: [canvas] },
+      policy: { order: 'ask' },
+    });
+
+    assert.deepEqual(result.unrecognised, []);
+    assert.deepEqual(types(result), ['reorder-canvas-module']);
+    assert.equal(result.ordering.length, 1);
+    assert.equal(result.ordering[0].skipped, false);
+    assert.equal(result.ordering[0].winner, 'local');
+    assert.deepEqual(result.ordering[0].local, [HEADER, B, A, C]);
+  });
+
+  it('matches a text header through its module item id', () => {
+    const header = plainHeader();
+    const base = bMod([]);
+    base.item_order = [HEADER];
+    base.items = { [HEADER]: header.row };
+    const local = lMod(FOLDER, []);
+    local.items = [header.local];
+
+    const course = {
+      base: { modules: { [FOLDER]: base } },
+      local: { modules: [local] },
+      canvas: { modules: [cMod([], { extraItems: [header.canvas] })] },
+    };
+
+    assert.deepEqual(
+      types(plan({ ...course, policy: {} })),
+      [],
+      'no content id, so the row finds it by module item id or not at all',
+    );
+
+    const retitled = structuredClone(course);
+    retitled.canvas.modules[0].items[0].canvasHash = 'C:renamed';
+    retitled.canvas.modules[0].items[0].title = 'Background';
+
+    const result = plan({ ...retitled, policy: {} });
+    assert.deepEqual(
+      types(result),
+      ['update-local-item'],
+      'a text header renamed in Canvas is an ordinary remote change',
+    );
+    assert.equal(only(result, 'update-local-item').itemPath, HEADER);
+    assert.equal(only(result, 'update-local-item').title, 'Background');
+  });
+});
+
+describe('plan: the collision guard', () => {
+  it('refuses a module both sides hold and the state knows nothing about', () => {
+    const result = plan({
+      ...single({ base: false }),
+      policy: {},
+    });
+
+    assert.deepEqual(
+      types(result),
+      [],
+      'creating both sides would duplicate the module',
+    );
+    assert.equal(result.collision.modules.length, 1);
+    assert.deepEqual(result.collision.modules[0], {
+      folder: FOLDER,
+      canvasModuleId: 100,
+      name: 'Introduction',
+      localItems: 1,
+      canvasItems: 1,
+    });
+    assert.match(result.collision.message, /1 local, 1 on Canvas/);
+    assert.match(result.collision.message, /npx course push/);
+    assert.match(result.collision.message, /npx course pull/);
+  });
+
+  it('refuses it on a module row that names a module but no items', () => {
+    // A run that died between creating the module and recording its contents
+    // duplicates exactly as thoroughly as no row at all.
+    const course = single({ base: false });
+    assert.deepEqual(course.base.modules[FOLDER].items, {});
+
+    assert.equal(plan({ ...course, policy: {} }).collision.modules.length, 1);
+  });
+
+  it('pairs the two sides by name when nothing else links them', () => {
+    const result = plan({
+      base: { modules: {} },
+      local: { modules: [lMod(FOLDER, [PATH])] },
+      canvas: { modules: [cMod([PATH])] },
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.equal(result.collision.modules.length, 1);
+  });
+
+  it('does not trip on a module that is new locally', () => {
+    const result = plan({
+      base: { modules: {} },
+      local: { modules: [lMod(FOLDER, [PATH])] },
+      canvas: { modules: [] },
+      policy: {},
+    });
+
+    assert.equal(result.collision, null);
+    assert.deepEqual(types(result), [
+      'create-canvas-module',
+      'create-canvas-item',
+    ]);
+  });
+
+  it('does not trip on a module that is new on Canvas', () => {
+    const result = plan({
+      base: { modules: {} },
+      local: { modules: [] },
+      canvas: { modules: [cMod([PATH], { suggestedFolder: FOLDER })] },
+      policy: {},
+    });
+
+    assert.equal(result.collision, null);
+    assert.deepEqual(types(result), [
+      'create-local-module',
+      'create-local-item',
+    ]);
+    assert.equal(only(result, 'create-local-module').folder, FOLDER);
+  });
+
+  it('does not trip when the module exists on both sides but only one holds items', () => {
+    const result = plan({
+      base: { modules: {} },
+      local: { modules: [lMod(FOLDER, [PATH])] },
+      canvas: { modules: [cMod([])] },
+      policy: {},
+    });
+
+    assert.equal(result.collision, null);
+    assert.deepEqual(
+      types(result),
+      ['create-canvas-item'],
+      'the module is adopted rather than created a second time',
+    );
+    assert.equal(only(result, 'create-canvas-item').canvasModuleId, 100);
+  });
+
+  it('does not trip on an empty course', () => {
+    const result = plan({
+      base: { modules: {} },
+      local: { modules: [] },
+      canvas: { modules: [] },
+      policy: {},
+    });
+
+    assert.equal(result.collision, null);
+    assert.deepEqual(types(result), []);
+  });
+
+  it('judges it per module, and lets the innocent one through', () => {
+    const result = plan({
+      base: { modules: {} },
+      local: {
+        modules: [
+          lMod('01-alpha', ['01-alpha/01-a.md'], { name: 'Alpha' }),
+          lMod('02-beta', ['02-beta/01-a.md'], { name: 'Beta', position: 2 }),
+        ],
+      },
+      canvas: {
+        modules: [cMod(['01-alpha/01-a.md'], { name: 'Alpha' })],
+      },
+      policy: {},
+    });
+
+    assert.equal(result.collision.modules.length, 1);
+    assert.equal(result.collision.modules[0].folder, '01-alpha');
+    assert.deepEqual(
+      types(result),
+      ['create-canvas-module', 'create-canvas-item'],
+      'the genuinely new module is still created',
+    );
+    assert.equal(only(result, 'create-canvas-module').folder, '02-beta');
+  });
+});
+
+describe('plan: renames', () => {
+  const RENAMED = '01-intro/01-hello.md';
+
+  it('re-keys an exact rename silently and then classifies it as unchanged', () => {
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([PATH]) } },
+      local: {
+        modules: [
+          lMod(FOLDER, [RENAMED], {
+            items: { [RENAMED]: { localHash: `L:${PATH}` } },
+          }),
+        ],
+      },
+      canvas: { modules: [cMod([PATH])] },
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), ['rekey-base']);
+    assert.deepEqual(only(result, 'rekey-base'), {
+      type: 'rekey-base',
+      from: PATH,
+      to: RENAMED,
+      fromFolder: FOLDER,
+      toFolder: FOLDER,
+      confidence: 'exact',
+    });
+    assert.deepEqual(result.orphans, { canvas: [], local: [] });
+  });
+
+  it('re-keys and then pushes a rename that also changed', () => {
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([PATH]) } },
+      local: {
+        modules: [
+          lMod(FOLDER, [RENAMED], {
+            items: { [RENAMED]: { localHash: `L:${PATH}` } },
+          }),
+        ],
+      },
+      canvas: { modules: [cMod([PATH], { items: { [PATH]: {} } })] },
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), ['rekey-base']);
+
+    const edited = plan({
+      base: { modules: { [FOLDER]: bMod([PATH]) } },
+      local: {
+        modules: [
+          lMod(FOLDER, [RENAMED], {
+            items: {
+              [RENAMED]: { localHash: `L:${PATH}`, title: 'welcome' },
+            },
+          }),
+          // A second module so the first has something to be compared against.
+        ],
+      },
+      canvas: { modules: [cMod([PATH], { items: { [PATH]: {} } })] },
+      policy: {},
+    });
+    assert.deepEqual(types(edited), ['rekey-base']);
+    assert.equal(result.pending.renames.length, 0);
+  });
+
+  it('holds a probable rename, and creates and deletes nothing meanwhile', () => {
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([PATH]) } },
+      local: {
+        modules: [
+          lMod(FOLDER, [RENAMED], {
+            items: {
+              [RENAMED]: { localHash: 'edited', title: titleOf(PATH) },
+            },
+          }),
+        ],
+      },
+      canvas: { modules: [cMod([PATH])] },
+      policy: { pruneCanvas: true },
+    });
+
+    assert.deepEqual(
+      types(result),
+      [],
+      'letting both through would delete the Canvas page and create a second ' +
+        'copy of the same content beside it',
+    );
+    assert.deepEqual(result.orphans.canvas, []);
+    assert.deepEqual(result.pending.renames, [
+      {
+        from: PATH,
+        to: RENAMED,
+        confidence: 'probable',
+        fromFolder: FOLDER,
+        toFolder: FOLDER,
+      },
+    ]);
+  });
+
+  it('applies a probable rename once the author confirms it', () => {
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([PATH]) } },
+      local: {
+        modules: [
+          lMod(FOLDER, [RENAMED], {
+            items: {
+              [RENAMED]: { localHash: 'edited', title: titleOf(PATH) },
+            },
+          }),
+        ],
+      },
+      canvas: { modules: [cMod([PATH])] },
+      policy: { resolved: { renames: { [PATH]: RENAMED } } },
+    });
+
+    assert.deepEqual(types(result), ['rekey-base', 'update-canvas-item']);
+    assert.equal(only(result, 'rekey-base').confidence, 'probable');
+    assert.deepEqual(result.pending.renames, []);
+  });
+
+  it('falls back to a delete and a create once the author rejects it', () => {
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([PATH]) } },
+      local: {
+        modules: [
+          lMod(FOLDER, [RENAMED], {
+            items: {
+              [RENAMED]: { localHash: 'edited', title: titleOf(PATH) },
+            },
+          }),
+        ],
+      },
+      canvas: { modules: [cMod([PATH])] },
+      policy: {
+        pruneCanvas: true,
+        resolved: { renames: { [PATH]: false } },
+      },
+    });
+
+    assert.deepEqual(types(result), [
+      'create-canvas-item',
+      'delete-canvas-item',
+    ]);
+  });
+
+  it('follows a file dragged into another module', () => {
+    const MOVED = '02-basics/01-welcome.md';
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([PATH]) } },
+      local: {
+        modules: [
+          lMod(FOLDER, []),
+          lMod('02-basics', [MOVED], {
+            name: 'Basics',
+            position: 2,
+            items: { [MOVED]: { localHash: `L:${PATH}` } },
+          }),
+        ],
+      },
+      canvas: { modules: [cMod([PATH])] },
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), [
+      'rekey-base',
+      'create-canvas-module',
+      'move-canvas-item',
+    ]);
+    const move = only(result, 'move-canvas-item');
+    assert.equal(move.fromFolder, FOLDER);
+    assert.equal(move.toFolder, '02-basics');
+    assert.equal(move.fromCanvasModuleId, 100);
+    assert.equal(move.moduleItemId, 5011);
+    assert.deepEqual(result.orphans, { canvas: [], local: [] });
+  });
+
+  it('leaves an ambiguous pair to the truth table', () => {
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([PATH]) } },
+      local: {
+        modules: [
+          lMod(FOLDER, ['01-intro/02-one.md', '01-intro/03-two.md'], {
+            items: {
+              '01-intro/02-one.md': { localHash: `L:${PATH}` },
+              '01-intro/03-two.md': { localHash: `L:${PATH}` },
+            },
+          }),
+        ],
+      },
+      canvas: { modules: [cMod([PATH])] },
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), [
+      'create-canvas-item',
+      'create-canvas-item',
+    ]);
+    assert.equal(result.orphans.canvas.length, 1);
+    assert.deepEqual(result.pending.renames, []);
+  });
+});
+
+describe('plan: pruning', () => {
+  it('deletes nothing by default, on either side', () => {
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([A, B]) } },
+      local: { modules: [lMod(FOLDER, [A])] },
+      canvas: { modules: [cMod([B])] },
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.equal(result.orphans.canvas.length, 1);
+    assert.equal(result.orphans.canvas[0].itemPath, B);
+    assert.equal(result.orphans.local.length, 1);
+    assert.equal(result.orphans.local[0].itemPath, A);
+  });
+
+  it('prunes only the side it was asked about', () => {
+    const course = {
+      base: { modules: { [FOLDER]: bMod([A, B]) } },
+      local: { modules: [lMod(FOLDER, [A])] },
+      canvas: { modules: [cMod([B])] },
+    };
+
+    assert.deepEqual(
+      types(plan({ ...course, policy: { pruneCanvas: true } })),
+      ['delete-canvas-item'],
+    );
+    assert.deepEqual(types(plan({ ...course, policy: { pruneLocal: true } })), [
+      'delete-local-item',
+    ]);
+  });
+
+  it('reports a module gone from one side as one orphan, not a list of them', () => {
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([A, B]) } },
+      local: { modules: [] },
+      canvas: { modules: [cMod([A, B])] },
+      policy: { pruneCanvas: true },
+    });
+
+    assert.deepEqual(
+      types(result),
+      ['delete-canvas-module'],
+      'deleting the module takes its items with it',
+    );
+    const module = result.orphans.canvas.find((o) => o.kind === 'module');
+    assert.equal(module.canvasModuleId, 100);
+    assert.equal(module.itemCount, 2);
+    assert.equal(module.pruned, true);
+    for (const item of result.orphans.canvas.filter((o) => o.kind === 'item')) {
+      assert.equal(item.coveredByModule, true);
+      assert.equal(item.pruned, true);
+    }
+  });
+
+  it('will not delete a module that still holds Canvas-side changes', () => {
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([A, B]) } },
+      local: { modules: [] },
+      canvas: {
+        modules: [cMod([A, B], { items: { [B]: { canvasHash: 'x' } } })],
+      },
+      policy: { pruneCanvas: true },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.equal(result.decisions.length, 1);
+    const module = result.orphans.canvas.find((o) => o.kind === 'module');
+    assert.equal(module.pruned, false);
+    assert.match(module.reason, /need a decision first/);
+  });
+
+  it('will not delete a local folder holding uncommitted changes', () => {
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([A, B]) } },
+      local: {
+        modules: [lMod(FOLDER, [A, B], { items: { [B]: { dirty: true } } })],
+      },
+      canvas: { modules: [] },
+      policy: { pruneLocal: true },
+    });
+
+    assert.deepEqual(types(result), []);
+    const module = result.orphans.local.find((o) => o.kind === 'module');
+    assert.equal(module.pruned, false);
+    assert.equal(result.skipped[0].reason, 'git-dirty');
+    assert.equal(result.skipped[0].action, 'delete-local-module');
+  });
+
+  it('drops the base module once both sides are gone', () => {
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([]) } },
+      local: { modules: [] },
+      canvas: { modules: [] },
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), ['drop-base-module']);
+  });
+});
+
+describe('plan: the action list is in execution order', () => {
+  it('puts creates before the reorder that names them', () => {
+    const D = '01-intro/04-d.md';
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([A, B, C]) } },
+      local: { modules: [lMod(FOLDER, [A, C, B, D])] },
+      canvas: { modules: [cMod([A, B, C])] },
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), [
+      'create-canvas-item',
+      'reorder-canvas-module',
+    ]);
+  });
+
+  it('puts deletes after everything else', () => {
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([A, B]) } },
+      local: { modules: [lMod(FOLDER, [A, C])] },
+      canvas: { modules: [cMod([A, B])] },
+      policy: { pruneCanvas: true },
+    });
+
+    assert.deepEqual(types(result), [
+      'create-canvas-item',
+      'delete-canvas-item',
+    ]);
+  });
+
+  it('puts a module create before the items inside it', () => {
+    const result = plan({
+      base: { modules: {} },
+      local: { modules: [lMod('09-new', ['09-new/01-a.md'], { name: 'New' })] },
+      canvas: { modules: [] },
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), [
+      'create-canvas-module',
+      'create-canvas-item',
+    ]);
+  });
+
+  it('never emits an action type the rank table does not know', () => {
+    const result = plan({
+      ...ordered({ local: [B, A, C], canvas: [A, B, C] }),
+      policy: {},
+    });
+
+    for (const action of result.actions) {
+      assert.ok(
+        Object.hasOwn(ACTION_RANK, action.type),
+        `${action.type} has no rank`,
+      );
+    }
+  });
+});
+
+describe('plan: modules', () => {
+  it('pushes a local rename of the module name', () => {
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([PATH]) } },
+      local: { modules: [lMod(FOLDER, [PATH], { name: 'Getting started' })] },
+      canvas: { modules: [cMod([PATH])] },
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), ['update-canvas-module']);
+    assert.equal(only(result, 'update-canvas-module').name, 'Getting started');
+  });
+
+  it('writes a Canvas rename into the local label, never the folder', () => {
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([PATH]) } },
+      local: { modules: [lMod(FOLDER, [PATH])] },
+      canvas: { modules: [cMod([PATH], { name: 'Kick-off' })] },
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), ['update-local-module']);
+    const action = only(result, 'update-local-module');
+    assert.equal(action.folder, FOLDER, 'the folder is the key, so it stays');
+    assert.equal(action.name, 'Kick-off');
+  });
+
+  it('resolves a rename on both sides through the conflict policy', () => {
+    const course = {
+      base: { modules: { [FOLDER]: bMod([PATH]) } },
+      local: { modules: [lMod(FOLDER, [PATH], { name: 'Getting started' })] },
+      canvas: { modules: [cMod([PATH], { name: 'Kick-off' })] },
+    };
+
+    const canvasWins = plan({ ...course, policy: { conflict: 'canvas' } });
+    assert.deepEqual(types(canvasWins), ['update-local-module']);
+    assert.equal(canvasWins.conflicts[0].kind, 'module');
+    assert.equal(canvasWins.conflicts[0].winner, 'canvas');
+
+    const asked = plan({ ...course, policy: { conflict: 'ask' } });
+    assert.deepEqual(types(asked), []);
+    assert.equal(asked.pending.conflicts[0].kind, 'module');
+  });
+
+  it('ignores a Canvas position, which counts in another space entirely', () => {
+    // Folders numbered 10, 20, 30 are positions 10, 20 and 30 locally and
+    // 1, 2 and 3 on Canvas. Comparing them would report a change every run.
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([PATH], { position: 10 }) } },
+      local: { modules: [lMod(FOLDER, [PATH], { position: 10 })] },
+      canvas: { modules: [cMod([PATH], { position: 1 })] },
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), []);
+  });
+});
+
+describe('plan: -m confines the whole run', () => {
+  const course = {
+    base: {
+      modules: {
+        [FOLDER]: bMod([PATH]),
+        '02-basics': bMod(['02-basics/01-loops.md'], {
+          canvasModuleId: 200,
+          name: 'Basics',
+          position: 2,
+        }),
+      },
+    },
+    local: {
+      modules: [
+        lMod(FOLDER, [PATH], { items: { [PATH]: { localHash: 'edited' } } }),
+        lMod('02-basics', [], { name: 'Basics', position: 2 }),
+      ],
+    },
+    canvas: {
+      modules: [
+        cMod([PATH]),
+        cMod(['02-basics/01-loops.md'], {
+          canvasModuleId: 200,
+          name: 'Basics',
+          position: 2,
+        }),
+      ],
+    },
+  };
+
+  it('plans both modules when nothing is named', () => {
+    const result = plan({ ...course, policy: {} });
+
+    assert.deepEqual(types(result), ['update-canvas-item']);
+    assert.equal(result.orphans.canvas.length, 1);
+  });
+
+  it('plans only the module named, report sections included', () => {
+    const result = plan({ ...course, policy: { modules: [FOLDER] } });
+
+    assert.deepEqual(types(result), ['update-canvas-item']);
+    assert.deepEqual(
+      result.orphans.canvas,
+      [],
+      'the other module is out of scope, orphans and all',
+    );
+  });
+
+  it('plans only the other one when that is what was named', () => {
+    const result = plan({ ...course, policy: { modules: ['02-basics'] } });
+
+    assert.deepEqual(types(result), []);
+    assert.equal(result.orphans.canvas.length, 1);
+    assert.equal(result.orphans.canvas[0].moduleFolder, '02-basics');
+  });
+
+  it('leaves a Canvas-only module out, having no folder to match on', () => {
+    const result = plan({
+      base: { modules: {} },
+      local: { modules: [lMod(FOLDER, [PATH])] },
+      canvas: {
+        modules: [
+          cMod(['09-extra/01-x.md'], { canvasModuleId: 900, name: 'Extra' }),
+        ],
+      },
+      policy: { modules: [FOLDER] },
+    });
+
+    assert.deepEqual(types(result), [
+      'create-canvas-module',
+      'create-canvas-item',
+    ]);
+  });
+});
+
+describe('plan: a whole course at once', () => {
+  it('reconciles a realistic mix in one pass', () => {
+    const INTRO_A = '01-intro/01-a.md';
+    const INTRO_B = '01-intro/02-b.md';
+    const INTRO_C = '01-intro/03-c.md';
+    const BASICS_A = '02-basics/01-loops.md';
+    const BASICS_B = '02-basics/02-arrays.md';
+    const GONE = '03-old/01-legacy.md';
+    const NEW = '04-new/01-first.md';
+
+    const result = plan({
+      base: {
+        modules: {
+          '01-intro': bMod([INTRO_A, INTRO_B, INTRO_C]),
+          '02-basics': bMod([BASICS_A, BASICS_B], {
+            canvasModuleId: 200,
+            name: 'Basics',
+            position: 2,
+          }),
+          '03-old': bMod([GONE], {
+            canvasModuleId: 300,
+            name: 'Old',
+            position: 3,
+          }),
+        },
+      },
+      local: {
+        modules: [
+          // A edited here, B edited on both sides, C reordered to the front.
+          lMod('01-intro', [INTRO_C, INTRO_A, INTRO_B], {
+            items: {
+              [INTRO_A]: { localHash: 'edited' },
+              [INTRO_B]: { localHash: 'edited' },
+            },
+          }),
+          // One item deleted locally, one untouched.
+          lMod('02-basics', [BASICS_A], { name: 'Basics', position: 2 }),
+          // A module whose Canvas side is gone.
+          lMod('03-old', [GONE], { name: 'Old', position: 3 }),
+          // A module that is new here.
+          lMod('04-new', [NEW], { name: 'New', position: 4 }),
+        ],
+      },
+      canvas: {
+        modules: [
+          cMod([INTRO_A, INTRO_B, INTRO_C], {
+            items: {
+              [INTRO_B]: { canvasHash: 'edited' },
+              [INTRO_C]: { canvasHash: 'edited' },
+            },
+          }),
+          cMod([BASICS_A, BASICS_B], {
+            canvasModuleId: 200,
+            name: 'Basics',
+            position: 2,
+          }),
+          // The module the state calls 03-old is gone from Canvas entirely.
+        ],
+      },
+      policy: { conflict: 'local', order: 'ask' },
+    });
+
+    assert.deepEqual(types(result), [
+      'create-canvas-module',
+      'create-canvas-item',
+      'update-canvas-item',
+      'update-canvas-item',
+      'update-local-item',
+      'reorder-canvas-module',
+    ]);
+
+    // A: local only. B: both, and the policy pinned local. C: Canvas only.
+    assert.deepEqual(
+      result.actions
+        .filter((a) => a.type.endsWith('-item') && a.itemPath)
+        .map((a) => [a.type, a.itemPath]),
+      [
+        ['create-canvas-item', NEW],
+        ['update-canvas-item', INTRO_A],
+        ['update-canvas-item', INTRO_B],
+        ['update-local-item', INTRO_C],
+      ],
+    );
+    assert.equal(result.conflicts.length, 1);
+    assert.equal(result.conflicts[0].itemPath, INTRO_B);
+    assert.equal(result.conflicts[0].winner, 'local');
+
+    // 02-basics lost an item locally; 03-old lost its whole module on Canvas.
+    assert.deepEqual(
+      result.orphans.canvas.map((o) => o.itemPath ?? o.moduleFolder),
+      [BASICS_B],
+    );
+    assert.deepEqual(
+      result.orphans.local.map((o) => o.itemPath ?? o.moduleFolder),
+      [GONE, '03-old'],
+    );
+    assert.equal(
+      result.actions.filter((a) => a.type.startsWith('delete')).length,
+      0,
+      'and not one delete, because neither prune flag was given',
+    );
+
+    // Only 01-intro reordered, and only on one side, so it is settled silently.
+    assert.equal(result.ordering.length, 1);
+    assert.equal(result.ordering[0].folder, '01-intro');
+    assert.equal(result.ordering[0].winner, 'local');
+    assert.deepEqual(result.pending.order, []);
+
+    assert.equal(result.collision, null);
+    assert.deepEqual(result.decisions, []);
+    assert.deepEqual(result.skipped, []);
+    assert.deepEqual(result.unrecognised, []);
+    assert.deepEqual(result.withheld, []);
+  });
+
+  it('copes with being handed nothing at all', () => {
+    const empty = {
+      actions: [],
+      conflicts: [],
+      skipped: [],
+      orphans: { canvas: [], local: [] },
+      decisions: [],
+      unrecognised: [],
+      ordering: [],
+      pending: { conflicts: [], order: [], renames: [] },
+      collision: null,
+      withheld: [],
+    };
+
+    assert.deepEqual(plan(), empty);
+    assert.deepEqual(plan({}), empty);
+  });
+});
+
+describe('plan: reference types', () => {
+  const QUIZ = '01-intro/05-quiz.md';
+
+  it('matches a quiz on its module item id, not a content id', () => {
+    const result = plan({
+      base: {
+        modules: {
+          [FOLDER]: bMod([QUIZ], {
+            rows: {
+              [QUIZ]: {
+                canvas_type: 'quiz',
+                canvas_id: null,
+                page_url: null,
+              },
+            },
+          }),
+        },
+      },
+      local: {
+        modules: [
+          lMod(FOLDER, [QUIZ], {
+            items: { [QUIZ]: { canvasType: 'quiz' } },
+          }),
+        ],
+      },
+      canvas: {
+        modules: [
+          cMod([QUIZ], {
+            items: {
+              [QUIZ]: {
+                canvasType: 'quiz',
+                rawType: 'Quiz',
+                canvasId: null,
+                pageUrl: null,
+              },
+            },
+          }),
+        ],
+      },
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.deepEqual(result.orphans, { canvas: [], local: [] });
+  });
+
+  it('refuses to push a local file whose type no longer matches Canvas', () => {
+    const result = plan({
+      ...single({
+        localFields: { localHash: 'edited', canvasType: 'assignment' },
+      }),
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.equal(result.skipped[0].reason, 'type-changed');
+    assert.match(
+      result.skipped[0].remedy,
+      /page on Canvas but its frontmatter/,
+    );
+  });
+});
