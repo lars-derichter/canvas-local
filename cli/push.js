@@ -10,12 +10,17 @@ const { loadCourseConfig } = require('../lib/config/course-config');
 const {
   createModule,
   updateModule,
-  createModuleItem,
   deleteModule: deleteCanvasModule,
   listModules,
   listModuleItems,
   deleteModuleItem,
 } = require('../lib/canvas/modules');
+const {
+  reconcileModuleItems,
+  applyModuleItems,
+  moduleItemKeys,
+  describeLeftoverItem,
+} = require('../lib/sync/apply');
 const {
   createPage,
   updatePage,
@@ -57,7 +62,6 @@ const {
 } = require('../lib/convert/link-resolver');
 const {
   SYNC_FILE,
-  buildPageUrlToPageId,
   loadSyncFile,
   saveSyncFile,
   itemKey,
@@ -91,7 +95,6 @@ async function push(options) {
   const dryRun = options.dryRun || false;
   const moduleFilter = options.module || null;
   const prune = options.prune || false;
-  const dropCanvasOnly = options.dropCanvasOnly || false;
 
   const syncData = loadSyncFile();
   const modules = scanCourse(COURSE_DIR);
@@ -175,18 +178,13 @@ async function push(options) {
   // Build link map from sync state for resolving internal links
   let { relativeToCanvas } = buildLinkMap(syncData);
 
-  // What every module about to be rebuilt is measured against: a module whose
-  // Canvas items are not all accounted for here is left alone rather than
-  // cleared. Claims come from the whole tree, so an item moved into another
-  // module is never mistaken for one added by hand in Canvas.
-  const guard = {
-    dropCanvasOnly,
-    claims: collectPushGuardClaims(syncData, modules),
-    resolvePageIds: makePageIdResolver(courseId),
-  };
-
   // Track items that had unresolved internal links for a second pass
   const unresolvedItems = [];
+
+  // A module item Canvas holds that its own module's files did not account for
+  // cannot be judged while that module is being pushed: it may be one another
+  // module is about to claim. The verdict waits until every module has spoken.
+  const ledger = createItemLedger();
 
   const errors = [];
   const totalModules = filteredModules.length;
@@ -204,7 +202,7 @@ async function push(options) {
         relativeToCanvas,
         unresolvedItems,
         errors,
-        guard,
+        ledger,
       );
     } catch (err) {
       log.error(
@@ -217,6 +215,10 @@ async function push(options) {
       saveSyncFile(syncData);
     }
   }
+
+  // Every module has had its say, so a leftover can finally be told apart from
+  // an item that simply moved.
+  await resolveLeftoverItems(courseId, ledger, dryRun, errors);
 
   // Report unresolved links in dry-run mode
   if (unresolvedItems.length > 0 && dryRun) {
@@ -378,259 +380,6 @@ function registerItem(
   return key;
 }
 
-/**
- * How a live module item's `type` reads in the local `canvas_type` vocabulary.
- * `SubHeader` is deliberately absent: it is handled before this map is reached.
- */
-const LIVE_ITEM_TYPES = {
-  Page: 'page',
-  Assignment: 'assignment',
-  Discussion: 'discussion',
-  Quiz: 'quiz',
-  ExternalUrl: 'external_url',
-  ExternalTool: 'external_tool',
-  File: 'file',
-};
-
-/**
- * Whether a module item Canvas holds is one push itself put there.
- *
- * The claim set comes from `collectLocalClaims`, so it speaks in
- * `canvas_type:identity` pairs and is type-scoped: an `assignment:12` claim
- * never answers for a `Quiz` item on id 12. Three types need more than a
- * straight id comparison:
- *
- * - A **page** item names its page by slug, while the local file claims the
- *   numeric page id, so the slug is resolved through the course's page list
- *   first. The slug is still tried directly, because a page created before
- *   Canvas returned a `page_id` has the slug in its frontmatter.
- * - **External URLs and LTI links** exist only as a module item, whose id
- *   Canvas reissues on every push. Push writes that id to frontmatter once and
- *   never refreshes it, so from the second push on the stored id is stale by
- *   design and the launch URL is the identity. The id is still worth trying:
- *   Canvas never reuses one, so a match can only be the first push's own item.
- * - A **file** item can come from a raw binary that carries no frontmatter at
- *   all; the claim for those is added from sync state (see
- *   `collectPushGuardClaims`).
- *
- * @param {object} item              - A Canvas module item.
- * @param {Set<string>} claims       - Identities claimed by local files.
- * @param {Map<string, number>|null} pageIds - Page slug -> page id.
- */
-function isLiveItemLocal(item, claims, pageIds) {
-  // Text headers carry no content id of any kind: push regenerates them from
-  // the folder structure on every run, so there is nothing to recognise and
-  // nothing a hand-added one could destroy.
-  if (item.type === 'SubHeader') return true;
-
-  const type = LIVE_ITEM_TYPES[item.type];
-  // A type push cannot produce is by definition not push's own.
-  if (!type) return false;
-
-  if (type === 'page') {
-    if (!item.page_url) return false;
-    if (claims.has(`page:${item.page_url}`)) return true;
-    const pageId = pageIds && pageIds.get(item.page_url);
-    return pageId != null && claims.has(`page:${pageId}`);
-  }
-
-  if (type === 'external_url' || type === 'external_tool') {
-    if (item.external_url && claims.has(`${type}:${item.external_url}`))
-      return true;
-    return item.id != null && claims.has(`${type}:${item.id}`);
-  }
-
-  return item.content_id != null && claims.has(`${type}:${item.content_id}`);
-}
-
-/**
- * Split a module's live Canvas items into the ones a local file accounts for
- * and the ones nothing local claims.
- *
- * The page lookup is asked for only when the module actually holds a page, and
- * `resolvePageIds` answers it once for the whole run. When that lookup fails,
- * no page item can be told apart from a hand-added one, so the whole module
- * counts as unchecked rather than as clean: the caller refuses it instead of
- * guessing.
- *
- * @param {object[]} liveItems         - What `listModuleItems` returned.
- * @param {Set<string>} claims         - Identities claimed by local files.
- * @param {Function} resolvePageIds    - Async, returns the slug -> id map.
- * @returns {Promise<{canvasOnly: object[], error: string|null}>}
- */
-async function inspectCanvasOnlyItems(liveItems, claims, resolvePageIds) {
-  const canvasOnly = [];
-  let pageIds = null;
-
-  for (const item of liveItems || []) {
-    if (item.type === 'SubHeader') continue;
-    if (item.type === 'Page' && pageIds === null) {
-      try {
-        pageIds = await resolvePageIds();
-      } catch (err) {
-        return {
-          canvasOnly: [],
-          error:
-            `could not list the pages of this Canvas course (${err.message}), ` +
-            'and a module item names a page by a slug that only that list ' +
-            'resolves to the id its local file holds',
-        };
-      }
-    }
-    if (isLiveItemLocal(item, claims, pageIds)) continue;
-    canvasOnly.push(item);
-  }
-
-  return { canvasOnly, error: null };
-}
-
-/** One live Canvas item, named as someone has to find it back in Canvas. */
-function describeCanvasOnlyItem(item) {
-  const title = item.title || '(untitled)';
-  const where = item.position != null ? `, position ${item.position}` : '';
-  const link = item.html_url ? ` — ${item.html_url}` : '';
-  return `  - "${title}" (${item.type}${where})${link}`;
-}
-
-/**
- * Report a module left untouched because Canvas holds items in it that no
- * local file accounts for, and return the line the run's error summary gets.
- *
- * Everything goes to stderr: this is the one outcome a `--quiet` run must
- * still see, because the alternative to reading it is losing the items.
- *
- * @param {object} mod              - The local module descriptor.
- * @param {object[]} canvasOnly     - The unclaimed live items.
- * @param {boolean} dryRun
- * @returns {string} The error message, for the caller to record.
- */
-function reportCanvasOnlyRefusal(mod, canvasOnly, dryRun) {
-  const count = canvasOnly.length;
-  const them = count === 1 ? 'it' : 'them';
-  const items = count === 1 ? 'item' : 'items';
-
-  log.error(
-    `\n[push] ${dryRun ? 'DRY RUN: would refuse to push' : 'Refusing to push'} ` +
-      `module "${mod.moduleName}": ${count} ${items} in this Canvas module ` +
-      `${count === 1 ? 'has' : 'have'} no source file in course/${mod.folderName}/.`,
-  );
-  for (const item of canvasOnly) log.error(describeCanvasOnlyItem(item));
-  log.error(
-    `[push] Push rebuilds a module's item list from course/, so pushing this ` +
-      `module would have removed ${count === 1 ? 'that item' : 'those items'} from it. ` +
-      'Nothing was written: the module keeps its items, its name and its ' +
-      'position, and the rest of this run carries on.',
-  );
-  log.error('[push] Three ways forward:');
-  log.error(
-    `[push]   1. Keep ${them}: add a file under course/${mod.folderName}/ for ` +
-      'each one, carrying the matching canvas_type and canvas_id in its ' +
-      'frontmatter (see docs/frontmatter.md), then push again.',
-  );
-  log.error(
-    `[push]   2. Move ${them} in Canvas into a module this project does not manage.`,
-  );
-  log.error(
-    `[push]   3. Let ${them} go: push again with --drop-canvas-only, which ` +
-      'clears this module and rebuilds it from course/. A page, assignment, ' +
-      'discussion, quiz or file behind an item stays in the course — a module ' +
-      'item is only a link to it — but an external URL or an LTI link is ' +
-      'nothing but a module item, so that one is gone.',
-  );
-
-  const named = canvasOnly
-    .map((item) => `"${item.title || '(untitled)'}"`)
-    .join(', ');
-  return (
-    `${count} ${items} in this Canvas module ${count === 1 ? 'has' : 'have'} ` +
-    `no local source file (${named}); the module was left untouched`
-  );
-}
-
-/**
- * Every Canvas identity the local tree claims, for the guard that decides
- * whether a module is safe to rebuild.
- *
- * `collectLocalClaims` reads frontmatter, which covers every type but one: a
- * raw binary dropped into a module folder is pushed as a file item and has
- * nowhere to carry a `canvas_id`. It also only ever sees files that are still
- * on disk, and the guard asks a wider question than "is this file here now".
- *
- * The sync file answers it. An entry in it means push put that item in that
- * module, so it is this project's to rebuild however the local tree has moved
- * on — including when the source file has been deleted, which is a deletion
- * the author meant and which `--prune` exists to finish. Without this the
- * guard reads its own tracked items back as hand-made ones and refuses the
- * module, so deleting a single page would block every other edit to it.
- *
- * What the guard is actually looking for survives untouched: an item added by
- * hand in Canvas was never pushed, so it is in no sync entry and claims
- * nothing here.
- *
- * Claims are gathered from the whole tree, never from the `--module` subset,
- * so an item moved to another module still counts as local.
- */
-function collectPushGuardClaims(syncData, localModules) {
-  const claims = collectLocalClaims(localModules);
-
-  for (const moduleEntry of Object.values(
-    (syncData && syncData.modules) || {},
-  )) {
-    for (const entry of Object.values(moduleEntry.items || {})) {
-      const type = entry.canvas_type;
-      if (!type) continue;
-      if (entry.canvas_id != null) claims.add(`${type}:${entry.canvas_id}`);
-      if (entry.page_url) claims.add(`page:${entry.page_url}`);
-      if (entry.external_url) claims.add(`${type}:${entry.external_url}`);
-    }
-  }
-
-  return claims;
-}
-
-/**
- * The items Canvas holds in a module, or null when there is nothing to protect.
- *
- * A 404 means the module is gone from Canvas and push is about to create it
- * again, so there is nothing in it to lose. Any other failure leaves push
- * unable to tell its own items from hand-added ones: a real push refuses the
- * module rather than clear a list it could not read, while a dry run — which
- * writes nothing either way — says the check could not be made and carries on.
- */
-async function readLiveItems(courseId, existingModuleId, dryRun) {
-  if (!existingModuleId) return null;
-  try {
-    return await listModuleItems(courseId, existingModuleId);
-  } catch (err) {
-    if (err.message.includes('404')) return null;
-    if (dryRun) {
-      log.warn(
-        `[push] Could not list the items Canvas holds in this module ` +
-          `(${err.message}); this dry run cannot say whether it holds items ` +
-          'with no local source.',
-      );
-      return null;
-    }
-    throw new Error(
-      `could not list the items Canvas holds in this module (${err.message}). ` +
-        "Push clears a module's item list before rebuilding it, so it refuses " +
-        'to touch a module it could not read.',
-    );
-  }
-}
-
-/**
- * A slug -> page id lookup that costs at most one request per run, and none at
- * all when no module holds a page that needs resolving.
- */
-function makePageIdResolver(courseId, fetchPages) {
-  let pending = null;
-  return () => {
-    if (!pending) pending = buildPageUrlToPageId(courseId, fetchPages);
-    return pending;
-  };
-}
-
 async function pushModule(
   courseId,
   mod,
@@ -640,7 +389,7 @@ async function pushModule(
   relativeToCanvas,
   unresolvedItems,
   errors,
-  guard,
+  ledger,
 ) {
   const moduleDir = path.join(COURSE_DIR, mod.folderName);
   // The id in _category_.json is authoritative even when the sync file was
@@ -650,48 +399,11 @@ async function pushModule(
   const existingModuleId =
     catId != null ? Number(catId) : resolved ? Number(resolved[0]) : null;
 
-  // What Canvas holds in this module right now, read before the first write:
-  // a module holding items no local file accounts for is left exactly as it
-  // is, and that decision cannot be made after the module has been touched.
-  const liveItems = await readLiveItems(courseId, existingModuleId, dryRun);
-  if (liveItems) {
-    const { canvasOnly, error } = await inspectCanvasOnlyItems(
-      liveItems,
-      guard.claims,
-      guard.resolvePageIds,
-    );
-
-    if (guard.dropCanvasOnly) {
-      // The user asked for the old behaviour, so the wipe goes ahead — but it
-      // still says what it is about to take out of the module.
-      if (error) {
-        log.warn(
-          `[push] WARNING: ${error}. --drop-canvas-only clears the module ` +
-            'anyway, so this run cannot say what it removed.',
-        );
-      } else if (canvasOnly.length > 0) {
-        log.warn(
-          `\n[push] WARNING: --drop-canvas-only: removing ${canvasOnly.length} ` +
-            `item(s) from "${mod.moduleName}" that have no source file in course/:`,
-        );
-        for (const item of canvasOnly) log.warn(describeCanvasOnlyItem(item));
-      }
-    } else if (error) {
-      log.error(
-        `\n[push] Refusing to push module "${mod.moduleName}": ${error}. ` +
-          "Push clears a module's item list before rebuilding it, so a module " +
-          'it cannot check is left untouched.',
-      );
-      errors.push({ module: mod.folderName, error });
-      return;
-    } else if (canvasOnly.length > 0) {
-      errors.push({
-        module: mod.folderName,
-        error: reportCanvasOnlyRefusal(mod, canvasOnly, dryRun),
-      });
-      return;
-    }
-  }
+  // What Canvas holds in this module right now, read before the first write so
+  // the reconcile at the end can match its own items back to it. Ordinary
+  // input, nothing to refuse over. A dry run reads it too: the reconcile is
+  // pure, so it can say what a real run would do without doing any of it.
+  const liveItems = await readModuleItems(courseId, existingModuleId);
 
   let moduleId;
 
@@ -746,17 +458,10 @@ async function pushModule(
     }
   }
 
-  // Clear existing module items to prevent duplicates on re-push.
-  // Module items are links within a module — deleting them does not delete
-  // the underlying pages, assignments, or files. Everything still here was
-  // either put there by a previous push or explicitly released with
-  // --drop-canvas-only: the guard above returned otherwise.
-  if (!dryRun && existingModuleId && existingModuleId === moduleId) {
-    log.verbose('Clearing existing module items before re-push');
-    for (const mi of liveItems || []) {
-      await deleteModuleItem(courseId, moduleId, mi.id);
-    }
-  }
+  // A module Canvas recreated under a new id starts empty, whatever the old one
+  // held: matching against the items of a module that is gone would place every
+  // item twice.
+  const live = existingModuleId === moduleId ? liveItems : [];
 
   // Upload embedded files (images, etc.) referenced from markdown content
   const flatItems = flattenItems(mod.items);
@@ -814,12 +519,24 @@ async function pushModule(
   // Process items (including subheader items)
   const totalItems = flatItems.length;
 
+  // What the module should contain when this is over, in order, each entry
+  // shaped as `createModuleItem` takes it. Pushing the content is one job and
+  // arranging the module is another: the list is gathered here as each item's
+  // Canvas identity comes back, and reconciled against Canvas in one pass
+  // afterwards, so an item that is already in the right place at the right
+  // title costs no request at all.
+  const desired = [];
+  // The two types that *are* their module item have no id until the reconcile
+  // has run, so their sync bookkeeping waits for it. Keyed by position in
+  // `desired`.
+  const pendingIds = new Map();
+
   for (let ii = 0; ii < flatItems.length; ii++) {
     const item = flatItems[ii];
     const itemTitle = item.title || item.file || 'unknown';
     log.verbose(`Item ${ii + 1}/${totalItems}: ${itemTitle}`);
     try {
-      await pushItem(
+      const moduleItem = await pushItem(
         courseId,
         moduleId,
         item,
@@ -831,14 +548,21 @@ async function pushModule(
         syncData,
         moduleEntry,
       );
-      // Track item in sync file (file items track themselves in pushFile)
+      if (moduleItem) {
+        if (isModuleItemOnlyType(item.canvasType))
+          pendingIds.set(desired.length, item);
+        desired.push(moduleItem);
+      }
+      // Track item in sync file (file items track themselves in pushFile, and
+      // the module-item-only types wait for their id below)
       if (
         !dryRun &&
         moduleEntry &&
         item.relativePath &&
         item.frontmatter &&
         item.frontmatter.canvas_id != null &&
-        item.canvasType !== 'file'
+        item.canvasType !== 'file' &&
+        !isModuleItemOnlyType(item.canvasType)
       ) {
         registerItem(syncData, String(moduleId), moduleEntry, item, {
           canvasId: item.frontmatter.canvas_id,
@@ -853,6 +577,243 @@ async function pushModule(
       });
     }
   }
+
+  const plan = reconcileModuleItems({ live, desired });
+  recordItemClaims(ledger, moduleId, desired);
+  recordLeftoverItems(ledger, mod, moduleId, plan.leftover);
+
+  if (dryRun) {
+    log.info(
+      `[push] DRY RUN: module items — ${plan.create.length} to create, ` +
+        `${plan.update.length} to update, ${plan.unchanged.length} already ` +
+        `correct, ${plan.leftover.length} with no local source.`,
+    );
+    return;
+  }
+
+  const applied = await applyModuleItems(courseId, moduleId, plan);
+
+  for (const failure of applied.errors) {
+    const label = failure.desired.title || 'unknown';
+    log.error(
+      `  [push] Error placing item "${label}" in the module: ${failure.error}`,
+    );
+    errors.push({
+      module: `${mod.folderName}/${label}`,
+      error: failure.error,
+    });
+  }
+
+  recordModuleItemIds(
+    syncData,
+    moduleId,
+    moduleEntry,
+    applied.placed,
+    pendingIds,
+  );
+}
+
+/**
+ * The items Canvas holds in a module, as plain input to the reconcile.
+ *
+ * A module that is not on Canvas yet, or a 404 on one that was, holds nothing:
+ * push is about to create it. Any other failure is fatal to this module and has
+ * to stay that way — a reconcile that believes the module is empty places every
+ * item a second time, so the whole course would double.
+ */
+async function readModuleItems(courseId, existingModuleId) {
+  if (!existingModuleId) return [];
+  try {
+    return (await listModuleItems(courseId, existingModuleId)) || [];
+  } catch (err) {
+    if (err.message.includes('404')) return [];
+    throw new Error(
+      `could not list the items Canvas holds in this module (${err.message}). ` +
+        'Push matches its own items against that list before it writes, so a ' +
+        'module it could not read is left untouched rather than filled with ' +
+        'a second copy of everything.',
+    );
+  }
+}
+
+/**
+ * Whether this type exists only as a module item, with no Canvas object of its
+ * own behind it. Both get their `canvas_id` from the reconcile rather than from
+ * a create of their own.
+ */
+function isModuleItemOnlyType(canvasType) {
+  return canvasType === 'external_url' || canvasType === 'external_tool';
+}
+
+/**
+ * Write the module item ids the reconcile settled back to the two types that
+ * have no other identity, and record them in sync state.
+ *
+ * Only the first push writes the id into the frontmatter. It stays correct now
+ * that reconcile keeps module item ids stable, and rewriting a file on every
+ * run to restate a value that did not change is churn the author would see in
+ * `git status`.
+ */
+function recordModuleItemIds(
+  syncData,
+  moduleId,
+  moduleEntry,
+  placed,
+  pendingIds,
+) {
+  if (!moduleEntry || pendingIds.size === 0) return;
+  for (const entry of placed) {
+    const item = pendingIds.get(entry.index);
+    if (!item || entry.id == null) continue;
+    if (item.frontmatter.canvas_id == null) {
+      updateFrontmatter(path.resolve(COURSE_DIR, item.relativePath), {
+        canvas_id: entry.id,
+      });
+      log.verbose(`Wrote canvas_id=${entry.id} to ${item.relativePath}`);
+    }
+    item.frontmatter.canvas_id = entry.id;
+    registerItem(syncData, String(moduleId), moduleEntry, item, {
+      canvasId: entry.id,
+    });
+  }
+}
+
+/**
+ * The run's module-item ledger.
+ *
+ * `claims` maps every identity some module's local files laid claim to onto the
+ * modules that claimed it; `leftovers` holds every live item a module's own
+ * files did not account for. The two only mean anything together, and only once
+ * the whole run is in — see `resolveLeftoverItems`.
+ */
+function createItemLedger() {
+  return { claims: new Map(), leftovers: [] };
+}
+
+/** Note which module laid claim to which identity, for the leftover verdict. */
+function recordItemClaims(ledger, moduleId, desired) {
+  for (const want of desired) {
+    for (const key of moduleItemKeys(want, 'desired')) {
+      if (!ledger.claims.has(key)) ledger.claims.set(key, new Set());
+      ledger.claims.get(key).add(String(moduleId));
+    }
+  }
+}
+
+/** Hold one module's unclaimed live items until the run can judge them. */
+function recordLeftoverItems(ledger, mod, moduleId, leftover) {
+  for (const item of leftover) {
+    ledger.leftovers.push({
+      moduleId: String(moduleId),
+      moduleName: mod.moduleName,
+      folderName: mod.folderName,
+      item,
+      keys: moduleItemKeys(item, 'live'),
+    });
+  }
+}
+
+/**
+ * Whether another module in this run claimed the identity of this leftover.
+ *
+ * Deliberately another module and not any module: two subheaders in one module
+ * under a title the local tree uses once is a duplicate, not a move, and this
+ * is not the mechanism that decides what to do about that.
+ */
+function movedToAnotherModule(ledger, entry) {
+  return entry.keys.some((key) => {
+    const owners = ledger.claims.get(key);
+    if (!owners) return false;
+    for (const owner of owners) if (owner !== entry.moduleId) return true;
+    return false;
+  });
+}
+
+/**
+ * Settle every module item Canvas holds that its own module's local files did
+ * not account for, now that the whole run is in.
+ *
+ * Two unrelated things land in that pile, and only the finished run tells them
+ * apart. An item another module claimed this run **moved**: `movetomodule-item`
+ * renames the file into the other folder and touches Canvas not at all, so push
+ * is what finishes the job — and leaving the old listing behind would show the
+ * author the same page in two modules, which is worse than the rebuild this
+ * commit replaced. So the stale listing goes, flag or no flag: the author
+ * already asked for the move.
+ *
+ * An item **nobody** claimed was added in Canvas by hand, or belongs to
+ * something outside this repository. It is left exactly where it is and merely
+ * named. Removing one of those is pruning, and pruning waits for its flag.
+ *
+ * Removing a module item is not removing content. A module item is a listing;
+ * the page, assignment, discussion, quiz or file behind it is a separate Canvas
+ * object that nothing here touches, and after a move it is listed by the module
+ * it moved to. An external URL and an LTI link are the one nuance — the module
+ * item is the whole of them — but a moved one has just been created in its new
+ * module, so nothing is lost there either.
+ */
+async function resolveLeftoverItems(courseId, ledger, dryRun, errors) {
+  const moved = [];
+  const strays = [];
+  for (const entry of ledger.leftovers) {
+    (movedToAnotherModule(ledger, entry) ? moved : strays).push(entry);
+  }
+
+  if (moved.length > 0) {
+    log.info(
+      `\n[push] ${moved.length} item(s) moved to another module this run, and ` +
+        `${dryRun ? 'would be removed' : 'were removed'} from the module they left:`,
+    );
+    for (const entry of moved) {
+      log.info(
+        `${describeLeftoverItem(entry.item)}  (was in "${entry.moduleName}")`,
+      );
+      if (dryRun) continue;
+      try {
+        await deleteModuleItem(courseId, entry.moduleId, entry.item.id);
+      } catch (err) {
+        if (err.message.includes('404')) {
+          log.verbose(`Module item ${entry.item.id} was already gone`);
+          continue;
+        }
+        log.error(
+          `  [push] Could not remove "${entry.item.title}" from ` +
+            `"${entry.moduleName}": ${err.message}`,
+        );
+        errors.push({
+          module: entry.folderName,
+          error:
+            `could not remove the moved item "${entry.item.title}" from this ` +
+            `module (${err.message}), so it is listed in two modules`,
+        });
+      }
+    }
+    log.info(
+      '[push] Only the listing went: the page, assignment, discussion, quiz or ' +
+        'file behind a module item is a separate Canvas object and is untouched, ' +
+        'and the module it moved to lists it now.',
+    );
+  }
+
+  if (strays.length === 0) return;
+
+  const byModule = new Map();
+  for (const entry of strays) {
+    if (!byModule.has(entry.moduleId)) byModule.set(entry.moduleId, []);
+    byModule.get(entry.moduleId).push(entry);
+  }
+  for (const entries of byModule.values()) {
+    const { moduleName, folderName } = entries[0];
+    log.info(
+      `\n[push] ${entries.length} item(s) in the Canvas module "${moduleName}" ` +
+        `have no source file in course/${folderName}/:`,
+    );
+    for (const entry of entries) log.info(describeLeftoverItem(entry.item));
+  }
+  log.info(
+    '[push] They were left untouched, in place and in order. Push only writes ' +
+      'the items it can account for; nothing here removes one.',
+  );
 }
 
 function sha256File(filePath) {
@@ -894,6 +855,15 @@ function flattenItems(items) {
   return result;
 }
 
+/**
+ * Push one item's content to Canvas and hand back the module item that should
+ * point at it, or null when there is nothing to place — a skipped item, a type
+ * push does not know, or a dry run, which writes nothing and therefore resolves
+ * no identity to place anything by.
+ *
+ * The module item is returned rather than created here: the caller collects the
+ * whole list and reconciles it against Canvas in one pass.
+ */
 async function pushItem(
   courseId,
   moduleId,
@@ -908,15 +878,14 @@ async function pushItem(
 ) {
   if (item.type === 'subheader') {
     log.verbose(`Adding SubHeader: ${item.title}`);
-    if (!dryRun) {
-      await createModuleItem(courseId, moduleId, {
-        title: item.title,
-        type: 'SubHeader',
-        position: item.position,
-        indent: item.indent,
-      });
-    }
-    return;
+    // A text header has no Canvas object behind it, so it is fully described
+    // from the folder structure — a dry run knows it exactly.
+    return {
+      title: item.title,
+      type: 'SubHeader',
+      position: item.position,
+      indent: item.indent,
+    };
   }
 
   const { canvasType, title, frontmatter, relativePath, position, indent } =
@@ -925,9 +894,8 @@ async function pushItem(
   const canvasId = frontmatter.canvas_id || null;
 
   if (canvasType === 'page') {
-    const pageUrl = await pushContentItem(
+    const { pageUrl, moduleItem } = await pushContentItem(
       courseId,
-      moduleId,
       {
         title,
         filePath,
@@ -945,10 +913,10 @@ async function pushItem(
       pageStrategy,
     );
     if (pageUrl) item._pageUrl = pageUrl;
+    return moduleItem;
   } else if (canvasType === 'assignment') {
-    await pushContentItem(
+    const { moduleItem } = await pushContentItem(
       courseId,
-      moduleId,
       {
         title,
         filePath,
@@ -965,10 +933,10 @@ async function pushItem(
       syncData,
       assignmentStrategy,
     );
+    return moduleItem;
   } else if (canvasType === 'discussion') {
-    await pushContentItem(
+    const { moduleItem } = await pushContentItem(
       courseId,
-      moduleId,
       {
         title,
         filePath,
@@ -985,24 +953,18 @@ async function pushItem(
       syncData,
       discussionStrategy,
     );
+    return moduleItem;
   } else if (canvasType === 'external_url') {
-    await pushExternalUrl(
-      courseId,
-      moduleId,
-      { title, filePath, position, indent, frontmatter },
-      dryRun,
-    );
+    return pushExternalUrl({ title, position, indent, frontmatter });
   } else if (canvasType === 'external_tool') {
-    await pushExternalTool(
+    return pushExternalTool(
       courseId,
-      moduleId,
-      { title, filePath, position, indent, frontmatter },
+      { title, position, indent, frontmatter },
       dryRun,
     );
   } else if (canvasType === 'quiz') {
-    await pushQuiz(
+    return pushQuiz(
       courseId,
-      moduleId,
       { title, filePath, position, indent, frontmatter },
       dryRun,
     );
@@ -1012,7 +974,7 @@ async function pushItem(
     if (filePath.endsWith('.md') && frontmatter.file_ref) {
       binaryPath = path.resolve(path.dirname(filePath), frontmatter.file_ref);
     }
-    await pushFile(
+    return pushFile(
       courseId,
       moduleId,
       {
@@ -1029,19 +991,23 @@ async function pushItem(
       syncData,
       moduleEntry,
     );
-  } else {
-    log.warn(`  [push] Skipping unknown type "${canvasType}": ${title}`);
   }
+  log.warn(`  [push] Skipping unknown type "${canvasType}": ${title}`);
+  return null;
 }
 
 /**
- * Push a content item (page or assignment) to Canvas.
- * Handles create-or-update, module item creation, and unresolved link tracking.
- * Returns the page slug (for pages) or null.
+ * Push a content item (page, assignment or discussion) to Canvas.
+ *
+ * Handles create-or-update and unresolved link tracking, and describes the
+ * module item that should point at the result. Placing that item is the
+ * caller's job — the module's whole list is reconciled at once, so this never
+ * writes to the module itself.
+ *
+ * @returns {Promise<{pageUrl: string|null, moduleItem: object|null}>}
  */
 async function pushContentItem(
   courseId,
-  moduleId,
   { title, filePath, relativePath, canvasId, position, indent, frontmatter },
   dryRun,
   iconUrls,
@@ -1107,12 +1073,31 @@ async function pushContentItem(
     }
   }
 
-  if (!dryRun && (slug || itemId)) {
-    await createModuleItem(
-      courseId,
-      moduleId,
-      strategy.buildModuleItem(title, slug || itemId, position, indent),
-    );
+  // A dry run resolves no Canvas identity of its own, so the module item is
+  // described from what the frontmatter already knows. An item with no id yet
+  // is genuinely new, and a descriptor carrying no identity is exactly how the
+  // reconcile reads a create — which is what it would be.
+  const identifier = dryRun ? canvasId : slug || itemId;
+  const moduleItem =
+    dryRun || identifier
+      ? strategy.buildModuleItem(title, identifier, position, indent)
+      : null;
+  if (moduleItem && strategy.canvasType === 'page') {
+    // Canvas regenerates a page's slug from its title, so the numeric wiki page
+    // id is the only identity of a Page item that survives a rename. It rides
+    // along for the reconcile to match on and never reaches Canvas:
+    // `createModuleItem` does not read it.
+    const pageId = numericId(itemId);
+    if (pageId != null) moduleItem.pageId = pageId;
+    // The frontmatter holds that id and not the slug, so a dry run has just put
+    // a number where the slug goes. The slug the last sync recorded is the only
+    // one available without a request, and it is what an instance that reports
+    // no content_id on a Page item has to be matched on.
+    if (numericId(moduleItem.pageUrl) != null) {
+      const known = storedPageUrl(syncData, moduleItem.pageUrl);
+      if (known) moduleItem.pageUrl = known;
+      else delete moduleItem.pageUrl;
+    }
   }
 
   if (hasUnresolved && !dryRun && itemId) {
@@ -1126,7 +1111,34 @@ async function pushContentItem(
     });
   }
 
-  return slug || null;
+  return { pageUrl: slug || null, moduleItem };
+}
+
+/**
+ * The page slug the last sync recorded for this page id, or null.
+ *
+ * A page item names its page by slug and the frontmatter holds the numeric id,
+ * and the course's page list is normally what bridges the two — at the cost of
+ * a request. Sync state already stores the pair, which is enough for a dry run,
+ * whose whole job is to answer without asking Canvas anything it has not
+ * already been told.
+ */
+function storedPageUrl(syncData, canvasId) {
+  const key = itemKey('page', { canvasId });
+  for (const moduleEntry of Object.values(
+    (syncData && syncData.modules) || {},
+  )) {
+    const entry = moduleEntry.items && moduleEntry.items[key];
+    if (entry && entry.page_url) return String(entry.page_url);
+  }
+  return null;
+}
+
+/** A value read as a Canvas numeric id, or null when it is not one. */
+function numericId(value) {
+  if (typeof value === 'number') return Number.isInteger(value) ? value : null;
+  if (typeof value === 'string' && /^\d+$/.test(value)) return Number(value);
+  return null;
 }
 
 /** Strategy for pushing pages. */
@@ -1430,42 +1442,35 @@ function buildFileResolver(currentFilePath, syncData) {
   };
 }
 
-async function pushExternalUrl(
-  courseId,
-  moduleId,
-  { title, filePath, position, indent, frontmatter },
-  dryRun,
-) {
+/**
+ * Describe an external URL as a module item.
+ *
+ * There is no Canvas object to create or update: the module item is the whole
+ * of it, so this resolves nothing, makes no request, and only says what the
+ * item should be — which is why it needs no dry-run branch. Its Canvas id comes
+ * back from the reconcile, and `recordModuleItemIds` is what writes it down.
+ */
+function pushExternalUrl({ title, position, indent, frontmatter }) {
   const url = frontmatter.external_url;
   if (!url) {
     log.warn(
       `  [push] WARNING: Skipping "${title}" — canvas_type is external_url but external_url field is missing in frontmatter`,
     );
-    return;
+    return null;
   }
 
-  log.info(`  [push] Creating external URL module item: ${title} -> ${url}`);
-  if (!dryRun) {
-    const result = await createModuleItem(courseId, moduleId, {
-      title,
-      type: 'ExternalUrl',
-      externalUrl: url,
-      position,
-      indent,
-      newTab: frontmatter.new_tab !== false,
-    });
+  log.info(`  [push] External URL module item: ${title} -> ${url}`);
 
-    // Module items are recreated on every push, so the id changes each time.
-    // Only write it to frontmatter once (first push) to mark the item as
-    // synced; the sync state tracks the current id by external_url.
-    if (result && result.id) {
-      if (frontmatter.canvas_id == null) {
-        updateFrontmatter(filePath, { canvas_id: result.id });
-        log.verbose(`Wrote canvas_id=${result.id} to external URL item`);
-      }
-      frontmatter.canvas_id = result.id;
-    }
-  }
+  // Nothing to resolve: the frontmatter is the whole of it, in a dry run as
+  // much as in a real one.
+  return {
+    title,
+    type: 'ExternalUrl',
+    externalUrl: url,
+    position,
+    indent,
+    newTab: frontmatter.new_tab !== false,
+  };
 }
 
 /**
@@ -1513,11 +1518,13 @@ async function warnNoMatchingTool(courseId, title, url) {
  * which tool answers it from the launch URL every time. That is also what makes
  * the type survive a rollover: a launch URL still means something in next
  * year's course, a tool id from this year's does not.
+ *
+ * So this probes the launch URL and describes the item; placing it, and writing
+ * down the id Canvas gives it, belongs to the reconcile.
  */
 async function pushExternalTool(
   courseId,
-  moduleId,
-  { title, filePath, position, indent, frontmatter },
+  { title, position, indent, frontmatter },
   dryRun,
 ) {
   const url = frontmatter.external_url;
@@ -1525,11 +1532,22 @@ async function pushExternalTool(
     log.warn(
       `  [push] WARNING: Skipping "${title}" — canvas_type is external_tool but external_url field is missing in frontmatter`,
     );
-    return;
+    return null;
   }
 
-  log.info(`  [push] Creating external tool module item: ${title} -> ${url}`);
-  if (dryRun) return;
+  log.info(`  [push] External tool module item: ${title} -> ${url}`);
+
+  const moduleItem = {
+    title,
+    type: 'ExternalTool',
+    externalUrl: url,
+    position,
+    indent,
+    ...(frontmatter.new_tab != null ? { newTab: frontmatter.new_tab } : {}),
+  };
+  // The frontmatter describes the item on its own; the probe below is the only
+  // part that costs a request, so a dry run stops here.
+  if (dryRun) return moduleItem;
 
   // Canvas fails silently on an unmatched launch URL, so ask first. Whatever
   // the answer, the item is still created: a visible broken item the author can
@@ -1545,25 +1563,7 @@ async function pushExternalTool(
     );
   }
 
-  const result = await createModuleItem(courseId, moduleId, {
-    title,
-    type: 'ExternalTool',
-    externalUrl: url,
-    position,
-    indent,
-    ...(frontmatter.new_tab != null ? { newTab: frontmatter.new_tab } : {}),
-  });
-
-  // Module items are recreated on every push, so the id changes each time.
-  // Only write it to frontmatter once (first push) to mark the item as
-  // synced; the sync state tracks the current id by external_url.
-  if (result && result.id) {
-    if (frontmatter.canvas_id == null) {
-      updateFrontmatter(filePath, { canvas_id: result.id });
-      log.verbose(`Wrote canvas_id=${result.id} to external tool item`);
-    }
-    frontmatter.canvas_id = result.id;
-  }
+  return moduleItem;
 }
 
 /**
@@ -1639,14 +1639,27 @@ function warnQuizNotImported(title, quizRef) {
  */
 async function pushQuiz(
   courseId,
-  moduleId,
   { title, filePath, position, indent, frontmatter },
   dryRun,
 ) {
   const quizRef = frontmatter.quiz_ref;
 
   log.info(`  [push] Adding quiz module item: ${title}`);
-  if (dryRun) return;
+  if (dryRun) {
+    // Which quiz an item names is resolved against the course's quiz list, and
+    // a dry run does not fetch it. An id already in the frontmatter is enough
+    // to place the item in the plan; without one there is nothing to plan yet,
+    // and guessing at a create would be wrong — a quiz is never created here.
+    return frontmatter.canvas_id != null
+      ? {
+          title,
+          type: 'Quiz',
+          contentId: frontmatter.canvas_id,
+          position,
+          indent,
+        }
+      : null;
+  }
 
   const quizzes = (await listQuizzes(courseId)) || [];
   const canvasId = frontmatter.canvas_id;
@@ -1676,12 +1689,12 @@ async function pushQuiz(
           'a guess. Importing a QTI package a second time adds a quiz rather than replacing the ' +
           "first: delete the stale one in Canvas, or put the id you mean in this file's canvas_id.",
       );
-      return;
+      return null;
     }
 
     if (matches.length === 0) {
       warnQuizNotImported(title, quizRef);
-      return;
+      return null;
     }
 
     quizId = matches[0].id;
@@ -1690,15 +1703,19 @@ async function pushQuiz(
     log.verbose(`Matched quiz "${title}" by title, wrote canvas_id=${quizId}`);
   }
 
-  await createModuleItem(courseId, moduleId, {
+  return {
     title,
     type: 'Quiz',
     contentId: quizId,
     position,
     indent,
-  });
+  };
 }
 
+/**
+ * Upload a file's binary to Canvas and describe the module item that should
+ * point at it. Placing that item is the caller's job.
+ */
 async function pushFile(
   courseId,
   moduleId,
@@ -1717,81 +1734,87 @@ async function pushFile(
   moduleEntry,
 ) {
   log.info(`  [push] Uploading file: ${title}`);
-  if (!dryRun) {
-    // Look up the Canvas file from the previous sync so we can detect a rename.
-    // Canvas uploads with on_duplicate=overwrite key on the filename, so a
-    // renamed binary lands as a NEW Canvas file, orphaning the old one. We
-    // compare the old file's display_name (not its id) against the name we're
-    // about to upload so we never delete a file that overwrite replaced in place.
-    const prevId =
-      frontmatter && frontmatter.canvas_id != null
-        ? frontmatter.canvas_id
-        : findFileIdByPath(moduleEntry, relativePath);
-    const newName = path.basename(filePath);
-    let prevName = null;
-    if (prevId) {
-      try {
-        const prevMeta = await get(`/api/v1/files/${prevId}`);
-        prevName = prevMeta && prevMeta.display_name;
-      } catch (err) {
-        // Old file already gone (e.g. deleted manually) — nothing to clean up.
-        log.verbose(`Could not fetch previous file ${prevId}: ${err.message}`);
-      }
-    }
+  if (dryRun) {
+    // The Canvas file id comes back from the upload, which a dry run does not
+    // make; the id from the last push is the best it can say.
+    return frontmatter && frontmatter.canvas_id != null
+      ? {
+          title,
+          type: 'File',
+          contentId: frontmatter.canvas_id,
+          position,
+          indent,
+        }
+      : null;
+  }
 
-    const result = await uploadFile(courseId, filePath, {
-      parentFolderPath: folderName,
-    });
-    const fileId = result.id;
-
-    await createModuleItem(courseId, moduleId, {
-      title,
-      type: 'File',
-      contentId: fileId,
-      position,
-      indent,
-    });
-    log.info(`    [push] Uploaded file id=${fileId}`);
-
-    // The binary was renamed since the last sync: the upload above created a
-    // fresh Canvas file, so delete the now-orphaned previous one.
-    if (prevId && prevName && prevName !== newName) {
-      try {
-        await deleteFile(prevId);
-        log.verbose(`Deleted orphaned file ${prevId} ("${prevName}")`);
-      } catch (err) {
-        log.warn(
-          `    [push] Could not delete orphaned file ${prevId} ("${prevName}"): ${err.message}`,
-        );
-      }
-    }
-
-    // Keep the wrapper's canvas_id current so the identity in frontmatter
-    // matches the live Canvas file.
-    if (
-      wrapperPath &&
-      wrapperPath.endsWith('.md') &&
-      frontmatter &&
-      frontmatter.canvas_id !== fileId
-    ) {
-      updateFrontmatter(wrapperPath, { canvas_id: fileId });
-      frontmatter.canvas_id = fileId;
-    }
-
-    // Track file item in sync state for pruning support
-    if (relativePath && moduleEntry) {
-      if (prevId && prevId !== fileId) {
-        delete moduleEntry.items[itemKey('file', { canvasId: prevId })];
-      }
-      const key = itemKey('file', { canvasId: fileId });
-      moduleEntry.items[key] = {
-        path: relativePath,
-        canvas_id: fileId,
-        canvas_type: 'file',
-      };
-      removeItemFromOtherModules(syncData, key, moduleId);
+  // Look up the Canvas file from the previous sync so we can detect a rename.
+  // Canvas uploads with on_duplicate=overwrite key on the filename, so a
+  // renamed binary lands as a NEW Canvas file, orphaning the old one. We
+  // compare the old file's display_name (not its id) against the name we're
+  // about to upload so we never delete a file that overwrite replaced in place.
+  const prevId =
+    frontmatter && frontmatter.canvas_id != null
+      ? frontmatter.canvas_id
+      : findFileIdByPath(moduleEntry, relativePath);
+  const newName = path.basename(filePath);
+  let prevName = null;
+  if (prevId) {
+    try {
+      const prevMeta = await get(`/api/v1/files/${prevId}`);
+      prevName = prevMeta && prevMeta.display_name;
+    } catch (err) {
+      // Old file already gone (e.g. deleted manually) — nothing to clean up.
+      log.verbose(`Could not fetch previous file ${prevId}: ${err.message}`);
     }
   }
+
+  const result = await uploadFile(courseId, filePath, {
+    parentFolderPath: folderName,
+  });
+  const fileId = result.id;
+  log.info(`    [push] Uploaded file id=${fileId}`);
+
+  // The binary was renamed since the last sync: the upload above created a
+  // fresh Canvas file, so delete the now-orphaned previous one.
+  if (prevId && prevName && prevName !== newName) {
+    try {
+      await deleteFile(prevId);
+      log.verbose(`Deleted orphaned file ${prevId} ("${prevName}")`);
+    } catch (err) {
+      log.warn(
+        `    [push] Could not delete orphaned file ${prevId} ("${prevName}"): ${err.message}`,
+      );
+    }
+  }
+
+  // Keep the wrapper's canvas_id current so the identity in frontmatter
+  // matches the live Canvas file.
+  if (
+    wrapperPath &&
+    wrapperPath.endsWith('.md') &&
+    frontmatter &&
+    frontmatter.canvas_id !== fileId
+  ) {
+    updateFrontmatter(wrapperPath, { canvas_id: fileId });
+    frontmatter.canvas_id = fileId;
+  }
+
+  // Track file item in sync state for pruning support
+  if (relativePath && moduleEntry) {
+    if (prevId && prevId !== fileId) {
+      delete moduleEntry.items[itemKey('file', { canvasId: prevId })];
+    }
+    const key = itemKey('file', { canvasId: fileId });
+    moduleEntry.items[key] = {
+      path: relativePath,
+      canvas_id: fileId,
+      canvas_type: 'file',
+    };
+    removeItemFromOtherModules(syncData, key, moduleId);
+  }
+
+  return { title, type: 'File', contentId: fileId, position, indent };
 }
 
 /**
@@ -2393,14 +2416,10 @@ async function pruneDeleted(
 
 module.exports = push;
 // Exported for testing
-push._isLiveItemLocal = isLiveItemLocal;
-push._inspectCanvasOnlyItems = inspectCanvasOnlyItems;
-push._describeCanvasOnlyItem = describeCanvasOnlyItem;
-push._reportCanvasOnlyRefusal = reportCanvasOnlyRefusal;
-push._collectPushGuardClaims = collectPushGuardClaims;
-push._makePageIdResolver = makePageIdResolver;
-push._readLiveItems = readLiveItems;
 push._pushModule = pushModule;
+push._readModuleItems = readModuleItems;
+push._createItemLedger = createItemLedger;
+push._resolveLeftoverItems = resolveLeftoverItems;
 push._collectDeletedModules = collectDeletedModules;
 push._collectDeletedItems = collectDeletedItems;
 push._collectLocalClaims = collectLocalClaims;

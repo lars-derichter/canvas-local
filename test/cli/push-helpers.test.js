@@ -316,7 +316,9 @@ describe('pushing a discussion', () => {
 
   /**
    * Run one discussion markdown file through pushContentItem with Canvas
-   * mocked out, and hand back every request it made.
+   * mocked out, and hand back every request it made plus the module item it
+   * says should point at the topic. Placing that item is the caller's job now,
+   * so no module request appears in these route tables.
    */
   async function pushDiscussion({ canvasId = null, routes }) {
     mock.method(console, 'log', () => {});
@@ -337,9 +339,8 @@ describe('pushing a discussion', () => {
     );
 
     const calls = mockCanvas(routes);
-    await pushContentItem(
+    const { moduleItem } = await pushContentItem(
       42,
-      9,
       {
         title: 'Week 1 debate',
         filePath,
@@ -357,7 +358,7 @@ describe('pushing a discussion', () => {
       discussionStrategy,
     );
 
-    return { calls, filePath, warned };
+    return { calls, filePath, warned, moduleItem };
   }
 
   const createdTopic = {
@@ -365,15 +366,10 @@ describe('pushing a discussion', () => {
     path: '/discussion_topics',
     body: { id: 77, title: 'Week 1 debate' },
   };
-  const moduleItemCreated = {
-    method: 'POST',
-    path: '/modules/9/items',
-    body: { id: 1000 },
-  };
 
   it('creates the topic when the file has no canvas_id', async () => {
     const { calls, filePath } = await pushDiscussion({
-      routes: [createdTopic, moduleItemCreated],
+      routes: [createdTopic],
     });
 
     const created = calls.find((c) => c.url.endsWith('/discussion_topics'));
@@ -401,7 +397,6 @@ describe('pushing a discussion', () => {
           path: '/discussion_topics/55',
           body: { id: 55, title: 'Week 1 debate' },
         },
-        moduleItemCreated,
       ],
     });
 
@@ -432,7 +427,6 @@ describe('pushing a discussion', () => {
           status: 404,
         },
         createdTopic,
-        moduleItemCreated,
       ],
     });
 
@@ -449,20 +443,22 @@ describe('pushing a discussion', () => {
     assert.match(fs.readFileSync(filePath, 'utf8'), /canvas_id: 77/);
   });
 
-  it('adds the topic to the module as a Discussion item', async () => {
-    const { calls } = await pushDiscussion({
-      routes: [createdTopic, moduleItemCreated],
+  it('describes the topic as a Discussion module item', async () => {
+    const { calls, moduleItem } = await pushDiscussion({
+      routes: [createdTopic],
     });
 
-    const moduleItem = calls.find((c) => c.url.includes('/modules/9/items'));
-    assert.ok(moduleItem, 'expected a module item request');
-    assert.deepEqual(moduleItem.body.module_item, {
+    assert.deepEqual(moduleItem, {
       title: 'Week 1 debate',
       type: 'Discussion',
-      content_id: 77,
+      contentId: 77,
       position: 3,
       indent: 0,
     });
+    assert.ok(
+      !calls.some((c) => c.url.includes('/modules/')),
+      'the module list is reconciled once per module, not per item',
+    );
   });
 
   it('warns when the topic Canvas returns is graded', async () => {
@@ -473,7 +469,6 @@ describe('pushing a discussion', () => {
           path: '/discussion_topics',
           body: { id: 77, title: 'Week 1 debate', assignment_id: 900 },
         },
-        moduleItemCreated,
       ],
     });
 
@@ -498,7 +493,8 @@ describe('pushing an external tool', () => {
 
   /**
    * Run one external-tool markdown file through pushExternalTool with Canvas
-   * mocked out, and hand back every request it made plus what it warned about.
+   * mocked out, and hand back every request it made, what it warned about, and
+   * the module item it says should carry the launch URL.
    */
   async function pushTool({ frontmatter: extra = {}, routes, dryRun = false }) {
     mock.method(console, 'log', () => {});
@@ -517,14 +513,13 @@ describe('pushing an external tool', () => {
     fs.writeFileSync(filePath, serializeFrontmatter(frontmatter, ''), 'utf8');
 
     const calls = mockCanvas(routes || []);
-    await pushExternalTool(
+    const moduleItem = await pushExternalTool(
       42,
-      9,
-      { title: 'Week 1 lab', filePath, position: 4, indent: 0, frontmatter },
+      { title: 'Week 1 lab', position: 4, indent: 0, frontmatter },
       dryRun,
     );
 
-    return { calls, filePath, frontmatter, warned };
+    return { calls, filePath, frontmatter, warned, moduleItem };
   }
 
   const LAUNCH_URL = 'https://tool.example.com/launch';
@@ -552,79 +547,51 @@ describe('pushing an external tool', () => {
     path: '/external_tools?include_parents',
     body: [{ name: 'Panopto' }, { name: 'Zoom' }],
   };
-  const moduleItemCreated = {
-    method: 'POST',
-    path: '/modules/9/items',
-    body: { id: 1000 },
-  };
 
-  it('adds the launch URL to the module as an ExternalTool item', async () => {
-    const { calls } = await pushTool({
-      routes: [toolResolves, moduleItemCreated],
-    });
+  it('describes the launch URL as an ExternalTool module item', async () => {
+    const { moduleItem } = await pushTool({ routes: [toolResolves] });
 
-    const moduleItem = calls.find((c) => c.url.includes('/modules/9/items'));
-    assert.ok(moduleItem, 'expected a module item request');
-    assert.deepEqual(moduleItem.body.module_item, {
+    assert.deepEqual(moduleItem, {
       title: 'Week 1 lab',
       type: 'ExternalTool',
-      external_url: LAUNCH_URL,
+      externalUrl: LAUNCH_URL,
       position: 4,
       indent: 0,
     });
   });
 
-  it('probes the launch URL before creating the item', async () => {
-    const { calls } = await pushTool({
-      routes: [toolResolves, moduleItemCreated],
-    });
+  it('probes the launch URL, and that is the only request it makes', async () => {
+    // The module item itself is placed by the reconcile, once for the whole
+    // module; the id it gets back is written to the frontmatter there.
+    const { calls } = await pushTool({ routes: [toolResolves] });
 
-    assert.equal(calls.length, 2, 'one probe, one create');
+    assert.equal(calls.length, 1);
     assert.match(calls[0].url, /\/external_tools\/sessionless_launch\?url=/);
-    assert.match(calls[1].url, /\/modules\/9\/items$/);
   });
 
   it('says nothing when a tool answers the launch URL', async () => {
-    const { warned } = await pushTool({
-      routes: [toolResolves, moduleItemCreated],
-    });
+    const { warned } = await pushTool({ routes: [toolResolves] });
 
     assert.equal(warned.mock.callCount(), 0);
   });
 
-  it('writes the module item id back to the frontmatter on the first push', async () => {
-    const { filePath } = await pushTool({
-      routes: [toolResolves, moduleItemCreated],
-    });
-
-    assert.match(fs.readFileSync(filePath, 'utf8'), /canvas_id: 1000/);
-  });
-
-  it('leaves an existing canvas_id alone, since the item id changes every push', async () => {
-    const { filePath } = await pushTool({
-      frontmatter: { canvas_id: 555 },
-      routes: [toolResolves, moduleItemCreated],
-    });
-
-    assert.match(fs.readFileSync(filePath, 'utf8'), /canvas_id: 555/);
-  });
-
   it('warns and skips when the frontmatter has no external_url', async () => {
-    const { calls, warned } = await pushTool({
+    const { calls, warned, moduleItem } = await pushTool({
       frontmatter: { external_url: null },
       routes: [],
     });
 
-    assert.equal(calls.length, 0, 'nothing is created without a launch URL');
+    assert.equal(calls.length, 0, 'nothing is placed without a launch URL');
+    assert.equal(moduleItem, null);
     const lines = warned.mock.calls.map((c) => c.arguments[0]);
     assert.equal(lines.length, 1);
     assert.match(lines[0], /Skipping "Week 1 lab"/);
     assert.match(lines[0], /external_url field is missing/);
   });
 
-  it('warns with both remedies but still creates the item when no tool matches', async () => {
-    const { calls, warned } = await pushTool({
-      routes: [toolDoesNotResolve, toolsInstalled, moduleItemCreated],
+  it('warns with both remedies but still places the item when no tool matches', async () => {
+    const { moduleItem, warned } = await pushTool({
+      routes: [toolDoesNotResolve, toolsInstalled],
     });
 
     const text = warned.mock.calls.map((c) => c.arguments[0]).join('\n');
@@ -640,28 +607,27 @@ describe('pushing an external tool', () => {
     assert.match(text, /Course Copy/);
     assert.match(text, /Panopto, Zoom/);
 
-    const moduleItem = calls.find((c) => c.url.includes('/modules/9/items'));
     assert.ok(
       moduleItem,
       'a visible broken item beats silently dropping the author content',
     );
-    assert.equal(moduleItem.body.module_item.external_url, LAUNCH_URL);
+    assert.equal(moduleItem.externalUrl, LAUNCH_URL);
   });
 
   it('still names the remedies when the installed tools cannot be listed', async () => {
-    const { calls, warned } = await pushTool({
-      routes: [toolDoesNotResolve, moduleItemCreated],
+    const { moduleItem, warned } = await pushTool({
+      routes: [toolDoesNotResolve],
     });
 
     const text = warned.mock.calls.map((c) => c.arguments[0]).join('\n');
     assert.match(text, /could not be listed/);
     assert.match(text, /ACCOUNT level/);
-    assert.ok(calls.find((c) => c.url.includes('/modules/9/items')));
+    assert.ok(moduleItem);
   });
 
   it('says the check could not be run when the probe itself fails', async () => {
-    const { calls, warned } = await pushTool({
-      routes: [probeFails, moduleItemCreated],
+    const { calls, warned, moduleItem } = await pushTool({
+      routes: [probeFails],
     });
 
     const text = warned.mock.calls.map((c) => c.arguments[0]).join('\n');
@@ -675,23 +641,31 @@ describe('pushing an external tool', () => {
       !calls.some((c) => c.url.includes('include_parents')),
       'no point listing the tools when nothing was established',
     );
-    assert.ok(calls.find((c) => c.url.includes('/modules/9/items')));
+    assert.ok(moduleItem);
   });
 
   it('sends new_tab only when the frontmatter asks for it', async () => {
-    const { calls } = await pushTool({
+    const { moduleItem } = await pushTool({
       frontmatter: { new_tab: true },
-      routes: [toolResolves, moduleItemCreated],
+      routes: [toolResolves],
     });
 
-    const moduleItem = calls.find((c) => c.url.includes('/modules/9/items'));
-    assert.equal(moduleItem.body.module_item.new_tab, true);
+    assert.equal(moduleItem.newTab, true);
   });
 
-  it('makes no request at all on a dry run', async () => {
-    const { calls } = await pushTool({ routes: [], dryRun: true });
+  it('describes the item on a dry run without probing for the tool', async () => {
+    // The frontmatter says what the item is; only the probe costs a request,
+    // and a dry run makes none — so the plan still knows the item is there.
+    const { calls, moduleItem } = await pushTool({ routes: [], dryRun: true });
 
     assert.equal(calls.length, 0);
+    assert.deepEqual(moduleItem, {
+      title: 'Week 1 lab',
+      type: 'ExternalTool',
+      externalUrl: LAUNCH_URL,
+      position: 4,
+      indent: 0,
+    });
   });
 });
 
@@ -707,7 +681,8 @@ describe('pushing a quiz', () => {
 
   /**
    * Run one quiz markdown file through pushQuiz with Canvas mocked out, and
-   * hand back every request it made plus what it warned about.
+   * hand back every request it made, what it warned about, and the module item
+   * it says should point at the quiz.
    */
   async function pushQuizItem({
     frontmatter: extra = {},
@@ -730,14 +705,13 @@ describe('pushing a quiz', () => {
     fs.writeFileSync(filePath, serializeFrontmatter(frontmatter, ''), 'utf8');
 
     const calls = mockCanvas(routes || []);
-    await pushQuiz(
+    const moduleItem = await pushQuiz(
       42,
-      9,
       { title: 'Test 1', filePath, position: 5, indent: 0, frontmatter },
       dryRun,
     );
 
-    return { calls, filePath, frontmatter, warned };
+    return { calls, filePath, frontmatter, warned, moduleItem };
   }
 
   const QUIZ_REF = 'evaluations/2526/test-1/test-1-qti.zip';
@@ -758,24 +732,16 @@ describe('pushing a quiz', () => {
       { id: 44, title: 'Test 1' },
     ],
   };
-  const moduleItemCreated = {
-    method: 'POST',
-    path: '/modules/9/items',
-    body: { id: 1000 },
-  };
-
-  it('adds the quiz to the module as a Quiz item', async () => {
-    const { calls } = await pushQuizItem({
+  it('describes the quiz as a Quiz module item', async () => {
+    const { moduleItem } = await pushQuizItem({
       frontmatter: { canvas_id: 12 },
-      routes: [quizListed, moduleItemCreated],
+      routes: [quizListed],
     });
 
-    const moduleItem = calls.find((c) => c.url.includes('/modules/9/items'));
-    assert.ok(moduleItem, 'expected a module item request');
-    assert.deepEqual(moduleItem.body.module_item, {
+    assert.deepEqual(moduleItem, {
       title: 'Test 1',
       type: 'Quiz',
-      content_id: 12,
+      contentId: 12,
       position: 5,
       indent: 0,
     });
@@ -784,7 +750,7 @@ describe('pushing a quiz', () => {
   it('never writes to the quiz itself', async () => {
     const { calls } = await pushQuizItem({
       frontmatter: { canvas_id: 12 },
-      routes: [quizListed, moduleItemCreated],
+      routes: [quizListed],
     });
 
     assert.ok(
@@ -794,8 +760,8 @@ describe('pushing a quiz', () => {
   });
 
   it('matches by title and writes the id back when the file has no canvas_id', async () => {
-    const { calls, filePath } = await pushQuizItem({
-      routes: [quizListed, moduleItemCreated],
+    const { moduleItem, filePath } = await pushQuizItem({
+      routes: [quizListed],
     });
 
     assert.match(
@@ -803,40 +769,39 @@ describe('pushing a quiz', () => {
       /canvas_id: 12/,
       'the resolved id is written back so the next push skips the lookup',
     );
-    const moduleItem = calls.find((c) => c.url.includes('/modules/9/items'));
-    assert.equal(moduleItem.body.module_item.content_id, 12);
+    assert.equal(moduleItem.contentId, 12);
   });
 
   it('recovers by title when the canvas_id is no longer in the course', async () => {
-    const { calls, filePath, warned } = await pushQuizItem({
+    const { moduleItem, filePath, warned } = await pushQuizItem({
       frontmatter: { canvas_id: 999 },
-      routes: [quizListed, moduleItemCreated],
+      routes: [quizListed],
     });
 
     const text = warned.mock.calls.map((c) => c.arguments[0]).join('\n');
     assert.match(text, /Quiz 999 is no longer in this course/);
     assert.match(fs.readFileSync(filePath, 'utf8'), /canvas_id: 12/);
-    const moduleItem = calls.find((c) => c.url.includes('/modules/9/items'));
-    assert.equal(moduleItem.body.module_item.content_id, 12);
+    assert.equal(moduleItem.contentId, 12);
   });
 
   it('warns and skips when two quizzes carry the same title', async () => {
-    const { calls, filePath, warned } = await pushQuizItem({
+    const { moduleItem, filePath, warned } = await pushQuizItem({
       routes: [twoOfTheSameName],
     });
 
     const text = warned.mock.calls.map((c) => c.arguments[0]).join('\n');
     assert.match(text, /2 quizzes in this course carry that title/);
     assert.match(text, /ids 12, 44/);
-    assert.ok(
-      !calls.some((c) => c.url.includes('/modules/9/items')),
+    assert.equal(
+      moduleItem,
+      null,
       'an ambiguous match must never be guessed at',
     );
     assert.doesNotMatch(fs.readFileSync(filePath, 'utf8'), /canvas_id/);
   });
 
   it('prints the import procedure and skips when the quiz is not in Canvas', async () => {
-    const { calls, warned } = await pushQuizItem({ routes: [noQuizzes] });
+    const { moduleItem, warned } = await pushQuizItem({ routes: [noQuizzes] });
 
     const text = warned.mock.calls.map((c) => c.arguments[0]).join('\n');
     assert.match(text, /holds no quiz by that name yet/);
@@ -847,8 +812,9 @@ describe('pushing a quiz', () => {
       text.includes(QUIZ_REF),
       'the message names the package the item is waiting for',
     );
-    assert.ok(
-      !calls.some((c) => c.url.includes('/modules/9/items')),
+    assert.equal(
+      moduleItem,
+      null,
       'a module item pointing at nothing is worse than no item',
     );
   });
@@ -858,31 +824,29 @@ describe('pushing a quiz', () => {
     // quiz_ref, and validate deliberately keeps that state valid. Skipping it
     // here would drop the quiz out of its module on the next push, which is
     // the exact loss this content type exists to prevent.
-    const { calls, warned } = await pushQuizItem({
+    const { moduleItem, warned } = await pushQuizItem({
       frontmatter: { quiz_ref: null, canvas_id: 12 },
-      routes: [quizListed, moduleItemCreated],
+      routes: [quizListed],
     });
 
-    const moduleItem = calls.find((c) => c.url.includes('/modules/9/items'));
     assert.ok(moduleItem, 'expected the item to be placed anyway');
-    assert.equal(moduleItem.body.module_item.content_id, 12);
+    assert.equal(moduleItem.contentId, 12);
     assert.equal(warned.mock.calls.length, 0);
   });
 
   it('places a quiz that has no quiz_ref but matches by title', async () => {
-    const { calls, filePath } = await pushQuizItem({
+    const { moduleItem, filePath } = await pushQuizItem({
       frontmatter: { quiz_ref: null },
-      routes: [quizListed, moduleItemCreated],
+      routes: [quizListed],
     });
 
-    const moduleItem = calls.find((c) => c.url.includes('/modules/9/items'));
     assert.ok(moduleItem, 'expected the item to be placed anyway');
-    assert.equal(moduleItem.body.module_item.content_id, 12);
+    assert.equal(moduleItem.contentId, 12);
     assert.match(fs.readFileSync(filePath, 'utf8'), /canvas_id: 12/);
   });
 
   it('says there is nothing to import when the quiz is missing and so is quiz_ref', async () => {
-    const { calls, warned } = await pushQuizItem({
+    const { moduleItem, warned } = await pushQuizItem({
       frontmatter: { quiz_ref: null },
       routes: [noQuizzes],
     });
@@ -891,16 +855,21 @@ describe('pushing a quiz', () => {
     assert.equal(lines.length, 1, 'no import procedure without a package');
     assert.match(lines[0], /Skipping "Test 1"/);
     assert.match(lines[0], /names no quiz_ref/);
-    assert.ok(
-      !calls.some((c) => c.url.includes('/modules/9/items')),
+    assert.equal(
+      moduleItem,
+      null,
       'a module item pointing at nothing is worse than no item',
     );
   });
 
   it('makes no request at all on a dry run', async () => {
-    const { calls } = await pushQuizItem({ routes: [], dryRun: true });
+    const { calls, moduleItem } = await pushQuizItem({
+      routes: [],
+      dryRun: true,
+    });
 
     assert.equal(calls.length, 0);
+    assert.equal(moduleItem, null);
   });
 });
 
