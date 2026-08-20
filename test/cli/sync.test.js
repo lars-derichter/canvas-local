@@ -720,6 +720,7 @@ describe('the sync report', () => {
           winner: 'canvas',
           skipped: false,
           reason: 'only this side reordered',
+          applied: true,
         },
         {
           folder: '02-next',
@@ -1073,6 +1074,109 @@ describe('the sync report', () => {
     const text = buildReport(plan, { applied: [] }).join('\n');
     assert.match(text, /11-claimed\.md: page "Claimed"/);
     assert.match(text, /nothing was written, so the two are still unlinked/);
+  });
+
+  it('does not call a module reordered when the reorder was withheld', () => {
+    // A pinned run writes to one side only, so the reorder the losing side
+    // needed is recorded in `withheld` and never runs. Printing "took the
+    // Canvas order" over files that are exactly as they were describes a course
+    // that does not exist.
+    const plan = planOf([], {
+      withheld: [{ type: 'reorder-local-module', folder: '01-intro' }],
+      ordering: [
+        {
+          folder: '01-intro',
+          winner: 'canvas',
+          skipped: false,
+          reason: 'only this side reordered',
+          applied: false,
+        },
+      ],
+    });
+
+    const text = buildReport(plan, { applied: [] }).join('\n');
+    assert.doesNotMatch(text, /took the Canvas order/);
+    assert.match(text, /would have taken the Canvas order/);
+    assert.match(text, /this command does not write to the local files/);
+  });
+
+  it('says the reorder failed when it was attempted and did not land', () => {
+    // The planner sets `applied` when it *emits* the reorder, so a failed one
+    // is indistinguishable from a withheld one without the applied list — and
+    // the two want opposite things from the author.
+    const plan = planOf(
+      [{ type: 'reorder-canvas-module', folder: '01-intro' }],
+      {
+        ordering: [
+          {
+            folder: '01-intro',
+            winner: 'local',
+            skipped: false,
+            reason: 'policy local',
+            applied: true,
+          },
+        ],
+      },
+    );
+
+    const failed = buildReport(plan, { applied: [] }).join('\n');
+    assert.match(failed, /would have taken the local order \(policy local\)/);
+    assert.match(failed, /the write failed, so both sides are as they were/);
+    assert.doesNotMatch(failed, /does not write to/);
+
+    const landed = buildReport(plan, {
+      applied: [{ type: 'reorder-canvas-module', folder: '01-intro' }],
+    });
+    assert.deepEqual(landed.slice(-2), [
+      'Ordering',
+      '  - 01-intro: took the local order \u2014 policy local.',
+    ]);
+  });
+
+  it('reads a reorder as taken in a preview, where nothing has run', () => {
+    // No applied list means nothing was executed, so the planner's flag is all
+    // there is to go on — which is what `--dry-run` and `status` both want.
+    const plan = planOf(
+      [{ type: 'reorder-canvas-module', folder: '01-intro' }],
+      {
+        ordering: [
+          {
+            folder: '01-intro',
+            winner: 'local',
+            skipped: false,
+            reason: 'policy local',
+            applied: true,
+          },
+        ],
+      },
+    );
+
+    assert.deepEqual(buildReport(plan).slice(-2), [
+      'Ordering',
+      '  - 01-intro: took the local order \u2014 policy local.',
+    ]);
+  });
+
+  it('leaves an ordering entry the planner skipped exactly as it was', () => {
+    // A third thing again: nothing was decided, so there is no write that could
+    // have landed, and the entry carries no `applied` for one.
+    const plan = planOf([], {
+      ordering: [
+        {
+          folder: '02-next',
+          winner: null,
+          skipped: true,
+          reason: 'both sides reordered and neither was chosen',
+          local: ['02-next/01-a.md', '02-next/02-b.md'],
+          canvas: ['02-next/02-b.md', '02-next/01-a.md'],
+        },
+      ],
+    });
+
+    const text = buildReport(plan, { applied: [] }).join('\n');
+    assert.match(text, /02-next: left as it is \u2014 both sides reordered/);
+    assert.match(text, /here: {3}02-next\/01-a\.md \u2192 02-next\/02-b\.md/);
+    assert.doesNotMatch(text, /would have taken/);
   });
 
   it('names a conflict the command was never allowed to write', () => {

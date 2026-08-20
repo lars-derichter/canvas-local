@@ -201,6 +201,23 @@ function conflictLanded(conflict, run) {
 }
 
 /**
+ * Whether the reorder that settles a module's order actually landed.
+ *
+ * The winner is the side that keeps its order, so the write goes to the other
+ * one: a local winner is a `reorder-canvas-module`. One reorder covers a whole
+ * module, so its line in the report is the only account the author gets of what
+ * happened to that module's order — nothing in the summary above is per-item
+ * enough to contradict it.
+ */
+function reorderLanded(entry, run) {
+  if (entry.applied !== true) return false;
+  if (!run.executed) return true;
+  const type =
+    entry.winner === 'local' ? 'reorder-canvas-module' : 'reorder-local-module';
+  return run.landed.has(`${type}|${entry.folder}`);
+}
+
+/**
  * Render a plan as the run's closing report — the same sections in the same
  * order for every command that owns a plan, each omitted when it is empty.
  *
@@ -381,7 +398,20 @@ function buildReport(report, options = {}) {
       }
       const from =
         entry.winner === 'local' ? 'the local order' : 'the Canvas order';
-      return `  - ${entry.folder}: took ${from} — ${entry.reason}.`;
+      if (reorderLanded(entry, run)) {
+        return `  - ${entry.folder}: took ${from} — ${entry.reason}.`;
+      }
+      // Decided but never carried out, which is not the same as undecided: the
+      // two sides are still in different orders, and this line is the only
+      // place that says so. The losing side is named rather than called "that
+      // side", because the sentence has just named the winning one.
+      const loser = entry.winner === 'local' ? 'Canvas' : 'the local files';
+      const why =
+        entry.applied === true
+          ? 'the write failed, so both sides are as they were; see the ' +
+            'errors below'
+          : `this command does not write to ${loser}, so nothing moved`;
+      return `  - ${entry.folder}: would have taken ${from} (${entry.reason}), but ${why}.`;
     }),
   );
 
