@@ -86,9 +86,12 @@ program
   .option('-m, --module <name>', 'Only push a specific module folder name')
   .option('--dry-run', 'Show what would happen without writing to Canvas')
   .option(
-    '--prune',
+    '--prune-canvas',
     'Delete Canvas modules and items that no longer exist locally',
   )
+  // Registered only so the old spelling gets a pointer at the new one; push
+  // refuses it. Commander suggests nothing for it on its own.
+  .option('--prune', 'Renamed to --prune-canvas')
   .action(require('./push'));
 
 program

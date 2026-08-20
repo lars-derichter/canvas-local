@@ -121,9 +121,11 @@ function submissionRiskSuffix({ graded = 0, unknown = 0 } = {}) {
  * Warn before the first push to a Canvas course that already holds content.
  *
  * A first push is the moment the tool starts managing a course it did not
- * create: it clears the item list of every module it takes over, and from then
- * on `--prune` can delete real content. Someone pointing the tool at a live
- * course for the first time deserves to hear that before it happens, not after.
+ * create. It matches each local file to what is already there by type and
+ * title and writes the local version over the match, which is how a live course
+ * is taken over rather than duplicated; from then on `--prune-canvas` can
+ * delete real content. Someone pointing the tool at a live course for the first
+ * time deserves to hear that before it happens, not after.
  *
  * Returns true when the push should continue.
  *
@@ -159,9 +161,9 @@ async function confirmFirstPush({ courseId, syncData, dryRun, fetchCounts }) {
       'project has never pushed to it.',
   );
   log.info(
-    '[push] Push takes over the modules it manages: it clears their item ' +
-      'lists, so anything added by hand in Canvas — a quiz, a discussion, an ' +
-      'external tool — drops out of those modules.',
+    '[push] Push matches your files to what is already in there by type and ' +
+      'title, and writes your version over each match. Anything it cannot ' +
+      'match is left exactly as it is, and listed at the end of the run.',
   );
   log.info(`[push] ${BACKUP_HINT}`);
 

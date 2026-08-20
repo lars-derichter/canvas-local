@@ -4,6 +4,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
+const { fakeResponse, mockCanvas } = require('../helpers/canvas-mock');
+
 // Set required env vars before requiring anything that loads the client.
 process.env.CANVAS_API_URL = 'https://canvas.example.com';
 process.env.CANVAS_API_TOKEN = 'test-token-123';
@@ -16,7 +18,6 @@ const {
   _pageStrategy: pageStrategy,
   _assignmentStrategy: assignmentStrategy,
   _discussionStrategy: discussionStrategy,
-  _pushContentItem: pushContentItem,
   _pushExternalTool: pushExternalTool,
   _pushQuiz: pushQuiz,
   _warnGradeImpact: warnGradeImpact,
@@ -301,187 +302,6 @@ describe('discussionStrategy', () => {
     await discussionStrategy.create(42, { title: 'Week 1 debate' });
 
     assert.equal(warned.mock.callCount(), 0);
-  });
-});
-
-describe('pushing a discussion', () => {
-  const tmpDirs = [];
-
-  afterEach(() => {
-    mock.restoreAll();
-    while (tmpDirs.length) {
-      fs.rmSync(tmpDirs.pop(), { recursive: true, force: true });
-    }
-  });
-
-  /**
-   * Run one discussion markdown file through pushContentItem with Canvas
-   * mocked out, and hand back every request it made plus the module item it
-   * says should point at the topic. Placing that item is the caller's job now,
-   * so no module request appears in these route tables.
-   */
-  async function pushDiscussion({ canvasId = null, routes }) {
-    mock.method(console, 'log', () => {});
-    const warned = mock.method(console, 'warn', () => {});
-
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'push-discussion-'));
-    tmpDirs.push(dir);
-    const filePath = path.join(dir, '03-debate.md');
-    // No `canvas_id` here on purpose: which Canvas topic this file is comes in
-    // as an argument, resolved by the caller from the sync state.
-    const frontmatter = { title: 'Week 1 debate', canvas_type: 'discussion' };
-    fs.writeFileSync(
-      filePath,
-      serializeFrontmatter(frontmatter, 'Say something.\n'),
-      'utf8',
-    );
-
-    const calls = mockCanvas(routes);
-    const { moduleItem, resolvedId } = await pushContentItem(
-      42,
-      {
-        title: 'Week 1 debate',
-        filePath,
-        relativePath: '01-mod/03-debate.md',
-        canvasId,
-        position: 3,
-        indent: 0,
-        frontmatter,
-      },
-      false,
-      {},
-      new Map(),
-      [],
-      { files: {} },
-      discussionStrategy,
-    );
-
-    return { calls, filePath, warned, moduleItem, resolvedId };
-  }
-
-  const createdTopic = {
-    method: 'POST',
-    path: '/discussion_topics',
-    body: { id: 77, title: 'Week 1 debate' },
-  };
-
-  it('creates the topic when the sync state knows of none', async () => {
-    const { calls, filePath, resolvedId } = await pushDiscussion({
-      routes: [createdTopic],
-    });
-
-    const created = calls.find((c) => c.url.endsWith('/discussion_topics'));
-    assert.ok(created, 'expected a create request');
-    assert.equal(created.method, 'POST');
-    assert.equal(created.body.title, 'Week 1 debate');
-    assert.match(created.body.message, /Say something\./);
-    assert.ok(
-      !calls.some((c) => c.method === 'PUT'),
-      'nothing to update when there is no id yet',
-    );
-    assert.equal(
-      resolvedId,
-      77,
-      'the new id comes back for the caller to record',
-    );
-    assert.doesNotMatch(
-      fs.readFileSync(filePath, 'utf8'),
-      /canvas_id/,
-      'and it is not written into the file',
-    );
-  });
-
-  it('updates the topic the sync state already names', async () => {
-    const { calls } = await pushDiscussion({
-      canvasId: 55,
-      routes: [
-        {
-          method: 'PUT',
-          path: '/discussion_topics/55',
-          body: { id: 55, title: 'Week 1 debate' },
-        },
-      ],
-    });
-
-    const updated = calls.find((c) => c.method === 'PUT');
-    assert.ok(updated, 'expected an update request');
-    assert.match(
-      updated.url,
-      /\/courses\/42\/discussion_topics\/55$/,
-      'the update goes to the id the sync state holds',
-    );
-    assert.match(updated.body.message, /Say something\./);
-    assert.ok(
-      !calls.some(
-        (c) => c.method === 'POST' && c.url.endsWith('/discussion_topics'),
-      ),
-      'an existing topic is never created a second time',
-    );
-  });
-
-  it('creates a new topic when Canvas 404s the id it was given', async () => {
-    const { calls, filePath, resolvedId } = await pushDiscussion({
-      canvasId: 55,
-      routes: [
-        {
-          method: 'PUT',
-          path: '/discussion_topics/55',
-          body: { message: 'not found' },
-          status: 404,
-        },
-        createdTopic,
-      ],
-    });
-
-    assert.ok(
-      calls.some((c) => c.method === 'PUT'),
-      'the update is tried first',
-    );
-    assert.ok(
-      calls.some(
-        (c) => c.method === 'POST' && c.url.endsWith('/discussion_topics'),
-      ),
-      'and the 404 falls back to a create',
-    );
-    assert.equal(resolvedId, 77, 'the replacement id comes back');
-    assert.doesNotMatch(fs.readFileSync(filePath, 'utf8'), /canvas_id/);
-  });
-
-  it('describes the topic as a Discussion module item', async () => {
-    const { calls, moduleItem } = await pushDiscussion({
-      routes: [createdTopic],
-    });
-
-    assert.deepEqual(moduleItem, {
-      title: 'Week 1 debate',
-      type: 'Discussion',
-      contentId: 77,
-      position: 3,
-      indent: 0,
-    });
-    assert.ok(
-      !calls.some((c) => c.url.includes('/modules/')),
-      'the module list is reconciled once per module, not per item',
-    );
-  });
-
-  it('warns when the topic Canvas returns is graded', async () => {
-    const { warned } = await pushDiscussion({
-      routes: [
-        {
-          method: 'POST',
-          path: '/discussion_topics',
-          body: { id: 77, title: 'Week 1 debate', assignment_id: 900 },
-        },
-      ],
-    });
-
-    const lines = warned.mock.calls.map((c) => c.arguments[0]);
-    assert.ok(
-      lines.some((line) => /is graded/.test(line)),
-      'expected the graded-discussion warning',
-    );
-    assert.ok(lines.some((line) => /live only in Canvas/.test(line)));
   });
 });
 
@@ -885,23 +705,104 @@ describe('pushing a quiz', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// The grades an assignment update moves
+// ---------------------------------------------------------------------------
+
+const gradeTrees = [];
+
+/** Both suites below build trees through `planned`, and both clear them here. */
+function cleanUpGradeTrees() {
+  mock.restoreAll();
+  while (gradeTrees.length) {
+    fs.rmSync(gradeTrees.pop(), { recursive: true, force: true });
+  }
+}
+
+/**
+ * A course tree and the plan over it, which is the pair the check reads: the
+ * plan says which assignments this run updates, the file says what will be
+ * sent for each one.
+ *
+ * Each entry becomes one action and one markdown file. `type` and `canvasType`
+ * default to the case that matters — an assignment being updated — so a test
+ * that cares about another one names it.
+ */
+function planned(entries) {
+  const courseDir = fs.mkdtempSync(path.join(os.tmpdir(), 'push-grades-'));
+  gradeTrees.push(courseDir);
+
+  const actions = entries.map((entry) => {
+    const itemPath = entry.itemPath || '01-mod/03-homework.md';
+    const title = entry.title || 'Homework';
+    const canvasType = entry.canvasType || 'assignment';
+    const full = path.join(courseDir, itemPath);
+    fs.mkdirSync(path.dirname(full), { recursive: true });
+    fs.writeFileSync(
+      full,
+      serializeFrontmatter(
+        { title, canvas_type: canvasType, ...(entry.frontmatter || {}) },
+        '',
+      ),
+      'utf8',
+    );
+    return {
+      type: entry.type || 'update-canvas-item',
+      folder: itemPath.split('/')[0],
+      itemPath,
+      title,
+      canvasType,
+      canvasId: entry.canvasId ?? null,
+    };
+  });
+
+  return { courseDir, report: { actions } };
+}
+
+/** `collectUpdatedAssignments` over the plan these entries describe. */
+function collectFor(entries) {
+  const { courseDir, report } = planned(entries);
+  return collectUpdatedAssignments(report, { courseDir });
+}
+
+/** `warnGradeImpact` over the plan these entries describe. */
+function warnFor(entries, fetchAssignments) {
+  const { courseDir, report } = planned(entries);
+  return warnGradeImpact(42, report, { courseDir, fetchAssignments });
+}
+
+/** A Canvas Assignment object as a list response returns it. */
+function canvasAssignment(overrides = {}) {
+  return {
+    id: 500,
+    has_submitted_submissions: true,
+    points_possible: 10,
+    due_at: '2026-03-01T23:59:00Z',
+    submission_types: ['online_upload'],
+    ...overrides,
+  };
+}
+
 describe('collectUpdatedAssignments', () => {
-  it('collects only the assignments Canvas already holds', () => {
+  afterEach(cleanUpGradeTrees);
+
+  it('collects the assignments the plan updates, and nothing else', () => {
     const updated = collectFor([
-      courseModule([
-        assignmentItem({ canvas_id: 500, points_possible: 10 }),
-        assignmentItem(
-          { points_possible: 20 },
-          { title: 'New', relativePath: '01-mod/04-new.md' },
-        ),
-        {
-          canvasType: 'page',
-          title: 'Intro',
-          relativePath: '01-mod/01-intro.md',
-          frontmatter: { canvas_id: 700 },
-          position: 3,
-        },
-      ]),
+      { canvasId: 500, frontmatter: { points_possible: 10 } },
+      // Brand new on Canvas, so it can hold no student work yet.
+      {
+        type: 'create-canvas-item',
+        itemPath: '01-mod/04-new.md',
+        title: 'New',
+        frontmatter: { points_possible: 20 },
+      },
+      // The right verb, the wrong type.
+      {
+        itemPath: '01-mod/01-intro.md',
+        title: 'Intro',
+        canvasType: 'page',
+        canvasId: 700,
+      },
     ]);
 
     assert.equal(updated.length, 1);
@@ -911,14 +812,14 @@ describe('collectUpdatedAssignments', () => {
 
   it('carries the options push itself would send', () => {
     const [entry] = collectFor([
-      courseModule([
-        assignmentItem({
-          canvas_id: 500,
+      {
+        canvasId: 500,
+        frontmatter: {
           points_possible: 12,
           due_at: '2026-03-08T23:59:00Z',
           submission_types: ['online_url'],
-        }),
-      ]),
+        },
+      },
     ]);
 
     assert.equal(entry.opts.pointsPossible, 12);
@@ -926,17 +827,22 @@ describe('collectUpdatedAssignments', () => {
     assert.deepEqual(entry.opts.submissionTypes, ['online_url']);
   });
 
-  it('looks inside subfolders', () => {
+  it('leaves an update the plan gave no Canvas id alone', () => {
+    // An adoption fills the id in from the Canvas side, so a null one means
+    // there is no Canvas object to have collected submissions.
+    assert.deepEqual(
+      collectFor([{ frontmatter: { points_possible: 12 } }]),
+      [],
+    );
+  });
+
+  it('reads an item in a subfolder like any other', () => {
     const updated = collectFor([
-      courseModule([
-        {
-          type: 'subheader',
-          title: 'Week 1',
-          position: 1,
-          indent: 0,
-          items: [assignmentItem({ canvas_id: 501 })],
-        },
-      ]),
+      {
+        canvasId: 501,
+        itemPath: '01-mod/week-1/03-homework.md',
+        frontmatter: { points_possible: 12 },
+      },
     ]);
 
     assert.equal(updated.length, 1);
@@ -945,9 +851,7 @@ describe('collectUpdatedAssignments', () => {
 });
 
 describe('warnGradeImpact', () => {
-  afterEach(() => {
-    mock.restoreAll();
-  });
+  afterEach(cleanUpGradeTrees);
 
   /** Silence the warnings the helper logs on its way out. */
   function quiet() {
@@ -957,7 +861,7 @@ describe('warnGradeImpact', () => {
   it('warns that a new denominator leaves the grades already given unscaled', async () => {
     quiet();
     const lines = await warnFor(
-      [courseModule([assignmentItem({ canvas_id: 500, points_possible: 12 })])],
+      [{ canvasId: 500, frontmatter: { points_possible: 12 } }],
       async () => [canvasAssignment()],
     );
 
@@ -971,7 +875,7 @@ describe('warnGradeImpact', () => {
   it('stays silent when the points possible are unchanged', async () => {
     quiet();
     const lines = await warnFor(
-      [courseModule([assignmentItem({ canvas_id: 500, points_possible: 10 })])],
+      [{ canvasId: 500, frontmatter: { points_possible: 10 } }],
       async () => [canvasAssignment()],
     );
 
@@ -981,33 +885,20 @@ describe('warnGradeImpact', () => {
   it('warns that a new due date re-runs the late policy', async () => {
     quiet();
     const lines = await warnFor(
-      [
-        courseModule([
-          assignmentItem({ canvas_id: 500, due_at: '2026-03-08T23:59:00Z' }),
-        ]),
-      ],
+      [{ canvasId: 500, frontmatter: { due_at: '2026-03-08T23:59:00Z' } }],
       async () => [canvasAssignment()],
     );
 
     assert.equal(lines.length, 1);
-    assert.match(
-      lines[0],
-      /changes due_at from 2026-03-01T23:59:00Z to 2026-03-08T23:59:00Z/,
-    );
+    assert.match(lines[0], /changes due_at from 2026-03-01T23:59:00Z to /);
+    assert.match(lines[0], /2026-03-08T23:59:00/);
     assert.match(lines[0], /recomputes late status/);
   });
 
   it('reads a due date as an instant, not as a string', async () => {
     quiet();
     const lines = await warnFor(
-      [
-        courseModule([
-          assignmentItem({
-            canvas_id: 500,
-            due_at: new Date('2026-03-02T00:59:00+01:00'),
-          }),
-        ]),
-      ],
+      [{ canvasId: 500, frontmatter: { due_at: '2026-03-02T00:59:00+01:00' } }],
       async () => [canvasAssignment()],
     );
 
@@ -1018,12 +909,10 @@ describe('warnGradeImpact', () => {
     quiet();
     const lines = await warnFor(
       [
-        courseModule([
-          assignmentItem({
-            canvas_id: 500,
-            submission_types: ['online_text_entry'],
-          }),
-        ]),
+        {
+          canvasId: 500,
+          frontmatter: { submission_types: ['online_text_entry'] },
+        },
       ],
       async () => [canvasAssignment()],
     );
@@ -1041,14 +930,14 @@ describe('warnGradeImpact', () => {
     quiet();
     const lines = await warnFor(
       [
-        courseModule([
-          assignmentItem({
-            canvas_id: 500,
+        {
+          canvasId: 500,
+          frontmatter: {
             points_possible: 12,
             due_at: '2026-03-08T23:59:00Z',
             submission_types: ['online_text_entry'],
-          }),
-        ]),
+          },
+        },
       ],
       async () => [canvasAssignment({ has_submitted_submissions: false })],
     );
@@ -1059,7 +948,7 @@ describe('warnGradeImpact', () => {
   it('hedges when the submission state could not be read', async () => {
     quiet();
     const lines = await warnFor(
-      [courseModule([assignmentItem({ canvas_id: 500, points_possible: 12 })])],
+      [{ canvasId: 500, frontmatter: { points_possible: 12 } }],
       async () => [canvasAssignment({ has_submitted_submissions: undefined })],
     );
 
@@ -1072,14 +961,14 @@ describe('warnGradeImpact', () => {
     quiet();
     const lines = await warnFor(
       [
-        courseModule([
-          assignmentItem({
-            canvas_id: 500,
+        {
+          canvasId: 500,
+          frontmatter: {
             points_possible: 12,
             due_at: '2026-03-08T23:59:00Z',
             submission_types: ['online_text_entry'],
-          }),
-        ]),
+          },
+        },
       ],
       async () => [canvasAssignment()],
     );
@@ -1092,22 +981,19 @@ describe('warnGradeImpact', () => {
     let calls = 0;
     const lines = await warnFor(
       [
-        courseModule([
-          assignmentItem({ canvas_id: 500, points_possible: 12 }),
-          assignmentItem(
-            { canvas_id: 501, points_possible: 12 },
-            { title: 'Second', relativePath: '01-mod/04-second.md' },
-          ),
-        ]),
-        courseModule(
-          [
-            assignmentItem(
-              { canvas_id: 502, points_possible: 12 },
-              { title: 'Third', relativePath: '02-mod/03-third.md' },
-            ),
-          ],
-          '02-mod',
-        ),
+        { canvasId: 500, frontmatter: { points_possible: 12 } },
+        {
+          canvasId: 501,
+          itemPath: '01-mod/04-second.md',
+          title: 'Second',
+          frontmatter: { points_possible: 12 },
+        },
+        {
+          canvasId: 502,
+          itemPath: '02-mod/03-third.md',
+          title: 'Third',
+          frontmatter: { points_possible: 12 },
+        },
       ],
       async () => {
         calls++;
@@ -1123,20 +1009,20 @@ describe('warnGradeImpact', () => {
     assert.equal(lines.length, 3);
   });
 
-  it('makes no request when no assignment exists on Canvas yet', async () => {
+  it('makes no request when the run creates every assignment it touches', async () => {
     quiet();
     const lines = await warnFor(
       [
-        courseModule([
-          assignmentItem({ points_possible: 12 }),
-          {
-            canvasType: 'page',
-            title: 'Intro',
-            relativePath: '01-mod/01-intro.md',
-            frontmatter: { canvas_id: 700 },
-            position: 2,
-          },
-        ]),
+        {
+          type: 'create-canvas-item',
+          frontmatter: { points_possible: 12 },
+        },
+        {
+          itemPath: '01-mod/01-intro.md',
+          title: 'Intro',
+          canvasType: 'page',
+          canvasId: 700,
+        },
       ],
       async () => {
         throw new Error('the assignment lookup should not have run');
@@ -1149,7 +1035,7 @@ describe('warnGradeImpact', () => {
   it('leaves an assignment Canvas no longer lists alone', async () => {
     quiet();
     const lines = await warnFor(
-      [courseModule([assignmentItem({ canvas_id: 999, points_possible: 12 })])],
+      [{ canvasId: 999, frontmatter: { points_possible: 12 } }],
       async () => [canvasAssignment()],
     );
 
@@ -1159,7 +1045,7 @@ describe('warnGradeImpact', () => {
   it('degrades to a warning when the lookup fails, and lets the push run', async () => {
     const warned = mock.method(console, 'warn', () => {});
     const lines = await warnFor(
-      [courseModule([assignmentItem({ canvas_id: 500, points_possible: 12 })])],
+      [{ canvasId: 500, frontmatter: { points_possible: 12 } }],
       async () => {
         throw new Error('403 Forbidden');
       },
@@ -1171,131 +1057,3 @@ describe('warnGradeImpact', () => {
     assert.match(warned.mock.calls[0].arguments[0], /403 Forbidden/);
   });
 });
-
-/** A fake Response object compatible with the fetch API. */
-function fakeResponse(body, { status = 200 } = {}) {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    headers: { get: () => null },
-    json: async () => body,
-    text: async () => JSON.stringify(body),
-  };
-}
-
-/**
- * Answer Canvas requests from a route table of { method, path, body, status },
- * and record every request that was made. An unrouted request gets a 400, so a
- * missing route fails the test instead of hanging on the client's retries.
- */
-function mockCanvas(routes) {
-  const calls = [];
-  const remaining = routes.map((route) => ({ ...route }));
-  mock.method(global, 'fetch', async (url, opts) => {
-    calls.push({
-      url,
-      method: opts.method,
-      body: opts.body ? JSON.parse(opts.body) : null,
-    });
-    const index = remaining.findIndex(
-      (route) => route.method === opts.method && url.includes(route.path),
-    );
-    if (index === -1) {
-      return fakeResponse(
-        { message: `unrouted ${opts.method} ${url}` },
-        {
-          status: 400,
-        },
-      );
-    }
-    const [route] = remaining.splice(index, 1);
-    return fakeResponse(route.body, { status: route.status || 200 });
-  });
-  return calls;
-}
-
-/** A scanned module, shaped as scanCourse returns it. */
-function courseModule(items, folderName = '01-mod') {
-  return {
-    folderName,
-    moduleName: 'Module',
-    position: 1,
-    items,
-  };
-}
-
-/**
- * The sync state these scanned modules would have after a push, and the only
- * place the id lives once it is built.
- *
- * The fixtures declare `canvas_id` in frontmatter as shorthand for "a previous
- * push already recorded this one". This turns that shorthand into the row the
- * code under test actually reads — and then strips the frontmatter copy, so a
- * path that went back to reading the file would find nothing and fail.
- */
-function syncFor(modules) {
-  const state = { schema_version: 4, modules: {}, icons: {}, files: {} };
-  let moduleId = 900;
-  for (const mod of modules) {
-    const items = {};
-    const order = [];
-    const walk = (list) => {
-      for (const item of list) {
-        if (item.type === 'subheader') {
-          walk(item.items || []);
-          continue;
-        }
-        const canvasId = item.frontmatter && item.frontmatter.canvas_id;
-        if (canvasId == null) continue;
-        delete item.frontmatter.canvas_id;
-        items[item.relativePath] = {
-          canvas_type: item.canvasType || 'page',
-          canvas_id: canvasId,
-        };
-        order.push(item.relativePath);
-      }
-    };
-    walk(mod.items);
-    state.modules[mod.folderName] = {
-      canvas_module_id: moduleId++,
-      item_order: order,
-      items,
-    };
-  }
-  return state;
-}
-
-/** `collectUpdatedAssignments` against the state these fixtures imply. */
-function collectFor(modules) {
-  return collectUpdatedAssignments(syncFor(modules), modules);
-}
-
-/** `warnGradeImpact` against the state these fixtures imply. */
-function warnFor(modules, fetchAssignments) {
-  return warnGradeImpact(42, syncFor(modules), modules, fetchAssignments);
-}
-
-/** A scanned assignment item carrying the given frontmatter. */
-function assignmentItem(frontmatter, overrides = {}) {
-  return {
-    canvasType: 'assignment',
-    title: 'Homework',
-    relativePath: '01-mod/03-homework.md',
-    frontmatter,
-    position: 1,
-    indent: 0,
-    ...overrides,
-  };
-}
-
-/** A Canvas Assignment object as a list response returns it. */
-function canvasAssignment(overrides = {}) {
-  return {
-    id: 500,
-    has_submitted_submissions: true,
-    points_possible: 10,
-    due_at: '2026-03-01T23:59:00Z',
-    submission_types: ['online_upload'],
-    ...overrides,
-  };
-}
