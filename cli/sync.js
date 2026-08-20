@@ -107,15 +107,102 @@ function stamp(value) {
 }
 
 /**
+ * The actions that actually ran, as a set of `type|where` keys.
+ *
+ * The plan says what should happen; only the executor knows what did. Crossing
+ * the two is what stops the report claiming a delete that 404'd or a write that
+ * failed — and it is done here, from the applied list, rather than by threading
+ * a second flag back through the planner, which is pure and has to stay a
+ * function of its three inputs.
+ */
+function appliedIndex(applied) {
+  const keys = new Set();
+  for (const action of applied || []) {
+    const where = action.itemPath || action.folder;
+    if (where != null) keys.add(`${action.type}|${where}`);
+  }
+  return keys;
+}
+
+/**
+ * Whether an orphan was really deleted, rather than merely planned for deletion.
+ *
+ * The planner sets `pruned` when it *emits* the delete, which is the only thing
+ * a pure function can know. A delete that then failed leaves the item exactly
+ * where it was, so reading that flag as truth drops it out of the report — and
+ * the run's own summary becomes the thing that stops mentioning the item still
+ * sitting in the course.
+ */
+function orphanDeleted(orphan, side, run) {
+  if (orphan.pruned !== true) return false;
+  if (!run.executed) return true;
+
+  const where =
+    orphan.kind === 'module' ? orphan.moduleFolder : orphan.itemPath;
+  if (run.landed.has(`delete-${side}-${orphan.kind}|${where}`)) return true;
+  // An item inside a module being deleted never gets a delete of its own: the
+  // module's takes it along, so the module's is the one to look for.
+  if (orphan.kind === 'item' && orphan.coveredByModule) {
+    return run.landed.has(`delete-${side}-module|${orphan.moduleFolder}`);
+  }
+  return false;
+}
+
+/**
+ * Why an orphan is still listed, when there is anything to say.
+ *
+ * Two different facts, and the planner can only know one of them. It sets
+ * `reason` when it declined to emit a delete at all — a module still holding
+ * remote changes, a folder with uncommitted work. A delete it *did* emit and
+ * that then failed is invisible to it, because the failure happened after
+ * planning. That one is read off the applied list, and it has to be said here:
+ * the section closes with "each line says why", and this is the one case where
+ * no line would carry a why.
+ *
+ * Called only for orphans that survived the filter, so `pruned` still true on
+ * an executed run means exactly "attempted, and it did not land".
+ */
+function orphanNotes(orphan, run) {
+  const notes = [];
+  if (orphan.reason) notes.push(orphan.reason);
+  if (run.executed && orphan.pruned === true) {
+    notes.push('the delete was attempted and it failed; see the errors below');
+  }
+  return notes.length > 0 ? ` — ${notes.join('; ')}` : '';
+}
+
+/** Whether the write that settles a conflict actually landed. */
+function conflictLanded(conflict, run) {
+  if (conflict.applied !== true) return false;
+  if (!run.executed) return true;
+  const where = conflict.itemPath || conflict.moduleFolder;
+  const object = conflict.kind === 'module' ? 'module' : 'item';
+  const type =
+    conflict.winner === 'local'
+      ? `update-canvas-${object}`
+      : `update-local-${object}`;
+  return run.landed.has(`${type}|${where}`);
+}
+
+/**
  * Render a plan as the run's closing report — the same sections in the same
  * order for every command that owns a plan, each omitted when it is empty.
  *
- * It is a function of the plan alone, so it can be tested without running
+ * It is a function of its arguments alone, so it can be tested without running
  * anything, and so `status` is this over a plan that writes to neither side.
+ *
+ * **`applied` is what separates a report from a preview.** Given it, the report
+ * describes what happened: the summary counts the actions that ran, an orphan
+ * whose delete failed is still listed as sitting in the course, and a conflict
+ * whose write failed is not called resolved. Without it the report describes
+ * what *would* happen, which is what a dry run and `status` both want. There is
+ * no separate dry-run flag, because two parameters that have to agree with each
+ * other are one too many.
  *
  * @param {object} report - What `plan()` returned.
  * @param {object} [options]
- * @param {boolean} [options.dryRun]      - Head the applied section differently.
+ * @param {object[]} [options.applied]    - The actions `applyPlan` actually
+ *   ran. Absent means "nothing was executed": report the plan as a preview.
  * @param {boolean} [options.pruneCanvas] - Whether `--prune-canvas` was given.
  * @param {boolean} [options.pruneLocal]  - Whether `--prune-local` was given.
  * @param {string}  [options.baseUrl]     - For linking Canvas objects.
@@ -131,10 +218,18 @@ function buildReport(report, options = {}) {
     lines.push(...body);
   };
 
+  const run = {
+    executed: Array.isArray(options.applied),
+    landed: appliedIndex(options.applied),
+  };
+
   // --- Applied -------------------------------------------------------------
+  // An empty list renders no section at all, which is right for a run where
+  // every action failed as much as for one that planned nothing: `cli/sync.js`
+  // says "Everything is already in sync." when the report comes back bare.
   section(
-    options.dryRun ? 'Would apply' : 'Applied',
-    summariseActions(report.actions || []),
+    run.executed ? 'Applied' : 'Would apply',
+    summariseActions(run.executed ? options.applied : report.actions || []),
   );
 
   // Under `status`, and under a pinned-direction run, the plan records what the
@@ -145,14 +240,16 @@ function buildReport(report, options = {}) {
   );
 
   // --- Orphaned on Canvas --------------------------------------------------
-  const canvasOrphans = (report.orphans.canvas || []).filter((o) => !o.pruned);
+  const canvasOrphans = (report.orphans.canvas || []).filter(
+    (orphan) => !orphanDeleted(orphan, 'canvas', run),
+  );
   if (canvasOrphans.length > 0) {
     const body = canvasOrphans.map((orphan) => {
       const what =
         orphan.kind === 'module'
           ? `module "${orphan.title}" (${plural(orphan.itemCount || 0, 'item')})`
           : `${orphan.canvasType} "${orphan.title || orphan.itemPath}"`;
-      const why = orphan.reason ? ` — ${orphan.reason}` : '';
+      const why = orphanNotes(orphan, run);
       return `  - ${orphan.itemPath || orphan.moduleFolder}: ${what}${canvasItemUrl(options, orphan)}${why}`;
     });
     body.push(
@@ -165,14 +262,16 @@ function buildReport(report, options = {}) {
   }
 
   // --- Orphaned locally ----------------------------------------------------
-  const localOrphans = (report.orphans.local || []).filter((o) => !o.pruned);
+  const localOrphans = (report.orphans.local || []).filter(
+    (orphan) => !orphanDeleted(orphan, 'local', run),
+  );
   if (localOrphans.length > 0) {
     const body = localOrphans.map((orphan) => {
       const what =
         orphan.kind === 'module'
           ? `folder "${orphan.moduleFolder}" (${plural(orphan.itemCount || 0, 'item')})`
           : `${orphan.canvasType} "${orphan.title || orphan.itemPath}"`;
-      const why = orphan.reason ? ` — ${orphan.reason}` : '';
+      const why = orphanNotes(orphan, run);
       return `  - ${orphan.itemPath || orphan.moduleFolder}: ${what}${why}`;
     });
     body.push(
@@ -185,9 +284,17 @@ function buildReport(report, options = {}) {
   }
 
   // --- Conflicts resolved --------------------------------------------------
+  const conflicts = report.conflicts || [];
+  const resolved = conflicts.filter((conflict) =>
+    conflictLanded(conflict, run),
+  );
+  const unsettled = conflicts.filter(
+    (conflict) => !conflictLanded(conflict, run),
+  );
+
   section(
     'Conflicts resolved',
-    (report.conflicts || []).map((conflict) => {
+    resolved.map((conflict) => {
       const where = conflict.itemPath || conflict.moduleFolder;
       const won = conflict.winner === 'local' ? 'local' : 'Canvas';
       const tail =
@@ -203,13 +310,26 @@ function buildReport(report, options = {}) {
   );
 
   // --- Conflicts skipped ---------------------------------------------------
-  section(
-    'Skipped',
-    (report.skipped || []).map(
+  // A conflict whose write never landed belongs here rather than above: it was
+  // decided, but both sides are still as they were, and calling that resolved
+  // is the report telling the author their course is in a state it is not.
+  section('Skipped', [
+    ...(report.skipped || []).map(
       (skip) =>
         `  - ${skip.itemPath || skip.moduleFolder} (${skip.reason}): ${skip.remedy}`,
     ),
-  );
+    ...unsettled.map((conflict) => {
+      const where = conflict.itemPath || conflict.moduleFolder;
+      const won = conflict.winner === 'local' ? 'local' : 'Canvas';
+      const remedy =
+        conflict.applied === true
+          ? 'the write failed, so both sides are as they were — see the ' +
+            'errors below, then run again.'
+          : 'this command does not write to the side that lost, so nothing ' +
+            'changed. Run `npx course sync` to settle it.';
+      return `  - ${where} (conflict-unwritten): ${won} would have won, but ${remedy}`;
+    }),
+  ]);
 
   // --- Ordering ------------------------------------------------------------
   section(
@@ -524,7 +644,11 @@ async function sync(options = {}) {
   }
 
   const lines = buildReport(report, {
-    dryRun,
+    // A dry run executed nothing, so it gets no applied list and the report
+    // reads as the preview it is. Every other run — including one the collision
+    // refused and one the icon upload aborted — hands over what actually ran,
+    // which for those two is nothing.
+    applied: dryRun ? undefined : outcome.applied,
     pruneCanvas: wantsPruneCanvas,
     pruneLocal: wantsPruneLocal,
     baseUrl: state.canvas_base_url,

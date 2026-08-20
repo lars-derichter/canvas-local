@@ -499,6 +499,62 @@ describe('npx course sync', () => {
       assert.ok(state.modules['01-intro'].items['01-intro/01-welcome.md']);
     });
 
+    it('still lists the orphan when its delete failed', async () => {
+      // No DELETE route, so the delete 400s. The planner marked the orphan
+      // pruned when it emitted that delete, and reading the flag as truth is
+      // what used to drop the item out of the report — while it sat in the
+      // Canvas course, unmentioned by the run that failed to remove it.
+      const out = silence();
+      const { courseDir, file, gone } = orphaned();
+      mockCanvas([
+        { method: 'GET', path: '/modules/10/items', body: [ITEM, gone] },
+        {
+          method: 'GET',
+          path: '/modules',
+          body: [{ id: 10, name: 'Intro', position: 1 }],
+        },
+        {
+          method: 'GET',
+          path: '/pages',
+          body: [
+            {
+              page_id: 501,
+              url: 'welcome',
+              title: 'Welcome',
+              updated_at: PAGE.updated_at,
+            },
+            {
+              page_id: 502,
+              url: 'gone',
+              title: 'Gone',
+              updated_at: '2026-08-20T11:00:00.000Z',
+            },
+          ],
+        },
+      ]);
+
+      await sync({
+        courseDir,
+        syncFile: file,
+        gitDirty: CLEAN,
+        interactive: false,
+        pruneCanvas: true,
+        yes: true,
+      });
+
+      const printed = out.log.mock.calls
+        .map((call) => call.arguments.join(' '))
+        .join('\n');
+      assert.match(printed, /Orphaned on Canvas/);
+      assert.match(printed, /02-gone\.md/);
+      assert.doesNotMatch(
+        printed,
+        /^Applied$/m,
+        'nothing ran, so nothing applied',
+      );
+      assert.equal(process.exitCode, 1);
+    });
+
     it('cancels the prune when it cannot ask', async () => {
       silence();
       const { courseDir, file, gone } = orphaned();
@@ -678,6 +734,8 @@ describe('the sync report', () => {
   }
 
   it('renders every section, in the order the plan document lists them', () => {
+    // No `applied`, so this is the preview shape — what `--dry-run` and, at
+    // commit 9, `status` both render.
     const lines = buildReport(fullPlan(), {
       baseUrl: 'https://canvas.example.com',
       courseId: COURSE_ID,
@@ -686,7 +744,7 @@ describe('the sync report', () => {
 
     const headings = lines.filter((line) => line && !line.startsWith(' '));
     assert.deepEqual(headings, [
-      'Applied',
+      'Would apply',
       'Left alone (this command does not write to that side)',
       'Orphaned on Canvas (gone locally, still there)',
       'Orphaned locally (gone from Canvas, still here)',
@@ -738,22 +796,231 @@ describe('the sync report', () => {
     );
   });
 
-  it('heads the applied section differently on a dry run', () => {
-    const lines = buildReport(
-      {
-        actions: [{ type: 'create-canvas-item', itemPath: 'a/b.md' }],
-        withheld: [],
-        conflicts: [],
-        skipped: [],
-        orphans: { canvas: [], local: [] },
-        decisions: [],
-        unrecognised: [],
-        ordering: [],
-        pending: { conflicts: [], order: [], renames: [] },
-        collision: null,
-      },
-      { dryRun: true },
-    );
+  /** An otherwise empty plan carrying just these actions. */
+  function planOf(actions, extra = {}) {
+    return {
+      actions,
+      withheld: [],
+      conflicts: [],
+      skipped: [],
+      orphans: { canvas: [], local: [] },
+      decisions: [],
+      unrecognised: [],
+      ordering: [],
+      pending: { conflicts: [], order: [], renames: [] },
+      collision: null,
+      ...extra,
+    };
+  }
+
+  it('reads "Would apply" over the whole plan when nothing was executed', () => {
+    const plan = planOf([
+      { type: 'create-canvas-item', itemPath: 'a/b.md' },
+      { type: 'create-canvas-item', itemPath: 'a/c.md' },
+    ]);
+    const lines = buildReport(plan);
     assert.equal(lines[1], 'Would apply');
+    assert.match(lines[2], /2 items created/);
+  });
+
+  it('counts what ran, not what was planned', () => {
+    // The plan is what was decided; only the executor knows what happened. A
+    // run where one of two creates failed has to say one.
+    const plan = planOf([
+      { type: 'create-canvas-item', itemPath: 'a/b.md' },
+      { type: 'create-canvas-item', itemPath: 'a/c.md' },
+    ]);
+    const lines = buildReport(plan, {
+      applied: [{ type: 'create-canvas-item', itemPath: 'a/b.md' }],
+    });
+    assert.equal(lines[1], 'Applied');
+    assert.match(lines[2], /Canvas: 1 item created/);
+  });
+
+  it('renders no Applied section when every action failed', () => {
+    const plan = planOf([{ type: 'create-canvas-item', itemPath: 'a/b.md' }]);
+    assert.deepEqual(buildReport(plan, { applied: [] }), []);
+  });
+
+  it('keeps an orphan listed when its delete failed', () => {
+    // `pruned` is the planner saying it emitted the delete. A delete that then
+    // failed leaves the item in the course, and dropping it from the report
+    // would make the summary the thing that stops mentioning it.
+    const plan = planOf(
+      [
+        {
+          type: 'delete-canvas-item',
+          itemPath: '01-intro/06-orphan.md',
+          folder: '01-intro',
+        },
+      ],
+      {
+        orphans: {
+          canvas: [
+            {
+              kind: 'item',
+              moduleFolder: '01-intro',
+              itemPath: '01-intro/06-orphan.md',
+              title: 'Orphan',
+              canvasType: 'page',
+              pruned: true,
+            },
+          ],
+          local: [],
+        },
+      },
+    );
+
+    const failed = buildReport(plan, { applied: [], pruneCanvas: true }).join(
+      '\n',
+    );
+    assert.match(failed, /Orphaned on Canvas/);
+    assert.match(failed, /06-orphan\.md/);
+
+    const landed = buildReport(plan, {
+      applied: [
+        {
+          type: 'delete-canvas-item',
+          itemPath: '01-intro/06-orphan.md',
+          folder: '01-intro',
+        },
+      ],
+      pruneCanvas: true,
+    }).join('\n');
+    assert.doesNotMatch(landed, /Orphaned on Canvas/);
+  });
+
+  it('says so on the line when the delete was attempted and failed', () => {
+    // The section closes with "each line says why", and a delete the planner
+    // emitted carries no `reason` — the failure happened after planning. This
+    // is the one case that would otherwise leave the footer promising a why no
+    // line carries.
+    const plan = planOf([{ type: 'delete-canvas-module', folder: '02-gone' }], {
+      orphans: {
+        canvas: [
+          {
+            kind: 'module',
+            moduleFolder: '02-gone',
+            title: 'Gone',
+            canvasModuleId: 20,
+            itemCount: 3,
+            pruned: true,
+          },
+        ],
+        local: [],
+      },
+    });
+
+    const text = buildReport(plan, { applied: [], pruneCanvas: true }).join(
+      '\n',
+    );
+    assert.match(text, /02-gone: module "Gone" \(3 items\)/);
+    assert.match(
+      text,
+      /the delete was attempted and it failed; see the errors below/,
+    );
+  });
+
+  it('leaves the planner\u2019s own reason for an orphan it declined to delete', () => {
+    // A different fact, and the planner is the only one who knows it. It has to
+    // survive untouched, and must not be joined by a failure that never
+    // happened — nothing was attempted here.
+    const plan = planOf([], {
+      orphans: {
+        canvas: [],
+        local: [
+          {
+            kind: 'module',
+            moduleFolder: '03-holding',
+            title: 'Holding',
+            itemCount: 2,
+            pruned: false,
+            reason:
+              'left alone: this folder still holds local changes that need a decision first',
+          },
+        ],
+      },
+    });
+
+    const text = buildReport(plan, { applied: [], pruneLocal: true }).join(
+      '\n',
+    );
+    assert.match(text, /left alone: this folder still holds local changes/);
+    assert.doesNotMatch(text, /attempted and it failed/);
+  });
+
+  it('counts an item as deleted when the module delete took it along', () => {
+    const plan = planOf(
+      [{ type: 'delete-canvas-module', folder: '01-intro' }],
+      {
+        orphans: {
+          canvas: [
+            {
+              kind: 'item',
+              moduleFolder: '01-intro',
+              itemPath: '01-intro/06-orphan.md',
+              title: 'Orphan',
+              canvasType: 'page',
+              pruned: true,
+              coveredByModule: true,
+            },
+          ],
+          local: [],
+        },
+      },
+    );
+
+    const lines = buildReport(plan, {
+      applied: [{ type: 'delete-canvas-module', folder: '01-intro' }],
+      pruneCanvas: true,
+    });
+    assert.doesNotMatch(lines.join('\n'), /Orphaned on Canvas/);
+  });
+
+  it('does not call a conflict resolved when its write failed', () => {
+    const conflict = {
+      kind: 'item',
+      moduleFolder: '01-intro',
+      itemPath: '01-intro/04-both.md',
+      winner: 'canvas',
+      reason: 'newest: Canvas',
+      localMtimeMs: Date.parse('2026-08-19T08:00:00.000Z'),
+      canvasUpdatedAt: '2026-08-19T09:00:00.000Z',
+      applied: true,
+    };
+    const plan = planOf(
+      [{ type: 'update-local-item', itemPath: '01-intro/04-both.md' }],
+      { conflicts: [conflict] },
+    );
+
+    const failed = buildReport(plan, { applied: [] }).join('\n');
+    assert.doesNotMatch(failed, /Conflicts resolved/);
+    assert.match(failed, /04-both\.md \(conflict-unwritten\)/);
+    assert.match(failed, /the write failed/);
+
+    const landed = buildReport(plan, {
+      applied: [{ type: 'update-local-item', itemPath: '01-intro/04-both.md' }],
+    }).join('\n');
+    assert.match(landed, /Conflicts resolved/);
+    assert.doesNotMatch(landed, /conflict-unwritten/);
+  });
+
+  it('names a conflict the command was never allowed to write', () => {
+    // `push` and `pull` pin a direction, so the losing side's write is withheld
+    // rather than failed. Different cause, same duty not to call it resolved.
+    const plan = planOf([], {
+      conflicts: [
+        {
+          kind: 'item',
+          moduleFolder: '01-intro',
+          itemPath: '01-intro/04-both.md',
+          winner: 'canvas',
+          reason: 'policy canvas',
+          applied: false,
+        },
+      ],
+    });
+    const text = buildReport(plan, { applied: [] }).join('\n');
+    assert.match(text, /does not write to the side that lost/);
   });
 });
