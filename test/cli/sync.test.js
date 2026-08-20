@@ -664,6 +664,18 @@ describe('the sync report', () => {
           remedy: 'Commit or stash the file, then run sync again.',
         },
       ],
+      adopted: [
+        {
+          moduleFolder: '01-intro',
+          itemPath: '01-intro/11-claimed.md',
+          title: 'Claimed',
+          canvasType: 'page',
+          canvasId: 4242,
+          moduleItemId: 97,
+          direction: 'local',
+          applied: true,
+        },
+      ],
       orphans: {
         canvas: [
           {
@@ -746,6 +758,7 @@ describe('the sync report', () => {
     assert.deepEqual(headings, [
       'Would apply',
       'Left alone (this command does not write to that side)',
+      'Adopted (matched to something already in Canvas)',
       'Orphaned on Canvas (gone locally, still there)',
       'Orphaned locally (gone from Canvas, still here)',
       'Conflicts resolved',
@@ -772,6 +785,9 @@ describe('the sync report', () => {
     // Ordering names the side per module, and prints both orders on a skip.
     assert.match(text, /01-intro: took the Canvas order/);
     assert.match(text, /02-next\/02-b\.md → 02-next\/01-a\.md/);
+    // An adoption names the object it claimed, and links to it.
+    assert.match(text, /11-claimed\.md: page "Claimed"/);
+    assert.match(text, /modules\/items\/97/);
     // The Canvas link is there to click.
     assert.match(text, /modules\/items\/96/);
     assert.match(text, /Sasquatch/);
@@ -1003,6 +1019,60 @@ describe('the sync report', () => {
     }).join('\n');
     assert.match(landed, /Conflicts resolved/);
     assert.doesNotMatch(landed, /conflict-unwritten/);
+  });
+
+  it('does not call a pair adopted when the write failed', () => {
+    // An adoption is an ordinary update in the summary, so the only place the
+    // author could learn the claim did not land is this section.
+    const adopted = {
+      moduleFolder: '01-intro',
+      itemPath: '01-intro/11-claimed.md',
+      title: 'Claimed',
+      canvasType: 'page',
+      canvasId: 4242,
+      moduleItemId: 97,
+      direction: 'local',
+      applied: true,
+    };
+    const plan = planOf(
+      [{ type: 'update-canvas-item', itemPath: '01-intro/11-claimed.md' }],
+      { adopted: [adopted] },
+    );
+
+    const failed = buildReport(plan, { applied: [] }).join('\n');
+    assert.match(failed, /Adopted \(matched to something already in Canvas\)/);
+    assert.match(failed, /the write failed, so nothing was claimed/);
+
+    const landed = buildReport(plan, {
+      applied: [
+        { type: 'update-canvas-item', itemPath: '01-intro/11-claimed.md' },
+      ],
+    }).join('\n');
+    assert.match(landed, /11-claimed\.md: page "Claimed"/);
+    assert.doesNotMatch(landed, /the write failed/);
+  });
+
+  it('names a pair whose write never happened at all', () => {
+    // The git guard, and a write the policy forbade: the pair is matched and
+    // both sides are still where they were, which is not an adoption.
+    const plan = planOf([], {
+      adopted: [
+        {
+          moduleFolder: '01-intro',
+          itemPath: '01-intro/11-claimed.md',
+          title: 'Claimed',
+          canvasType: 'page',
+          canvasId: 4242,
+          moduleItemId: 97,
+          direction: 'canvas',
+          applied: false,
+        },
+      ],
+    });
+
+    const text = buildReport(plan, { applied: [] }).join('\n');
+    assert.match(text, /11-claimed\.md: page "Claimed"/);
+    assert.match(text, /nothing was written, so the two are still unlinked/);
   });
 
   it('names a conflict the command was never allowed to write', () => {

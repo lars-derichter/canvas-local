@@ -171,6 +171,22 @@ function orphanNotes(orphan, run) {
   return notes.length > 0 ? ` — ${notes.join('; ')}` : '';
 }
 
+/**
+ * Whether the write that claims an existing Canvas object actually landed.
+ *
+ * An adoption emits an ordinary update, so a failed one is indistinguishable
+ * from any other failed update in the summary — and calling it adopted anyway
+ * would tell the author their file is tied to a Canvas object it is not tied
+ * to, which is worse than saying nothing.
+ */
+function adoptionLanded(entry, run) {
+  if (entry.applied !== true) return false;
+  if (!run.executed) return true;
+  const type =
+    entry.direction === 'local' ? 'update-canvas-item' : 'update-local-item';
+  return run.landed.has(`${type}|${entry.itemPath}`);
+}
+
 /** Whether the write that settles a conflict actually landed. */
 function conflictLanded(conflict, run) {
   if (conflict.applied !== true) return false;
@@ -237,6 +253,27 @@ function buildReport(report, options = {}) {
   section(
     'Left alone (this command does not write to that side)',
     summariseActions(report.withheld || []),
+  );
+
+  // --- Adopted -------------------------------------------------------------
+  // An adoption is an ordinary update in the summary above, so without this
+  // section the author reads "1 item updated" and never learns that the item
+  // in question was an object already sitting in Canvas, now claimed by a
+  // local file. That is the whole fact worth telling them.
+  section(
+    'Adopted (matched to something already in Canvas)',
+    (report.adopted || []).map((entry) => {
+      const claimed = adoptionLanded(entry, run);
+      const why = claimed
+        ? ''
+        : entry.applied === true
+          ? ' — the write failed, so nothing was claimed; see the errors below'
+          : ' — nothing was written, so the two are still unlinked';
+      return (
+        `  - ${entry.itemPath}: ${entry.canvasType} "${entry.title}"` +
+        `${canvasItemUrl(options, entry)}${why}`
+      );
+    }),
   );
 
   // --- Orphaned on Canvas --------------------------------------------------

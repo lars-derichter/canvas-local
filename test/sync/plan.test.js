@@ -538,6 +538,10 @@ describe('plan: conflict resolution', () => {
       /Unknown order policy/,
     );
     assert.throws(
+      () => plan({ ...single(), policy: { adopt: 'both' } }),
+      /Unknown adopt policy "both"/,
+    );
+    assert.throws(
       () =>
         plan({
           ...single(),
@@ -1135,6 +1139,337 @@ describe('plan: the collision guard', () => {
       'the genuinely new module is still created',
     );
     assert.equal(only(result, 'create-canvas-module').folder, '02-beta');
+  });
+});
+
+describe('plan: adoption', () => {
+  /**
+   * The collision case, exactly: a module row that names a Canvas module and
+   * knows nothing about what is in it, with the same page on both sides. What
+   * `sync` refuses, a pinned direction adopts.
+   */
+  const both = (extra = {}) => single({ base: false, ...extra });
+
+  it('claims the Canvas page instead of creating a second one', () => {
+    const result = plan({ ...both(), policy: { adopt: 'local' } });
+
+    assert.equal(result.collision, null);
+    assert.deepEqual(types(result), ['update-canvas-item']);
+    const action = only(result, 'update-canvas-item');
+    assert.equal(action.itemPath, PATH);
+    assert.equal(action.canvasId, 1011);
+    assert.equal(action.moduleItemId, 5011);
+    assert.equal(action.pageUrl, 'page-1-1');
+    assert.equal(action.canvasType, 'page');
+
+    assert.equal(result.adopted.length, 1);
+    assert.deepEqual(result.adopted[0], {
+      moduleFolder: FOLDER,
+      itemPath: PATH,
+      title: 'welcome',
+      canvasType: 'page',
+      canvasId: 1011,
+      moduleItemId: 5011,
+      direction: 'local',
+      applied: true,
+    });
+  });
+
+  it('claims it the other way round under a Canvas-pinned run', () => {
+    const result = plan({ ...both(), policy: { adopt: 'canvas' } });
+
+    assert.equal(result.collision, null);
+    assert.deepEqual(types(result), ['update-local-item']);
+    const action = only(result, 'update-local-item');
+    assert.equal(action.itemPath, PATH);
+    assert.equal(action.canvasId, 1011);
+    assert.equal(action.moduleItemId, 5011);
+    assert.equal(action.canvasHash, `C:${PATH}`);
+    assert.equal(action.canvasUpdatedAt, CANVAS_TIME);
+
+    assert.equal(result.adopted.length, 1);
+    assert.equal(result.adopted[0].direction, 'canvas');
+    assert.equal(result.adopted[0].applied, true);
+  });
+
+  it('refuses the same course when no direction is pinned', () => {
+    // The proof that `sync` did not quietly change: with both sides writable
+    // nothing can say which copy is the newer, so the refusal stands.
+    const result = plan({ ...both(), policy: { adopt: null } });
+
+    assert.deepEqual(types(result), []);
+    assert.deepEqual(result.adopted, []);
+    assert.equal(result.collision.modules.length, 1);
+    assert.equal(result.collision.modules[0].folder, FOLDER);
+  });
+
+  it('matches on the title, not on the prefix a position would give it', () => {
+    // `suggestedPath` is built from the title *and* the Canvas position, so an
+    // item sitting third there and first here never matches on it.
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([]) } },
+      local: { modules: [lMod(FOLDER, [PATH])] },
+      canvas: {
+        modules: [
+          cMod([PATH], {
+            items: {
+              [PATH]: { position: 3, suggestedPath: '01-intro/03-welcome.md' },
+            },
+          }),
+        ],
+      },
+      policy: { adopt: 'local' },
+    });
+
+    assert.deepEqual(types(result), ['update-canvas-item']);
+    assert.equal(only(result, 'update-canvas-item').itemPath, PATH);
+  });
+
+  it('matches titles that differ only in case and padding', () => {
+    const result = plan({
+      ...both({
+        localFields: { title: 'Welcome' },
+        canvasFields: { title: '  welcome  ' },
+      }),
+      policy: { adopt: 'local' },
+    });
+
+    assert.deepEqual(types(result), ['update-canvas-item']);
+    assert.equal(only(result, 'update-canvas-item').title, 'Welcome');
+  });
+
+  it('never adopts across types, which would be a conversion', () => {
+    const result = plan({
+      ...both({
+        canvasFields: { canvasType: 'assignment', rawType: 'Assignment' },
+      }),
+      policy: { adopt: 'local' },
+    });
+
+    assert.deepEqual(result.adopted, []);
+    assert.deepEqual(types(result), [
+      'create-canvas-item',
+      'create-local-item',
+    ]);
+  });
+
+  it('adopts a quiz by title, which no id could match', () => {
+    const QUIZ = '01-intro/05-quiz.md';
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([]) } },
+      local: {
+        modules: [
+          lMod(FOLDER, [QUIZ], { items: { [QUIZ]: { canvasType: 'quiz' } } }),
+        ],
+      },
+      canvas: {
+        modules: [
+          cMod([QUIZ], {
+            items: {
+              [QUIZ]: {
+                canvasType: 'quiz',
+                rawType: 'Quiz',
+                canvasId: null,
+                pageUrl: null,
+              },
+            },
+          }),
+        ],
+      },
+      policy: { adopt: 'local' },
+    });
+
+    assert.deepEqual(types(result), ['update-canvas-item']);
+    const action = only(result, 'update-canvas-item');
+    assert.equal(action.canvasType, 'quiz');
+    assert.equal(action.canvasId, null);
+    assert.equal(action.moduleItemId, 5015);
+    assert.equal(result.adopted[0].canvasType, 'quiz');
+  });
+
+  it('adopts nothing for a title two Canvas items share', () => {
+    const TWIN = '01-intro/02-welcome.md';
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([]) } },
+      local: { modules: [lMod(FOLDER, [PATH])] },
+      canvas: {
+        modules: [cMod([PATH], { extraItems: [cItem(TWIN, { position: 2 })] })],
+      },
+      policy: { adopt: 'local' },
+    });
+
+    assert.deepEqual(result.adopted, []);
+    assert.deepEqual(types(result), [
+      'create-canvas-item',
+      'create-local-item',
+      'create-local-item',
+    ]);
+
+    assert.equal(result.decisions.length, 1);
+    const decision = result.decisions[0];
+    assert.equal(decision.kind, 'ambiguous-adoption');
+    assert.equal(decision.title, 'welcome');
+    assert.equal(decision.canvasType, 'page');
+    assert.equal(decision.localCandidates, 1);
+    assert.equal(decision.canvasCandidates, 2);
+    assert.match(decision.summary, /1 local and 2 Canvas page item\(s\)/);
+    assert.match(decision.summary, /"welcome"/);
+  });
+
+  it('will not write the Canvas copy over a file holding uncommitted work', () => {
+    const result = plan({
+      ...both({ localFields: { dirty: true } }),
+      policy: { adopt: 'canvas' },
+    });
+
+    // Nothing at all: the write is guarded, and the pair is still claimed, so
+    // neither side falls through to a create.
+    assert.deepEqual(types(result), []);
+    assert.equal(result.skipped.length, 1);
+    assert.equal(result.skipped[0].reason, 'git-dirty');
+    assert.equal(result.skipped[0].action, 'update-local-item');
+    assert.match(result.skipped[0].remedy, /Commit or stash the file/);
+
+    assert.equal(result.adopted.length, 1);
+    assert.equal(result.adopted[0].applied, false);
+  });
+
+  it('keeps a pair the write policy forbids out of the create path too', () => {
+    // `status` never adopts, but a pinned run with the losing side's write off
+    // does — and a pair dropped from the claimed sets because its write was
+    // withheld is the duplication this whole step exists to stop.
+    const result = plan({
+      ...both(),
+      policy: { adopt: 'canvas', write: { canvas: false, local: false } },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.deepEqual(
+      result.withheld.map((action) => action.type),
+      ['update-local-item'],
+    );
+    assert.equal(result.adopted.length, 1);
+    assert.equal(result.adopted[0].applied, false);
+  });
+
+  it('leaves a path awaiting a rename answer unadopted', () => {
+    // `01-welcome.md` was renamed and edited, and a second Canvas page carries
+    // the same title. The author has been asked whether the two are one item;
+    // adopting the new path onto that second page would answer the question
+    // for them, and bind the file to the wrong object while doing it.
+    const RENAMED = '01-intro/01-hello.md';
+    const TWIN = '01-intro/02-welcome.md';
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([PATH]) } },
+      local: {
+        modules: [
+          lMod(FOLDER, [RENAMED], {
+            items: {
+              [RENAMED]: { localHash: 'edited', title: titleOf(PATH) },
+            },
+          }),
+        ],
+      },
+      canvas: {
+        modules: [cMod([PATH], { extraItems: [cItem(TWIN, { position: 2 })] })],
+      },
+      policy: { adopt: 'local' },
+    });
+
+    assert.equal(result.pending.renames.length, 1);
+    assert.equal(result.pending.renames[0].to, RENAMED);
+    assert.deepEqual(result.adopted, []);
+    assert.deepEqual(
+      types(result),
+      ['create-local-item'],
+      'the second Canvas page is genuinely new; the renamed file is untouched',
+    );
+    assert.equal(only(result, 'create-local-item').itemPath, TWIN);
+  });
+
+  it('leaves an item the state already links alone', () => {
+    // Adoption is for what the state does not know. A course in step must plan
+    // nothing under a pinned run either.
+    const result = plan({ ...single(), policy: { adopt: 'local' } });
+
+    assert.deepEqual(types(result), []);
+    assert.deepEqual(result.adopted, []);
+  });
+
+  /** Two items adopted, sitting in the opposite order on the two sides. */
+  const crossed = (canvasOrder = [B, A]) => ({
+    base: { modules: { [FOLDER]: bMod([]) } },
+    local: { modules: [lMod(FOLDER, [A, B])] },
+    canvas: { modules: [cMod(canvasOrder)] },
+  });
+
+  it('takes the pinned side\u2019s order when nothing recorded one', () => {
+    const result = plan({ ...crossed(), policy: { adopt: 'local' } });
+
+    assert.deepEqual(types(result), [
+      'update-canvas-item',
+      'update-canvas-item',
+      'reorder-canvas-module',
+    ]);
+    // The ids come from the pairs, not from a base row, so the reorder names
+    // real Canvas slots on the very run that claimed them.
+    assert.deepEqual(only(result, 'reorder-canvas-module').order, [
+      { itemPath: A, moduleItemId: 5011, position: 1 },
+      { itemPath: B, moduleItemId: 5012, position: 2 },
+    ]);
+
+    assert.equal(result.ordering.length, 1);
+    assert.equal(result.ordering[0].winner, 'local');
+    assert.equal(result.ordering[0].applied, true);
+    assert.match(result.ordering[0].reason, /no recorded order to compare/);
+    assert.doesNotMatch(
+      result.ordering[0].reason,
+      /only this side reordered/,
+      'nobody reordered anything; saying so would be the same lie one level up',
+    );
+  });
+
+  it('takes the Canvas order under a Canvas-pinned run', () => {
+    const result = plan({ ...crossed(), policy: { adopt: 'canvas' } });
+
+    assert.deepEqual(types(result), [
+      'update-local-item',
+      'update-local-item',
+      'reorder-local-module',
+    ]);
+    assert.deepEqual(only(result, 'reorder-local-module').order, [
+      { itemPath: B, position: 1 },
+      { itemPath: A, position: 2 },
+    ]);
+    assert.equal(result.ordering[0].winner, 'canvas');
+    assert.equal(result.ordering[0].applied, true);
+  });
+
+  it('reorders nothing when the two sides already agree', () => {
+    const result = plan({ ...crossed([A, B]), policy: { adopt: 'local' } });
+
+    assert.deepEqual(types(result), [
+      'update-canvas-item',
+      'update-canvas-item',
+    ]);
+    assert.deepEqual(result.ordering, []);
+  });
+
+  it('leaves the base an adopting run records saying something true', () => {
+    // The run after the one above, with the state it wrote and the Canvas it
+    // reordered. Without the reorder, this pass reads Canvas as having moved
+    // and renumbers the author's files to match — silently, because a
+    // one-sided change never prompts.
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([A, B]) } },
+      local: { modules: [lMod(FOLDER, [A, B])] },
+      canvas: { modules: [cMod([A, B])] },
+      policy: { adopt: 'local' },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.deepEqual(result.ordering, []);
+    assert.deepEqual(result.adopted, []);
   });
 });
 
@@ -1752,6 +2087,7 @@ describe('plan: a whole course at once', () => {
       actions: [],
       conflicts: [],
       skipped: [],
+      adopted: [],
       orphans: { canvas: [], local: [] },
       decisions: [],
       unrecognised: [],
