@@ -305,6 +305,288 @@ describe('the fingerprint invariant, local direction', () => {
 // One test per action type
 // ---------------------------------------------------------------------------
 
+describe('the module link, over two passes', () => {
+  it('links the module it adopted, so the second pass is empty', async () => {
+    // Two consecutive passes over the state the first one leaves. The
+    // single-pass version of this passed while the run was leaving its module
+    // row with no `canvas_module_id` in it — nothing else records that link, so
+    // pass 2 paired the folder with nothing, read the module as gone from
+    // Canvas, made every item in it a local orphan and emitted a stray move.
+    silence();
+    const courseDir = tempCourse({
+      '01-intro/_category_.json': '{ "label": "Intro", "position": 1 }\n',
+      '01-intro/01-welcome.md': '---\ntitle: Welcome\n---\n\nLocal copy.\n',
+    });
+    const state = emptyState();
+
+    const item = {
+      id: 91,
+      type: 'Page',
+      title: 'Welcome',
+      page_url: 'welcome',
+      content_id: 501,
+      position: 1,
+      indent: 0,
+    };
+    const page = {
+      page_id: 501,
+      url: 'welcome',
+      title: 'Welcome',
+      body: '<p>Local copy.</p>',
+      updated_at: '2026-08-20T11:00:00.000Z',
+    };
+    const reads = () => [
+      { method: 'GET', path: '/modules/10/items', body: [item] },
+      {
+        method: 'GET',
+        path: '/modules',
+        body: [{ id: 10, name: 'Intro', position: 1 }],
+      },
+      { method: 'GET', path: '/pages/welcome', body: page },
+      {
+        method: 'GET',
+        path: '/pages',
+        body: [
+          {
+            page_id: 501,
+            url: 'welcome',
+            title: 'Welcome',
+            updated_at: page.updated_at,
+          },
+        ],
+      },
+    ];
+
+    // --- Pass 1: the course is on Canvas and the state knows none of it ------
+    mockCanvas(reads());
+    const local = gatherLocal({ courseDir, gitDirty: CLEAN });
+    let canvas = await gatherCanvas({ courseId: COURSE_ID, base: state });
+    const first = plan({
+      base: state,
+      local,
+      canvas,
+      policy: { write: { canvas: true, local: false }, adopt: 'local' },
+    });
+    assert.deepEqual(
+      first.actions.map((action) => action.type),
+      ['link-base-module', 'update-canvas-item'],
+      'the page is claimed, and the module it sits in is linked',
+    );
+
+    mock.restoreAll();
+    mockCanvas([{ method: 'PUT', path: '/pages/501', body: page }]);
+    const outcome = await run(first, {
+      courseDir,
+      state,
+      canvasContent: canvas.content,
+    });
+    assert.deepEqual(outcome.errors, []);
+
+    assert.equal(
+      state.modules['01-intro'].canvas_module_id,
+      10,
+      'the folder and the Canvas module are the same module, and the state says so',
+    );
+
+    // --- Pass 2: nothing has moved on either side ----------------------------
+    mock.restoreAll();
+    mockCanvas(reads());
+    canvas = await gatherCanvas({ courseId: COURSE_ID, base: state });
+    const second = plan({
+      base: state,
+      local: gatherLocal({ courseDir, gitDirty: CLEAN }),
+      canvas,
+      policy: { write: { canvas: true, local: false }, adopt: 'local' },
+    });
+
+    assert.deepEqual(second.actions, [], 'a settled course plans nothing');
+    assert.deepEqual(second.withheld, [], 'and withholds nothing either');
+    assert.deepEqual(second.orphans.local, []);
+    assert.deepEqual(second.orphans.canvas, []);
+    assert.deepEqual(second.adopted, [], 'there is nothing left to adopt');
+  });
+
+  it('links a module plain sync paired, so the second pass is empty', async () => {
+    // No adoption anywhere: a pair with items on one side only never trips the
+    // collision guard, so `sync` reaches the same branch. Gating the link on
+    // `policy.adopt` left this case failing in exactly the same way — the
+    // folder read as gone from Canvas on pass 2, with a `create-local-module`
+    // for a module that was already there.
+    silence();
+    const courseDir = tempCourse({
+      '01-intro/_category_.json': '{ "label": "Intro", "position": 1 }\n',
+      '01-intro/01-welcome.md': '---\ntitle: Welcome\n---\n\nHello there.\n',
+    });
+    const state = emptyState();
+
+    mockCanvas([
+      { method: 'GET', path: '/modules/10/items', body: [] },
+      {
+        method: 'GET',
+        path: '/modules',
+        body: [{ id: 10, name: 'Intro', position: 1 }],
+      },
+      { method: 'GET', path: '/pages', body: [] },
+    ]);
+    let canvas = await gatherCanvas({ courseId: COURSE_ID, base: state });
+    const first = plan({
+      base: state,
+      local: gatherLocal({ courseDir, gitDirty: CLEAN }),
+      canvas,
+    });
+    assert.deepEqual(
+      first.actions.map((action) => action.type),
+      ['link-base-module', 'create-canvas-item'],
+      'the empty Canvas module is filled rather than duplicated, and linked',
+    );
+
+    const createdPage = {
+      page_id: 501,
+      url: 'welcome',
+      title: 'Welcome',
+      body: '<p>Hello there.</p>',
+      updated_at: '2026-08-20T11:00:00.000Z',
+    };
+    const createdItem = {
+      id: 91,
+      type: 'Page',
+      title: 'Welcome',
+      page_url: 'welcome',
+      content_id: 501,
+      position: 1,
+      indent: 0,
+    };
+    mock.restoreAll();
+    mockCanvas([
+      { method: 'POST', path: '/modules/10/items', body: createdItem },
+      { method: 'POST', path: '/pages', body: createdPage },
+    ]);
+    const outcome = await run(first, {
+      courseDir,
+      state,
+      canvasContent: canvas.content,
+    });
+    assert.deepEqual(outcome.errors, []);
+    assert.equal(state.modules['01-intro'].canvas_module_id, 10);
+
+    mock.restoreAll();
+    mockCanvas([
+      { method: 'GET', path: '/modules/10/items', body: [createdItem] },
+      {
+        method: 'GET',
+        path: '/modules',
+        body: [{ id: 10, name: 'Intro', position: 1 }],
+      },
+      { method: 'GET', path: '/pages/welcome', body: createdPage },
+      {
+        method: 'GET',
+        path: '/pages',
+        body: [
+          {
+            page_id: 501,
+            url: 'welcome',
+            title: 'Welcome',
+            updated_at: createdPage.updated_at,
+          },
+        ],
+      },
+    ]);
+    const second = plan({
+      base: state,
+      local: gatherLocal({ courseDir, gitDirty: CLEAN }),
+      canvas: await gatherCanvas({ courseId: COURSE_ID, base: null }),
+    });
+
+    assert.deepEqual(second.actions, []);
+    assert.deepEqual(second.orphans.local, []);
+    assert.deepEqual(second.orphans.canvas, []);
+  });
+
+  it('links it from the other side too, where Canvas holds the items', async () => {
+    // The mirror of the case above, and the same branch: the Canvas module has
+    // the content and the local folder is empty, so the item write goes the
+    // other way. The link is the same either way, which is the point of it
+    // being a state action rather than a write to one side.
+    silence();
+    const courseDir = tempCourse({
+      '01-intro/_category_.json': '{ "label": "Intro", "position": 1 }\n',
+    });
+    const state = emptyState();
+
+    const page = {
+      page_id: 501,
+      url: 'welcome',
+      title: 'Welcome',
+      body: '<p>Hello there.</p>',
+      updated_at: '2026-08-20T11:00:00.000Z',
+    };
+    const item = {
+      id: 91,
+      type: 'Page',
+      title: 'Welcome',
+      page_url: 'welcome',
+      content_id: 501,
+      position: 1,
+      indent: 0,
+    };
+    const reads = () => [
+      { method: 'GET', path: '/modules/10/items', body: [item] },
+      {
+        method: 'GET',
+        path: '/modules',
+        body: [{ id: 10, name: 'Intro', position: 1 }],
+      },
+      { method: 'GET', path: '/pages/welcome', body: page },
+      {
+        method: 'GET',
+        path: '/pages',
+        body: [
+          {
+            page_id: 501,
+            url: 'welcome',
+            title: 'Welcome',
+            updated_at: page.updated_at,
+          },
+        ],
+      },
+    ];
+
+    mockCanvas(reads());
+    const canvas = await gatherCanvas({ courseId: COURSE_ID, base: state });
+    const first = plan({
+      base: state,
+      local: gatherLocal({ courseDir, gitDirty: CLEAN }),
+      canvas,
+    });
+    assert.deepEqual(
+      first.actions.map((action) => action.type),
+      ['link-base-module', 'create-local-item'],
+    );
+
+    mock.restoreAll();
+    mockCanvas([]);
+    const outcome = await run(first, {
+      courseDir,
+      state,
+      canvasContent: canvas.content,
+    });
+    assert.deepEqual(outcome.errors, []);
+    assert.equal(state.modules['01-intro'].canvas_module_id, 10);
+
+    mock.restoreAll();
+    mockCanvas(reads());
+    const second = plan({
+      base: state,
+      local: gatherLocal({ courseDir, gitDirty: CLEAN }),
+      canvas: await gatherCanvas({ courseId: COURSE_ID, base: null }),
+    });
+
+    assert.deepEqual(second.actions, []);
+    assert.deepEqual(second.orphans.local, []);
+    assert.deepEqual(second.orphans.canvas, []);
+  });
+});
+
 describe('applyPlan, per action type', () => {
   it('creates a module and records the id every later action needs', async () => {
     silence();

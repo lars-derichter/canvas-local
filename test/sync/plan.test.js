@@ -1098,8 +1098,9 @@ describe('plan: the collision guard', () => {
     assert.equal(result.collision, null);
     assert.deepEqual(
       types(result),
-      ['create-canvas-item'],
-      'the module is adopted rather than created a second time',
+      ['link-base-module', 'create-canvas-item'],
+      'the module is adopted rather than created a second time, and the state ' +
+        'is told which Canvas module it is',
     );
     assert.equal(only(result, 'create-canvas-item').canvasModuleId, 100);
   });
@@ -1190,6 +1191,111 @@ describe('plan: adoption', () => {
     assert.equal(result.adopted.length, 1);
     assert.equal(result.adopted[0].direction, 'canvas');
     assert.equal(result.adopted[0].applied, true);
+  });
+
+  /**
+   * A course the state knows nothing at all about — no module row, not even an
+   * empty one. `both()` above is the other shape: a row that names the Canvas
+   * module and lists none of its items. Only this one leaves the planner with
+   * no record of which Canvas module the folder is.
+   */
+  const unknownCourse = () => ({
+    base: { modules: {} },
+    local: { modules: [lMod(FOLDER, [PATH])] },
+    canvas: { modules: [cMod([PATH])] },
+  });
+
+  it('writes down which Canvas module the folder is', () => {
+    const result = plan({ ...unknownCourse(), policy: { adopt: 'local' } });
+
+    assert.deepEqual(types(result), ['link-base-module', 'update-canvas-item']);
+    const link = only(result, 'link-base-module');
+    assert.equal(link.folder, FOLDER);
+    assert.equal(link.canvasModuleId, 100);
+    assert.equal(link.name, 'Introduction');
+    assert.equal(link.position, 1, 'the local slot, not the Canvas one');
+  });
+
+  it('writes it down under a Canvas-pinned run too', () => {
+    // The link is a state operation, so it survives either pin. An
+    // `update-canvas-module` would not: `emit` withholds a Canvas-side action
+    // here, and pull would record nothing.
+    const result = plan({ ...unknownCourse(), policy: { adopt: 'canvas' } });
+
+    assert.ok(types(result).includes('link-base-module'));
+    assert.deepEqual(result.withheld, []);
+  });
+
+  it('records the local spelling of the name', () => {
+    // Pairing compares names with case and padding taken out, so the two sides
+    // can pair while disagreeing about how the name is written. The base is
+    // read back against the local side on the next run, so the local spelling
+    // is the one that keeps it quiet.
+    const result = plan({
+      base: { modules: {} },
+      local: { modules: [lMod(FOLDER, [PATH], { name: 'Introduction' })] },
+      canvas: { modules: [cMod([PATH], { name: '  introduction ' })] },
+      policy: { adopt: 'local' },
+    });
+
+    assert.deepEqual(types(result), ['link-base-module', 'update-canvas-item']);
+    assert.equal(only(result, 'link-base-module').name, 'Introduction');
+  });
+
+  it('writes nothing down for a module only one side holds', () => {
+    // A module being created on Canvas records its id from the create; a module
+    // being created locally records it from that. Neither needs a link.
+    const created = plan({
+      base: { modules: {} },
+      local: { modules: [lMod(FOLDER, [PATH])] },
+      canvas: { modules: [] },
+      policy: { adopt: 'local' },
+    });
+    assert.ok(!types(created).includes('link-base-module'));
+  });
+
+  it('writes nothing down for a module the run refuses', () => {
+    // No policy switches the link off — but a collided module is refused
+    // before `planModuleMetadata` is reached at all, so nothing about it is
+    // recorded either.
+    const result = plan({ ...unknownCourse(), policy: { adopt: null } });
+
+    assert.ok(result.collision);
+    assert.deepEqual(types(result), []);
+  });
+
+  it('writes it down under plain sync, where adoption never runs', () => {
+    // A pair with items on one side only never trips the collision guard, so
+    // `sync` reaches the same branch with no adoption anywhere. Gating the
+    // link on `policy.adopt` left this case broken in exactly the way the
+    // adopting one was.
+    const result = plan({
+      base: { modules: {} },
+      local: { modules: [lMod(FOLDER, [PATH])] },
+      canvas: { modules: [cMod([])] },
+      policy: {},
+    });
+
+    assert.equal(result.collision, null);
+    assert.deepEqual(types(result), ['link-base-module', 'create-canvas-item']);
+    assert.equal(only(result, 'link-base-module').canvasModuleId, 100);
+  });
+
+  it('writes it down from the other side of the same branch', () => {
+    // The mirror: the Canvas module holds the items and the local folder is
+    // empty. Same pairing, same missing link, and the item write that follows
+    // is a local one.
+    const result = plan({
+      base: { modules: {} },
+      local: { modules: [lMod(FOLDER, [])] },
+      canvas: { modules: [cMod([PATH])] },
+      policy: {},
+    });
+
+    assert.equal(result.collision, null);
+    assert.deepEqual(types(result), ['link-base-module', 'create-local-item']);
+    assert.equal(only(result, 'link-base-module').folder, FOLDER);
+    assert.equal(only(result, 'link-base-module').canvasModuleId, 100);
   });
 
   it('refuses the same course when no direction is pinned', () => {
