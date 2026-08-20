@@ -45,6 +45,14 @@
         "title": "Course: Init (Canvas Setup)"
       },
       {
+        "command": "course.sync",
+        "title": "Course: Sync with Canvas"
+      },
+      {
+        "command": "course.syncDryRun",
+        "title": "Course: Sync with Canvas (Dry Run)"
+      },
+      {
         "command": "course.push",
         "title": "Course: Push to Canvas"
       },
@@ -191,6 +199,10 @@
         },
         {
           "command": "course.preview",
+          "when": "view == courseTree"
+        },
+        {
+          "command": "course.sync",
           "when": "view == courseTree"
         },
         {

@@ -16,6 +16,8 @@ const {
 const commands = {
   'course.setup': 'npx course setup',
   'course.init': 'npx course init',
+  'course.sync': 'npx course sync',
+  'course.syncDryRun': 'npx course sync --dry-run',
   'course.push': 'npx course push',
   'course.pushDryRun': 'npx course push --dry-run',
   'course.pull': 'npx course pull',

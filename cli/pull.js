@@ -1081,3 +1081,6 @@ pull._overwriteSkipReason = overwriteSkipReason;
 pull._courseHasMarkdown = courseHasMarkdown;
 pull._createPullFileResolver = createPullFileResolver;
 pull._pullStrategies = pullStrategies;
+// Exported for reuse by the sync engine, which writes the same files pull does
+pull._writeCategoryFile = writeCategoryFile;
+pull._downloadReferencedFiles = downloadReferencedFiles;

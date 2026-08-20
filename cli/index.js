@@ -57,6 +57,30 @@ program
   .action(require('./init'));
 
 program
+  .command('sync')
+  .description('Two-way sync with Canvas: newest wins, nothing is deleted')
+  .option('--dry-run', 'Show what would happen without writing anything')
+  .option('-m, --module <name...>', 'Only sync these module folder names')
+  .option('--prune-canvas', 'Delete Canvas items and modules gone locally')
+  .option('--prune-local', 'Delete local files and folders gone from Canvas')
+  .option('--prune', 'Both --prune-canvas and --prune-local')
+  .option(
+    '--conflict <policy>',
+    'Who wins when both sides changed: newest, local, canvas, ask',
+    'newest',
+  )
+  .option(
+    '--order <policy>',
+    'Who wins when both sides reordered: local, canvas, ask',
+    'ask',
+  )
+  .option(
+    '-y, --yes',
+    'Never ask: confirm a prune, and skip conflict and order questions',
+  )
+  .action(require('./sync'));
+
+program
   .command('push')
   .description('Push local course content to Canvas')
   .option('-m, --module <name>', 'Only push a specific module folder name')
