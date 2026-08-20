@@ -173,34 +173,62 @@ async function confirmFirstPush({ courseId, syncData, dryRun, fetchCounts }) {
 }
 
 /**
- * Warn before a pull rewrites the working tree, and stop for confirmation on
- * the one combination that can wipe hand-written markdown in a single run.
+ * Warn before a pull rewrites the working tree, and stop for an answer when
+ * `--force` is about to write over work git has no copy of.
  *
- * A pull always overwrites — it is not a merge — but the per-file guard skips
- * anything it cannot prove is Canvas's own output, so an ordinary pull only
- * needs the pointer to the backup routes and must stay scriptable. `--force`
- * switches that guard off. With no sync state there is no "since last sync"
- * left to reason about either, so every existing local file is replaced by the
- * markdown conversion of whatever Canvas holds, and git is the only way back.
- * That combination asks first.
+ * A pull overwrites — it is not a merge — and what makes that survivable is
+ * git: the planner refuses to write over, or delete, any file `git status`
+ * reports as modified or untracked, so the only copy of hand-written work is
+ * never the one that goes. An ordinary pull therefore needs the pointer to the
+ * backup routes and nothing else, and stays scriptable.
+ *
+ * `--force` switches that refusal off, and it is one lever rather than two: the
+ * same flag that lets a pull overwrite an uncommitted file lets `--prune-local`
+ * delete one. It is also the only way a pull writes anything at all outside a
+ * git checkout, or anywhere git cannot be run — with no answer to work from
+ * every file counts as dirty, and the guard covers the whole tree.
+ *
+ * So the question is asked exactly when the flag would change something: it
+ * names how many files the guard is holding, and says why git could not answer
+ * when that is the reason there are so many.
+ *
+ * A dry run writes nothing, so it is never asked: a preview that stops for
+ * permission it will not use is not a preview, and a scripted `--dry-run
+ * --force` with no terminal behind it would cancel instead of printing a plan.
  *
  * Returns true when the pull should continue.
  *
  * @param {object} opts
- * @param {object} opts.syncData         - Loaded sync state; may be empty.
- * @param {boolean} opts.force           - The --force flag.
- * @param {boolean} opts.hasLocalContent - Whether course/ already holds markdown.
+ * @param {boolean} opts.force       - The --force flag.
+ * @param {number} opts.guarded      - How many local files the git guard holds.
+ * @param {string} [opts.gitReason]  - Why git could not answer, when it could not.
+ * @param {boolean} [opts.pruneLocal] - Whether this run also deletes.
+ * @param {boolean} [opts.dryRun]    - A dry run changes nothing; never ask.
  */
-async function confirmForcedPull({ syncData, force, hasLocalContent }) {
-  log.info(`[pull] ${BACKUP_HINT}`);
-
-  if (!force || !hasLocalContent) return true;
-  if (syncData && syncData.last_sync) return true;
-
+async function confirmForcedPull({
+  force,
+  guarded = 0,
+  gitReason = null,
+  pruneLocal = false,
+  dryRun = false,
+}) {
   log.info(
-    '[pull] --force with no sync state: every local file is overwritten with ' +
-      'the Canvas version, including files this project has never synced. ' +
-      'Nothing is skipped and nothing is merged.',
+    `[pull] A pull overwrites; git is what gives a file back. See ${BACKUP_DOC}.`,
+  );
+
+  if (!force || guarded < 1 || dryRun) return true;
+
+  const files = `${guarded} local file${guarded === 1 ? '' : 's'}`;
+  const fate = pruneLocal
+    ? 'overwritten with the Canvas version, or deleted where Canvas no longer ' +
+      'holds them'
+    : 'overwritten with the Canvas version';
+  log.info(
+    gitReason
+      ? `[pull] --force: ${gitReason}, so all ${files} under course/ count as ` +
+          `holding work that exists nowhere else. Every one of them is ${fate}.`
+      : `[pull] --force: ${files} hold uncommitted or untracked changes, and ` +
+          `each is ${fate}. Git has no copy of what is in them.`,
   );
 
   const ok = await confirm('[pull] Overwrite local course files? (y/N)');

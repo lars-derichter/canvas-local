@@ -97,7 +97,16 @@ program
 program
   .command('pull')
   .description('Pull course content from Canvas into local markdown files')
-  .option('-f, --force', 'Overwrite local files pull would otherwise skip')
+  .option('-m, --module <name...>', 'Only pull these module folder names')
+  .option('--dry-run', 'Show what would happen without writing anything')
+  .option(
+    '--prune-local',
+    'Delete local files and folders that no longer exist in Canvas',
+  )
+  .option(
+    '-f, --force',
+    'Write over local files that hold uncommitted or untracked work',
+  )
   .action(require('./pull'));
 
 program

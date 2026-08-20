@@ -2,161 +2,354 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const { listModules, listModuleItems } = require('../lib/canvas/modules');
-const { buildPageUrlToPageId, getPage } = require('../lib/canvas/pages');
-const { getAssignment } = require('../lib/canvas/assignments');
-const {
-  getDiscussion,
-  gradedDiscussionWarning,
-} = require('../lib/canvas/discussions');
 const { get } = require('../lib/canvas/client');
-const { canvasItemToMarkdown } = require('../lib/convert/html-to-markdown');
-const {
-  parseFrontmatter,
-  serializeFrontmatter,
-} = require('../lib/convert/frontmatter');
-const {
-  buildLinkMap,
-  resolveCanvasLink,
-  buildFileMap,
-} = require('../lib/convert/link-resolver');
 const { downloadFile } = require('../lib/canvas/files');
+const { plan } = require('../lib/sync/plan');
+const { applyPlan } = require('../lib/sync/apply');
 const {
-  SYNC_FILE,
-  ensureModule,
-  findModuleByCanvasId,
-  getModule,
-  loadState,
-  renameFolder,
-  renamePaths,
-  saveState,
-  setItem,
-} = require('../lib/sync/state');
-const { COURSE_DIR, safeReadJSON } = require('./module-utils');
+  gatherCanvas,
+  gatherLocal,
+  gitDirtyPaths,
+} = require('../lib/sync/gather');
+const { loadState, saveState } = require('../lib/sync/state');
 const {
-  toFolderName,
-  toFileName,
-  toFileSlug,
-  computeRelativePath,
-} = require('./naming');
-const { confirmForcedPull } = require('./backup-warning');
+  COURSE_DIR,
+  createRL,
+  prompt,
+  safeReadJSON,
+} = require('./module-utils');
+const { BACKUP_DOC, confirmForcedPull } = require('./backup-warning');
+const buildReport = require('./sync')._buildReport;
 const log = require('./logger');
-const { loadCourseConfig } = require('../lib/config/course-config');
 
 /**
- * Whether course/ already holds markdown a pull could overwrite. Used to tell
- * a first import onto an empty tree — harmless — from a forced pull over an
- * authored course, which is not.
+ * Pull: `sync` with the direction pinned the other way from push.
+ *
+ * The same four steps `cli/sync.js` takes — gather, plan, apply, report — over
+ * the same engine, with one policy nothing can change:
+ *
+ *     { write: { canvas: false, local: true }, conflict: 'canvas',
+ *       adopt: 'canvas' }
+ *
+ * The working tree is written and Canvas is not. A file that changed on both
+ * sides takes the Canvas version. A Canvas object already sitting there under
+ * the same type and title is claimed by the local file that matches it rather
+ * than written out a second time beside it. None of that is lost when the
+ * policy forbids a write: the planner records it in `withheld`, and the report
+ * names it.
+ *
+ * Everything that decides anything lives in `lib/sync/plan.js`, everything that
+ * reads the world in `lib/sync/gather.js`, everything that writes in
+ * `lib/sync/apply.js`. What is left here is the part that is genuinely pull's:
+ * the `--force` confirmation and the `--prune-local` one, both of which run
+ * **over the plan or over the working tree**, so neither needs a network.
+ *
+ * ## The mtime guard is gone, and `--force` means something else
+ *
+ * Old pull refused to write any file it could not prove was its own output,
+ * judged by comparing the file's mtime against `last_sync` — a guess from the
+ * shape of the file, which read "cannot tell" as "leave it alone" and so
+ * skipped every file on a tree that had never synced. The planner asks the real
+ * question instead: it compares each side against the fingerprint the last sync
+ * recorded for it, so a file Canvas has not touched is not written, and one it
+ * has is written without anybody having to guess.
+ *
+ * What is still load-bearing is git. `guardDirty` in the planner refuses to
+ * write over — or delete — any file `git status` reports as modified or
+ * untracked, because git is the only copy of whatever is in it. And
+ * `gitDirtyPaths` answers `available: false` outside a git checkout or wherever
+ * git cannot be run, at which point `gatherLocal` marks **every** file dirty and
+ * a pull writes nothing at all. `--force` is the one lever that switches that
+ * guard off, for overwrites and deletes alike. It is dangerous exactly in
+ * proportion to how much work git has no copy of, so it asks first.
+ *
+ * ## A Canvas rename no longer renames the file
+ *
+ * Old pull derived the local filename from the Canvas title on every run, and
+ * renamed the file when the title changed. The local path is the key of a sync
+ * row now, so the title lands in the file's frontmatter and the filename stays
+ * as the author left it. The numeric prefix still moves: that is the local
+ * order, and a Canvas-side reorder is a `reorder-local-module`.
+ *
+ * ## What still lives here
+ *
+ * `writeCategoryFile`, `downloadReferencedFiles` and `createPullFileResolver`
+ * are borrowed by `lib/sync/apply.js` through `pullInternals()`. They are the
+ * definition of how this tool writes a Canvas object into the working tree, and
+ * they live here until they get a home of their own.
  */
-function courseHasMarkdown(courseDir = COURSE_DIR) {
-  if (!fs.existsSync(courseDir)) return false;
-  try {
-    return fs
-      .readdirSync(courseDir, { recursive: true })
-      .some((entry) => String(entry).endsWith('.md'));
-  } catch (err) {
-    log.verbose(`Could not scan ${courseDir}: ${err.message}`);
-    return false;
-  }
+
+/** `1 file` / `3 files`, so a count never reads as a stutter. */
+function plural(count, singular) {
+  return `${count} ${count === 1 ? singular : `${singular}s`}`;
 }
 
-async function pull(options) {
+/**
+ * @param {object} options - Commander's flags, plus four injection points for
+ *   tests that commander never sets: `courseDir`, `syncFile`, `gitDirty` and
+ *   `interactive`. A test needs its own tree, its own state file, a git answer
+ *   that does not depend on the checkout it runs in, and a terminal it does
+ *   not have.
+ */
+async function pull(options = {}) {
   const courseId = process.env.CANVAS_COURSE_ID;
   if (!courseId) {
     log.error(
       '[pull] Error: CANVAS_COURSE_ID is not set. Run "npx course init" first.',
     );
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
-  const force = options && options.force;
-  const syncData = loadState();
+  const dryRun = options.dryRun === true;
+  const force = options.force === true;
+  const pruneLocal = options.pruneLocal === true;
+  const modules = options.module
+    ? [].concat(options.module).filter(Boolean)
+    : null;
+  const courseDir = options.courseDir || COURSE_DIR;
+  const syncFile = options.syncFile || undefined;
+  const interactive =
+    options.interactive !== undefined
+      ? options.interactive === true
+      : Boolean(process.stdin.isTTY);
 
-  log.info(`[pull] Fetching modules for course ${courseId}...`);
-  const modules = await listModules(courseId);
+  const state = loadState(syncFile ? { file: syncFile } : {});
 
-  if (!modules || modules.length === 0) {
+  // One `git status` for the run. Pull writes to the working tree and nowhere
+  // else, so this is the guard that decides how much of it may be written at
+  // all: a file git holds uncommitted work for is the only copy of that work.
+  const gitDirty = options.gitDirty || gitDirtyPaths({ courseDir });
+  if (!gitDirty.available) {
+    log.warn(
+      `[pull] ${gitDirty.reason}. Every local file is treated as holding ` +
+        'uncommitted work, so ' +
+        (force
+          ? '--force is the only reason this run writes anything at all.'
+          : 'nothing here is overwritten or deleted; --force overrides that.'),
+    );
+  }
+
+  const local = gatherLocal({ courseDir, gitDirty });
+  for (const warning of local.warnings) log.warn(`[pull] ${warning}`);
+
+  // Asked before Canvas is read, so a cancelled run costs no request at all:
+  // what --force is about is the working tree, and the working tree is already
+  // in hand. A course that turns out to hold no modules is the one case where
+  // that means asking about a run with nothing to do, and a wasted question is
+  // cheaper than a wasted course read.
+  const guarded = local.modules
+    .flatMap((module) => module.items)
+    .filter((item) => item.dirty);
+  const proceed = await confirmForcedPull({
+    force,
+    guarded: guarded.length,
+    gitReason: gitDirty.available ? null : gitDirty.reason,
+    pruneLocal,
+    dryRun,
+  });
+  if (!proceed) return;
+
+  // The whole of what --force does. The planner reads `dirty` per item and
+  // nothing else, so clearing it here is the flag, stated once, rather than a
+  // second condition threaded through every guard the engine has.
+  if (force) {
+    for (const module of local.modules) {
+      for (const item of module.items) item.dirty = false;
+    }
+  }
+
+  log.info(`[pull] Reading Canvas course ${courseId}...`);
+  const canvas = await gatherCanvas({ courseId, base: state });
+  for (const warning of canvas.warnings) log.warn(`[pull] ${warning}`);
+
+  // Pulling from an empty course is always a mistake rather than an
+  // instruction: every item in the tree would read as gone from Canvas, and
+  // under `--prune-local` that is the whole course. The mirror of push refusing
+  // to push from an empty tree.
+  if (canvas.modules.length === 0) {
     log.info('[pull] No modules found in Canvas course.');
     return;
   }
 
-  log.info(`[pull] Found ${modules.length} module(s).\n`);
-
-  // From here on the pull writes to the working tree. Say so, and stop for an
-  // answer when --force is about to overwrite an authored course blind.
-  const proceed = await confirmForcedPull({
-    syncData,
-    force,
-    hasLocalContent: courseHasMarkdown(),
-  });
-  if (!proceed) return;
-
-  // Initialize file tracking
-  if (!syncData.files) syncData.files = {};
-
-  // Build reverse link map for resolving Canvas internal links back to relative paths
-  const { canvasToRelative } = buildLinkMap(syncData);
-
-  // Build reverse file map for resolving Canvas file URLs back to local paths
-  const { canvasToLocal } = buildFileMap(syncData);
-
-  // Resolve page_url -> page_id so a page renamed on Canvas is recognised by
-  // the id its sync entry holds rather than by the slug that just changed.
-  // Losing the map costs the rename detection and nothing else, so a failure
-  // is a warning.
-  let pageUrlToPageId = new Map();
-  try {
-    pageUrlToPageId = await buildPageUrlToPageId(courseId);
-  } catch (err) {
-    log.warn(
-      `[pull] Could not fetch pages for rename detection: ${err.message}`,
-    );
-  }
-
-  // Ensure course directory exists
-  if (!fs.existsSync(COURSE_DIR)) {
-    fs.mkdirSync(COURSE_DIR, { recursive: true });
-  }
-
-  const errors = [];
-  const totalModules = modules.length;
-
-  for (let mi = 0; mi < modules.length; mi++) {
-    const mod = modules[mi];
-    log.info(`[pull] Module ${mi + 1}/${totalModules}: ${mod.name}`);
-    try {
-      await pullModule(
-        courseId,
-        mod,
-        syncData,
-        force,
-        canvasToRelative,
-        canvasToLocal,
-        pageUrlToPageId,
+  // Checked here rather than up front, because the folder a Canvas module will
+  // be written into need not exist yet: `-m` may name one nothing but Canvas
+  // has heard of. So the answer needs both sides and the state that links them.
+  if (modules) {
+    const known = new Set([
+      ...local.modules.map((mod) => mod.folder),
+      ...Object.keys(state.modules || {}),
+      ...canvas.modules.map((mod) => mod.suggestedFolder).filter(Boolean),
+    ]);
+    const missing = modules.filter((name) => !known.has(name));
+    if (missing.length > 0) {
+      log.error(
+        `[pull] Error: no module named ${missing.join(', ')} — nothing under ` +
+          'course/ and nothing in the Canvas course answers to it.',
       );
-    } catch (err) {
-      log.error(`[pull] Error pulling module "${mod.name}": ${err.message}`);
-      errors.push({ module: mod.name, error: err.message });
+      process.exitCode = 1;
+      return;
     }
-    // Save sync state after each module so progress is preserved on failure
-    saveState(syncData);
   }
 
-  // Update last_sync
-  syncData.last_sync = new Date().toISOString();
-  saveState(syncData);
+  const policy = {
+    write: { canvas: false, local: true },
+    conflict: 'canvas',
+    adopt: 'canvas',
+    pruneLocal,
+    modules,
+  };
+  const inputs = { base: state, local, canvas };
+  let report = plan({ ...inputs, policy });
 
-  log.info(`\n[pull] Sync file updated: ${SYNC_FILE}`);
-
-  if (errors.length > 0) {
-    log.info(`\n[pull] Completed with ${errors.length} error(s):`);
-    for (const e of errors) {
-      log.info(`  - ${e.module}: ${e.error}`);
+  // Whether this run is still one that prunes, which a declined confirmation
+  // makes it not. The report reads the answer rather than the flag: "nothing
+  // above was deleted; each line says why" is a claim about the plan, and after
+  // a decline there is no plan behind it to say why.
+  let pruning = pruneLocal;
+  if (pruneLocal) {
+    pruning = await confirmPrune(report, { interactive, dryRun, force });
+    if (!pruning) {
+      // Re-planned rather than filtered, so the report is built from a plan
+      // that never held those deletes: the orphans go back to being listed as
+      // orphans, with the flag's own line under them.
+      report = plan({ ...inputs, policy: { ...policy, pruneLocal: false } });
     }
+  }
+
+  let outcome = { applied: [], errors: [] };
+  if (dryRun) {
+    log.info('[pull] DRY RUN — nothing was written.');
+  } else if (report.actions.length > 0) {
+    outcome = await applyPlan(report, {
+      courseId,
+      courseDir,
+      state,
+      canvasContent: canvas.content,
+      save: (next) => saveState(next, syncFile),
+      log,
+    });
   } else {
-    log.info('[pull] Done.');
+    state.last_sync = new Date().toISOString();
+    saveState(state, syncFile);
+  }
+
+  const lines = buildReport(report, {
+    // A dry run executed nothing, so it gets no applied list and the report
+    // reads as the preview it is. Every other run hands over what actually ran.
+    applied: dryRun ? undefined : outcome.applied,
+    pruneLocal: pruning,
+    baseUrl: state.canvas_base_url,
+    courseId,
+  });
+  if (lines.length === 0) {
+    log.info('[pull] course/ already holds everything in Canvas.');
+  } else {
+    for (const line of lines) log.info(line);
+  }
+
+  if (outcome.errors.length > 0) {
+    log.error(`\n[pull] ${plural(outcome.errors.length, 'error')}:`);
+    for (const failure of outcome.errors) {
+      log.error(
+        // A run-wide failure — the icon upload — names no path and no folder,
+        // so it falls back to its own name rather than printing "undefined".
+        `  - ${failure.action.itemPath || failure.action.folder || failure.action.type}: ${failure.error}`,
+      );
+    }
+  }
+
+  // A skip is a refusal pull could not carry out, which under this policy means
+  // a file holding uncommitted work that Canvas wanted to overwrite. Orphans
+  // and the informational sections do not fail the run: a course mid-edit is a
+  // normal state.
+  if (outcome.errors.length > 0 || report.skipped.length > 0) {
+    process.exitCode = 1;
   }
 }
+
+/**
+ * List what `--prune-local` is about to delete, and ask.
+ *
+ * Read off the plan's delete actions rather than off the working tree, so what
+ * is listed is exactly what would run — including nothing, when the planner
+ * declined to emit a delete it had a reason not to. The commonest such reason
+ * is the git guard: a file holding uncommitted work is reported under "Skipped"
+ * with a remedy, and never reaches this listing.
+ *
+ * A dry run deletes nothing, so it gets the listing and no question: hiding the
+ * deletes behind a prompt the run will never act on is the opposite of what a
+ * preview is for.
+ *
+ * @returns {Promise<boolean>} Whether the deletes should stay in the plan.
+ */
+async function confirmPrune(report, { interactive, dryRun, force }) {
+  const actions = report.actions || [];
+  const doomedModules = actions.filter(
+    (action) => action.type === 'delete-local-module',
+  );
+  const doomedItems = actions.filter(
+    (action) => action.type === 'delete-local-item',
+  );
+  if (doomedModules.length === 0 && doomedItems.length === 0) {
+    log.info('\n[pull] Prune: nothing to remove from course/.');
+    return true;
+  }
+
+  if (doomedModules.length > 0) {
+    log.info(
+      `\n[pull] Prune: ${plural(doomedModules.length, 'module folder')} gone ` +
+        'from Canvas, to delete here:',
+    );
+    for (const action of doomedModules) {
+      log.info(`  - ${action.folder}/ (the whole folder)`);
+    }
+  }
+
+  if (doomedItems.length > 0) {
+    log.info(
+      `\n[pull] Prune: ${plural(doomedItems.length, 'file')} gone from ` +
+        'Canvas, to delete here:',
+    );
+    for (const action of doomedItems) {
+      log.info(`  - ${action.itemPath} (${action.canvasType})`);
+    }
+  }
+
+  if (dryRun) return true;
+
+  if (!interactive) {
+    log.warn(
+      `[pull] ${plural(doomedModules.length + doomedItems.length, 'thing')} ` +
+        'would be deleted, and this run cannot ask. Nothing was pruned; run ' +
+        'it in a terminal.',
+    );
+    return false;
+  }
+
+  // What the undo is, and it is not the same sentence in both cases. Without
+  // --force nothing dirty ever reaches this list, so everything on it is
+  // committed and git has all of it; with --force the guard that guaranteed
+  // that is off, whether or not it was holding anything back this run.
+  log.info(
+    force
+      ? '\n[pull] --force is on, so the git guard is not standing between ' +
+          'these files and their deletion. Anything among them git has no ' +
+          `copy of is gone for good. See ${BACKUP_DOC}.`
+      : '\n[pull] Nothing above holds uncommitted work — the git guard keeps ' +
+          `those out of the list — so git brings all of it back. See ${BACKUP_DOC}.`,
+  );
+  const rl = createRL();
+  const answer = await prompt(rl, '[pull] Delete these from course/? (y/N)');
+  rl.close();
+  const ok = answer.trim().toLowerCase() === 'y';
+  if (!ok) log.info('[pull] Nothing was deleted.');
+  return ok;
+}
+
+// ---------------------------------------------------------------------------
+// How a Canvas object is written into the working tree
+// ---------------------------------------------------------------------------
 
 /**
  * Write a folder's _category_.json with the Canvas-derived label and position,
@@ -174,817 +367,11 @@ function writeCategoryFile(folderDir, label, position) {
   fs.writeFileSync(catFile, JSON.stringify(merged, null, 2) + '\n', 'utf8');
 }
 
-async function pullModule(
-  courseId,
-  mod,
-  syncData,
-  force,
-  canvasToRelative,
-  canvasToLocal,
-  pageUrlToPageId,
-) {
-  const position = mod.position || 0;
-  const folderName = toFolderName(mod.name, position);
-  const moduleDir = path.join(COURSE_DIR, folderName);
-
-  log.info(`[pull] Module: ${mod.name} -> ${folderName}/`);
-
-  // The folder is the key now, so a rename or a move on Canvas shows up as a
-  // module whose Canvas id is already known under a different folder name.
-  const existing = findModuleByCanvasId(syncData, mod.id);
-  if (existing && existing[0] !== folderName) {
-    const oldFolder = existing[0];
-    const oldDir = path.join(COURSE_DIR, oldFolder);
-    if (fs.existsSync(oldDir) && !fs.existsSync(moduleDir)) {
-      log.verbose(`Module folder renamed: ${oldFolder}/ -> ${folderName}/`);
-      fs.renameSync(oldDir, moduleDir);
-    }
-    // One call re-keys the module, the path of every item inside it and the
-    // rows for the binaries under its `_files/`.
-    renameFolder(syncData, oldFolder, folderName);
-  }
-
-  if (!fs.existsSync(moduleDir)) {
-    fs.mkdirSync(moduleDir, { recursive: true });
-  }
-
-  // Track module in sync data. Every `setItem` below needs the module to be
-  // there already, with its Canvas id: a module row that names no Canvas module
-  // is one the next push cannot reconcile.
-  ensureModule(syncData, folderName, {
-    canvas_module_id: mod.id,
-    name: mod.name,
-    position,
-  });
-
-  // Write _category_.json for the module folder (preserving custom fields)
-  writeCategoryFile(moduleDir, mod.name, position);
-
-  // Fetch module items
-  const items = await listModuleItems(courseId, mod.id);
-  if (!items || items.length === 0) {
-    log.info('  [pull] No items in this module.');
-    return;
-  }
-
-  const totalItems = items.length;
-
-  // ---- Phase 1: Compute target state ----
-  // Walk items to determine what filenames/folders each item should have,
-  // without writing anything yet.
-  const planned = [];
-  let modulePosition = 0;
-  let subfolderPosition = 0;
-  let currentSubfolderName = null;
-
-  for (let ii = 0; ii < items.length; ii++) {
-    const item = items[ii];
-
-    if (item.type === 'SubHeader') {
-      modulePosition++;
-      subfolderPosition = 0;
-      currentSubfolderName = toFolderName(item.title, modulePosition);
-      planned.push({
-        kind: 'subfolder',
-        item,
-        targetFolderName: currentSubfolderName,
-        position: modulePosition,
-        index: ii,
-      });
-      continue;
-    }
-
-    let pos, targetDir, subfolderName;
-    if (item.indent > 0 && currentSubfolderName) {
-      subfolderPosition++;
-      pos = subfolderPosition;
-      targetDir = path.join(moduleDir, currentSubfolderName);
-      subfolderName = currentSubfolderName;
-    } else {
-      currentSubfolderName = null;
-      modulePosition++;
-      pos = modulePosition;
-      targetDir = moduleDir;
-      subfolderName = null;
-    }
-
-    const targetFileName = toFileName(
-      item.title || loadCourseConfig().labels.pull.untitled,
-      pos,
-    );
-
-    planned.push({
-      kind: 'content',
-      item,
-      canvasItemType: item.type,
-      targetFileName,
-      targetDir,
-      position: pos,
-      subfolderName,
-      index: ii,
-    });
-  }
-
-  // Augment Page items with resolved page_id so reconciliation can match
-  // renamed pages by canvas_id (page_url changes on rename, page_id doesn't)
-  for (const p of planned) {
-    if (p.item && p.item.type === 'Page' && p.item.page_url) {
-      const pageId = pageUrlToPageId.get(p.item.page_url);
-      if (pageId != null) {
-        p.item._resolvedPageId = pageId;
-      }
-    }
-  }
-
-  // ---- Phase 2: Rename existing files to match new Canvas positions ----
-  const renamed = reconcileExistingFiles(
-    planned,
-    syncData,
-    folderName,
-    moduleDir,
-  );
-
-  // Rebuild link maps if files were renamed so link resolution uses updated paths
-  if (renamed) {
-    const { canvasToRelative: newLinkMap } = buildLinkMap(syncData);
-    canvasToRelative.clear();
-    for (const [k, v] of newLinkMap) canvasToRelative.set(k, v);
-  }
-
-  // ---- Phase 3: Write content ----
-  for (const p of planned) {
-    log.verbose(
-      `Item ${p.index + 1}/${totalItems}: ${p.item.title || p.item.type}`,
-    );
-
-    if (p.kind === 'subfolder') {
-      const subfolderDir = path.join(moduleDir, p.targetFolderName);
-      if (!fs.existsSync(subfolderDir)) {
-        fs.mkdirSync(subfolderDir, { recursive: true });
-      }
-      log.verbose(`SubHeader: ${p.item.title} -> ${p.targetFolderName}/`);
-      writeCategoryFile(subfolderDir, p.item.title, p.position);
-      continue;
-    }
-
-    if (p.canvasItemType === 'File') {
-      try {
-        await pullFileItem(
-          p.item,
-          p.targetDir,
-          p.targetFileName,
-          syncData,
-          force,
-          folderName,
-        );
-      } catch (err) {
-        log.error(
-          `  [pull] Error pulling file "${p.item.title || 'unknown'}": ${err.message}`,
-        );
-      }
-      continue;
-    }
-
-    try {
-      await pullItem(
-        courseId,
-        p.item,
-        p.targetDir,
-        p.targetFileName,
-        syncData,
-        force,
-        folderName,
-        canvasToRelative,
-        canvasToLocal,
-      );
-    } catch (err) {
-      log.error(
-        `  [pull] Error pulling item "${p.item.title || 'unknown'}": ${err.message}`,
-      );
-    }
-  }
-}
-
-/**
- * The path the last sync recorded for a Canvas item, or null.
- *
- * This is the one lookup that still runs the other way round. Everything else
- * in v4 asks "what does the state say about this path"; a pull starts from a
- * Canvas item and has to find out which local file it used to be, so it scans
- * the module's rows for one whose stored identity matches. Cheap — a module
- * holds a handful of rows — and it needs no map to keep in step with the
- * renames happening around it.
- *
- * The identities are tried most reliable first: a page slug, a launch URL, then
- * the numeric ids. `_resolvedPageId` comes before `content_id` because a page's
- * slug changes when Canvas regenerates it from a new title and the wiki page id
- * behind it does not.
- *
- * @param {object} item        - A Canvas module item.
- * @param {object} moduleItems - The module's `items` map, keyed by path.
- * @returns {string|null}
- */
-function findOldSyncPath(item, moduleItems) {
-  const rows = Object.entries(moduleItems || {});
-  const firstMatch = (matches) => {
-    for (const [itemPath, row] of rows) if (matches(row)) return itemPath;
-    return null;
-  };
-
-  if (item.page_url) {
-    const found = firstMatch(
-      (row) =>
-        row.page_url != null && String(row.page_url) === String(item.page_url),
-    );
-    if (found) return found;
-  }
-  if (item.external_url) {
-    const found = firstMatch((row) => row.external_url === item.external_url);
-    if (found) return found;
-  }
-  for (const id of [item._resolvedPageId, item.content_id, item.id]) {
-    if (id == null) continue;
-    const found = firstMatch(
-      (row) => row.canvas_id != null && String(row.canvas_id) === String(id),
-    );
-    if (found) return found;
-  }
-  return null;
-}
-
-/**
- * Recover leftover temp files/folders from a previously failed rename operation.
- */
-function cleanupTempFiles(moduleDir, tempPrefix) {
-  try {
-    for (const entry of fs.readdirSync(moduleDir)) {
-      if (!entry.startsWith(tempPrefix)) continue;
-      const finalName = entry.slice(tempPrefix.length);
-      const tempPath = path.join(moduleDir, entry);
-      const finalPath = path.join(moduleDir, finalName);
-      if (!fs.existsSync(finalPath)) {
-        fs.renameSync(tempPath, finalPath);
-        log.verbose(`Recovered temp file: ${entry} -> ${finalName}`);
-      } else {
-        const stat = fs.statSync(tempPath);
-        if (stat.isDirectory()) {
-          fs.rmSync(tempPath, { recursive: true });
-        } else {
-          fs.unlinkSync(tempPath);
-        }
-        log.verbose(`Removed leftover temp: ${entry}`);
-      }
-    }
-  } catch (err) {
-    log.warn(
-      `[pull] Warning: could not clean up temp files in ${moduleDir}: ${err.message}`,
-    );
-  }
-}
-
-/**
- * Detect and execute subfolder renames using a two-pass temp-name approach.
- * Returns true if any renames were performed.
- */
-function reconcileSubfolders(
-  planned,
-  state,
-  folderName,
-  moduleDir,
-  moduleEntry,
-  tempPrefix,
-) {
-  const renames = [];
-  for (const p of planned) {
-    if (p.kind !== 'subfolder') continue;
-
-    const children = planned.filter(
-      (c) => c.kind !== 'subfolder' && c.subfolderName === p.targetFolderName,
-    );
-    for (const child of children) {
-      const oldRelPath = findOldSyncPath(child.item, moduleEntry.items);
-      if (!oldRelPath) continue;
-
-      const relToModule = oldRelPath.slice(folderName.length + 1);
-      const slashIdx = relToModule.indexOf('/');
-      if (slashIdx > 0) {
-        const oldSubName = relToModule.slice(0, slashIdx);
-        if (
-          oldSubName !== p.targetFolderName &&
-          fs.existsSync(path.join(moduleDir, oldSubName))
-        ) {
-          renames.push({ oldName: oldSubName, newName: p.targetFolderName });
-        }
-      }
-      break;
-    }
-  }
-
-  if (renames.length === 0) return false;
-
-  try {
-    // Pass 1: rename to temp names
-    for (const sr of renames) {
-      sr._tempName = tempPrefix + sr.newName;
-      fs.renameSync(
-        path.join(moduleDir, sr.oldName),
-        path.join(moduleDir, sr._tempName),
-      );
-    }
-    // Pass 2: rename to final names and update sync state
-    for (const sr of renames) {
-      fs.renameSync(
-        path.join(moduleDir, sr._tempName),
-        path.join(moduleDir, sr.newName),
-      );
-      log.verbose(`Renamed subfolder: ${sr.oldName}/ -> ${sr.newName}/`);
-
-      // One directory move: `renamePaths` re-keys every row underneath it,
-      // the subfolder's own `_files/` rows included.
-      renamePaths(state, [
-        {
-          from: `${folderName}/${sr.oldName}`,
-          to: `${folderName}/${sr.newName}`,
-        },
-      ]);
-    }
-  } catch (err) {
-    for (const sr of renames) {
-      if (sr._tempName && fs.existsSync(path.join(moduleDir, sr._tempName))) {
-        try {
-          fs.renameSync(
-            path.join(moduleDir, sr._tempName),
-            path.join(moduleDir, sr.newName),
-          );
-        } catch {
-          /* Leave temp folder for next run's cleanup */
-        }
-      }
-    }
-    throw err;
-  }
-
-  return true;
-}
-
-/**
- * Detect and execute file renames using a two-pass temp-name approach.
- * Returns true if any renames were performed.
- */
-function reconcileFileRenames(
-  planned,
-  state,
-  folderName,
-  moduleEntry,
-  tempPrefix,
-) {
-  const renames = [];
-  for (const p of planned) {
-    if (p.kind === 'subfolder') continue;
-
-    const targetRelPath = p.subfolderName
-      ? path.posix.join(folderName, p.subfolderName, p.targetFileName)
-      : path.posix.join(folderName, p.targetFileName);
-
-    const oldRelPath = findOldSyncPath(p.item, moduleEntry.items);
-    if (!oldRelPath || oldRelPath === targetRelPath) continue;
-
-    const oldAbsPath = path.resolve(COURSE_DIR, oldRelPath);
-    const newAbsPath = path.resolve(COURSE_DIR, targetRelPath);
-    if (!fs.existsSync(oldAbsPath)) continue;
-
-    renames.push({
-      oldAbsPath,
-      newAbsPath,
-      oldRelPath,
-      newRelPath: targetRelPath,
-    });
-  }
-
-  if (renames.length === 0) return false;
-
-  try {
-    // Pass 1: rename to temp names
-    for (const r of renames) {
-      const dir = path.dirname(r.newAbsPath);
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      r._tempPath = path.join(dir, tempPrefix + path.basename(r.newAbsPath));
-      fs.renameSync(r.oldAbsPath, r._tempPath);
-    }
-    // Pass 2: rename to final names
-    for (const r of renames) {
-      fs.renameSync(r._tempPath, r.newAbsPath);
-      log.verbose(
-        `Renamed: ${path.basename(r.oldRelPath)} -> ${path.basename(r.newRelPath)}`,
-      );
-    }
-    // …and then re-key the rows, once the whole batch has landed, so a pair of
-    // files that swapped names does not collide halfway through.
-    renamePaths(
-      state,
-      renames.map((r) => ({ from: r.oldRelPath, to: r.newRelPath })),
-    );
-  } catch (err) {
-    for (const r of renames) {
-      if (r._tempPath && fs.existsSync(r._tempPath)) {
-        try {
-          fs.renameSync(r._tempPath, r.newAbsPath);
-        } catch {
-          /* Leave temp file for next run's cleanup */
-        }
-      }
-    }
-    throw err;
-  }
-
-  return true;
-}
-
-/**
- * Rename existing local files/folders to match new Canvas positions.
- * Returns true if any renames were performed.
- */
-function reconcileExistingFiles(planned, state, folderName, moduleDir) {
-  const moduleEntry = getModule(state, folderName);
-  const tempPrefix = '__pull_temp_';
-
-  cleanupTempFiles(moduleDir, tempPrefix);
-  const subfoldersRenamed = reconcileSubfolders(
-    planned,
-    state,
-    folderName,
-    moduleDir,
-    moduleEntry,
-    tempPrefix,
-  );
-  const filesRenamed = reconcileFileRenames(
-    planned,
-    state,
-    folderName,
-    moduleEntry,
-    tempPrefix,
-  );
-
-  return subfoldersRenamed || filesRenamed;
-}
-
-/**
- * Decide whether a pull may overwrite a local file, and say why not.
- *
- * There are three states here, not two. A file that does not exist yet is
- * always safe to write, so a first import onto an empty tree is unaffected. A
- * file older than the last sync is Canvas's own output coming back, so it is
- * safe too. Everything else is local work that a write would destroy: a file
- * touched since the last sync, and — the case that used to be overwritten
- * silently — a file that cannot be judged at all because there is no sync
- * state to compare it against (right after `reset-sync-state`, or on a clone
- * that never synced). "Cannot tell" is not "unmodified": skip it, and let
- * --force say otherwise.
- *
- * @param {string} filePath
- * @param {object} syncData - Loaded sync state; may be empty.
- * @param {boolean} force   - --force writes regardless.
- * @returns {string|null} Why the file was skipped, or null when it may be written.
- */
-function overwriteSkipReason(filePath, syncData, force) {
-  if (force) return null;
-  if (!fs.existsSync(filePath)) return null;
-
-  const lastSync = syncData && syncData.last_sync;
-  if (!lastSync) {
-    return 'no sync state, cannot tell if it was modified; use --force to overwrite';
-  }
-
-  const stat = fs.statSync(filePath);
-  if (stat.mtime > new Date(lastSync)) {
-    return 'locally modified since last sync, use --force to overwrite';
-  }
-  return null;
-}
-
-/**
- * Read the frontmatter of the local file a pull is about to overwrite, so keys
- * Canvas knows nothing about survive. Returns an empty object when the file is
- * new or unreadable — a pull must not fail over a malformed local file.
- */
-function readLocalFrontmatter(filePath) {
-  if (!fs.existsSync(filePath)) return {};
-  try {
-    return parseFrontmatter(fs.readFileSync(filePath, 'utf8')).data || {};
-  } catch (err) {
-    log.verbose(`Could not read frontmatter of ${filePath}: ${err.message}`);
-    return {};
-  }
-}
-
 function sha256File(filePath) {
   return crypto
     .createHash('sha256')
     .update(fs.readFileSync(filePath))
     .digest('hex');
-}
-
-/**
- * Pull a File item from Canvas — download the binary to _files/ and create
- * a markdown wrapper so the item appears in the Docusaurus sidebar.
- */
-async function pullFileItem(
-  item,
-  targetDir,
-  targetFileName,
-  syncData,
-  force,
-  folderName,
-) {
-  const title = item.title || loadCourseConfig().labels.pull.untitled;
-  const contentId = item.content_id;
-  if (!contentId) {
-    log.info(`  [pull] Skipping file "${title}": no content_id`);
-    return;
-  }
-
-  const wrapperPath = path.join(targetDir, targetFileName);
-
-  const wrapperSkip = overwriteSkipReason(wrapperPath, syncData, force);
-  if (wrapperSkip) {
-    log.info(`    [pull] SKIPPED ${targetFileName} (${wrapperSkip})`);
-    return;
-  }
-
-  // Derive the binary filename from the Canvas File's display_name, which
-  // carries the real extension. The module item title is only a display label
-  // (e.g. "Workflow Diagram") and loses the extension, so fall back to it only
-  // when the metadata fetch fails. Slugify so pulled files follow the repo's
-  // lowercase-hyphenated naming convention.
-  let fileMeta = null;
-  try {
-    fileMeta = await get(`/api/v1/files/${contentId}`);
-  } catch (err) {
-    log.warn(
-      `    [pull] Could not fetch file metadata for "${title}": ${err.message}`,
-    );
-  }
-  const displayName = fileMeta && fileMeta.display_name;
-  const originalName = toFileSlug(displayName || title);
-
-  const filesDir = path.join(targetDir, '_files');
-  const binaryPath = path.join(filesDir, originalName);
-
-  // Never clobber a binary the user edited locally; and skip the download
-  // entirely when nothing changed on Canvas since the last sync.
-  const binaryExists = fs.existsSync(binaryPath);
-  const binarySkip = overwriteSkipReason(binaryPath, syncData, force);
-  if (binarySkip) {
-    log.info(
-      `    [pull] SKIPPED download of _files/${originalName} (${binarySkip})`,
-    );
-  } else {
-    const remoteChanged =
-      !syncData.last_sync ||
-      !fileMeta ||
-      !fileMeta.updated_at ||
-      new Date(fileMeta.updated_at) > new Date(syncData.last_sync);
-    if (!binaryExists || force || remoteChanged) {
-      if (!fs.existsSync(filesDir)) {
-        fs.mkdirSync(filesDir, { recursive: true });
-      }
-      log.verbose(`Downloading file: ${title}`);
-      await downloadFile(contentId, binaryPath);
-      log.verbose(`Wrote _files/${originalName}`);
-    } else {
-      log.verbose(
-        `Unchanged on Canvas, skipping download: _files/${originalName}`,
-      );
-    }
-  }
-
-  // Create markdown wrapper, keeping any keys the author added to it.
-  const fileRef = `_files/${originalName}`;
-  const wrapperData = {
-    title,
-    canvas_type: 'file',
-    file_ref: fileRef,
-  };
-  for (const [key, value] of Object.entries(
-    readLocalFrontmatter(wrapperPath),
-  )) {
-    if (key in wrapperData) continue;
-    wrapperData[key] = value;
-  }
-  fs.writeFileSync(wrapperPath, serializeFrontmatter(wrapperData, ''), 'utf8');
-  log.verbose(`Wrote ${targetFileName}`);
-
-  // Update sync state
-  const relativePath = computeRelativePath(folderName, wrapperPath, COURSE_DIR);
-  setItem(syncData, folderName, relativePath, {
-    canvas_type: 'file',
-    canvas_id: contentId,
-    module_item_id: item.id,
-  });
-}
-
-/**
- * Say so when the topic just fetched is graded, and hand it straight back so
- * this can wrap the fetch.
- */
-function warnIfGradedDiscussion(topic) {
-  const line = gradedDiscussionWarning(topic);
-  if (line) log.warn(`    [pull] ${line}`);
-  return topic;
-}
-
-/**
- * Strategy definitions for each pullable Canvas item type.
- * Each strategy defines how to extract the identifier, fetch content,
- * get the HTML body, and build the sync state entry.
- */
-const pullStrategies = {
-  Page: {
-    getId: (item) => item.page_url,
-    idLabel: 'page_url',
-    fetch: (courseId, id) => getPage(courseId, id),
-    getBody: (result) => result.body || '',
-    canvasType: 'page',
-    buildSyncEntry: (item, result) => ({
-      canvas_type: 'page',
-      canvas_id: result.page_id || result.url,
-      page_url: item.page_url,
-      module_item_id: item.id,
-    }),
-  },
-  Assignment: {
-    getId: (item) => item.content_id,
-    idLabel: 'content_id',
-    fetch: (courseId, id) => getAssignment(courseId, id),
-    getBody: (result) => result.description || '',
-    canvasType: 'assignment',
-    buildSyncEntry: (item) => ({
-      canvas_type: 'assignment',
-      canvas_id: item.content_id,
-      module_item_id: item.id,
-    }),
-  },
-  Discussion: {
-    // Announcements are discussion topics too, but a module item never points
-    // at one, so fetching the topic the item names can only be a discussion.
-    getId: (item) => item.content_id,
-    idLabel: 'content_id',
-    fetch: async (courseId, id) =>
-      warnIfGradedDiscussion(await getDiscussion(courseId, id)),
-    getBody: (result) => result.message || '',
-    canvasType: 'discussion',
-    buildSyncEntry: (item) => ({
-      canvas_type: 'discussion',
-      canvas_id: item.content_id,
-      module_item_id: item.id,
-    }),
-  },
-  Quiz: {
-    // A quiz has no markdown source and never gets one: its questions come from
-    // a QTI package that Canvas imported by hand, and pulling them back would
-    // invent a source this project cannot push. What is written is a reference
-    // file, so the quiz keeps its place among the module's items.
-    //
-    // Writing it also closes a gap in the file numbering. Phase 1 above numbers
-    // every module item before phase 3 decides whether to write anything for
-    // it, so an item that phase 3 skips still consumes its position: a quiz
-    // between two pages used to leave 01- and 03- with nothing at 02-.
-    getId: (item) => item.content_id,
-    idLabel: 'content_id',
-    fetch: null, // nothing to fetch: the questions are not ours to hold
-    getBody: null,
-    canvasType: 'quiz',
-    buildSyncEntry: (item) => ({
-      canvas_type: 'quiz',
-      canvas_id: item.content_id,
-      module_item_id: item.id,
-    }),
-  },
-  ExternalUrl: {
-    getId: (item) => item.id,
-    idLabel: null, // always present, no precondition check
-    fetch: null, // no API fetch needed
-    getBody: null,
-    canvasType: 'external_url',
-    buildSyncEntry: (item) => ({
-      canvas_type: 'external_url',
-      canvas_id: item.id,
-      module_item_id: item.id,
-      external_url: item.external_url,
-    }),
-  },
-  ExternalTool: {
-    // An LTI link has no Canvas object behind it to fetch: the module item's
-    // own external_url is the whole of it, and Canvas resolves the tool from
-    // that URL on every launch.
-    getId: (item) => item.id,
-    idLabel: null, // always present, no precondition check
-    fetch: null, // no API fetch needed
-    getBody: null,
-    canvasType: 'external_tool',
-    buildSyncEntry: (item) => ({
-      canvas_type: 'external_tool',
-      canvas_id: item.id,
-      module_item_id: item.id,
-      external_url: item.external_url,
-    }),
-  },
-};
-
-async function pullItem(
-  courseId,
-  item,
-  moduleDir,
-  targetFileName,
-  syncData,
-  force,
-  folderName,
-  canvasToRelative,
-  canvasToLocal,
-) {
-  const title = item.title || loadCourseConfig().labels.pull.untitled;
-  const strategy = pullStrategies[item.type];
-
-  if (!strategy) {
-    log.warn(
-      `  [pull] Skipping unsupported item type "${item.type}": ${title}`,
-    );
-    return;
-  }
-
-  // Check precondition (e.g. page_url or content_id must be present)
-  const itemId = strategy.getId(item);
-  if (strategy.idLabel && !itemId) {
-    log.info(
-      `  [pull] Skipping ${item.type.toLowerCase()} "${title}": no ${strategy.idLabel}`,
-    );
-    return;
-  }
-
-  const filePath = path.join(moduleDir, targetFileName);
-
-  const skipReason = overwriteSkipReason(filePath, syncData, force);
-  if (skipReason) {
-    log.info(`    [pull] SKIPPED ${targetFileName} (${skipReason})`);
-    return;
-  }
-
-  const relativePath = computeRelativePath(folderName, filePath, COURSE_DIR);
-  const existingFrontmatter = readLocalFrontmatter(filePath);
-  let markdown;
-  let fetchResult = null;
-
-  if (strategy.fetch) {
-    log.verbose(`Fetching ${strategy.canvasType}: ${title}`);
-    fetchResult = await strategy.fetch(courseId, itemId);
-    const body = strategy.getBody(fetchResult);
-    const linkResolver = (href) =>
-      resolveCanvasLink(href, relativePath, canvasToRelative);
-    await downloadReferencedFiles(
-      courseId,
-      body,
-      folderName,
-      syncData,
-      canvasToLocal,
-    );
-    const fileResolver = createPullFileResolver(
-      courseId,
-      relativePath,
-      canvasToLocal,
-    );
-    markdown = canvasItemToMarkdown(fetchResult, strategy.canvasType, {
-      linkResolver,
-      fileResolver,
-      existingFrontmatter,
-    });
-  } else {
-    log.verbose(`Fetching ${strategy.canvasType}: ${title}`);
-    markdown = canvasItemToMarkdown(
-      {
-        title,
-        external_url: item.external_url,
-        // A quiz item names the quiz it links in content_id; the two link types
-        // have no content behind them and carry none.
-        content_id: item.content_id,
-        id: item.id,
-        new_tab: item.new_tab,
-      },
-      strategy.canvasType,
-      { existingFrontmatter },
-    );
-  }
-
-  fs.writeFileSync(filePath, markdown, 'utf8');
-  log.verbose(`Wrote ${targetFileName}`);
-
-  // The path is the key, and `setItem` is what makes it unique across the whole
-  // state: an item Canvas moved into this module loses its row in the old one.
-  setItem(
-    syncData,
-    folderName,
-    relativePath,
-    strategy.buildSyncEntry(item, fetchResult),
-  );
 }
 
 /**
@@ -1075,12 +462,7 @@ function createPullFileResolver(courseId, currentFilePath, canvasToLocal) {
 }
 
 module.exports = pull;
-// Exported for testing
-pull._findOldSyncPath = findOldSyncPath;
-pull._overwriteSkipReason = overwriteSkipReason;
-pull._courseHasMarkdown = courseHasMarkdown;
-pull._createPullFileResolver = createPullFileResolver;
-pull._pullStrategies = pullStrategies;
-// Exported for reuse by the sync engine, which writes the same files pull does
+// Borrowed by lib/sync/apply.js through pullInternals(); see the note there.
 pull._writeCategoryFile = writeCategoryFile;
 pull._downloadReferencedFiles = downloadReferencedFiles;
+pull._createPullFileResolver = createPullFileResolver;

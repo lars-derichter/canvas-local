@@ -1,4 +1,4 @@
-const { describe, it } = require('node:test');
+const { describe, it, afterEach, mock } = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
@@ -10,6 +10,15 @@ const {
   submissionRiskSuffix,
   submissionWarningLines,
 } = require('../../cli/backup-warning');
+
+afterEach(() => {
+  mock.restoreAll();
+});
+
+/** Everything the warning printed, as one string. */
+function said(spy) {
+  return spy.mock.calls.map((call) => call.arguments.join(' ')).join('\n');
+}
 
 describe('describeContents', () => {
   it('summarises the counts that are non-zero', () => {
@@ -204,52 +213,61 @@ describe('confirmForcedPull', () => {
   // A prompt with no stdin behind it would hang, so any test that reaches one
   // without withStdin() would time out rather than pass by accident.
   it('does not ask on an ordinary pull', async () => {
-    const ok = await confirmForcedPull({
-      syncData: {},
-      force: false,
-      hasLocalContent: true,
-    });
+    const ok = await confirmForcedPull({ force: false, guarded: 4 });
     assert.equal(ok, true);
   });
 
-  it('does not ask when --force has sync state to compare against', async () => {
-    const ok = await confirmForcedPull({
-      syncData: { last_sync: '2026-01-01T00:00:00Z' },
-      force: true,
-      hasLocalContent: true,
-    });
-    assert.equal(ok, true);
+  it('does not ask when --force has nothing to force', async () => {
+    const ok = await confirmForcedPull({ force: true, guarded: 0 });
+    assert.equal(ok, true, 'a clean tree keeps --force scriptable');
   });
 
-  it('does not ask when --force lands on an empty tree', async () => {
+  it('never asks on a dry run', async () => {
     const ok = await confirmForcedPull({
-      syncData: {},
       force: true,
-      hasLocalContent: false,
+      guarded: 3,
+      dryRun: true,
     });
-    assert.equal(ok, true, 'a first import must stay scriptable');
+    assert.equal(ok, true, 'a preview must not stop for permission');
   });
 
-  it('asks when --force meets an authored course with no sync state', async () => {
+  it('asks when --force is about to write over uncommitted work', async () => {
     const ok = await withStdin('y\n', () =>
-      confirmForcedPull({
-        syncData: {},
-        force: true,
-        hasLocalContent: true,
-      }),
+      confirmForcedPull({ force: true, guarded: 1 }),
     );
     assert.equal(ok, true);
   });
 
   it('cancels when the answer is not "y"', async () => {
     const ok = await withStdin('n\n', () =>
-      confirmForcedPull({
-        syncData: {},
-        force: true,
-        hasLocalContent: true,
-      }),
+      confirmForcedPull({ force: true, guarded: 1 }),
     );
     assert.equal(ok, false);
+  });
+
+  it('names the count, and the reason git could not answer', async () => {
+    const spy = mock.method(console, 'log', () => {});
+    await withStdin('n\n', () =>
+      confirmForcedPull({
+        force: true,
+        guarded: 7,
+        gitReason: 'course/ is not inside a git repository',
+      }),
+    );
+    assert.match(
+      said(spy),
+      /not inside a git repository/,
+      'the reason every file counts as dirty has to be in the question',
+    );
+    assert.match(said(spy), /7 local files/);
+  });
+
+  it('says a delete is at stake too when the run also prunes', async () => {
+    const spy = mock.method(console, 'log', () => {});
+    await withStdin('n\n', () =>
+      confirmForcedPull({ force: true, guarded: 1, pruneLocal: true }),
+    );
+    assert.match(said(spy), /deleted where Canvas no longer/);
   });
 });
 
