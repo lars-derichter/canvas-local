@@ -25,13 +25,15 @@ function safeReadJSON(filePath, fallback = {}) {
 
 /**
  * Read frontmatter fields from a markdown file without a YAML dependency.
- * Returns { canvasType, title, canvasId, externalUrl }.
+ * Returns { canvasType, title, externalUrl }. The Canvas id is deliberately
+ * not among them: identity lives in `.canvas-sync.json`, keyed by path, and a
+ * `canvas_id` left behind in an older file is the stale copy that made the two
+ * disagree. `getCanvasId` reads the state instead.
  */
 function readFrontmatter(filePath) {
   const result = {
     canvasType: 'page',
     title: null,
-    canvasId: null,
     externalUrl: null,
   };
   try {
@@ -50,9 +52,6 @@ function readFrontmatter(filePath) {
       result.title = titleMatch[1].trim().replace(/^["'](.*)["']$/, '$1');
     }
 
-    const idMatch = frontmatter.match(/^canvas_id:\s*(.+)$/m);
-    if (idMatch) result.canvasId = idMatch[1].trim();
-
     const urlMatch = frontmatter.match(/^external_url:\s*(.+)$/m);
     if (urlMatch)
       result.externalUrl = urlMatch[1].trim().replace(/^["'](.*)["']$/, '$1');
@@ -62,8 +61,34 @@ function readFrontmatter(filePath) {
   return result;
 }
 
-function getCanvasId(filePath) {
-  return readFrontmatter(filePath).canvasId;
+/**
+ * The Canvas id recorded for a course file, or null.
+ *
+ * Read from `.canvas-sync.json` on every call rather than cached: a push or a
+ * pull rewrites that file while the window stays open, and an id cached from
+ * before it would send the author to the wrong object — or to none at all, for
+ * an item that has only just been created.
+ *
+ * @param {string} workspaceRoot
+ * @param {string} filePath - Absolute path to the course file.
+ */
+function getCanvasId(workspaceRoot, filePath) {
+  if (!workspaceRoot) return null;
+  const relative = path.relative(path.join(workspaceRoot, 'course'), filePath);
+  if (!relative || relative.startsWith('..')) return null;
+  const key = relative.split(path.sep).join('/');
+  try {
+    const state = JSON.parse(
+      fs.readFileSync(path.join(workspaceRoot, '.canvas-sync.json'), 'utf8'),
+    );
+    for (const module of Object.values(state.modules || {})) {
+      const row = (module.items || {})[key];
+      if (row && row.canvas_id != null) return String(row.canvas_id);
+    }
+  } catch {
+    // No state, unreadable or corrupt: the item has no id we can vouch for.
+  }
+  return null;
 }
 
 // --- Icon map ---

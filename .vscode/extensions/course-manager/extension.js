@@ -751,7 +751,7 @@ function activate(context) {
       }
     }
 
-    const canvasId = getCanvasId(treeItem.filePath);
+    const canvasId = getCanvasId(workspaceRoot, treeItem.filePath);
     if (!canvasId) {
       vscode.window.showInformationMessage(
         'Canvas Course Builder: This item has not been pushed to Canvas yet.',

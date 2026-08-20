@@ -11,16 +11,55 @@ function makeTree(children = []) {
   return { type: 'root', children };
 }
 
-/** Helper: build a minimal vfile with frontMatter data. */
-function makeVfile(frontMatter) {
-  return { data: { frontMatter } };
+/** Where every fixture file lives, relative to the course directory. */
+const ITEM_PATH = '01-module/01-item.md';
+
+/** Helper: build a minimal vfile with frontMatter data and a path. */
+function makeVfile(frontMatter, filePath) {
+  return { data: { frontMatter }, path: filePath };
 }
 
-/** Helper: run the plugin transform on a tree with given frontmatter. */
-function transform(tree, frontMatter, options) {
+/**
+ * Helper: run the plugin transform on a tree with given frontmatter.
+ *
+ * A `canvas_id` in the fixture's frontmatter is written into a sync row
+ * instead, because that is where identity lives now. The tests keep naming it
+ * the way an author thinks of it — this item's Canvas id — while exercising the
+ * path the plugin actually reads.
+ */
+function transform(tree, frontMatter, options = {}) {
+  const { canvas_id: canvasId, ...rest } = frontMatter;
+  const projectDir = options.projectDir;
+  let filePath;
+
+  if (projectDir) {
+    filePath = path.join(projectDir, 'course', ITEM_PATH);
+    if (canvasId != null) {
+      writeSyncItem(projectDir, ITEM_PATH, { canvas_id: canvasId });
+    }
+  }
+
   const plugin = remarkReferenceItem(options);
-  plugin(tree, makeVfile(frontMatter));
+  plugin(tree, makeVfile(rest, filePath));
   return tree;
+}
+
+/** Merge one item row into the project's sync state, keeping what is there. */
+function writeSyncItem(projectDir, itemPath, row) {
+  const file = path.join(projectDir, '.canvas-sync.json');
+  let state = { schema_version: 4, modules: {} };
+  try {
+    state = JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch {
+    // No state yet: start from the empty one above.
+  }
+  const folder = itemPath.split('/')[0];
+  state.modules = state.modules || {};
+  state.modules[folder] = state.modules[folder] || { items: {} };
+  state.modules[folder].items = state.modules[folder].items || {};
+  state.modules[folder].items[itemPath] = row;
+  fs.writeFileSync(file, JSON.stringify(state, null, 2), 'utf8');
+  remarkReferenceItem._clearCache();
 }
 
 /** Helper: the value of a JSX attribute on a node. */
@@ -130,6 +169,49 @@ describe('remarkReferenceItem', () => {
       'https://canvas.example.com/courses/42/quizzes/987',
     );
     assert.equal(link.children[0].value, 'Open in Canvas');
+  });
+
+  it('takes the quiz id from the sync state, not from the file', () => {
+    // A `canvas_id` left behind in an older file is the stale copy that made
+    // the two disagree. The state is the only thing that speaks for identity.
+    writeSyncItem(tmpDir, ITEM_PATH, { canvas_id: 987 });
+
+    const tree = makeTree([]);
+    const plugin = remarkReferenceItem({ ...CANVAS, projectDir: tmpDir });
+    plugin(
+      tree,
+      makeVfile(
+        { canvas_type: 'quiz', canvas_id: 111 },
+        path.join(tmpDir, 'course', ITEM_PATH),
+      ),
+    );
+
+    const link = tree.children[0].children[1].children[0];
+    assert.equal(
+      attr(link, 'href'),
+      'https://canvas.example.com/courses/42/quizzes/987',
+      'the id in the state wins over the one left in the frontmatter',
+    );
+  });
+
+  it('leaves a quiz the state does not know unlinked', () => {
+    writeSyncItem(tmpDir, '01-module/02-other.md', { canvas_id: 987 });
+
+    const tree = makeTree([]);
+    const plugin = remarkReferenceItem({ ...CANVAS, projectDir: tmpDir });
+    plugin(
+      tree,
+      makeVfile(
+        { canvas_type: 'quiz' },
+        path.join(tmpDir, 'course', ITEM_PATH),
+      ),
+    );
+
+    assert.equal(
+      tree.children[0].children.length,
+      1,
+      'the card carries its type label and no link',
+    );
   });
 
   it('trims an /api/v1 suffix off the Canvas address', () => {

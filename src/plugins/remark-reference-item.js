@@ -15,6 +15,9 @@ const REFERENCE_TYPES = new Set(['quiz', 'external_tool']);
 /** Cache per project dir: the sync state is read once per process. */
 const locationCache = new Map();
 
+/** Cache per project dir: the item rows of the same sync state. */
+const itemCache = new Map();
+
 /**
  * Trim a Canvas address down to the site root, so a `/api/v1` suffix (which
  * `CANVAS_API_URL` is sometimes written with) does not end up in a link a
@@ -61,6 +64,51 @@ function readCanvasLocation(projectDir) {
 }
 
 /**
+ * Every item row the sync state holds, keyed by its repo-relative path.
+ *
+ * A quiz has no id of its own in the markdown file any more — identity lives in
+ * `.canvas-sync.json` alone, keyed by path — so the card has to look its id up
+ * the way every other reader does. A course that has never been pushed has no
+ * state and no ids, which is not an error: the card renders without its link.
+ */
+function readSyncItems(projectDir) {
+  const rows = new Map();
+  try {
+    const raw = fs.readFileSync(
+      path.join(projectDir, '.canvas-sync.json'),
+      'utf8',
+    );
+    const state = JSON.parse(raw);
+    for (const module of Object.values(state.modules || {})) {
+      for (const [itemPath, row] of Object.entries(module.items || {})) {
+        rows.set(itemPath, row);
+      }
+    }
+  } catch {
+    // Missing, unreadable or corrupt sync state: no ids, no crash.
+  }
+  return rows;
+}
+
+/**
+ * The sync row for the file being rendered, or null.
+ *
+ * Docusaurus serves `course/` at the site root, so a vfile's path is absolute
+ * and the sync key is what remains once the course directory is taken off the
+ * front of it.
+ */
+function rowForFile(projectDir, vfile) {
+  const filePath = vfile && (vfile.path || (vfile.history || [])[0]);
+  if (!filePath) return null;
+  const relative = path.relative(path.join(projectDir, 'course'), filePath);
+  if (!relative || relative.startsWith('..')) return null;
+  if (!itemCache.has(projectDir)) {
+    itemCache.set(projectDir, readSyncItems(projectDir));
+  }
+  return itemCache.get(projectDir).get(relative.split(path.sep).join('/'));
+}
+
+/**
  * Resolve the Canvas location for one plugin instance. Explicit options win
  * (that is how the tests stay hermetic); otherwise the project is inspected
  * once and the answer cached.
@@ -89,17 +137,22 @@ function cleanString(value) {
  * nothing safe to point at.
  *
  * A quiz links to its Canvas page, which needs both the course address and the
- * `canvas_id` that a push writes back; an external tool links to its own launch
- * URL, which is in the frontmatter. Missing either leaves the card unlinked
- * rather than guessing an address.
+ * id the sync state records for this file; an external tool links to its own
+ * launch URL, which is in the frontmatter. Missing either leaves the card
+ * unlinked rather than guessing an address.
+ *
+ * The quiz id is read from the sync row rather than the frontmatter because
+ * identity no longer lives in the file. A `canvas_id` left in an older file is
+ * deliberately not consulted: it is exactly the stale copy that made the two
+ * disagree, and pull strips it on the next run.
  */
-function resolveLink(frontMatter, canvas, referenceLabels) {
+function resolveLink(frontMatter, canvas, referenceLabels, syncRow) {
   if (frontMatter.canvas_type === 'external_tool') {
     const url = cleanString(frontMatter.external_url);
     return url ? { url, text: url } : null;
   }
 
-  const quizId = cleanString(frontMatter.canvas_id);
+  const quizId = cleanString(syncRow && syncRow.canvas_id);
   if (!canvas || !quizId) return null;
   return {
     url: `${canvas.baseUrl}/courses/${canvas.courseId}/quizzes/${quizId}`,
@@ -146,6 +199,7 @@ function remarkReferenceItem(options = {}) {
   const cards = { ...LABEL_SETS.en.cards, ...options.cards };
   const reference = { ...LABEL_SETS.en.reference, ...options.reference };
   const canvas = resolveCanvasLocation(options);
+  const projectDir = options.projectDir || PROJECT_DIR;
 
   return (tree, vfile) => {
     const frontMatter = vfile.data.frontMatter;
@@ -163,7 +217,12 @@ function remarkReferenceItem(options = {}) {
       ]),
     ];
 
-    const link = resolveLink(frontMatter, canvas, reference);
+    const link = resolveLink(
+      frontMatter,
+      canvas,
+      reference,
+      rowForFile(projectDir, vfile),
+    );
     if (link) {
       // A JSX <a> rather than an mdast link: these addresses are absolute and
       // external, and Docusaurus's link processing has nothing to add to them.
@@ -209,8 +268,9 @@ function remarkReferenceItem(options = {}) {
   };
 }
 
-/** Test hook: forget the cached Canvas location per project dir. */
+/** Test hook: forget the cached Canvas location and item rows per project dir. */
 function _clearCache() {
+  itemCache.clear();
   locationCache.clear();
 }
 
