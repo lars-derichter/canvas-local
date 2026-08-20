@@ -1,20 +1,19 @@
 const fs = require('fs');
 const path = require('path');
-const matter = require('gray-matter');
 const {
   COURSE_DIR,
   prompt,
   getExistingModules,
   pad,
   printModules,
-  readModuleCanvasId,
 } = require('./module-utils');
 const {
-  loadSyncFile,
-  saveSyncFile,
-  itemKey,
-  findModuleEntryByFolder,
-} = require('./sync-utils');
+  allItems,
+  deleteItem,
+  loadState,
+  saveState,
+  toPosixPath,
+} = require('../lib/sync/state');
 
 const SKIP_FILES = new Set(['_category_.json']);
 
@@ -166,65 +165,41 @@ async function selectTargetDir(rl, modulePath) {
 }
 
 /**
- * Remove the sync-state entry for an item that is about to be deleted.
- * Must be called BEFORE the file is removed: the entry is keyed by the
- * Canvas identity in the file's frontmatter. For directories (subsections)
- * every entry whose path lives inside the directory is removed.
+ * Remove the sync-state row for an item that is about to be deleted.
  *
- * @param {string} folderName  - Module folder name.
+ * Must still be called BEFORE the file is removed, but no longer because the
+ * frontmatter holds the identity: a directory is recognised by asking the
+ * filesystem what it is, and every row underneath it goes. A single file needs
+ * nothing from disk at all — its repo-relative path is the key.
+ *
+ * The module is not named either. A path is unique across the whole state, so
+ * the row is found wherever it lives, which is also what makes this correct for
+ * a file the author had already moved to another module by hand.
+ *
  * @param {string} absItemPath - Absolute path of the file or directory.
  * @returns {string|null} The relative path removed, or null when nothing matched.
  */
-function removeFromSyncState(folderName, absItemPath) {
-  const syncData = loadSyncFile({ allowNull: true });
-  if (!syncData || !syncData.modules) return null;
+function removeFromSyncState(absItemPath) {
+  const state = loadState({ allowNull: true });
+  if (!state || !state.modules) return null;
 
-  const catId = readModuleCanvasId(path.join(COURSE_DIR, folderName));
-  const moduleEntry =
-    catId != null && syncData.modules[String(catId)]
-      ? syncData.modules[String(catId)]
-      : (findModuleEntryByFolder(syncData, folderName) || [])[1];
-  if (!moduleEntry || !moduleEntry.items) return null;
+  const relativePath = toPosixPath(path.relative(COURSE_DIR, absItemPath));
 
-  const relativePath = path
-    .relative(COURSE_DIR, absItemPath)
-    .split(path.sep)
-    .join('/');
-  const keysToRemove = [];
+  const isDirectory =
+    fs.existsSync(absItemPath) && fs.statSync(absItemPath).isDirectory();
+  const doomed = isDirectory
+    ? allItems(state)
+        .map((row) => row.itemPath)
+        .filter((itemPath) => itemPath.startsWith(relativePath + '/'))
+    : [relativePath];
 
-  if (fs.existsSync(absItemPath) && fs.statSync(absItemPath).isDirectory()) {
-    for (const [key, entry] of Object.entries(moduleEntry.items)) {
-      if (entry.path && entry.path.startsWith(relativePath + '/')) {
-        keysToRemove.push(key);
-      }
-    }
-  } else {
-    let key = null;
-    if (absItemPath.endsWith('.md') && fs.existsSync(absItemPath)) {
-      try {
-        const { data } = matter(fs.readFileSync(absItemPath, 'utf8'));
-        if (data.canvas_id != null || data.external_url) {
-          key = itemKey(data.canvas_type || 'page', {
-            canvasId: data.canvas_id,
-            externalUrl: data.external_url,
-          });
-        }
-      } catch {
-        // Fall through to path matching
-      }
-    }
-    if (key && moduleEntry.items[key]) {
-      keysToRemove.push(key);
-    } else {
-      for (const [k, entry] of Object.entries(moduleEntry.items)) {
-        if (entry.path === relativePath) keysToRemove.push(k);
-      }
-    }
+  let removed = 0;
+  for (const itemPath of doomed) {
+    if (deleteItem(state, itemPath)) removed++;
   }
 
-  if (keysToRemove.length === 0) return null;
-  for (const key of keysToRemove) delete moduleEntry.items[key];
-  saveSyncFile(syncData);
+  if (removed === 0) return null;
+  saveState(state);
   return relativePath;
 }
 

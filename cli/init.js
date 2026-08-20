@@ -4,12 +4,13 @@ const readline = require('readline');
 
 const { PROJECT_ROOT } = require('./project-root');
 const {
-  loadSyncFile,
+  emptyState,
+  loadState,
   normaliseBaseUrl,
-  SCHEMA_VERSION,
-} = require('./sync-utils');
+  saveState,
+  SYNC_FILE,
+} = require('../lib/sync/state');
 
-const SYNC_FILE = path.join(PROJECT_ROOT, '.canvas-sync.json');
 const ENV_FILE = path.join(PROJECT_ROOT, '.env');
 
 /**
@@ -117,14 +118,13 @@ async function init() {
   fs.writeFileSync(ENV_FILE, envContent, 'utf8');
   console.log(`[init] Wrote ${ENV_FILE}`);
 
-  // Create .canvas-sync.json
-  const syncData = {
-    schema_version: SCHEMA_VERSION,
-    canvas_base_url: apiUrl,
-    course_id: Number(courseId),
-    modules: {},
-    last_sync: null,
-  };
+  // Create .canvas-sync.json. Starting from an empty v4 state rather than an
+  // object literal is what guarantees every container is present: a state
+  // missing `icons` or `files` reads as a hand-trimmed one, and the commands
+  // that write them would have to guard for it.
+  const syncData = emptyState();
+  syncData.canvas_base_url = apiUrl;
+  syncData.course_id = Number(courseId);
 
   // Preserve existing module mappings if the file already exists. `init` is the
   // command that repairs a sync state disagreeing with `.env`, so it reads one
@@ -132,7 +132,7 @@ async function init() {
   // Those ids belong to the course the old file describes; keeping them under a
   // new course id would rebuild exactly the mismatch, in a file that now looks
   // coherent. Only a re-init of the same course keeps them.
-  const existing = loadSyncFile({ allowNull: true, skipEnvCheck: true });
+  const existing = loadState({ allowNull: true, skipEnvCheck: true });
   const sameCourse =
     existing != null &&
     describesSameCourse(existing, { courseId, canvasBaseUrl: apiUrl });
@@ -150,7 +150,7 @@ async function init() {
     if (existing.icons) syncData.icons = existing.icons;
   }
 
-  fs.writeFileSync(SYNC_FILE, JSON.stringify(syncData, null, 2) + '\n', 'utf8');
+  saveState(syncData);
   console.log(`[init] Wrote ${SYNC_FILE}`);
 
   console.log(

@@ -18,7 +18,7 @@ const {
 
 afterEach(() => mock.restoreAll());
 
-const WELCOME_MD = '---\ntitle: Welcome\ncanvas_id: 4242\n---\n\nHello.\n';
+const WELCOME_MD = '---\ntitle: Welcome\n---\n\nHello.\n';
 
 /**
  * Keep the real filesystem for everything the push machinery legitimately
@@ -58,19 +58,44 @@ function localModule(overrides = {}) {
         relativePath: '01-mod/01-welcome.md',
         position: 2,
         indent: 0,
-        frontmatter: { canvas_id: 4242, title: pageTitle },
+        // No canvas_id: the file says what it is called and nothing about
+        // which Canvas page it is. That answer is in the sync state below.
+        frontmatter: { title: pageTitle },
       },
       ...extra,
     ],
   };
 }
 
-/** Sync state that already knows the module, keyed the way v3 keys it. */
-function syncState() {
+/**
+ * Sync state as a previous push left it: the module keyed by its folder name,
+ * and the page keyed by its repo-relative path.
+ */
+function syncState(items = pageRow()) {
   return {
-    schema_version: 3,
-    modules: { 580457: { folder: '01-mod', items: {} } },
+    schema_version: 4,
+    modules: {
+      '01-mod': {
+        canvas_module_id: 580457,
+        name: 'Getting Started',
+        position: 1,
+        item_order: Object.keys(items),
+        items,
+      },
+    },
+    icons: {},
     files: {},
+  };
+}
+
+/** The row a previous push recorded for the welcome page. */
+function pageRow() {
+  return {
+    '01-mod/01-welcome.md': {
+      canvas_type: 'page',
+      canvas_id: 4242,
+      page_url: 'welcome',
+    },
   };
 }
 
@@ -165,7 +190,7 @@ describe('pushModule: a module Canvas already matches', () => {
 
   it('updates the one item whose title moved, and nothing else', async () => {
     silence();
-    fakeCourseFile('---\ntitle: Welkom\ncanvas_id: 4242\n---\n\nHallo.\n');
+    fakeCourseFile('---\ntitle: Welkom\n---\n\nHallo.\n');
 
     const { calls, errors } = await run({
       mod: localModule({ pageTitle: 'Welkom' }),
@@ -216,7 +241,7 @@ describe('pushModule: module item ids survive a second push', () => {
     // Second push, with one title edited so there is something to write: the
     // items Canvas now holds are the ones the first push made.
     silence();
-    fakeCourseFile('---\ntitle: Welkom\ncanvas_id: 4242\n---\n\nHallo.\n');
+    fakeCourseFile('---\ntitle: Welkom\n---\n\nHallo.\n');
     const second = await run({
       mod: localModule({ pageTitle: 'Welkom' }),
       routes: [
@@ -286,7 +311,7 @@ describe('pushModule: an external URL gets its id from the reconcile', () => {
     frontmatter: { external_url: 'https://example.com/syllabus' },
   };
 
-  it('writes the new module item id to frontmatter and sync state', async () => {
+  it('records the new module item id in the sync state and not in the file', async () => {
     silence();
     const written = fakeCourseFile();
 
@@ -307,32 +332,36 @@ describe('pushModule: an external URL gets its id from the reconcile', () => {
       indent: 0,
       new_tab: true,
     });
-    assert.equal(syllabus.frontmatter.canvas_id, 6001);
+    assert.deepEqual(sync.modules['01-mod'].items['01-mod/02-syllabus.md'], {
+      canvas_type: 'external_url',
+      // A link has no Canvas object behind it, so the module item is both.
+      canvas_id: 6001,
+      module_item_id: 6001,
+      external_url: 'https://example.com/syllabus',
+    });
     const frontmatterWrite = written.find((w) =>
       w.path.endsWith('02-syllabus.md'),
     );
-    assert.match(frontmatterWrite.body, /canvas_id: 6001/);
-    assert.deepEqual(
-      sync.modules['580457'].items['external_url:https://example.com/syllabus'],
-      {
-        path: '01-mod/02-syllabus.md',
-        canvas_id: 6001,
-        canvas_type: 'external_url',
-        external_url: 'https://example.com/syllabus',
-      },
+    assert.ok(
+      !frontmatterWrite || !/canvas_id/.test(frontmatterWrite.body),
+      'the id Canvas issued never reaches the file',
     );
   });
 
   it('leaves an already-placed one untouched on the next push', async () => {
     silence();
     const written = fakeCourseFile();
-    const placed = {
-      ...syllabus,
-      frontmatter: { ...syllabus.frontmatter, canvas_id: 6001 },
-    };
 
     const { calls } = await run({
-      mod: localModule({ extra: [placed] }),
+      mod: localModule({ extra: [syllabus] }),
+      sync: syncState({
+        ...pageRow(),
+        '01-mod/02-syllabus.md': {
+          canvas_type: 'external_url',
+          canvas_id: 6001,
+          external_url: 'https://example.com/syllabus',
+        },
+      }),
       routes: baseRoutes([
         ...liveMatchingLocal(),
         {
@@ -353,7 +382,7 @@ describe('pushModule: an external URL gets its id from the reconcile', () => {
     );
     assert.ok(
       !written.some((w) => w.path.endsWith('02-syllabus.md')),
-      'an id that did not change is not restated in the file',
+      'a file that already names itself is not rewritten',
     );
   });
 });
@@ -382,18 +411,33 @@ describe('pushModule: an item that moved to another module', () => {
         relativePath: '02-mod/01-welcome.md',
         position: 1,
         indent: 0,
-        frontmatter: { canvas_id: 4242, title: 'Welcome' },
+        frontmatter: { title: 'Welcome' },
       },
     ],
   };
 
   function twoModuleSync() {
     return {
-      schema_version: 3,
+      schema_version: 4,
       modules: {
-        580457: { folder: '01-mod', items: {} },
-        580458: { folder: '02-mod', items: {} },
+        '01-mod': {
+          canvas_module_id: 580457,
+          item_order: [],
+          items: {},
+        },
+        '02-mod': {
+          canvas_module_id: 580458,
+          item_order: ['02-mod/01-welcome.md'],
+          items: {
+            '02-mod/01-welcome.md': {
+              canvas_type: 'page',
+              canvas_id: 4242,
+              page_url: 'welcome',
+            },
+          },
+        },
       },
+      icons: {},
       files: {},
     };
   }
@@ -515,7 +559,7 @@ describe('pushModule: an item that moved to another module', () => {
 describe('pushModule: a dry run', () => {
   it('says what the item list would become and writes nothing', async () => {
     const logged = silence().log;
-    fakeCourseFile('---\ntitle: Welkom\ncanvas_id: 4242\n---\n\nHallo.\n');
+    fakeCourseFile('---\ntitle: Welkom\n---\n\nHallo.\n');
 
     const { calls, errors } = await run({
       mod: localModule({ pageTitle: 'Welkom' }),
@@ -559,17 +603,10 @@ describe('pushModule: a page whose slug Canvas regenerated', () => {
     // the recorded pair a dry run would call every page a create.
     const logged = silence().log;
     fakeCourseFile();
-    const sync = syncState();
-    sync.modules['580457'].items['page:4242'] = {
-      path: '01-mod/01-welcome.md',
-      canvas_id: 4242,
-      canvas_type: 'page',
-      page_url: 'welcome',
-    };
 
     const { calls } = await run({
       dryRun: true,
-      sync,
+      sync: syncState(),
       routes: [
         {
           method: 'GET',
@@ -605,7 +642,7 @@ describe('pushModule: a page whose slug Canvas regenerated', () => {
 
   it('matches it on content_id and updates the listing in place', async () => {
     silence();
-    fakeCourseFile('---\ntitle: Welkom\ncanvas_id: 4242\n---\n\nHallo.\n');
+    fakeCourseFile('---\ntitle: Welkom\n---\n\nHallo.\n');
 
     const { calls, errors } = await run({
       mod: localModule({ pageTitle: 'Welkom' }),
@@ -738,6 +775,189 @@ describe('pushModule: new_tab', () => {
     );
     assert.deepEqual(calls.at(-1).body.module_item, { new_tab: false });
     assert.equal(calls.filter((c) => c.method === 'POST').length, 0);
+  });
+});
+
+describe('pushModule: identity lives in the sync state', () => {
+  /**
+   * A module holding one page with no `title:` and no id anywhere in the file,
+   * under the usual text header. Built fresh per call: push writes the title
+   * back into the scanned item, so a shared fixture would only be untitled once.
+   */
+  function freshModule() {
+    return {
+      folderName: '01-mod',
+      moduleName: 'Getting Started',
+      position: 1,
+      items: [
+        {
+          type: 'subheader',
+          title: 'Part 1',
+          position: 1,
+          indent: 0,
+          items: [],
+        },
+        {
+          type: 'item',
+          canvasType: 'page',
+          title: 'Welcome',
+          relativePath: '01-mod/01-welcome.md',
+          position: 2,
+          indent: 0,
+          frontmatter: {},
+        },
+      ],
+    };
+  }
+
+  /** Sync state that knows the module but nothing inside it. */
+  function emptyModuleSync() {
+    return syncState({});
+  }
+
+  it('records a created page in the sync state and writes no id to the file', async () => {
+    silence();
+    const written = fakeCourseFile('---\n---\n\nHello.\n');
+
+    const { sync, errors } = await run({
+      mod: freshModule(),
+      sync: emptyModuleSync(),
+      routes: [
+        { method: 'GET', path: '/modules/580457/items', body: [] },
+        { method: 'PUT', path: '/modules/580457', body: { id: 580457 } },
+        {
+          method: 'POST',
+          path: '/pages',
+          body: { page_id: 4242, url: 'welcome' },
+        },
+        { method: 'POST', path: '/modules/580457/items', body: { id: 5001 } },
+        { method: 'POST', path: '/modules/580457/items', body: { id: 5002 } },
+      ],
+    });
+
+    assert.deepEqual(errors, []);
+    assert.deepEqual(sync.modules['01-mod'].items['01-mod/01-welcome.md'], {
+      canvas_type: 'page',
+      canvas_id: 4242,
+      page_url: 'welcome',
+      // The page and the module item listing it are two Canvas objects, and
+      // the row addresses both.
+      module_item_id: 5002,
+    });
+    assert.deepEqual(sync.modules['01-mod'].item_order, [
+      '01-mod/01-welcome.md',
+    ]);
+
+    const fileWrite = written.find((w) => w.path.endsWith('01-welcome.md'));
+    assert.ok(fileWrite, 'the file is written, to give it a title');
+    assert.doesNotMatch(
+      fileWrite.body,
+      /canvas_id/,
+      'the Canvas id it just learned stays out of the file',
+    );
+  });
+
+  it('writes an explicit title so the filename stops being the display name', async () => {
+    silence();
+    const written = fakeCourseFile('---\n---\n\nHello.\n');
+
+    await run({
+      mod: freshModule(),
+      sync: emptyModuleSync(),
+      routes: [
+        { method: 'GET', path: '/modules/580457/items', body: [] },
+        { method: 'PUT', path: '/modules/580457', body: { id: 580457 } },
+        {
+          method: 'POST',
+          path: '/pages',
+          body: { page_id: 4242, url: 'welcome' },
+        },
+        { method: 'POST', path: '/modules/580457/items', body: { id: 5001 } },
+        { method: 'POST', path: '/modules/580457/items', body: { id: 5002 } },
+      ],
+    });
+
+    const fileWrite = written.find((w) => w.path.endsWith('01-welcome.md'));
+    assert.match(fileWrite.body, /^---\ntitle: Welcome\n/);
+  });
+
+  it('leaves a file that already names itself alone', async () => {
+    silence();
+    const written = fakeCourseFile();
+
+    await run({ routes: baseRoutes(liveMatchingLocal()) });
+
+    assert.ok(
+      !written.some((w) => w.path.endsWith('01-welcome.md')),
+      'a title that is already there is not restated',
+    );
+  });
+
+  it('finds the page by path on the next push and updates it in place', async () => {
+    // The first run's state is handed to the second, which is the whole point:
+    // nothing in the file said which page this was, and the second push still
+    // updates 4242 rather than creating a second one.
+    silence();
+    fakeCourseFile('---\n---\n\nHello.\n');
+
+    const first = await run({
+      mod: freshModule(),
+      sync: emptyModuleSync(),
+      routes: [
+        { method: 'GET', path: '/modules/580457/items', body: [] },
+        { method: 'PUT', path: '/modules/580457', body: { id: 580457 } },
+        {
+          method: 'POST',
+          path: '/pages',
+          body: { page_id: 4242, url: 'welcome' },
+        },
+        { method: 'POST', path: '/modules/580457/items', body: { id: 5001 } },
+        { method: 'POST', path: '/modules/580457/items', body: { id: 5002 } },
+      ],
+    });
+    mock.restoreAll();
+
+    silence();
+    fakeCourseFile('---\ntitle: Welcome\n---\n\nHello.\n');
+    const second = await run({
+      mod: freshModule(),
+      sync: first.sync,
+      routes: baseRoutes(liveMatchingLocal()),
+    });
+
+    assert.deepEqual(second.errors, []);
+    assert.deepEqual(
+      second.calls.map((c) => `${c.method} ${c.url.split('/api/v1')[1]}`),
+      [
+        'GET /courses/45083/modules/580457/items',
+        'PUT /courses/45083/modules/580457',
+        'PUT /courses/45083/pages/4242',
+      ],
+      'the page is updated by the id the first run recorded, and nothing is created',
+    );
+  });
+
+  it('takes the module id from the sync state, with no _category_.json anywhere', async () => {
+    // `fakeCourseFile` deliberately lets the real read of _category_.json raise
+    // ENOENT: the folder carries no Canvas id, and the module is still found.
+    silence();
+    const written = fakeCourseFile();
+
+    const { calls, errors } = await run({
+      routes: baseRoutes(liveMatchingLocal()),
+    });
+
+    assert.deepEqual(errors, []);
+    assert.ok(
+      calls.some(
+        (c) => c.method === 'PUT' && c.url.endsWith('/modules/580457'),
+      ),
+      'the folder resolved to its Canvas module through the sync state alone',
+    );
+    assert.ok(
+      !written.some((w) => w.path.endsWith('_category_.json')),
+      'and push writes no id back into the folder',
+    );
   });
 });
 

@@ -3,7 +3,7 @@ const path = require('path');
 const crypto = require('crypto');
 
 const { listModules, listModuleItems } = require('../lib/canvas/modules');
-const { getPage } = require('../lib/canvas/pages');
+const { buildPageUrlToPageId, getPage } = require('../lib/canvas/pages');
 const { getAssignment } = require('../lib/canvas/assignments');
 const {
   getDiscussion,
@@ -23,13 +23,15 @@ const {
 const { downloadFile } = require('../lib/canvas/files');
 const {
   SYNC_FILE,
-  buildPageUrlToPageId,
-  loadSyncFile,
-  saveSyncFile,
-  itemKey,
-  ensureModuleEntry,
-  removeItemFromOtherModules,
-} = require('./sync-utils');
+  ensureModule,
+  findModuleByCanvasId,
+  getModule,
+  loadState,
+  renameFolder,
+  renamePaths,
+  saveState,
+  setItem,
+} = require('../lib/sync/state');
 const { COURSE_DIR, safeReadJSON } = require('./module-utils');
 const {
   toFolderName,
@@ -68,7 +70,7 @@ async function pull(options) {
   }
 
   const force = options && options.force;
-  const syncData = loadSyncFile();
+  const syncData = loadState();
 
   log.info(`[pull] Fetching modules for course ${courseId}...`);
   const modules = await listModules(courseId);
@@ -137,12 +139,12 @@ async function pull(options) {
       errors.push({ module: mod.name, error: err.message });
     }
     // Save sync state after each module so progress is preserved on failure
-    saveSyncFile(syncData);
+    saveState(syncData);
   }
 
   // Update last_sync
   syncData.last_sync = new Date().toISOString();
-  saveSyncFile(syncData);
+  saveState(syncData);
 
   log.info(`\n[pull] Sync file updated: ${SYNC_FILE}`);
 
@@ -157,20 +159,18 @@ async function pull(options) {
 }
 
 /**
- * Write a folder's _category_.json with the Canvas-derived label/position and
- * module id, preserving any other fields (collapsed, className, custom
- * customProps, ...) the user added locally.
+ * Write a folder's _category_.json with the Canvas-derived label and position,
+ * preserving any other fields (collapsed, className, customProps, ...) the user
+ * added locally.
+ *
+ * The Canvas module id no longer belongs here. `_category_.json` is Docusaurus's
+ * file and the author's; the sync state, keyed by folder name, is the one place
+ * that says which Canvas module a folder is.
  */
-function writeCategoryFile(folderDir, label, position, canvasModuleId) {
+function writeCategoryFile(folderDir, label, position) {
   const catFile = path.join(folderDir, '_category_.json');
   const existing = safeReadJSON(catFile, {});
   const merged = { ...existing, label, position };
-  if (canvasModuleId != null) {
-    merged.customProps = {
-      ...(merged.customProps || {}),
-      canvas_module_id: canvasModuleId,
-    };
-  }
   fs.writeFileSync(catFile, JSON.stringify(merged, null, 2) + '\n', 'utf8');
 }
 
@@ -189,51 +189,36 @@ async function pullModule(
 
   log.info(`[pull] Module: ${mod.name} -> ${folderName}/`);
 
-  // The module is keyed by its Canvas id, so a rename/move on Canvas just
-  // means the stored folder name no longer matches the derived one.
-  const moduleIdKey = String(mod.id);
-  const existingEntry = syncData.modules && syncData.modules[moduleIdKey];
-  if (
-    existingEntry &&
-    existingEntry.folder &&
-    existingEntry.folder !== folderName
-  ) {
-    const oldFolder = existingEntry.folder;
+  // The folder is the key now, so a rename or a move on Canvas shows up as a
+  // module whose Canvas id is already known under a different folder name.
+  const existing = findModuleByCanvasId(syncData, mod.id);
+  if (existing && existing[0] !== folderName) {
+    const oldFolder = existing[0];
     const oldDir = path.join(COURSE_DIR, oldFolder);
     if (fs.existsSync(oldDir) && !fs.existsSync(moduleDir)) {
       log.verbose(`Module folder renamed: ${oldFolder}/ -> ${folderName}/`);
       fs.renameSync(oldDir, moduleDir);
     }
-
-    // Update item paths within the entry
-    const oldPrefix = oldFolder + '/';
-    for (const entry of Object.values(existingEntry.items || {})) {
-      if (entry.path && entry.path.startsWith(oldPrefix)) {
-        entry.path = folderName + '/' + entry.path.slice(oldPrefix.length);
-      }
-    }
-
-    // Update file tracking keys
-    if (syncData.files) {
-      for (const [filePath, fileData] of Object.entries(syncData.files)) {
-        if (filePath.startsWith(oldPrefix)) {
-          const newFilePath = folderName + filePath.slice(oldFolder.length);
-          syncData.files[newFilePath] = fileData;
-          delete syncData.files[filePath];
-        }
-      }
-    }
+    // One call re-keys the module, the path of every item inside it and the
+    // rows for the binaries under its `_files/`.
+    renameFolder(syncData, oldFolder, folderName);
   }
 
   if (!fs.existsSync(moduleDir)) {
     fs.mkdirSync(moduleDir, { recursive: true });
   }
 
-  // Track module in sync data
-  const moduleEntry = ensureModuleEntry(syncData, mod.id, folderName);
+  // Track module in sync data. Every `setItem` below needs the module to be
+  // there already, with its Canvas id: a module row that names no Canvas module
+  // is one the next push cannot reconcile.
+  ensureModule(syncData, folderName, {
+    canvas_module_id: mod.id,
+    name: mod.name,
+    position,
+  });
 
   // Write _category_.json for the module folder (preserving custom fields)
-  writeCategoryFile(moduleDir, mod.name, position, mod.id);
+  writeCategoryFile(moduleDir, mod.name, position);
 
   // Fetch module items
   const items = await listModuleItems(courseId, mod.id);
@@ -314,9 +299,9 @@ async function pullModule(
   // ---- Phase 2: Rename existing files to match new Canvas positions ----
   const renamed = reconcileExistingFiles(
     planned,
-    moduleEntry.items,
-    moduleDir,
+    syncData,
     folderName,
+    moduleDir,
   );
 
   // Rebuild link maps if files were renamed so link resolution uses updated paths
@@ -338,7 +323,7 @@ async function pullModule(
         fs.mkdirSync(subfolderDir, { recursive: true });
       }
       log.verbose(`SubHeader: ${p.item.title} -> ${p.targetFolderName}/`);
-      writeCategoryFile(subfolderDir, p.item.title, p.position, null);
+      writeCategoryFile(subfolderDir, p.item.title, p.position);
       continue;
     }
 
@@ -351,8 +336,6 @@ async function pullModule(
           syncData,
           force,
           folderName,
-          moduleEntry,
-          moduleIdKey,
         );
       } catch (err) {
         log.error(
@@ -373,8 +356,6 @@ async function pullModule(
         folderName,
         canvasToRelative,
         canvasToLocal,
-        moduleEntry,
-        moduleIdKey,
       );
     } catch (err) {
       log.error(
@@ -385,56 +366,50 @@ async function pullModule(
 }
 
 /**
- * Find the old sync-state relative path for a Canvas item by matching identifiers.
+ * The path the last sync recorded for a Canvas item, or null.
+ *
+ * This is the one lookup that still runs the other way round. Everything else
+ * in v4 asks "what does the state say about this path"; a pull starts from a
+ * Canvas item and has to find out which local file it used to be, so it scans
+ * the module's rows for one whose stored identity matches. Cheap — a module
+ * holds a handful of rows — and it needs no map to keep in step with the
+ * renames happening around it.
+ *
+ * The identities are tried most reliable first: a page slug, a launch URL, then
+ * the numeric ids. `_resolvedPageId` comes before `content_id` because a page's
+ * slug changes when Canvas regenerates it from a new title and the wiki page id
+ * behind it does not.
+ *
+ * @param {object} item        - A Canvas module item.
+ * @param {object} moduleItems - The module's `items` map, keyed by path.
+ * @returns {string|null}
  */
-function findOldSyncPath(item, identifierMap) {
+function findOldSyncPath(item, moduleItems) {
+  const rows = Object.entries(moduleItems || {});
+  const firstMatch = (matches) => {
+    for (const [itemPath, row] of rows) if (matches(row)) return itemPath;
+    return null;
+  };
+
   if (item.page_url) {
-    const found = identifierMap.get('page:' + item.page_url);
+    const found = firstMatch(
+      (row) =>
+        row.page_url != null && String(row.page_url) === String(item.page_url),
+    );
     if (found) return found;
   }
   if (item.external_url) {
-    const found = identifierMap.get('url:' + item.external_url);
+    const found = firstMatch((row) => row.external_url === item.external_url);
     if (found) return found;
   }
-  // Match by resolved page_id (stable across renames, unlike page_url)
-  if (item._resolvedPageId) {
-    const found = identifierMap.get('id:' + item._resolvedPageId);
-    if (found) return found;
-  }
-  if (item.content_id) {
-    const found = identifierMap.get('id:' + item.content_id);
-    if (found) return found;
-  }
-  if (item.id) {
-    const found = identifierMap.get('id:' + item.id);
+  for (const id of [item._resolvedPageId, item.content_id, item.id]) {
+    if (id == null) continue;
+    const found = firstMatch(
+      (row) => row.canvas_id != null && String(row.canvas_id) === String(id),
+    );
     if (found) return found;
   }
   return null;
-}
-
-/**
- * Build a reverse lookup map: identifier -> current local relative path.
- */
-function buildIdentifierMap(moduleItems) {
-  const map = new Map();
-  for (const entry of Object.values(moduleItems || {})) {
-    if (!entry.path) continue;
-    if (entry.page_url) map.set('page:' + entry.page_url, entry.path);
-    if (entry.external_url) map.set('url:' + entry.external_url, entry.path);
-    if (entry.canvas_id != null) map.set('id:' + entry.canvas_id, entry.path);
-  }
-  return map;
-}
-
-/**
- * Update every item entry whose path starts with a renamed prefix.
- */
-function updateEntryPathPrefix(moduleItems, oldPrefix, newPrefix) {
-  for (const entry of Object.values(moduleItems || {})) {
-    if (entry.path && entry.path.startsWith(oldPrefix)) {
-      entry.path = newPrefix + entry.path.slice(oldPrefix.length);
-    }
-  }
 }
 
 /**
@@ -473,10 +448,10 @@ function cleanupTempFiles(moduleDir, tempPrefix) {
  */
 function reconcileSubfolders(
   planned,
-  identifierMap,
-  moduleDir,
+  state,
   folderName,
-  moduleItems,
+  moduleDir,
+  moduleEntry,
   tempPrefix,
 ) {
   const renames = [];
@@ -487,7 +462,7 @@ function reconcileSubfolders(
       (c) => c.kind !== 'subfolder' && c.subfolderName === p.targetFolderName,
     );
     for (const child of children) {
-      const oldRelPath = findOldSyncPath(child.item, identifierMap);
+      const oldRelPath = findOldSyncPath(child.item, moduleEntry.items);
       if (!oldRelPath) continue;
 
       const relToModule = oldRelPath.slice(folderName.length + 1);
@@ -524,14 +499,14 @@ function reconcileSubfolders(
       );
       log.verbose(`Renamed subfolder: ${sr.oldName}/ -> ${sr.newName}/`);
 
-      const oldPrefix = folderName + '/' + sr.oldName + '/';
-      const newPrefix = folderName + '/' + sr.newName + '/';
-      updateEntryPathPrefix(moduleItems, oldPrefix, newPrefix);
-      for (const [id, relPath] of identifierMap) {
-        if (relPath.startsWith(oldPrefix)) {
-          identifierMap.set(id, newPrefix + relPath.slice(oldPrefix.length));
-        }
-      }
+      // One directory move: `renamePaths` re-keys every row underneath it,
+      // the subfolder's own `_files/` rows included.
+      renamePaths(state, [
+        {
+          from: `${folderName}/${sr.oldName}`,
+          to: `${folderName}/${sr.newName}`,
+        },
+      ]);
     }
   } catch (err) {
     for (const sr of renames) {
@@ -558,9 +533,9 @@ function reconcileSubfolders(
  */
 function reconcileFileRenames(
   planned,
-  identifierMap,
+  state,
   folderName,
-  moduleItems,
+  moduleEntry,
   tempPrefix,
 ) {
   const renames = [];
@@ -571,7 +546,7 @@ function reconcileFileRenames(
       ? path.posix.join(folderName, p.subfolderName, p.targetFileName)
       : path.posix.join(folderName, p.targetFileName);
 
-    const oldRelPath = findOldSyncPath(p.item, identifierMap);
+    const oldRelPath = findOldSyncPath(p.item, moduleEntry.items);
     if (!oldRelPath || oldRelPath === targetRelPath) continue;
 
     const oldAbsPath = path.resolve(COURSE_DIR, oldRelPath);
@@ -596,19 +571,19 @@ function reconcileFileRenames(
       r._tempPath = path.join(dir, tempPrefix + path.basename(r.newAbsPath));
       fs.renameSync(r.oldAbsPath, r._tempPath);
     }
-    // Pass 2: rename to final names and update sync state
+    // Pass 2: rename to final names
     for (const r of renames) {
       fs.renameSync(r._tempPath, r.newAbsPath);
       log.verbose(
         `Renamed: ${path.basename(r.oldRelPath)} -> ${path.basename(r.newRelPath)}`,
       );
-
-      for (const entry of Object.values(moduleItems || {})) {
-        if (entry.path === r.oldRelPath) {
-          entry.path = r.newRelPath;
-        }
-      }
     }
+    // …and then re-key the rows, once the whole batch has landed, so a pair of
+    // files that swapped names does not collide halfway through.
+    renamePaths(
+      state,
+      renames.map((r) => ({ from: r.oldRelPath, to: r.newRelPath })),
+    );
   } catch (err) {
     for (const r of renames) {
       if (r._tempPath && fs.existsSync(r._tempPath)) {
@@ -629,24 +604,24 @@ function reconcileFileRenames(
  * Rename existing local files/folders to match new Canvas positions.
  * Returns true if any renames were performed.
  */
-function reconcileExistingFiles(planned, moduleItems, moduleDir, folderName) {
-  const identifierMap = buildIdentifierMap(moduleItems);
+function reconcileExistingFiles(planned, state, folderName, moduleDir) {
+  const moduleEntry = getModule(state, folderName);
   const tempPrefix = '__pull_temp_';
 
   cleanupTempFiles(moduleDir, tempPrefix);
   const subfoldersRenamed = reconcileSubfolders(
     planned,
-    identifierMap,
-    moduleDir,
+    state,
     folderName,
-    moduleItems,
+    moduleDir,
+    moduleEntry,
     tempPrefix,
   );
   const filesRenamed = reconcileFileRenames(
     planned,
-    identifierMap,
+    state,
     folderName,
-    moduleItems,
+    moduleEntry,
     tempPrefix,
   );
 
@@ -720,8 +695,6 @@ async function pullFileItem(
   syncData,
   force,
   folderName,
-  moduleEntry,
-  moduleIdKey,
 ) {
   const title = item.title || loadCourseConfig().labels.pull.untitled;
   const contentId = item.content_id;
@@ -790,7 +763,6 @@ async function pullFileItem(
   const wrapperData = {
     title,
     canvas_type: 'file',
-    canvas_id: contentId,
     file_ref: fileRef,
   };
   for (const [key, value] of Object.entries(
@@ -804,13 +776,11 @@ async function pullFileItem(
 
   // Update sync state
   const relativePath = computeRelativePath(folderName, wrapperPath, COURSE_DIR);
-  const key = itemKey('file', { canvasId: contentId });
-  moduleEntry.items[key] = {
-    path: relativePath,
-    canvas_id: contentId,
+  setItem(syncData, folderName, relativePath, {
     canvas_type: 'file',
-  };
-  removeItemFromOtherModules(syncData, key, moduleIdKey);
+    canvas_id: contentId,
+    module_item_id: item.id,
+  });
 }
 
 /**
@@ -836,9 +806,10 @@ const pullStrategies = {
     getBody: (result) => result.body || '',
     canvasType: 'page',
     buildSyncEntry: (item, result) => ({
-      canvas_id: result.page_id || result.url,
       canvas_type: 'page',
+      canvas_id: result.page_id || result.url,
       page_url: item.page_url,
+      module_item_id: item.id,
     }),
   },
   Assignment: {
@@ -848,8 +819,9 @@ const pullStrategies = {
     getBody: (result) => result.description || '',
     canvasType: 'assignment',
     buildSyncEntry: (item) => ({
-      canvas_id: item.content_id,
       canvas_type: 'assignment',
+      canvas_id: item.content_id,
+      module_item_id: item.id,
     }),
   },
   Discussion: {
@@ -862,8 +834,9 @@ const pullStrategies = {
     getBody: (result) => result.message || '',
     canvasType: 'discussion',
     buildSyncEntry: (item) => ({
-      canvas_id: item.content_id,
       canvas_type: 'discussion',
+      canvas_id: item.content_id,
+      module_item_id: item.id,
     }),
   },
   Quiz: {
@@ -882,8 +855,9 @@ const pullStrategies = {
     getBody: null,
     canvasType: 'quiz',
     buildSyncEntry: (item) => ({
-      canvas_id: item.content_id,
       canvas_type: 'quiz',
+      canvas_id: item.content_id,
+      module_item_id: item.id,
     }),
   },
   ExternalUrl: {
@@ -893,8 +867,9 @@ const pullStrategies = {
     getBody: null,
     canvasType: 'external_url',
     buildSyncEntry: (item) => ({
-      canvas_id: item.id,
       canvas_type: 'external_url',
+      canvas_id: item.id,
+      module_item_id: item.id,
       external_url: item.external_url,
     }),
   },
@@ -908,8 +883,9 @@ const pullStrategies = {
     getBody: null,
     canvasType: 'external_tool',
     buildSyncEntry: (item) => ({
-      canvas_id: item.id,
       canvas_type: 'external_tool',
+      canvas_id: item.id,
+      module_item_id: item.id,
       external_url: item.external_url,
     }),
   },
@@ -925,8 +901,6 @@ async function pullItem(
   folderName,
   canvasToRelative,
   canvasToLocal,
-  moduleEntry,
-  moduleIdKey,
 ) {
   const title = item.title || loadCourseConfig().labels.pull.untitled;
   const strategy = pullStrategies[item.type];
@@ -1003,14 +977,14 @@ async function pullItem(
   fs.writeFileSync(filePath, markdown, 'utf8');
   log.verbose(`Wrote ${targetFileName}`);
 
-  const entry = strategy.buildSyncEntry(item, fetchResult);
-  entry.path = relativePath;
-  const key = itemKey(entry.canvas_type, {
-    canvasId: entry.canvas_id,
-    externalUrl: entry.external_url,
-  });
-  moduleEntry.items[key] = entry;
-  removeItemFromOtherModules(syncData, key, moduleIdKey);
+  // The path is the key, and `setItem` is what makes it unique across the whole
+  // state: an item Canvas moved into this module loses its row in the old one.
+  setItem(
+    syncData,
+    folderName,
+    relativePath,
+    strategy.buildSyncEntry(item, fetchResult),
+  );
 }
 
 /**
@@ -1102,7 +1076,6 @@ function createPullFileResolver(courseId, currentFilePath, canvasToLocal) {
 
 module.exports = pull;
 // Exported for testing
-pull._buildIdentifierMap = buildIdentifierMap;
 pull._findOldSyncPath = findOldSyncPath;
 pull._overwriteSkipReason = overwriteSkipReason;
 pull._courseHasMarkdown = courseHasMarkdown;

@@ -6,6 +6,7 @@ const {
   printModules,
 } = require('./module-utils');
 const { reorder } = require('./renumber');
+const { recordRenames } = require('./sync-renames');
 
 async function moveModule(options = {}) {
   let modules;
@@ -90,6 +91,7 @@ async function moveModule(options = {}) {
     sourceModule.prefix,
     targetPosition,
   );
+  recordRenames([{ fromDir: COURSE_DIR, renames }]);
 
   if (renames.length > 0) {
     console.log('[move-module] Reordered modules:');

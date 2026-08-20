@@ -327,11 +327,9 @@ describe('pushing a discussion', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'push-discussion-'));
     tmpDirs.push(dir);
     const filePath = path.join(dir, '03-debate.md');
-    const frontmatter = {
-      title: 'Week 1 debate',
-      canvas_type: 'discussion',
-      ...(canvasId != null ? { canvas_id: canvasId } : {}),
-    };
+    // No `canvas_id` here on purpose: which Canvas topic this file is comes in
+    // as an argument, resolved by the caller from the sync state.
+    const frontmatter = { title: 'Week 1 debate', canvas_type: 'discussion' };
     fs.writeFileSync(
       filePath,
       serializeFrontmatter(frontmatter, 'Say something.\n'),
@@ -339,7 +337,7 @@ describe('pushing a discussion', () => {
     );
 
     const calls = mockCanvas(routes);
-    const { moduleItem } = await pushContentItem(
+    const { moduleItem, resolvedId } = await pushContentItem(
       42,
       {
         title: 'Week 1 debate',
@@ -358,7 +356,7 @@ describe('pushing a discussion', () => {
       discussionStrategy,
     );
 
-    return { calls, filePath, warned, moduleItem };
+    return { calls, filePath, warned, moduleItem, resolvedId };
   }
 
   const createdTopic = {
@@ -367,8 +365,8 @@ describe('pushing a discussion', () => {
     body: { id: 77, title: 'Week 1 debate' },
   };
 
-  it('creates the topic when the file has no canvas_id', async () => {
-    const { calls, filePath } = await pushDiscussion({
+  it('creates the topic when the sync state knows of none', async () => {
+    const { calls, filePath, resolvedId } = await pushDiscussion({
       routes: [createdTopic],
     });
 
@@ -381,14 +379,19 @@ describe('pushing a discussion', () => {
       !calls.some((c) => c.method === 'PUT'),
       'nothing to update when there is no id yet',
     );
-    assert.match(
+    assert.equal(
+      resolvedId,
+      77,
+      'the new id comes back for the caller to record',
+    );
+    assert.doesNotMatch(
       fs.readFileSync(filePath, 'utf8'),
-      /canvas_id: 77/,
-      'the new id is written back to the frontmatter',
+      /canvas_id/,
+      'and it is not written into the file',
     );
   });
 
-  it('updates the topic the frontmatter already names', async () => {
+  it('updates the topic the sync state already names', async () => {
     const { calls } = await pushDiscussion({
       canvasId: 55,
       routes: [
@@ -405,7 +408,7 @@ describe('pushing a discussion', () => {
     assert.match(
       updated.url,
       /\/courses\/42\/discussion_topics\/55$/,
-      'the update goes to the id the frontmatter holds',
+      'the update goes to the id the sync state holds',
     );
     assert.match(updated.body.message, /Say something\./);
     assert.ok(
@@ -416,8 +419,8 @@ describe('pushing a discussion', () => {
     );
   });
 
-  it('creates a new topic when Canvas 404s the id in the frontmatter', async () => {
-    const { calls, filePath } = await pushDiscussion({
+  it('creates a new topic when Canvas 404s the id it was given', async () => {
+    const { calls, filePath, resolvedId } = await pushDiscussion({
       canvasId: 55,
       routes: [
         {
@@ -440,7 +443,8 @@ describe('pushing a discussion', () => {
       ),
       'and the 404 falls back to a create',
     );
-    assert.match(fs.readFileSync(filePath, 'utf8'), /canvas_id: 77/);
+    assert.equal(resolvedId, 77, 'the replacement id comes back');
+    assert.doesNotMatch(fs.readFileSync(filePath, 'utf8'), /canvas_id/);
   });
 
   it('describes the topic as a Discussion module item', async () => {
@@ -686,6 +690,7 @@ describe('pushing a quiz', () => {
    */
   async function pushQuizItem({
     frontmatter: extra = {},
+    canvasId = null,
     routes,
     dryRun = false,
   }) {
@@ -695,6 +700,8 @@ describe('pushing a quiz', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'push-quiz-'));
     tmpDirs.push(dir);
     const filePath = path.join(dir, '05-test.md');
+    // Which quiz this file names comes in as `canvasId`, read from the sync
+    // state by the caller. The file itself only declares its type and package.
     const frontmatter = {
       title: 'Test 1',
       canvas_type: 'quiz',
@@ -707,7 +714,7 @@ describe('pushing a quiz', () => {
     const calls = mockCanvas(routes || []);
     const moduleItem = await pushQuiz(
       42,
-      { title: 'Test 1', filePath, position: 5, indent: 0, frontmatter },
+      { title: 'Test 1', canvasId, position: 5, indent: 0, frontmatter },
       dryRun,
     );
 
@@ -734,7 +741,7 @@ describe('pushing a quiz', () => {
   };
   it('describes the quiz as a Quiz module item', async () => {
     const { moduleItem } = await pushQuizItem({
-      frontmatter: { canvas_id: 12 },
+      canvasId: 12,
       routes: [quizListed],
     });
 
@@ -749,7 +756,7 @@ describe('pushing a quiz', () => {
 
   it('never writes to the quiz itself', async () => {
     const { calls } = await pushQuizItem({
-      frontmatter: { canvas_id: 12 },
+      canvasId: 12,
       routes: [quizListed],
     });
 
@@ -759,28 +766,32 @@ describe('pushing a quiz', () => {
     );
   });
 
-  it('matches by title and writes the id back when the file has no canvas_id', async () => {
+  it('matches by title when the sync state names no quiz', async () => {
     const { moduleItem, filePath } = await pushQuizItem({
       routes: [quizListed],
     });
 
-    assert.match(
-      fs.readFileSync(filePath, 'utf8'),
-      /canvas_id: 12/,
-      'the resolved id is written back so the next push skips the lookup',
+    assert.equal(
+      moduleItem.contentId,
+      12,
+      'the resolved id comes back for the caller to record',
     );
-    assert.equal(moduleItem.contentId, 12);
+    assert.doesNotMatch(
+      fs.readFileSync(filePath, 'utf8'),
+      /canvas_id/,
+      'and never reaches the file',
+    );
   });
 
-  it('recovers by title when the canvas_id is no longer in the course', async () => {
+  it('recovers by title when the recorded id is no longer in the course', async () => {
     const { moduleItem, filePath, warned } = await pushQuizItem({
-      frontmatter: { canvas_id: 999 },
+      canvasId: 999,
       routes: [quizListed],
     });
 
     const text = warned.mock.calls.map((c) => c.arguments[0]).join('\n');
     assert.match(text, /Quiz 999 is no longer in this course/);
-    assert.match(fs.readFileSync(filePath, 'utf8'), /canvas_id: 12/);
+    assert.doesNotMatch(fs.readFileSync(filePath, 'utf8'), /canvas_id/);
     assert.equal(moduleItem.contentId, 12);
   });
 
@@ -819,13 +830,14 @@ describe('pushing a quiz', () => {
     );
   });
 
-  it('places a quiz that has no quiz_ref but whose canvas_id resolves', async () => {
-    // A quiz pulled from a Canvas-authored course carries an id and no
+  it('places a quiz that has no quiz_ref but whose recorded id resolves', async () => {
+    // A quiz pulled from a Canvas-authored course has a recorded id and no
     // quiz_ref, and validate deliberately keeps that state valid. Skipping it
     // here would drop the quiz out of its module on the next push, which is
     // the exact loss this content type exists to prevent.
     const { moduleItem, warned } = await pushQuizItem({
-      frontmatter: { quiz_ref: null, canvas_id: 12 },
+      frontmatter: { quiz_ref: null },
+      canvasId: 12,
       routes: [quizListed],
     });
 
@@ -842,7 +854,7 @@ describe('pushing a quiz', () => {
 
     assert.ok(moduleItem, 'expected the item to be placed anyway');
     assert.equal(moduleItem.contentId, 12);
-    assert.match(fs.readFileSync(filePath, 'utf8'), /canvas_id: 12/);
+    assert.doesNotMatch(fs.readFileSync(filePath, 'utf8'), /canvas_id/);
   });
 
   it('says there is nothing to import when the quiz is missing and so is quiz_ref', async () => {
@@ -875,7 +887,7 @@ describe('pushing a quiz', () => {
 
 describe('collectUpdatedAssignments', () => {
   it('collects only the assignments Canvas already holds', () => {
-    const updated = collectUpdatedAssignments([
+    const updated = collectFor([
       courseModule([
         assignmentItem({ canvas_id: 500, points_possible: 10 }),
         assignmentItem(
@@ -898,7 +910,7 @@ describe('collectUpdatedAssignments', () => {
   });
 
   it('carries the options push itself would send', () => {
-    const [entry] = collectUpdatedAssignments([
+    const [entry] = collectFor([
       courseModule([
         assignmentItem({
           canvas_id: 500,
@@ -915,7 +927,7 @@ describe('collectUpdatedAssignments', () => {
   });
 
   it('looks inside subfolders', () => {
-    const updated = collectUpdatedAssignments([
+    const updated = collectFor([
       courseModule([
         {
           type: 'subheader',
@@ -944,8 +956,7 @@ describe('warnGradeImpact', () => {
 
   it('warns that a new denominator leaves the grades already given unscaled', async () => {
     quiet();
-    const lines = await warnGradeImpact(
-      42,
+    const lines = await warnFor(
       [courseModule([assignmentItem({ canvas_id: 500, points_possible: 12 })])],
       async () => [canvasAssignment()],
     );
@@ -959,8 +970,7 @@ describe('warnGradeImpact', () => {
 
   it('stays silent when the points possible are unchanged', async () => {
     quiet();
-    const lines = await warnGradeImpact(
-      42,
+    const lines = await warnFor(
       [courseModule([assignmentItem({ canvas_id: 500, points_possible: 10 })])],
       async () => [canvasAssignment()],
     );
@@ -970,8 +980,7 @@ describe('warnGradeImpact', () => {
 
   it('warns that a new due date re-runs the late policy', async () => {
     quiet();
-    const lines = await warnGradeImpact(
-      42,
+    const lines = await warnFor(
       [
         courseModule([
           assignmentItem({ canvas_id: 500, due_at: '2026-03-08T23:59:00Z' }),
@@ -990,8 +999,7 @@ describe('warnGradeImpact', () => {
 
   it('reads a due date as an instant, not as a string', async () => {
     quiet();
-    const lines = await warnGradeImpact(
-      42,
+    const lines = await warnFor(
       [
         courseModule([
           assignmentItem({
@@ -1008,8 +1016,7 @@ describe('warnGradeImpact', () => {
 
   it('warns that Canvas ignores a submission type change once work is in', async () => {
     quiet();
-    const lines = await warnGradeImpact(
-      42,
+    const lines = await warnFor(
       [
         courseModule([
           assignmentItem({
@@ -1032,8 +1039,7 @@ describe('warnGradeImpact', () => {
 
   it('says nothing about an assignment without student submissions', async () => {
     quiet();
-    const lines = await warnGradeImpact(
-      42,
+    const lines = await warnFor(
       [
         courseModule([
           assignmentItem({
@@ -1052,8 +1058,7 @@ describe('warnGradeImpact', () => {
 
   it('hedges when the submission state could not be read', async () => {
     quiet();
-    const lines = await warnGradeImpact(
-      42,
+    const lines = await warnFor(
       [courseModule([assignmentItem({ canvas_id: 500, points_possible: 12 })])],
       async () => [canvasAssignment({ has_submitted_submissions: undefined })],
     );
@@ -1065,8 +1070,7 @@ describe('warnGradeImpact', () => {
 
   it('warns once per changed field', async () => {
     quiet();
-    const lines = await warnGradeImpact(
-      42,
+    const lines = await warnFor(
       [
         courseModule([
           assignmentItem({
@@ -1086,8 +1090,7 @@ describe('warnGradeImpact', () => {
   it('looks the whole course up once however many assignments are pushed', async () => {
     quiet();
     let calls = 0;
-    const lines = await warnGradeImpact(
-      42,
+    const lines = await warnFor(
       [
         courseModule([
           assignmentItem({ canvas_id: 500, points_possible: 12 }),
@@ -1122,8 +1125,7 @@ describe('warnGradeImpact', () => {
 
   it('makes no request when no assignment exists on Canvas yet', async () => {
     quiet();
-    const lines = await warnGradeImpact(
-      42,
+    const lines = await warnFor(
       [
         courseModule([
           assignmentItem({ points_possible: 12 }),
@@ -1146,8 +1148,7 @@ describe('warnGradeImpact', () => {
 
   it('leaves an assignment Canvas no longer lists alone', async () => {
     quiet();
-    const lines = await warnGradeImpact(
-      42,
+    const lines = await warnFor(
       [courseModule([assignmentItem({ canvas_id: 999, points_possible: 12 })])],
       async () => [canvasAssignment()],
     );
@@ -1157,8 +1158,7 @@ describe('warnGradeImpact', () => {
 
   it('degrades to a warning when the lookup fails, and lets the push run', async () => {
     const warned = mock.method(console, 'warn', () => {});
-    const lines = await warnGradeImpact(
-      42,
+    const lines = await warnFor(
       [courseModule([assignmentItem({ canvas_id: 500, points_possible: 12 })])],
       async () => {
         throw new Error('403 Forbidden');
@@ -1222,6 +1222,57 @@ function courseModule(items, folderName = '01-mod') {
     position: 1,
     items,
   };
+}
+
+/**
+ * The sync state these scanned modules would have after a push, and the only
+ * place the id lives once it is built.
+ *
+ * The fixtures declare `canvas_id` in frontmatter as shorthand for "a previous
+ * push already recorded this one". This turns that shorthand into the row the
+ * code under test actually reads — and then strips the frontmatter copy, so a
+ * path that went back to reading the file would find nothing and fail.
+ */
+function syncFor(modules) {
+  const state = { schema_version: 4, modules: {}, icons: {}, files: {} };
+  let moduleId = 900;
+  for (const mod of modules) {
+    const items = {};
+    const order = [];
+    const walk = (list) => {
+      for (const item of list) {
+        if (item.type === 'subheader') {
+          walk(item.items || []);
+          continue;
+        }
+        const canvasId = item.frontmatter && item.frontmatter.canvas_id;
+        if (canvasId == null) continue;
+        delete item.frontmatter.canvas_id;
+        items[item.relativePath] = {
+          canvas_type: item.canvasType || 'page',
+          canvas_id: canvasId,
+        };
+        order.push(item.relativePath);
+      }
+    };
+    walk(mod.items);
+    state.modules[mod.folderName] = {
+      canvas_module_id: moduleId++,
+      item_order: order,
+      items,
+    };
+  }
+  return state;
+}
+
+/** `collectUpdatedAssignments` against the state these fixtures imply. */
+function collectFor(modules) {
+  return collectUpdatedAssignments(syncFor(modules), modules);
+}
+
+/** `warnGradeImpact` against the state these fixtures imply. */
+function warnFor(modules, fetchAssignments) {
+  return warnGradeImpact(42, syncFor(modules), modules, fetchAssignments);
 }
 
 /** A scanned assignment item carrying the given frontmatter. */

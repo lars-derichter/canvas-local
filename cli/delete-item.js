@@ -9,18 +9,19 @@ const {
   removeFromSyncState,
 } = require('./item-utils');
 const { renumberSequential } = require('./renumber');
+const { recordRenames } = require('./sync-renames');
 
 /**
  * Core delete: removes the entry, cleans its sync-state record, and
  * renumbers the remaining siblings.
  */
-function deleteEntry(targetDir, entryName, folderName) {
+function deleteEntry(targetDir, entryName) {
   const itemPath = path.join(targetDir, entryName);
   const isDirectory = fs.statSync(itemPath).isDirectory();
 
-  // Capture the item's Canvas identity before deleting so the sync entry
-  // (keyed by identity) can be removed too.
-  const removed = removeFromSyncState(folderName, itemPath);
+  // Drop the sync row before the file goes: a directory is recognised by
+  // asking the filesystem what it is, which only works while it is there.
+  const removed = removeFromSyncState(itemPath);
 
   if (isDirectory) {
     fs.rmSync(itemPath, { recursive: true });
@@ -34,6 +35,7 @@ function deleteEntry(targetDir, entryName, folderName) {
 
   // Renumber remaining items
   const renames = renumberSequential(targetDir, getItems);
+  recordRenames([{ fromDir: targetDir, renames }]);
   if (renames.length > 0) {
     console.log('[delete-item] Renumbered remaining items:');
     for (const r of renames) {
@@ -73,7 +75,7 @@ async function deleteItem(options = {}) {
       );
       process.exit(1);
     }
-    deleteEntry(path.dirname(itemPath), path.basename(itemPath), folderName);
+    deleteEntry(path.dirname(itemPath), path.basename(itemPath));
     return;
   }
 
@@ -81,7 +83,7 @@ async function deleteItem(options = {}) {
 
   console.log('[delete-item] Delete an item from a module\n');
 
-  const { modulePath, folderName } = await selectModule(rl);
+  const { modulePath } = await selectModule(rl);
   const targetDir = await selectTargetDir(rl, modulePath);
   const items = getItems(targetDir);
 
@@ -116,7 +118,7 @@ async function deleteItem(options = {}) {
     return;
   }
 
-  deleteEntry(targetDir, item.name, folderName);
+  deleteEntry(targetDir, item.name);
 }
 
 module.exports = deleteItem;

@@ -114,32 +114,6 @@ function safeReadJSON(filePath, fallback = {}) {
 }
 
 /**
- * Read the Canvas module id stored in a module folder's _category_.json
- * (under customProps, which Docusaurus passes through untouched).
- * Returns the numeric id or null.
- */
-function readModuleCanvasId(moduleDir) {
-  const cat = safeReadJSON(path.join(moduleDir, '_category_.json'), null);
-  const id = cat && cat.customProps && cat.customProps.canvas_module_id;
-  return id != null ? id : null;
-}
-
-/**
- * Write the Canvas module id into a module folder's _category_.json,
- * preserving all other fields. Creates the file when missing.
- */
-function writeModuleCanvasId(moduleDir, canvasModuleId, defaults = {}) {
-  const catFile = path.join(moduleDir, '_category_.json');
-  const cat = safeReadJSON(catFile, {});
-  const merged = { ...defaults, ...cat };
-  merged.customProps = {
-    ...(merged.customProps || {}),
-    canvas_module_id: canvasModuleId,
-  };
-  fs.writeFileSync(catFile, JSON.stringify(merged, null, 2) + '\n', 'utf8');
-}
-
-/**
  * Print the list of existing modules.
  */
 function printModules(modules) {
@@ -161,6 +135,4 @@ module.exports = {
   createRL,
   printModules,
   safeReadJSON,
-  readModuleCanvasId,
-  writeModuleCanvasId,
 };

@@ -275,7 +275,7 @@ program
 program
   .command('reset-sync-state')
   .description(
-    'Remove all canvas_id fields from course files and delete .canvas-sync.json',
+    'Delete .canvas-sync.json and clear any Canvas ids older versions left in course files',
   )
   .action(require('./reset-sync-state'));
 

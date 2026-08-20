@@ -9,6 +9,7 @@ const {
   selectTargetDir,
 } = require('./item-utils');
 const { renumberUp } = require('./renumber');
+const { recordRenames } = require('./sync-renames');
 
 const VALID_TYPES = ['page', 'assignment', 'url', 'subsection', 'file'];
 
@@ -46,7 +47,9 @@ function createEntry(
 ) {
   const items = getItems(targetDir);
   if (items.some((i) => i.prefix >= position)) {
-    renumberUp(targetDir, items, position);
+    recordRenames([
+      { fromDir: targetDir, renames: renumberUp(targetDir, items, position) },
+    ]);
   }
 
   if (type === 'file') {

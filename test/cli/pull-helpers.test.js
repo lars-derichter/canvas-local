@@ -11,7 +11,6 @@ process.env.CANVAS_API_TOKEN = 'test-token-123';
 const pull = require('../../cli/pull');
 
 const {
-  _buildIdentifierMap: buildIdentifierMap,
   _findOldSyncPath: findOldSyncPath,
   _overwriteSkipReason: overwriteSkipReason,
   _courseHasMarkdown: courseHasMarkdown,
@@ -19,105 +18,85 @@ const {
   _pullStrategies: pullStrategies,
 } = pull;
 
-describe('buildIdentifierMap', () => {
-  it('maps page_url to relative path', () => {
-    const items = {
-      'page:42': {
-        path: '01-mod/01-page.md',
-        page_url: 'my-page',
-        canvas_id: 42,
-      },
-    };
-    const map = buildIdentifierMap(items);
-    assert.equal(map.get('page:my-page'), '01-mod/01-page.md');
-  });
-
-  it('maps external_url to relative path', () => {
-    const items = {
-      'external_url:https://example.com': {
-        path: '01-mod/02-link.md',
-        external_url: 'https://example.com',
-        canvas_id: 5,
-      },
-    };
-    const map = buildIdentifierMap(items);
-    assert.equal(map.get('url:https://example.com'), '01-mod/02-link.md');
-  });
-
-  it('maps canvas_id to relative path', () => {
-    const items = {
-      'assignment:99': { path: '01-mod/03-assign.md', canvas_id: 99 },
-    };
-    const map = buildIdentifierMap(items);
-    assert.equal(map.get('id:99'), '01-mod/03-assign.md');
-  });
-
-  it('handles items with multiple identifiers', () => {
-    const items = {
-      'page:10': { path: '01-mod/01-page.md', page_url: 'slug', canvas_id: 10 },
-    };
-    const map = buildIdentifierMap(items);
-    assert.equal(map.get('page:slug'), '01-mod/01-page.md');
-    assert.equal(map.get('id:10'), '01-mod/01-page.md');
-  });
-
-  it('handles empty moduleItems', () => {
-    const map = buildIdentifierMap({});
-    assert.equal(map.size, 0);
-  });
-});
-
 describe('findOldSyncPath', () => {
-  it('finds by page_url first', () => {
-    const map = new Map([['page:my-page', '01-mod/01-page.md']]);
+  it('finds a row by its page slug', () => {
+    const items = {
+      '01-mod/01-page.md': {
+        canvas_type: 'page',
+        canvas_id: 42,
+        page_url: 'my-page',
+      },
+    };
     assert.equal(
-      findOldSyncPath({ page_url: 'my-page' }, map),
+      findOldSyncPath({ page_url: 'my-page' }, items),
       '01-mod/01-page.md',
     );
   });
 
-  it('finds by external_url', () => {
-    const map = new Map([['url:https://example.com', '01-mod/02-link.md']]);
+  it('finds a row by its launch URL', () => {
+    const items = {
+      '01-mod/02-link.md': {
+        canvas_type: 'external_url',
+        canvas_id: 5,
+        external_url: 'https://example.com',
+      },
+    };
     assert.equal(
-      findOldSyncPath({ external_url: 'https://example.com' }, map),
+      findOldSyncPath({ external_url: 'https://example.com' }, items),
       '01-mod/02-link.md',
     );
   });
 
-  it('finds by _resolvedPageId', () => {
-    const map = new Map([['id:42', '01-mod/01-page.md']]);
+  it('finds a page by the wiki page id its slug resolved to', () => {
+    const items = {
+      '01-mod/01-page.md': { canvas_type: 'page', canvas_id: 42 },
+    };
     assert.equal(
-      findOldSyncPath({ _resolvedPageId: 42 }, map),
+      findOldSyncPath({ _resolvedPageId: 42 }, items),
       '01-mod/01-page.md',
     );
   });
 
-  it('finds by content_id', () => {
-    const map = new Map([['id:99', '01-mod/03-assign.md']]);
+  it('finds a row by content_id', () => {
+    const items = {
+      '01-mod/03-assign.md': { canvas_type: 'assignment', canvas_id: 99 },
+    };
     assert.equal(
-      findOldSyncPath({ content_id: 99 }, map),
+      findOldSyncPath({ content_id: 99 }, items),
       '01-mod/03-assign.md',
     );
   });
 
-  it('finds by id as fallback', () => {
-    const map = new Map([['id:7', '01-mod/04-item.md']]);
-    assert.equal(findOldSyncPath({ id: 7 }, map), '01-mod/04-item.md');
+  it('finds a row by the module item id as a fallback', () => {
+    const items = {
+      '01-mod/04-item.md': { canvas_type: 'external_url', canvas_id: 7 },
+    };
+    assert.equal(findOldSyncPath({ id: 7 }, items), '01-mod/04-item.md');
   });
 
-  it('returns null when no match', () => {
-    const map = new Map();
-    assert.equal(findOldSyncPath({ id: 999 }, map), null);
+  it('returns null when no row matches', () => {
+    assert.equal(findOldSyncPath({ id: 999 }, {}), null);
+    assert.equal(findOldSyncPath({ id: 999 }, undefined), null);
   });
 
-  it('prefers page_url over id', () => {
-    const map = new Map([
-      ['page:slug', '01-mod/by-slug.md'],
-      ['id:42', '01-mod/by-id.md'],
-    ]);
+  it('prefers the slug over the id', () => {
+    const items = {
+      '01-mod/by-slug.md': { canvas_type: 'page', page_url: 'slug' },
+      '01-mod/by-id.md': { canvas_type: 'page', canvas_id: 42 },
+    };
     assert.equal(
-      findOldSyncPath({ page_url: 'slug', id: 42 }, map),
+      findOldSyncPath({ page_url: 'slug', id: 42 }, items),
       '01-mod/by-slug.md',
+    );
+  });
+
+  it('compares an id Canvas gave as a number against one stored as a string', () => {
+    const items = {
+      '01-mod/03-assign.md': { canvas_type: 'assignment', canvas_id: '99' },
+    };
+    assert.equal(
+      findOldSyncPath({ content_id: 99 }, items),
+      '01-mod/03-assign.md',
     );
   });
 });
@@ -303,15 +282,16 @@ describe('pullStrategies', () => {
     assert.equal(pullStrategies.Page.getId({ page_url: 'my-page' }), 'my-page');
   });
 
-  it('Page strategy builds sync entry with page_url', () => {
+  it('Page strategy builds sync entry with page_url and module item id', () => {
     const entry = pullStrategies.Page.buildSyncEntry(
-      { page_url: 'my-page' },
+      { id: 5002, page_url: 'my-page' },
       { page_id: 42, url: 'my-page' },
     );
     assert.deepEqual(entry, {
-      canvas_id: 42,
       canvas_type: 'page',
+      canvas_id: 42,
       page_url: 'my-page',
+      module_item_id: 5002,
     });
   });
 
@@ -328,8 +308,15 @@ describe('pullStrategies', () => {
   });
 
   it('Assignment strategy builds sync entry', () => {
-    const entry = pullStrategies.Assignment.buildSyncEntry({ content_id: 99 });
-    assert.deepEqual(entry, { canvas_id: 99, canvas_type: 'assignment' });
+    const entry = pullStrategies.Assignment.buildSyncEntry({
+      id: 5003,
+      content_id: 99,
+    });
+    assert.deepEqual(entry, {
+      canvas_type: 'assignment',
+      canvas_id: 99,
+      module_item_id: 5003,
+    });
   });
 
   it('Discussion strategy extracts content_id as id', () => {
@@ -345,8 +332,15 @@ describe('pullStrategies', () => {
   });
 
   it('Discussion strategy builds sync entry', () => {
-    const entry = pullStrategies.Discussion.buildSyncEntry({ content_id: 77 });
-    assert.deepEqual(entry, { canvas_id: 77, canvas_type: 'discussion' });
+    const entry = pullStrategies.Discussion.buildSyncEntry({
+      id: 5004,
+      content_id: 77,
+    });
+    assert.deepEqual(entry, {
+      canvas_type: 'discussion',
+      canvas_id: 77,
+      module_item_id: 5004,
+    });
   });
 
   it('Discussion strategy fetches the topic the module item names', async () => {
@@ -387,8 +381,16 @@ describe('pullStrategies', () => {
   });
 
   it('Quiz strategy builds sync entry keyed on the quiz id', () => {
-    const entry = pullStrategies.Quiz.buildSyncEntry({ content_id: 12 });
-    assert.deepEqual(entry, { canvas_id: 12, canvas_type: 'quiz' });
+    const entry = pullStrategies.Quiz.buildSyncEntry({
+      id: 5005,
+      content_id: 12,
+    });
+    assert.deepEqual(entry, {
+      canvas_type: 'quiz',
+      canvas_id: 12,
+      // The quiz outlives the item that links it, so the two are kept apart.
+      module_item_id: 5005,
+    });
   });
 
   it('Quiz strategy requires a content_id, so a quiz item is not written blind', () => {
@@ -405,8 +407,10 @@ describe('pullStrategies', () => {
       external_url: 'https://example.com',
     });
     assert.deepEqual(entry, {
-      canvas_id: 7,
       canvas_type: 'external_url',
+      // The module item is the whole of a link, so both ids are the same one.
+      canvas_id: 7,
+      module_item_id: 7,
       external_url: 'https://example.com',
     });
   });

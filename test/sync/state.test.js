@@ -18,7 +18,9 @@ const {
   loadState,
   normaliseBaseUrl,
   renameFolder,
+  renameFolders,
   renamePath,
+  renamePaths,
   saveState,
   setItem,
   toPosixPath,
@@ -859,6 +861,307 @@ describe('renameFolder', () => {
       /already holds a module[\s\S]*unreachable/,
     );
     assert.deepEqual(state, before);
+  });
+});
+
+describe('renamePaths', () => {
+  /** A state with one module and the rows the tests move around. */
+  function synced(items, files = {}) {
+    return {
+      schema_version: SCHEMA_VERSION,
+      modules: {
+        '01-mod': {
+          canvas_module_id: 100,
+          item_order: Object.keys(items),
+          items,
+        },
+      },
+      icons: {},
+      files,
+    };
+  }
+
+  /** A page row carrying everything a sync writes onto one. */
+  function pageRow(canvasId, slug) {
+    return {
+      canvas_type: 'page',
+      canvas_id: canvasId,
+      page_url: slug,
+      module_item_id: canvasId + 1000,
+      local_hash: `local-${canvasId}`,
+      canvas_hash: `canvas-${canvasId}`,
+      canvas_updated_at: '2026-08-19T09:59:00.000Z',
+      synced_at: '2026-08-19T10:00:00.000Z',
+    };
+  }
+
+  it('carries the Canvas ids and both fingerprints to the new path', () => {
+    const state = synced({ '01-mod/01-welcome.md': pageRow(1234, 'welcome') });
+
+    assert.equal(
+      renamePaths(state, [
+        { from: '01-mod/01-welcome.md', to: '01-mod/03-welcome.md' },
+      ]),
+      1,
+    );
+
+    assert.deepEqual(
+      state.modules['01-mod'].items['01-mod/03-welcome.md'],
+      pageRow(1234, 'welcome'),
+    );
+    assert.equal(
+      state.modules['01-mod'].items['01-mod/01-welcome.md'],
+      undefined,
+      'and nothing is left at the old path',
+    );
+  });
+
+  it('keeps the renamed row in the slot it had in the base order', () => {
+    const state = synced({
+      '01-mod/01-a.md': pageRow(1, 'a'),
+      '01-mod/02-b.md': pageRow(2, 'b'),
+      '01-mod/03-c.md': pageRow(3, 'c'),
+    });
+
+    renamePaths(state, [{ from: '01-mod/02-b.md', to: '01-mod/02-bee.md' }]);
+
+    assert.deepEqual(state.modules['01-mod'].item_order, [
+      '01-mod/01-a.md',
+      '01-mod/02-bee.md',
+      '01-mod/03-c.md',
+    ]);
+  });
+
+  it("renumbers several files into each other's slots with every row intact", () => {
+    // What `renumber` does after a deletion: everything below the gap shifts
+    // up one, so each move lands on a path its neighbour still holds.
+    const state = synced({
+      '01-mod/02-b.md': pageRow(2, 'b'),
+      '01-mod/03-c.md': pageRow(3, 'c'),
+      '01-mod/04-d.md': pageRow(4, 'd'),
+    });
+
+    const moved = renamePaths(state, [
+      { from: '01-mod/02-b.md', to: '01-mod/01-b.md' },
+      { from: '01-mod/03-c.md', to: '01-mod/02-c.md' },
+      { from: '01-mod/04-d.md', to: '01-mod/03-d.md' },
+    ]);
+
+    assert.equal(moved, 3);
+    assert.deepEqual(Object.keys(state.modules['01-mod'].items), [
+      '01-mod/01-b.md',
+      '01-mod/02-c.md',
+      '01-mod/03-d.md',
+    ]);
+    assert.equal(state.modules['01-mod'].items['01-mod/01-b.md'].canvas_id, 2);
+    assert.equal(state.modules['01-mod'].items['01-mod/02-c.md'].canvas_id, 3);
+    assert.equal(state.modules['01-mod'].items['01-mod/03-d.md'].canvas_id, 4);
+  });
+
+  it('swaps two rows that trade filenames', () => {
+    const state = synced({
+      '01-mod/01-a.md': pageRow(1, 'a'),
+      '01-mod/02-b.md': pageRow(2, 'b'),
+    });
+
+    renamePaths(state, [
+      { from: '01-mod/01-a.md', to: '01-mod/02-b.md' },
+      { from: '01-mod/02-b.md', to: '01-mod/01-a.md' },
+    ]);
+
+    assert.equal(state.modules['01-mod'].items['01-mod/02-b.md'].canvas_id, 1);
+    assert.equal(state.modules['01-mod'].items['01-mod/01-a.md'].canvas_id, 2);
+  });
+
+  it('leaves a path the state never knew alone, without throwing', () => {
+    const state = synced({ '01-mod/01-a.md': pageRow(1, 'a') });
+    const before = JSON.parse(JSON.stringify(state));
+
+    assert.equal(
+      renamePaths(state, [
+        { from: '01-mod/09-untracked.md', to: '01-mod/08-untracked.md' },
+      ]),
+      0,
+    );
+    assert.deepEqual(state, before);
+  });
+
+  it('ignores a move that goes nowhere', () => {
+    const state = synced({ '01-mod/01-a.md': pageRow(1, 'a') });
+    assert.equal(
+      renamePaths(state, [{ from: '01-mod/01-a.md', to: '01-mod/01-a.md' }]),
+      0,
+    );
+    assert.ok(state.modules['01-mod'].items['01-mod/01-a.md']);
+  });
+
+  it('moves everything under a subsection folder that was renamed', () => {
+    const state = synced(
+      {
+        '01-mod/01-sub/01-a.md': pageRow(1, 'a'),
+        '01-mod/01-sub/02-b.md': pageRow(2, 'b'),
+        '01-mod/02-outside.md': pageRow(3, 'outside'),
+      },
+      { '01-mod/01-sub/_files/diagram.png': { canvas_file_id: 500 } },
+    );
+
+    renamePaths(state, [{ from: '01-mod/01-sub', to: '01-mod/03-renamed' }]);
+
+    assert.deepEqual(Object.keys(state.modules['01-mod'].items).sort(), [
+      '01-mod/02-outside.md',
+      '01-mod/03-renamed/01-a.md',
+      '01-mod/03-renamed/02-b.md',
+    ]);
+    assert.deepEqual(
+      Object.keys(state.files),
+      ['01-mod/03-renamed/_files/diagram.png'],
+      'the binaries under a moved folder move with it',
+    );
+  });
+
+  it('moves a row into another module and out of the one it left', () => {
+    const state = synced({ '01-mod/01-a.md': pageRow(1, 'a') });
+    state.modules['02-mod'] = {
+      canvas_module_id: 200,
+      item_order: [],
+      items: {},
+    };
+
+    renamePaths(state, [{ from: '01-mod/01-a.md', to: '02-mod/01-a.md' }]);
+
+    assert.deepEqual(state.modules['01-mod'].items, {});
+    assert.deepEqual(state.modules['01-mod'].item_order, []);
+    assert.equal(state.modules['02-mod'].items['02-mod/01-a.md'].canvas_id, 1);
+    assert.deepEqual(state.modules['02-mod'].item_order, ['02-mod/01-a.md']);
+  });
+
+  it('opens a module the state has never seen so the row has somewhere to land', () => {
+    // An item dragged into a folder that has not been pushed. The module is
+    // recorded without a Canvas id; the next push creates it and fills that in.
+    const state = synced({ '01-mod/01-a.md': pageRow(1, 'a') });
+
+    assert.equal(
+      renamePaths(state, [{ from: '01-mod/01-a.md', to: '09-new/01-a.md' }]),
+      1,
+    );
+
+    assert.equal(state.modules['09-new'].canvas_module_id, undefined);
+    assert.equal(state.modules['09-new'].items['09-new/01-a.md'].canvas_id, 1);
+  });
+
+  it('puts a row back rather than park it under a temporary key', () => {
+    // Renaming onto a file that was already there, which the filesystem allows
+    // and `renamePath` refuses. The row stays where it was; nothing in the
+    // committed file is left addressing a name no author would recognise.
+    const state = synced({
+      '01-mod/01-a.md': pageRow(1, 'a'),
+      '01-mod/02-b.md': pageRow(2, 'b'),
+    });
+
+    assert.equal(
+      renamePaths(state, [{ from: '01-mod/01-a.md', to: '01-mod/02-b.md' }]),
+      0,
+    );
+
+    assert.equal(state.modules['01-mod'].items['01-mod/01-a.md'].canvas_id, 1);
+    assert.equal(state.modules['01-mod'].items['01-mod/02-b.md'].canvas_id, 2);
+    assert.ok(
+      !Object.keys(state.modules['01-mod'].items).some((p) =>
+        p.includes('__ccb_rename_'),
+      ),
+    );
+  });
+
+  it('copes with an empty batch and a hand-trimmed files section', () => {
+    const state = synced({ '01-mod/01-a.md': pageRow(1, 'a') });
+    delete state.files;
+    assert.equal(renamePaths(state, []), 0);
+    assert.equal(renamePaths(state, undefined), 0);
+  });
+});
+
+describe('renameFolders', () => {
+  function twoModules() {
+    return {
+      schema_version: SCHEMA_VERSION,
+      modules: {
+        '01-intro': {
+          canvas_module_id: 100,
+          item_order: ['01-intro/01-a.md'],
+          items: { '01-intro/01-a.md': { canvas_type: 'page', canvas_id: 1 } },
+        },
+        '02-setup': {
+          canvas_module_id: 200,
+          item_order: ['02-setup/01-b.md'],
+          items: { '02-setup/01-b.md': { canvas_type: 'page', canvas_id: 2 } },
+        },
+      },
+      icons: {},
+      files: {
+        '01-intro/_files/one.png': { canvas_file_id: 501 },
+        '02-setup/_files/two.png': { canvas_file_id: 502 },
+      },
+    };
+  }
+
+  it("carries a module's items and its embedded files to the new folder", () => {
+    const state = twoModules();
+
+    assert.equal(
+      renameFolders(state, [{ from: '01-intro', to: '01-introduction' }]),
+      1,
+    );
+
+    assert.equal(state.modules['01-intro'], undefined);
+    assert.equal(state.modules['01-introduction'].canvas_module_id, 100);
+    assert.deepEqual(Object.keys(state.modules['01-introduction'].items), [
+      '01-introduction/01-a.md',
+    ]);
+    assert.deepEqual(state.modules['01-introduction'].item_order, [
+      '01-introduction/01-a.md',
+    ]);
+    assert.ok(state.files['01-introduction/_files/one.png']);
+    assert.equal(state.files['01-intro/_files/one.png'], undefined);
+    assert.ok(state.files['02-setup/_files/two.png'], 'others stay put');
+  });
+
+  it("renumbers modules into each other's slots without losing one", () => {
+    const state = twoModules();
+
+    assert.equal(
+      renameFolders(state, [
+        { from: '02-setup', to: '01-setup' },
+        { from: '01-intro', to: '02-intro' },
+      ]),
+      2,
+    );
+
+    assert.equal(state.modules['01-setup'].canvas_module_id, 200);
+    assert.equal(state.modules['02-intro'].canvas_module_id, 100);
+    assert.ok(state.modules['01-setup'].items['01-setup/01-b.md']);
+    assert.ok(state.modules['02-intro'].items['02-intro/01-a.md']);
+    assert.ok(state.files['01-setup/_files/two.png']);
+    assert.ok(state.files['02-intro/_files/one.png']);
+  });
+
+  it('leaves a folder the state never knew alone', () => {
+    const state = twoModules();
+    const before = JSON.parse(JSON.stringify(state));
+
+    assert.equal(renameFolders(state, [{ from: '09-nope', to: '08-nope' }]), 0);
+    assert.deepEqual(state, before);
+  });
+
+  it('puts a module back rather than merge it into an existing one', () => {
+    const state = twoModules();
+
+    assert.equal(
+      renameFolders(state, [{ from: '01-intro', to: '02-setup' }]),
+      0,
+    );
+
+    assert.equal(state.modules['01-intro'].canvas_module_id, 100);
+    assert.equal(state.modules['02-setup'].canvas_module_id, 200);
   });
 });
 

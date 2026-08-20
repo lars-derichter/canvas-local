@@ -13,36 +13,31 @@ const {
 const SYNC_DATA = {
   course_id: 42,
   modules: {
-    101: {
-      folder: '01-intro',
+    '01-intro': {
+      canvas_module_id: 101,
       items: {
-        'page:100': {
-          path: '01-intro/01-welcome.md',
-          canvas_id: 100,
+        '01-intro/01-welcome.md': {
           canvas_type: 'page',
+          canvas_id: 100,
           page_url: 'welcome',
         },
-        'page:200': {
-          path: '01-intro/02-setup.md',
-          canvas_id: 200,
+        '01-intro/02-setup.md': {
           canvas_type: 'page',
+          canvas_id: 200,
           page_url: 'setup',
         },
-        'assignment:300': {
-          path: '02-advanced/01-deep-dive.md',
-          canvas_id: 300,
+        // Deliberately filed under 01-intro while its path says otherwise: the
+        // map is built from the row keys, and the module it sits in is not
+        // supposed to matter to it.
+        '02-advanced/01-deep-dive.md': {
           canvas_type: 'assignment',
+          canvas_id: 300,
         },
-        'discussion:77': {
-          path: '01-intro/03-debate.md',
-          canvas_id: 77,
+        '01-intro/03-debate.md': {
           canvas_type: 'discussion',
+          canvas_id: 77,
         },
-        'quiz:88': {
-          path: '01-intro/04-check.md',
-          canvas_id: 88,
-          canvas_type: 'quiz',
-        },
+        '01-intro/04-check.md': { canvas_type: 'quiz', canvas_id: 88 },
       },
     },
   },
@@ -114,7 +109,7 @@ describe('buildLinkMap', () => {
     const syncData = {
       course_id: 1,
       modules: {
-        1: { items: { 'page:x': { path: 'file.md', canvas_type: 'page' } } },
+        '01-mod': { items: { '01-mod/file.md': { canvas_type: 'page' } } },
       },
     };
     const { relativeToCanvas } = buildLinkMap(syncData);

@@ -223,8 +223,30 @@ describe('canvasItemToMarkdown', () => {
 
     assert.match(md, /title: Welcome/);
     assert.match(md, /canvas_type: page/);
-    assert.match(md, /canvas_id: 100/);
+    assert.ok(
+      !md.includes('canvas_id'),
+      'which Canvas page this is belongs to the sync state, keyed by path',
+    );
     assert.match(md, /Hello world\./);
+  });
+
+  it('writes title and canvas_type and no identity at all', () => {
+    // The whole of what a pull puts in the frontmatter about identity: what the
+    // file is called, and what kind of Canvas object it should be. Which object
+    // is in `.canvas-sync.json`, keyed by this file's path.
+    const md = canvasItemToMarkdown(
+      { title: 'Welcome', page_id: 100, url: 'welcome', body: '<p>Hi.</p>' },
+      'page',
+    );
+    const frontmatter = md.split('---')[1];
+
+    assert.deepEqual(
+      frontmatter
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => line.split(':')[0]),
+      ['title', 'canvas_type'],
+    );
   });
 
   it('converts a Canvas assignment with metadata', () => {
@@ -241,7 +263,7 @@ describe('canvasItemToMarkdown', () => {
 
     assert.match(md, /title: Homework 1/);
     assert.match(md, /canvas_type: assignment/);
-    assert.match(md, /canvas_id: 300/);
+    assert.ok(!md.includes('canvas_id'));
     assert.match(md, /points_possible: 10/);
     assert.match(md, /Do this assignment\./);
   });
@@ -261,7 +283,7 @@ describe('canvasItemToMarkdown', () => {
 
     assert.match(md, /title: Week 1 debate/);
     assert.match(md, /canvas_type: discussion/);
-    assert.match(md, /canvas_id: 77/);
+    assert.ok(!md.includes('canvas_id'));
     assert.match(md, /discussion_type: threaded/);
     assert.match(md, /require_initial_post: true/);
     assert.match(md, /published: true/);
@@ -306,16 +328,10 @@ describe('canvasItemToMarkdown', () => {
 
     assert.match(md, /title: Test 1/);
     assert.match(md, /canvas_type: quiz/);
-    assert.match(
-      md,
-      /canvas_id: 12/,
-      'the quiz id, not the id of the module item that links it',
+    assert.ok(
+      !md.includes('canvas_id'),
+      'the stub says what the file is, never which Canvas object it points at',
     );
-  });
-
-  it('reads a quiz object that names itself in id', () => {
-    const md = canvasItemToMarkdown({ title: 'Test 1', id: 12 }, 'quiz');
-    assert.match(md, /canvas_id: 12/);
   });
 
   it('gives a quiz no body, since its questions are not held here', () => {
@@ -333,14 +349,12 @@ describe('canvasItemToMarkdown', () => {
       'quiz',
       {
         existingFrontmatter: {
-          canvas_id: 999,
           quiz_ref: 'evaluations/2526/test-1/test-1-qti.zip',
         },
       },
     );
 
     assert.match(md, /quiz_ref: evaluations\/2526\/test-1\/test-1-qti\.zip/);
-    assert.match(md, /canvas_id: 12/, 'Canvas still owns the id');
   });
 
   it('converts an external URL item', () => {
@@ -397,6 +411,11 @@ describe('canvasItemToMarkdown', () => {
       !md.includes('Stale local title'),
       'Expected the Canvas title to win',
     );
+    // A `canvas_id` an older version wrote is cleared, not carried over. It
+    // is a Canvas-owned key with no value any more, so it goes the way any
+    // owned key with no value goes — leaving it would leave a stale id in the
+    // file to drift from the sync row for good.
+    assert.ok(!md.includes('canvas_id'));
   });
 
   it('drops a Canvas-owned field the Canvas item no longer has', () => {

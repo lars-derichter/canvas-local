@@ -139,7 +139,9 @@ describe('confirmFirstPush', () => {
   it('never asks once the course is already tracked', async () => {
     const ok = await confirmFirstPush({
       courseId: 1,
-      syncData: { modules: { 42: { folder: '01-intro', items: {} } } },
+      syncData: {
+        modules: { '01-intro': { canvas_module_id: 42, items: {} } },
+      },
       dryRun: false,
       fetchCounts: never,
     });

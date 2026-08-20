@@ -19,6 +19,7 @@ const {
   renumberUp,
   updateCategoryPosition,
 } = require('./renumber');
+const { recordRenames } = require('./sync-renames');
 
 /**
  * Core move: shift destination items to make room, move the file, renumber
@@ -28,9 +29,9 @@ function moveEntry(sourceDir, entryName, destDir, position) {
   const destItems = getItems(destDir);
 
   // Make room at destination
-  if (destItems.some((i) => i.prefix >= position)) {
-    renumberUp(destDir, destItems, position);
-  }
+  const destRenames = destItems.some((i) => i.prefix >= position)
+    ? renumberUp(destDir, destItems, position)
+    : [];
 
   const newName = entryName.replace(/^\d+/, pad(position));
   const sourcePath = path.join(sourceDir, entryName);
@@ -53,6 +54,18 @@ function moveEntry(sourceDir, entryName, destDir, position) {
 
   // Renumber source to close gap
   const sourceRenames = renumberSequential(sourceDir, getItems);
+
+  // All three in the order they happened, so the row lands in the destination
+  // module rather than in the slot the shift above has just vacated.
+  recordRenames([
+    { fromDir: destDir, renames: destRenames },
+    {
+      fromDir: sourceDir,
+      toDir: destDir,
+      renames: [{ from: entryName, to: newName }],
+    },
+    { fromDir: sourceDir, renames: sourceRenames },
+  ]);
 
   console.log(
     `[movetomodule] Moved ${entryName} -> ${path.relative(process.cwd(), destPath)}`,

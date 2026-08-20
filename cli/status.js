@@ -3,23 +3,16 @@ const path = require('path');
 
 const { scanCourse } = require('../lib/convert/course-scanner');
 const { listModules, listModuleItems } = require('../lib/canvas/modules');
-const { loadSyncFile, findModuleEntryByFolder } = require('./sync-utils');
-const { COURSE_DIR, readModuleCanvasId } = require('./module-utils');
-
-/**
- * Resolve the sync entry for a local module folder: by the canvas id stored
- * in _category_.json first, by folder name as fallback.
- */
-function findSyncEntry(syncData, folderName) {
-  const catId = readModuleCanvasId(path.join(COURSE_DIR, folderName));
-  if (catId != null && syncData.modules && syncData.modules[String(catId)]) {
-    return [String(catId), syncData.modules[String(catId)]];
-  }
-  return findModuleEntryByFolder(syncData, folderName);
-}
+const {
+  findModuleByCanvasId,
+  getItem,
+  getModule,
+  loadState,
+} = require('../lib/sync/state');
+const { COURSE_DIR } = require('./module-utils');
 
 async function status(options) {
-  const syncData = loadSyncFile({ allowNull: true });
+  const syncData = loadState({ allowNull: true });
 
   if (!syncData) {
     console.log(
@@ -36,7 +29,6 @@ async function status(options) {
   const modules = scanCourse(COURSE_DIR);
   const syncModules = syncData.modules || {};
   const localFolders = new Set(modules.map((m) => m.folderName));
-  const claimedModuleIds = new Set();
 
   let notPushedModules = 0;
   let notPushedItems = 0;
@@ -49,15 +41,14 @@ async function status(options) {
 
   // Check local modules against sync file
   for (const mod of modules) {
-    const found = findSyncEntry(syncData, mod.folderName);
+    const entry = getModule(syncData, mod.folderName);
 
-    if (!found) {
+    if (!entry) {
       console.log(`  NEW     module: ${mod.folderName} (${mod.moduleName})`);
       notPushedModules++;
     } else {
-      claimedModuleIds.add(found[0]);
       console.log(
-        `  SYNCED  module: ${mod.folderName} (canvas_module_id: ${found[0]})`,
+        `  SYNCED  module: ${mod.folderName} (canvas_module_id: ${entry.canvas_module_id})`,
       );
       syncedModules++;
     }
@@ -67,8 +58,10 @@ async function status(options) {
     for (const item of flatItems) {
       if (item.type === 'subheader') continue;
 
-      const canvasId = item.frontmatter && item.frontmatter.canvas_id;
-      if (canvasId) {
+      // The sync state answers whether an item has been pushed; the file says
+      // nothing about it any more.
+      const row = getItem(syncData, item.relativePath);
+      if (row) {
         // Check if locally modified since last sync
         const filePath = path.join(COURSE_DIR, item.relativePath);
         let modified = false;
@@ -83,7 +76,7 @@ async function status(options) {
           modifiedItems++;
         } else {
           console.log(
-            `    SYNCED  ${item.relativePath} (canvas_id: ${canvasId})`,
+            `    SYNCED  ${item.relativePath} (canvas_id: ${row.entry.canvas_id})`,
           );
         }
         syncedItems++;
@@ -95,11 +88,10 @@ async function status(options) {
   }
 
   // Check for modules in sync file that are not found locally
-  for (const [idKey, entry] of Object.entries(syncModules)) {
-    if (claimedModuleIds.has(idKey)) continue;
-    if (entry.folder && localFolders.has(entry.folder)) continue;
+  for (const folder of Object.keys(syncModules)) {
+    if (localFolders.has(folder)) continue;
     console.log(
-      `  DELETED module: ${entry.folder || idKey} (exists in sync file but not locally)`,
+      `  DELETED module: ${folder} (exists in sync file but not locally)`,
     );
     deletedModules++;
   }
@@ -152,14 +144,6 @@ async function compareWithCanvas(syncData, localModules) {
     return;
   }
 
-  const syncModules = syncData.modules || {};
-
-  // Build a map of canvas module IDs to local folder names
-  const canvasIdToLocal = {};
-  for (const [idKey, data] of Object.entries(syncModules)) {
-    canvasIdToLocal[idKey] = data.folder;
-  }
-
   let canvasOnlyModules = 0;
   let matchedModules = 0;
   let canvasOnlyItems = 0;
@@ -168,9 +152,9 @@ async function compareWithCanvas(syncData, localModules) {
   console.log('\n[status] Canvas vs Local comparison:\n');
 
   for (const canvasMod of canvasModules) {
-    const localFolder = canvasIdToLocal[canvasMod.id];
+    const found = findModuleByCanvasId(syncData, canvasMod.id);
 
-    if (!localFolder) {
+    if (!found) {
       console.log(
         `  CANVAS-ONLY module: "${canvasMod.name}" (id: ${canvasMod.id})`,
       );
@@ -178,6 +162,7 @@ async function compareWithCanvas(syncData, localModules) {
       continue;
     }
 
+    const [localFolder, entry] = found;
     console.log(`  MATCHED    module: "${canvasMod.name}" <-> ${localFolder}`);
     matchedModules++;
 
@@ -186,15 +171,16 @@ async function compareWithCanvas(syncData, localModules) {
       const canvasItems = await listModuleItems(courseId, canvasMod.id);
       if (!canvasItems) continue;
 
-      // Build a set of local canvas_ids for this module
+      // The Canvas identities this module's synced items hold. A local file
+      // carries none any more, so the sync state is the only side that can
+      // answer, and only for a module whose files are still on disk.
       const localMod = localModules.find((m) => m.folderName === localFolder);
       const localCanvasIds = new Set();
       if (localMod) {
-        const flatItems = flattenItems(localMod.items);
-        for (const item of flatItems) {
-          if (item.frontmatter && item.frontmatter.canvas_id) {
-            localCanvasIds.add(String(item.frontmatter.canvas_id));
-          }
+        for (const [itemPath, row] of Object.entries(entry.items || {})) {
+          if (!fs.existsSync(path.join(COURSE_DIR, itemPath))) continue;
+          if (row.canvas_id != null) localCanvasIds.add(String(row.canvas_id));
+          if (row.page_url != null) localCanvasIds.add(String(row.page_url));
         }
       }
 

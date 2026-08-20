@@ -11,8 +11,7 @@ const push = require('../../cli/push');
 const {
   _collectDeletedModules: collectDeletedModules,
   _collectDeletedItems: collectDeletedItems,
-  _collectLocalClaims: collectLocalClaims,
-  _isItemClaimed: isItemClaimed,
+  _collectLocalPaths: collectLocalPaths,
   _annotateSubmissions: annotateSubmissions,
   _describeDoomedItem: describeDoomedItem,
   _submissionRiskNoun: submissionRiskNoun,
@@ -21,12 +20,12 @@ const {
 } = push;
 
 describe('collectDeletedModules', () => {
-  it('returns modules in sync state that no local folder claims', () => {
+  it('returns modules in sync state that no local folder holds', () => {
     const syncData = {
       modules: {
-        100: { folder: '01-intro', items: {} },
-        200: { folder: '02-setup', items: {} },
-        300: { folder: '03-deleted', items: {} },
+        '01-intro': { canvas_module_id: 100, items: {} },
+        '02-setup': { canvas_module_id: 200, items: {} },
+        '03-deleted': { canvas_module_id: 300, items: {} },
       },
     };
     const localModules = [
@@ -43,282 +42,116 @@ describe('collectDeletedModules', () => {
 
   it('returns empty array when all sync modules exist locally', () => {
     const syncData = {
-      modules: {
-        100: { folder: '01-intro', items: {} },
-      },
+      modules: { '01-intro': { canvas_module_id: 100, items: {} } },
     };
     const localModules = [{ folderName: '01-intro' }];
 
-    const result = collectDeletedModules(syncData, localModules);
-
-    assert.equal(result.length, 0);
+    assert.deepEqual(collectDeletedModules(syncData, localModules), []);
   });
 
-  it('keeps a module claimed by folder name when it has no _category_ id', () => {
+  it('keeps a module whose folder is there, with no _category_.json involved', () => {
+    // The folder name is the key. Nothing reads the module folder from disk,
+    // which is the point: there is no second copy of the id to disagree with.
     const syncData = {
-      modules: {
-        200: { folder: '02-renamed-locally', items: {} },
-      },
+      modules: { '02-renamed-locally': { canvas_module_id: 200, items: {} } },
     };
-    // Local folder matches the stored folder; no _category_.json id needed
     const localModules = [{ folderName: '02-renamed-locally' }];
 
-    const result = collectDeletedModules(syncData, localModules);
-
-    assert.equal(result.length, 0);
+    assert.deepEqual(collectDeletedModules(syncData, localModules), []);
   });
 });
 
-describe('collectLocalClaims', () => {
-  it('claims items by canvas_type and canvas_id from frontmatter', () => {
-    const localModules = [
+describe('collectLocalPaths', () => {
+  it('collects the path of every item, whatever its type', () => {
+    const paths = collectLocalPaths([
       {
         folderName: '01-intro',
         items: [
-          {
-            relativePath: '01-intro/01-a.md',
-            canvasType: 'page',
-            frontmatter: { canvas_id: 'welcome' },
-          },
-          {
-            relativePath: '01-intro/02-b.md',
-            canvasType: 'assignment',
-            frontmatter: { canvas_id: 500 },
-          },
-        ],
-      },
-    ];
-
-    const claims = collectLocalClaims(localModules);
-
-    assert.ok(claims.has('page:welcome'));
-    assert.ok(claims.has('assignment:500'));
-  });
-
-  it('claims external_url items by URL', () => {
-    const localModules = [
-      {
-        folderName: '01-intro',
-        items: [
-          {
-            relativePath: '01-intro/01-link.md',
-            canvasType: 'external_url',
-            frontmatter: { canvas_id: 42, external_url: 'http://example.com' },
-          },
-        ],
-      },
-    ];
-
-    const claims = collectLocalClaims(localModules);
-
-    assert.ok(claims.has('external_url:http://example.com'));
-    assert.ok(claims.has('external_url:42'));
-  });
-
-  // A quiz is claimed by the same generic path as everything else, which is
-  // what routes its prune to the branch that removes the module item only.
-  // Nothing here special-cases the type, so nothing here announces when that
-  // stops being true either.
-  it('claims a quiz item by its type and canvas_id', () => {
-    const claims = collectLocalClaims([
-      {
-        folderName: '01-intro',
-        items: [
-          {
-            relativePath: '01-intro/05-test.md',
-            canvasType: 'quiz',
-            frontmatter: {
-              canvas_id: 12,
-              quiz_ref: 'evaluations/2526/test-1/test-1-qti.zip',
-            },
-          },
+          { relativePath: '01-intro/01-a.md', canvasType: 'page' },
+          { relativePath: '01-intro/02-b.md', canvasType: 'assignment' },
+          { relativePath: '01-intro/03-c.pdf', canvasType: 'file' },
         ],
       },
     ]);
 
-    assert.ok(claims.has('quiz:12'));
-  });
-
-  it('claims a discussion item by its type and canvas_id', () => {
-    const claims = collectLocalClaims([
-      {
-        folderName: '01-intro',
-        items: [
-          {
-            relativePath: '01-intro/06-forum.md',
-            canvasType: 'discussion',
-            frontmatter: { canvas_id: 88 },
-          },
-        ],
-      },
+    assert.deepEqual([...paths].sort(), [
+      '01-intro/01-a.md',
+      '01-intro/02-b.md',
+      '01-intro/03-c.pdf',
     ]);
-
-    assert.ok(claims.has('discussion:88'));
   });
 
-  it('scopes a claim to its type, so one type never claims another', () => {
-    const claims = collectLocalClaims([
+  it('looks inside subheaders', () => {
+    const paths = collectLocalPaths([
       {
         folderName: '01-intro',
         items: [
-          {
-            relativePath: '01-intro/03-homework.md',
-            canvasType: 'assignment',
-            frontmatter: { canvas_id: 12 },
-          },
-        ],
-      },
-    ]);
-
-    assert.ok(claims.has('assignment:12'));
-    assert.equal(
-      claims.has('quiz:12'),
-      false,
-      'a Canvas id means nothing without its type: ids collide across types',
-    );
-  });
-
-  it('claims items nested in subheaders', () => {
-    const localModules = [
-      {
-        folderName: '01-intro',
-        items: [
+          { relativePath: '01-intro/01-top.md', canvasType: 'page' },
           {
             type: 'subheader',
             title: 'Sub',
             items: [
               {
-                relativePath: '01-intro/01-sub/01-n.md',
+                relativePath: '01-intro/01-sub/01-nested.md',
                 canvasType: 'page',
-                frontmatter: { canvas_id: 'nested' },
               },
             ],
           },
         ],
       },
-    ];
+    ]);
 
-    const claims = collectLocalClaims(localModules);
-
-    assert.ok(claims.has('page:nested'));
-  });
-});
-
-describe('isItemClaimed', () => {
-  it('matches a page entry by canvas_id', () => {
-    const entry = {
-      canvas_id: 123,
-      canvas_type: 'page',
-      page_url: 'welcome',
-      path: 'x.md',
-    };
-    assert.equal(isItemClaimed(entry, new Set(['page:123'])), true);
+    assert.ok(paths.has('01-intro/01-sub/01-nested.md'));
+    assert.equal(paths.size, 2, 'a text header is not a path');
   });
 
-  it('matches a page entry by page_url when frontmatter holds the slug', () => {
-    const entry = {
-      canvas_id: 123,
-      canvas_type: 'page',
-      page_url: 'welcome',
-      path: 'x.md',
-    };
-    assert.equal(isItemClaimed(entry, new Set(['page:welcome'])), true);
-  });
+  it('stores a Windows path the way the sync state keys it', () => {
+    const paths = collectLocalPaths([
+      {
+        folderName: '01-intro',
+        items: [
+          {
+            relativePath: '01-intro\\01-sub\\01-nested.md',
+            canvasType: 'page',
+          },
+        ],
+      },
+    ]);
 
-  it('matches an external_url entry by URL', () => {
-    const entry = {
-      canvas_id: 42,
-      canvas_type: 'external_url',
-      external_url: 'http://example.com',
-      path: 'x.md',
-    };
-    assert.equal(
-      isItemClaimed(entry, new Set(['external_url:http://example.com'])),
-      true,
-    );
-  });
-
-  it('matches a quiz entry by canvas_id', () => {
-    const entry = {
-      canvas_id: 12,
-      canvas_type: 'quiz',
-      path: '01-mod/05-test.md',
-    };
-    assert.equal(isItemClaimed(entry, new Set(['quiz:12'])), true);
-  });
-
-  it('matches a discussion entry by canvas_id', () => {
-    const entry = {
-      canvas_id: 88,
-      canvas_type: 'discussion',
-      path: '01-mod/06-forum.md',
-    };
-    assert.equal(isItemClaimed(entry, new Set(['discussion:88'])), true);
-  });
-
-  it('never matches an entry across types', () => {
-    const quiz = {
-      canvas_id: 12,
-      canvas_type: 'quiz',
-      path: '01-mod/05-test.md',
-    };
-    const assignment = {
-      canvas_id: 12,
-      canvas_type: 'assignment',
-      path: '01-mod/03-homework.md',
-    };
-
-    assert.equal(
-      isItemClaimed(quiz, new Set(['assignment:12'])),
-      false,
-      'an assignment claim must not keep a quiz entry alive',
-    );
-    assert.equal(
-      isItemClaimed(assignment, new Set(['quiz:12'])),
-      false,
-      'and a quiz claim must not keep an assignment entry alive',
-    );
-  });
-
-  it('does not match when nothing claims the identity', () => {
-    const entry = {
-      canvas_id: 123,
-      canvas_type: 'page',
-      page_url: 'welcome',
-      path: 'x.md',
-    };
-    assert.equal(isItemClaimed(entry, new Set(['page:999'])), false);
+    assert.ok(paths.has('01-intro/01-sub/01-nested.md'));
   });
 });
 
 describe('collectDeletedItems', () => {
-  it('returns items whose identity no local file claims', () => {
-    const syncData = {
+  /** A module entry as v4 keys it, with rows keyed by repo-relative path. */
+  function syncModule(
+    items,
+    { folder = '01-intro', canvasModuleId = 100 } = {},
+  ) {
+    return {
       modules: {
-        100: {
-          folder: '01-intro',
-          items: {
-            'page:welcome-page': {
-              path: '01-intro/01-welcome.md',
-              canvas_id: 'welcome-page',
-              canvas_type: 'page',
-              page_url: 'welcome-page',
-            },
-            'page:deleted-page': {
-              path: '01-intro/02-deleted.md',
-              canvas_id: 'deleted-page',
-              canvas_type: 'page',
-              page_url: 'deleted-page',
-            },
-            'assignment:500': {
-              path: '01-intro/03-assignment.md',
-              canvas_id: 500,
-              canvas_type: 'assignment',
-            },
-          },
-        },
+        [folder]: { canvas_module_id: canvasModuleId, items },
       },
     };
+  }
+
+  it('returns rows whose file is no longer in the tree', () => {
+    const syncData = syncModule({
+      '01-intro/01-welcome.md': {
+        canvas_type: 'page',
+        canvas_id: 'welcome-page',
+        page_url: 'welcome-page',
+      },
+      '01-intro/02-deleted.md': {
+        canvas_type: 'page',
+        canvas_id: 'deleted-page',
+        page_url: 'deleted-page',
+      },
+      '01-intro/03-assignment.md': {
+        canvas_type: 'assignment',
+        canvas_id: 500,
+      },
+    });
     const localModules = [
       {
         folderName: '01-intro',
@@ -327,7 +160,7 @@ describe('collectDeletedItems', () => {
             relativePath: '01-intro/01-welcome.md',
             title: 'Welcome',
             canvasType: 'page',
-            frontmatter: { canvas_id: 'welcome-page' },
+            frontmatter: {},
           },
         ],
       },
@@ -343,23 +176,17 @@ describe('collectDeletedItems', () => {
     ]);
   });
 
-  it('does NOT flag an item that was renamed locally (identity still claimed)', () => {
-    const syncData = {
-      modules: {
-        100: {
-          folder: '01-intro',
-          items: {
-            'page:welcome-page': {
-              path: '01-intro/01-welcome.md',
-              canvas_id: 'welcome-page',
-              canvas_type: 'page',
-              page_url: 'welcome-page',
-            },
-          },
-        },
+  it('leaves a row alone once the rename has been recorded', () => {
+    // A renaming command calls `renamePath`, so the row moves with the file and
+    // there is nothing here to notice. What a rename must never do is leave the
+    // row where it was — see the next case for what that costs.
+    const syncData = syncModule({
+      '01-intro/05-hello.md': {
+        canvas_type: 'page',
+        canvas_id: 'welcome-page',
+        page_url: 'welcome-page',
       },
-    };
-    // Same canvas_id, new path after a local rename/renumber
+    });
     const localModules = [
       {
         folderName: '01-intro',
@@ -368,7 +195,35 @@ describe('collectDeletedItems', () => {
             relativePath: '01-intro/05-hello.md',
             title: 'Hello',
             canvasType: 'page',
-            frontmatter: { canvas_id: 'welcome-page' },
+            frontmatter: {},
+          },
+        ],
+      },
+    ];
+
+    assert.deepEqual(collectDeletedItems(syncData, localModules), []);
+  });
+
+  it('reads a rename the sync state never heard about as a deletion', () => {
+    // The path is the identity, so a file moved behind the tool's back leaves a
+    // row addressing nothing. Prune lists it, names it, and asks before
+    // deleting anything — but it is listed, and that is the price of the key.
+    const syncData = syncModule({
+      '01-intro/01-welcome.md': {
+        canvas_type: 'page',
+        canvas_id: 'welcome-page',
+        page_url: 'welcome-page',
+      },
+    });
+    const localModules = [
+      {
+        folderName: '01-intro',
+        items: [
+          {
+            relativePath: '01-intro/05-hello.md',
+            title: 'Hello',
+            canvasType: 'page',
+            frontmatter: {},
           },
         ],
       },
@@ -376,44 +231,37 @@ describe('collectDeletedItems', () => {
 
     const result = collectDeletedItems(syncData, localModules);
 
-    assert.equal(result.length, 0);
+    assert.equal(result.length, 1);
+    assert.equal(result[0].relativePath, '01-intro/01-welcome.md');
   });
 
   it('skips modules without items in sync state', () => {
-    const syncData = {
-      modules: {
-        100: { folder: '01-intro' },
-      },
-    };
+    const syncData = { modules: { '01-intro': { canvas_module_id: 100 } } };
     const localModules = [{ folderName: '01-intro', items: [] }];
 
-    const result = collectDeletedItems(syncData, localModules);
+    assert.deepEqual(collectDeletedItems(syncData, localModules), []);
+  });
 
-    assert.equal(result.length, 0);
+  it('skips a folder the sync state does not know at all', () => {
+    const syncData = { modules: {} };
+    const localModules = [{ folderName: '01-intro', items: [] }];
+
+    assert.deepEqual(collectDeletedItems(syncData, localModules), []);
   });
 
   it('handles subfolder items correctly', () => {
-    const syncData = {
-      modules: {
-        100: {
-          folder: '01-intro',
-          items: {
-            'page:nested': {
-              path: '01-intro/01-sub/01-nested.md',
-              canvas_id: 'nested',
-              canvas_type: 'page',
-              page_url: 'nested',
-            },
-            'page:gone': {
-              path: '01-intro/01-sub/02-gone.md',
-              canvas_id: 'gone',
-              canvas_type: 'page',
-              page_url: 'gone',
-            },
-          },
-        },
+    const syncData = syncModule({
+      '01-intro/01-sub/01-nested.md': {
+        canvas_type: 'page',
+        canvas_id: 'nested',
+        page_url: 'nested',
       },
-    };
+      '01-intro/01-sub/02-gone.md': {
+        canvas_type: 'page',
+        canvas_id: 'gone',
+        page_url: 'gone',
+      },
+    });
     const localModules = [
       {
         folderName: '01-intro',
@@ -426,7 +274,7 @@ describe('collectDeletedItems', () => {
                 relativePath: '01-intro/01-sub/01-nested.md',
                 title: 'Nested',
                 canvasType: 'page',
-                frontmatter: { canvas_id: 'nested' },
+                frontmatter: {},
               },
             ],
           },
@@ -441,37 +289,23 @@ describe('collectDeletedItems', () => {
   });
 
   it('includes all item types', () => {
-    const syncData = {
-      modules: {
-        100: {
-          folder: '01-mod',
-          items: {
-            'page:slug': {
-              path: '01-mod/01-page.md',
-              canvas_id: 'slug',
-              canvas_type: 'page',
-              page_url: 'slug',
-            },
-            'assignment:200': {
-              path: '01-mod/02-assign.md',
-              canvas_id: 200,
-              canvas_type: 'assignment',
-            },
-            'external_url:http://example.com': {
-              path: '01-mod/03-link.md',
-              canvas_id: 42,
-              canvas_type: 'external_url',
-              external_url: 'http://example.com',
-            },
-            'file:400': {
-              path: '01-mod/04-doc.pdf',
-              canvas_id: 400,
-              canvas_type: 'file',
-            },
-          },
+    const syncData = syncModule(
+      {
+        '01-mod/01-page.md': {
+          canvas_type: 'page',
+          canvas_id: 'slug',
+          page_url: 'slug',
         },
+        '01-mod/02-assign.md': { canvas_type: 'assignment', canvas_id: 200 },
+        '01-mod/03-link.md': {
+          canvas_type: 'external_url',
+          canvas_id: 42,
+          external_url: 'http://example.com',
+        },
+        '01-mod/04-doc.pdf': { canvas_type: 'file', canvas_id: 400 },
       },
-    };
+      { folder: '01-mod' },
+    );
     const localModules = [{ folderName: '01-mod', items: [] }];
 
     const result = collectDeletedItems(syncData, localModules);
@@ -488,25 +322,23 @@ describe('collectDeletedItems', () => {
 });
 
 describe('collectDeletedItems per type', () => {
-  it('collects page items with pageUrl for deletion', () => {
-    const syncData = {
-      modules: {
-        100: {
-          folder: '01-mod',
-          items: {
-            'page:my-page': {
-              path: '01-mod/01-page.md',
-              canvas_id: 'my-page',
-              canvas_type: 'page',
-              page_url: 'my-page',
-            },
-          },
-        },
-      },
-    };
-    const localModules = [{ folderName: '01-mod', items: [] }];
+  /** One module's worth of sync state, folder-keyed. */
+  function syncModule(items) {
+    return { modules: { '01-mod': { canvas_module_id: 100, items } } };
+  }
+  const emptyLocal = [{ folderName: '01-mod', items: [] }];
 
-    const items = collectDeletedItems(syncData, localModules);
+  it('collects page items with pageUrl for deletion', () => {
+    const items = collectDeletedItems(
+      syncModule({
+        '01-mod/01-page.md': {
+          canvas_type: 'page',
+          canvas_id: 'my-page',
+          page_url: 'my-page',
+        },
+      }),
+      emptyLocal,
+    );
 
     assert.equal(items.length, 1);
     assert.equal(items[0].canvasType, 'page');
@@ -515,23 +347,12 @@ describe('collectDeletedItems per type', () => {
   });
 
   it('collects assignment items for deletion', () => {
-    const syncData = {
-      modules: {
-        100: {
-          folder: '01-mod',
-          items: {
-            'assignment:999': {
-              path: '01-mod/01-hw.md',
-              canvas_id: 999,
-              canvas_type: 'assignment',
-            },
-          },
-        },
-      },
-    };
-    const localModules = [{ folderName: '01-mod', items: [] }];
-
-    const items = collectDeletedItems(syncData, localModules);
+    const items = collectDeletedItems(
+      syncModule({
+        '01-mod/01-hw.md': { canvas_type: 'assignment', canvas_id: 999 },
+      }),
+      emptyLocal,
+    );
 
     assert.equal(items.length, 1);
     assert.equal(items[0].canvasType, 'assignment');
@@ -539,23 +360,12 @@ describe('collectDeletedItems per type', () => {
   });
 
   it('collects file items for deletion', () => {
-    const syncData = {
-      modules: {
-        100: {
-          folder: '01-mod',
-          items: {
-            'file:777': {
-              path: '01-mod/doc.pdf',
-              canvas_id: 777,
-              canvas_type: 'file',
-            },
-          },
-        },
-      },
-    };
-    const localModules = [{ folderName: '01-mod', items: [] }];
-
-    const items = collectDeletedItems(syncData, localModules);
+    const items = collectDeletedItems(
+      syncModule({
+        '01-mod/doc.pdf': { canvas_type: 'file', canvas_id: 777 },
+      }),
+      emptyLocal,
+    );
 
     assert.equal(items.length, 1);
     assert.equal(items[0].canvasType, 'file');
@@ -563,23 +373,12 @@ describe('collectDeletedItems per type', () => {
   });
 
   it('collects a quiz item with the module it has to be unlinked from', () => {
-    const syncData = {
-      modules: {
-        100: {
-          folder: '01-mod',
-          items: {
-            'quiz:12': {
-              path: '01-mod/05-test.md',
-              canvas_id: 12,
-              canvas_type: 'quiz',
-            },
-          },
-        },
-      },
-    };
-    const localModules = [{ folderName: '01-mod', items: [] }];
-
-    const items = collectDeletedItems(syncData, localModules);
+    const items = collectDeletedItems(
+      syncModule({
+        '01-mod/05-test.md': { canvas_type: 'quiz', canvas_id: 12 },
+      }),
+      emptyLocal,
+    );
 
     assert.equal(items.length, 1);
     assert.equal(items[0].canvasType, 'quiz');
@@ -591,31 +390,19 @@ describe('collectDeletedItems per type', () => {
     );
   });
 
-  it('leaves a quiz item alone while a local file still claims it', () => {
-    const syncData = {
-      modules: {
-        100: {
-          folder: '01-mod',
-          items: {
-            'quiz:12': {
-              path: '01-mod/05-test.md',
-              canvas_id: 12,
-              canvas_type: 'quiz',
-            },
-          },
-        },
-      },
-    };
+  it('leaves a quiz item alone while its file is still there', () => {
+    const syncData = syncModule({
+      '01-mod/05-test.md': { canvas_type: 'quiz', canvas_id: 12 },
+    });
     const localModules = [
       {
         folderName: '01-mod',
         items: [
           {
-            // Renumbered locally: same quiz, new path.
-            relativePath: '01-mod/07-test.md',
+            relativePath: '01-mod/05-test.md',
             title: 'Test 1',
             canvasType: 'quiz',
-            frontmatter: { canvas_id: 12 },
+            frontmatter: {},
           },
         ],
       },
@@ -625,24 +412,16 @@ describe('collectDeletedItems per type', () => {
   });
 
   it('collects external_url items with moduleId and externalUrl for deletion', () => {
-    const syncData = {
-      modules: {
-        100: {
-          folder: '01-mod',
-          items: {
-            'external_url:http://example.com': {
-              path: '01-mod/01-link.md',
-              canvas_id: 42,
-              canvas_type: 'external_url',
-              external_url: 'http://example.com',
-            },
-          },
+    const items = collectDeletedItems(
+      syncModule({
+        '01-mod/01-link.md': {
+          canvas_type: 'external_url',
+          canvas_id: 42,
+          external_url: 'http://example.com',
         },
-      },
-    };
-    const localModules = [{ folderName: '01-mod', items: [] }];
-
-    const items = collectDeletedItems(syncData, localModules);
+      }),
+      emptyLocal,
+    );
 
     assert.equal(items.length, 1);
     assert.equal(items[0].canvasType, 'external_url');
@@ -1262,33 +1041,26 @@ describe('collectDeletedItems with multiple modules', () => {
   it('collects items across multiple modules', () => {
     const syncData = {
       modules: {
-        100: {
-          folder: '01-intro',
+        '01-intro': {
+          canvas_module_id: 100,
           items: {
-            'page:page-1': {
-              path: '01-intro/01-page.md',
-              canvas_id: 'page-1',
+            '01-intro/01-page.md': { canvas_type: 'page', canvas_id: 'page-1' },
+            '01-intro/02-deleted.md': {
               canvas_type: 'page',
-            },
-            'page:page-2': {
-              path: '01-intro/02-deleted.md',
               canvas_id: 'page-2',
-              canvas_type: 'page',
             },
           },
         },
-        200: {
-          folder: '02-setup',
+        '02-setup': {
+          canvas_module_id: 200,
           items: {
-            'page:install': {
-              path: '02-setup/01-install.md',
-              canvas_id: 'install',
+            '02-setup/01-install.md': {
               canvas_type: 'page',
+              canvas_id: 'install',
             },
-            'assignment:300': {
-              path: '02-setup/02-gone.md',
-              canvas_id: 300,
+            '02-setup/02-gone.md': {
               canvas_type: 'assignment',
+              canvas_id: 300,
             },
           },
         },
@@ -1302,7 +1074,7 @@ describe('collectDeletedItems with multiple modules', () => {
             relativePath: '01-intro/01-page.md',
             title: 'Page',
             canvasType: 'page',
-            frontmatter: { canvas_id: 'page-1' },
+            frontmatter: {},
           },
         ],
       },
@@ -1313,7 +1085,7 @@ describe('collectDeletedItems with multiple modules', () => {
             relativePath: '02-setup/01-install.md',
             title: 'Install',
             canvasType: 'page',
-            frontmatter: { canvas_id: 'install' },
+            frontmatter: {},
           },
         ],
       },
@@ -1329,23 +1101,21 @@ describe('collectDeletedItems with multiple modules', () => {
   it('only checks filtered modules', () => {
     const syncData = {
       modules: {
-        100: {
-          folder: '01-intro',
+        '01-intro': {
+          canvas_module_id: 100,
           items: {
-            'page:page-1': {
-              path: '01-intro/01-deleted.md',
-              canvas_id: 'page-1',
+            '01-intro/01-deleted.md': {
               canvas_type: 'page',
+              canvas_id: 'page-1',
             },
           },
         },
-        200: {
-          folder: '02-setup',
+        '02-setup': {
+          canvas_module_id: 200,
           items: {
-            'page:page-2': {
-              path: '02-setup/01-deleted.md',
-              canvas_id: 'page-2',
+            '02-setup/01-deleted.md': {
               canvas_type: 'page',
+              canvas_id: 'page-2',
             },
           },
         },
@@ -1358,7 +1128,40 @@ describe('collectDeletedItems with multiple modules', () => {
 
     // Should only find the deleted item in 01-intro, not 02-setup
     assert.equal(result.length, 1);
-    assert.equal(result[0].moduleIdKey, '100');
+    assert.equal(result[0].folder, '01-intro');
+    assert.equal(result[0].moduleId, 100);
+  });
+
+  it('never mistakes a move into an unfiltered module for a deletion', () => {
+    // Claims are gathered from every module the run scanned, not only the ones
+    // it pushes, so a file that left 01-intro for 02-setup is still claimed.
+    const syncData = {
+      modules: {
+        '01-intro': {
+          canvas_module_id: 100,
+          items: {
+            '01-intro/01-page.md': { canvas_type: 'page', canvas_id: 'page-1' },
+          },
+        },
+      },
+    };
+    const filtered = [{ folderName: '01-intro', items: [] }];
+    const all = [
+      ...filtered,
+      {
+        folderName: '02-setup',
+        items: [
+          {
+            relativePath: '01-intro/01-page.md',
+            title: 'Page',
+            canvasType: 'page',
+            frontmatter: {},
+          },
+        ],
+      },
+    ];
+
+    assert.deepEqual(collectDeletedItems(syncData, filtered, all), []);
   });
 });
 

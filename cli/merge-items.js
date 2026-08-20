@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const matter = require('gray-matter');
-const { prompt, createRL, COURSE_DIR } = require('./module-utils');
+const { prompt, createRL } = require('./module-utils');
 const {
   getItems,
   printItems,
@@ -10,6 +10,7 @@ const {
   removeFromSyncState,
 } = require('./item-utils');
 const { renumberSequential } = require('./renumber');
+const { recordRenames } = require('./sync-renames');
 
 /**
  * Core merge logic: append source body into target, delete source, renumber.
@@ -18,9 +19,8 @@ const { renumberSequential } = require('./renumber');
  * @param {string} targetPath - Absolute path to the target file (keeps frontmatter).
  * @param {string} sourcePath - Absolute path to the source file (appended, then deleted).
  * @param {string} targetDir  - Directory containing both files.
- * @param {string} folderName - Module folder name (for sync state lookup).
  */
-function _mergeFiles(targetPath, sourcePath, targetDir, folderName) {
+function _mergeFiles(targetPath, sourcePath, targetDir) {
   const targetRaw = fs.readFileSync(targetPath, 'utf8');
   const sourceRaw = fs.readFileSync(sourcePath, 'utf8');
 
@@ -37,9 +37,8 @@ function _mergeFiles(targetPath, sourcePath, targetDir, folderName) {
   fs.writeFileSync(targetPath, result, 'utf8');
   console.log(`[merge-items] Merged content into ${path.basename(targetPath)}`);
 
-  // Remove source from sync state (before deleting: the entry is keyed by
-  // the Canvas identity in the source's frontmatter)
-  const removed = removeFromSyncState(folderName, sourcePath);
+  // The source file is about to go, and so is the row keyed by its path.
+  const removed = removeFromSyncState(sourcePath);
   if (removed) {
     console.log(`[merge-items] Removed ${removed} from sync state.`);
   }
@@ -50,6 +49,7 @@ function _mergeFiles(targetPath, sourcePath, targetDir, folderName) {
 
   // Renumber remaining items
   const renames = renumberSequential(targetDir, getItems);
+  recordRenames([{ fromDir: targetDir, renames }]);
   if (renames.length > 0) {
     console.log('[merge-items] Renumbered remaining items:');
     for (const r of renames) {
@@ -95,11 +95,7 @@ async function mergeItems(options) {
     }
 
     const targetDir = path.dirname(targetPath);
-    // Derive module folder name from path relative to course dir
-    const relativeToSource = path.relative(COURSE_DIR, sourcePath);
-    const folderName = relativeToSource.split(path.sep)[0];
-
-    _mergeFiles(targetPath, sourcePath, targetDir, folderName);
+    _mergeFiles(targetPath, sourcePath, targetDir);
     return;
   }
 
@@ -108,7 +104,7 @@ async function mergeItems(options) {
 
   console.log('[merge-items] Merge two items in a module\n');
 
-  const { modulePath, folderName } = await selectModule(rl);
+  const { modulePath } = await selectModule(rl);
   const targetDir = await selectTargetDir(rl, modulePath);
   const items = getItems(targetDir);
 
@@ -182,7 +178,7 @@ async function mergeItems(options) {
   const targetPath = path.join(targetDir, targetItem.name);
   const sourcePath = path.join(targetDir, sourceItem.name);
 
-  _mergeFiles(targetPath, sourcePath, targetDir, folderName);
+  _mergeFiles(targetPath, sourcePath, targetDir);
 }
 
 module.exports = mergeItems;

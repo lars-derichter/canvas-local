@@ -10,6 +10,7 @@ const {
   printModules,
   safeReadJSON,
 } = require('./module-utils');
+const { recordRenames } = require('./sync-renames');
 
 async function renameModule(options = {}) {
   let sourceModule;
@@ -90,6 +91,13 @@ async function renameModule(options = {}) {
       'utf8',
     );
   }
+
+  recordRenames([
+    {
+      fromDir: COURSE_DIR,
+      renames: [{ from: sourceModule.folderName, to: newFolderName }],
+    },
+  ]);
 
   console.log(
     `[rename-module] Renamed ${sourceModule.folderName} -> ${newFolderName}`,

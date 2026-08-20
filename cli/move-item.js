@@ -8,6 +8,7 @@ const {
   selectTargetDir,
 } = require('./item-utils');
 const { reorder } = require('./renumber');
+const { recordRenames } = require('./sync-renames');
 
 async function moveItem(options = {}) {
   // Non-interactive mode (VS Code): --path and --position provided
@@ -44,6 +45,7 @@ async function moveItem(options = {}) {
       sourceItem.prefix,
       targetPosition,
     );
+    recordRenames([{ fromDir: targetDir, renames }]);
     if (renames.length > 0) {
       console.log('[move-item] Reordered items:');
       for (const r of renames) {
@@ -102,6 +104,7 @@ async function moveItem(options = {}) {
   }
 
   const renames = reorder(targetDir, items, sourceItem.prefix, targetPosition);
+  recordRenames([{ fromDir: targetDir, renames }]);
 
   if (renames.length > 0) {
     console.log('[move-item] Reordered items:');

@@ -42,32 +42,30 @@ function collectVar(value, previous = {}) {
  * outside the export. Returns empty context when nothing has been synced.
  */
 function buildLinkContext() {
-  let loadSyncFile;
+  let loadState;
+  let allItems;
   try {
-    ({ loadSyncFile } = require('./sync-utils'));
+    ({ loadState, allItems } = require('../lib/sync/state'));
   } catch {
     return {};
   }
-  let syncData;
+  let state;
   try {
-    syncData = loadSyncFile({ allowNull: true });
+    state = loadState({ allowNull: true });
   } catch {
     return {};
   }
-  if (!syncData || !syncData.modules) return {};
+  if (!state || !state.modules) return {};
 
   const linkMap = new Map();
-  for (const mod of Object.values(syncData.modules)) {
-    for (const it of Object.values(mod.items || {})) {
-      if (it.path && it.canvas_id != null) {
-        linkMap.set(toPosix(it.path), {
-          canvasType: it.canvas_type,
-          canvasId: it.canvas_id,
-        });
-      }
-    }
+  for (const { itemPath, entry } of allItems(state)) {
+    if (entry.canvas_id == null) continue;
+    linkMap.set(toPosix(itemPath), {
+      canvasType: entry.canvas_type,
+      canvasId: entry.canvas_id,
+    });
   }
-  return { linkMap, courseId: syncData.course_id };
+  return { linkMap, courseId: state.course_id };
 }
 
 /**

@@ -112,8 +112,9 @@ function renderBody(terms, lesson, config = DEFAULT_CONFIG) {
 }
 
 /**
- * Serialize a page: preserve all existing frontmatter (e.g. canvas_id), force
- * the canonical title, default canvas_type, then append the generated body.
+ * Serialize a page: preserve all existing frontmatter (e.g. sidebar_position),
+ * force the canonical title, default canvas_type, then append the generated
+ * body.
  *
  * Every string value is double-quoted with the emoji kept literal (via the
  * js-yaml 5 dump transform below; the v4 forceQuotes option no longer exists).

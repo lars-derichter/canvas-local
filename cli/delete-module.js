@@ -6,14 +6,14 @@ const {
   getExistingModules,
   createRL,
   printModules,
-  readModuleCanvasId,
 } = require('./module-utils');
 const { renumberSequential } = require('./renumber');
 const {
-  loadSyncFile,
-  saveSyncFile,
-  findModuleEntryByFolder,
-} = require('./sync-utils');
+  deleteModule: deleteModuleFromState,
+  loadState,
+  renameFolders,
+  saveState,
+} = require('../lib/sync/state');
 
 /**
  * Get module entries in the format expected by renumberSequential.
@@ -97,27 +97,19 @@ async function deleteModule(options = {}) {
     }
   }
 
-  // Capture the module's Canvas identity before deleting the folder
-  const folderPath = path.join(COURSE_DIR, sourceModule.folderName);
-  const canvasModuleId = readModuleCanvasId(folderPath);
-
   // Delete the folder
+  const folderPath = path.join(COURSE_DIR, sourceModule.folderName);
   fs.rmSync(folderPath, { recursive: true });
   console.log(`[delete-module] Deleted ${sourceModule.folderName}/`);
 
-  // Remove from sync state (modules are keyed by canvas_module_id; the
-  // remaining modules keep their identity through renumbering because the
-  // id lives in their _category_.json)
-  const syncData = loadSyncFile({ allowNull: true });
-  if (syncData && syncData.modules) {
-    const idKey =
-      canvasModuleId != null
-        ? String(canvasModuleId)
-        : (findModuleEntryByFolder(syncData, sourceModule.folderName) || [])[0];
-    if (idKey && syncData.modules[idKey]) {
-      delete syncData.modules[idKey];
-    }
-    // Drop tracking for embedded files that lived inside the module
+  // Remove the module from sync state. The folder name is the key, so the
+  // module the author just deleted is exactly the row that goes.
+  const syncData = loadState({ allowNull: true });
+  if (syncData) {
+    deleteModuleFromState(syncData, sourceModule.folderName);
+    // Dropping a module deliberately leaves its embedded-file rows behind —
+    // removal is not relocation — so this command, which has just destroyed
+    // the folder those files lived in, clears them itself.
     if (syncData.files) {
       for (const filePath of Object.keys(syncData.files)) {
         if (filePath.startsWith(sourceModule.folderName + '/')) {
@@ -135,36 +127,14 @@ async function deleteModule(options = {}) {
     for (const r of renames) {
       console.log(`  ${r.from} -> ${r.to}`);
     }
-    // Update stored folder names and file-tracking keys for renamed folders
-    if (syncData) {
-      for (const { from, to } of renames) {
-        if (syncData.modules) {
-          for (const entry of Object.values(syncData.modules)) {
-            if (entry.folder === from) entry.folder = to;
-          }
-          for (const entry of Object.values(syncData.modules)) {
-            for (const item of Object.values(entry.items || {})) {
-              if (item.path && item.path.startsWith(from + '/')) {
-                item.path = to + item.path.slice(from.length);
-              }
-            }
-          }
-        }
-        if (syncData.files) {
-          for (const filePath of Object.keys(syncData.files)) {
-            if (filePath.startsWith(from + '/')) {
-              syncData.files[to + filePath.slice(from.length)] =
-                syncData.files[filePath];
-              delete syncData.files[filePath];
-            }
-          }
-        }
-      }
-    }
+    // A renumbered folder is a renamed one: its key, the paths of every item
+    // inside it and its embedded-file rows all move together. In one batch,
+    // because closing the gap slides every module into its neighbour's slot.
+    if (syncData) renameFolders(syncData, renames);
   }
 
   if (syncData) {
-    saveSyncFile(syncData);
+    saveState(syncData);
     console.log('[delete-module] Sync state updated.');
   }
 }

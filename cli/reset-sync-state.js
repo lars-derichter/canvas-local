@@ -7,8 +7,24 @@ const {
   serializeFrontmatter,
 } = require('../lib/convert/frontmatter');
 const { COURSE_DIR } = require('./module-utils');
-const { SYNC_FILE } = require('./sync-utils');
+const { SYNC_FILE } = require('../lib/sync/state');
 
+/**
+ * Forget which Canvas objects this course's files are.
+ *
+ * Two things go, and only the first is what this command is for. The sync state
+ * is the single record of identity, so deleting it is the reset — after which
+ * the next push creates everything fresh in Canvas, alongside whatever is
+ * already there.
+ *
+ * The rest is cleanup of a file format this version no longer writes. Up to
+ * schema v4 the identity was also copied into every markdown file's `canvas_id`
+ * and every `_category_.json`'s `customProps.canvas_module_id`; a course
+ * authored under an older version still carries those, and leaving them behind
+ * would leave a stale second answer in the tree for anyone — or anything —
+ * reading the frontmatter. `canvas_type` is untouched: that is the author's
+ * declaration of what a file should become, not a record of what Canvas did.
+ */
 async function resetSyncState() {
   const rl = readline.createInterface({
     input: process.stdin,
@@ -16,7 +32,10 @@ async function resetSyncState() {
   });
   const answer = await new Promise((resolve) => {
     rl.question(
-      '[reset] This will remove all canvas_id fields and delete .canvas-sync.json. Continue? (y/N) ',
+      '[reset] This will delete .canvas-sync.json, so the course forgets every ' +
+        'Canvas id it holds, and clear the leftover canvas_id and ' +
+        'canvas_module_id fields older versions wrote into course files. ' +
+        'Continue? (y/N) ',
       resolve,
     );
   });
@@ -29,7 +48,7 @@ async function resetSyncState() {
 
   let count = 0;
 
-  // Remove canvas_id from all markdown files in course/
+  // Clear the canvas_id an older version wrote into each markdown file.
   const entries = fs.readdirSync(COURSE_DIR, { recursive: true });
   const files = entries
     .filter((e) => e.endsWith('.md'))
@@ -50,12 +69,12 @@ async function resetSyncState() {
   }
 
   if (count === 0) {
-    log.info('[reset] No canvas_id fields found in course files.');
+    log.info('[reset] No leftover canvas_id fields in course files.');
   } else {
     log.info(`[reset] Removed canvas_id from ${count} file(s).`);
   }
 
-  // Remove canvas_module_id from _category_.json files (module identity)
+  // …and the canvas_module_id it wrote into each _category_.json.
   const categoryFiles = entries
     .filter((e) => path.basename(e) === '_category_.json')
     .map((e) => path.join(COURSE_DIR, e));

@@ -54,7 +54,9 @@ dist/
 .env
 
 ### Course CLI ###
-.canvas-sync.json
+# The sync state itself is committed; only the half-written file an interrupted
+# save leaves behind is not.
+.canvas-sync.json.tmp
 exports/
 
 ### AI assistants ###

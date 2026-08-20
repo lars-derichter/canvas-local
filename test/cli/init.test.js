@@ -13,10 +13,14 @@ const URL = 'https://school.instructure.com';
 /** Sync state as a course that has been pushed to leaves it. */
 function synced(overrides = {}) {
   return {
-    schema_version: 3,
+    schema_version: 4,
     canvas_base_url: URL,
     course_id: 45083,
-    modules: { 100: { folder: '01-intro', items: {} } },
+    modules: {
+      '01-intro': { canvas_module_id: 100, item_order: [], items: {} },
+    },
+    icons: {},
+    files: {},
     ...overrides,
   };
 }

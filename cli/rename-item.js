@@ -14,6 +14,7 @@ const {
   selectModule,
   selectTargetDir,
 } = require('./item-utils');
+const { recordRenames } = require('./sync-renames');
 
 /**
  * Core rename: renames a file or subsection folder inside targetDir,
@@ -76,11 +77,14 @@ async function renameItem(options = {}) {
       process.exit(1);
     }
     const targetDir = path.dirname(itemPath);
-    const newEntryName = renameEntry(
-      targetDir,
-      path.basename(itemPath),
-      options.name,
-    );
+    const oldEntryName = path.basename(itemPath);
+    const newEntryName = renameEntry(targetDir, oldEntryName, options.name);
+    recordRenames([
+      {
+        fromDir: targetDir,
+        renames: [{ from: oldEntryName, to: newEntryName }],
+      },
+    ]);
     console.log(
       `[rename-item] Renamed ${path.basename(itemPath)} -> ${newEntryName}`,
     );
@@ -124,6 +128,9 @@ async function renameItem(options = {}) {
   }
 
   const newEntryName = renameEntry(targetDir, item.name, newName);
+  recordRenames([
+    { fromDir: targetDir, renames: [{ from: item.name, to: newEntryName }] },
+  ]);
   console.log(`[rename-item] Renamed ${item.name} -> ${newEntryName}`);
 }
 

@@ -33,7 +33,7 @@ describe('_mergeFiles', () => {
     const targetPath = path.join(tmpDir, '01-first.md');
     const sourcePath = path.join(tmpDir, '02-second.md');
 
-    _mergeFiles(targetPath, sourcePath, tmpDir, 'test-module');
+    _mergeFiles(targetPath, sourcePath, tmpDir);
 
     const result = fs.readFileSync(targetPath, 'utf8');
     assert.ok(result.includes('Content A'));
@@ -57,7 +57,7 @@ describe('_mergeFiles', () => {
     const targetPath = path.join(tmpDir, '01-first.md');
     const sourcePath = path.join(tmpDir, '02-second.md');
 
-    _mergeFiles(targetPath, sourcePath, tmpDir, 'test-module');
+    _mergeFiles(targetPath, sourcePath, tmpDir);
 
     const parsed = matter(fs.readFileSync(targetPath, 'utf8'));
     assert.equal(parsed.data.title, 'First');
@@ -77,7 +77,7 @@ describe('_mergeFiles', () => {
     const targetPath = path.join(tmpDir, '01-first.md');
     const sourcePath = path.join(tmpDir, '02-second.md');
 
-    _mergeFiles(targetPath, sourcePath, tmpDir, 'test-module');
+    _mergeFiles(targetPath, sourcePath, tmpDir);
 
     const parsed = matter(fs.readFileSync(targetPath, 'utf8'));
     assert.equal(parsed.data.title, 'First');
@@ -93,7 +93,7 @@ describe('_mergeFiles', () => {
     const targetPath = path.join(tmpDir, '01-first.md');
     const sourcePath = path.join(tmpDir, '02-second.md');
 
-    _mergeFiles(targetPath, sourcePath, tmpDir, 'test-module');
+    _mergeFiles(targetPath, sourcePath, tmpDir);
 
     assert.ok(!fs.existsSync(sourcePath));
   });
@@ -106,7 +106,7 @@ describe('_mergeFiles', () => {
     const targetPath = path.join(tmpDir, '01-first.md');
     const sourcePath = path.join(tmpDir, '02-second.md');
 
-    _mergeFiles(targetPath, sourcePath, tmpDir, 'test-module');
+    _mergeFiles(targetPath, sourcePath, tmpDir);
 
     const files = fs.readdirSync(tmpDir).sort();
     assert.deepStrictEqual(files, ['01-first.md', '02-third.md']);
@@ -119,7 +119,7 @@ describe('_mergeFiles', () => {
     const targetPath = path.join(tmpDir, '01-first.md');
     const sourcePath = path.join(tmpDir, '02-second.md');
 
-    _mergeFiles(targetPath, sourcePath, tmpDir, 'test-module');
+    _mergeFiles(targetPath, sourcePath, tmpDir);
 
     const parsed = matter(fs.readFileSync(targetPath, 'utf8'));
     const body = parsed.content.trim();
