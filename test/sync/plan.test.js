@@ -627,6 +627,39 @@ describe('plan: the git guard', () => {
 
     assert.deepEqual(types(result), ['delete-canvas-item']);
   });
+
+  it('withholds rather than skips a local write the policy already forbids', () => {
+    // Under a Canvas-pinned run this write was never going to happen, so there
+    // is nothing for the guard to protect. Recording a skip would put the file
+    // under "Skipped" with a remedy telling the author to commit or stash it,
+    // and a skip fails the run — over a file push does not touch.
+    const result = plan({
+      ...single({
+        localFields: { dirty: true },
+        canvasFields: { canvasHash: 'edited' },
+      }),
+      policy: { write: { canvas: true, local: false } },
+    });
+
+    assert.deepEqual(result.skipped, []);
+    assert.equal(result.withheld.length, 1);
+    assert.equal(result.withheld[0].type, 'update-local-item');
+    assert.equal(result.withheld[0].reason, 'write-policy');
+  });
+
+  it('still skips a local prune the policy allows, dirty file and all', () => {
+    // The mirror of the case above: `pull --prune-local` does write here, so
+    // the guard is the only thing standing between a dirty file and its
+    // deletion.
+    const result = plan({
+      ...single({ canvas: false, localFields: { dirty: true } }),
+      policy: { write: { canvas: false, local: true }, pruneLocal: true },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.equal(result.skipped[0].reason, 'git-dirty');
+    assert.equal(result.skipped[0].action, 'delete-local-item');
+  });
 });
 
 describe('plan: what the write policy forbids is withheld, not lost', () => {
