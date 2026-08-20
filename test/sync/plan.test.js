@@ -1902,6 +1902,48 @@ describe('plan: pruning', () => {
     assert.equal(result.skipped[0].action, 'delete-local-module');
   });
 
+  it('still will not, on a run that writes locally and nowhere else', () => {
+    // `pull --prune-local` does delete this folder, so the guard is the only
+    // thing between it and the uncommitted work inside it. The mirror of the
+    // case below, and the half a blanket exemption would quietly break.
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([A, B]) } },
+      local: {
+        modules: [lMod(FOLDER, [A, B], { items: { [B]: { dirty: true } } })],
+      },
+      canvas: { modules: [] },
+      policy: { write: { canvas: false, local: true }, pruneLocal: true },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.equal(result.skipped[0].reason, 'git-dirty');
+    assert.equal(result.skipped[0].action, 'delete-local-module');
+  });
+
+  it('withholds rather than skips the delete a policy already forbids', () => {
+    // The module-level twin of the item-level case in `plan: the git guard`,
+    // and it went without the check for the same reason `guardDirty` did: a
+    // skip carries a remedy and fails the run, over a folder the run was never
+    // going to touch. No shipped command reaches this today — `push` is the one
+    // that forbids local writes and it never sets `pruneLocal`, so the branch
+    // above it returns first — which is exactly why the invariant needs pinning
+    // rather than leaving to the flag surface to keep true.
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([A, B]) } },
+      local: {
+        modules: [lMod(FOLDER, [A, B], { items: { [B]: { dirty: true } } })],
+      },
+      canvas: { modules: [] },
+      policy: { write: { canvas: true, local: false }, pruneLocal: true },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.deepEqual(result.skipped, []);
+    assert.equal(result.withheld.length, 1);
+    assert.equal(result.withheld[0].type, 'delete-local-module');
+    assert.equal(result.withheld[0].reason, 'write-policy');
+  });
+
   it('drops the base module once both sides are gone', () => {
     const result = plan({
       base: { modules: { [FOLDER]: bMod([]) } },
@@ -2301,5 +2343,40 @@ describe('plan: reference types', () => {
       result.skipped[0].remedy,
       /page on Canvas but its frontmatter/,
     );
+  });
+
+  it('still refuses it under push, where that write is a real one', () => {
+    // The half that has to survive: push is the command the refusal is for, and
+    // a fix that stopped recording the skip everywhere would take it out of the
+    // one place it belongs.
+    const result = plan({
+      ...single({
+        localFields: { localHash: 'edited', canvasType: 'assignment' },
+      }),
+      policy: { write: { canvas: true, local: false }, adopt: 'local' },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.equal(result.skipped[0].reason, 'type-changed');
+    assert.equal(result.skipped[0].action, 'update-canvas-item');
+  });
+
+  it('withholds rather than refuses it under pull', () => {
+    // Pull writes to no Canvas object, so this update was never going to
+    // happen. A skip would tell the author to repair a write pull does not
+    // make, with a remedy about deleting and re-adding the item, and it would
+    // fail the run. The same rule `guardDirty` follows for the other direction.
+    const result = plan({
+      ...single({
+        localFields: { localHash: 'edited', canvasType: 'assignment' },
+      }),
+      policy: { write: { canvas: false, local: true }, conflict: 'canvas' },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.deepEqual(result.skipped, []);
+    assert.equal(result.withheld.length, 1);
+    assert.equal(result.withheld[0].type, 'update-canvas-item');
+    assert.equal(result.withheld[0].reason, 'write-policy');
   });
 });
