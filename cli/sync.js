@@ -60,6 +60,7 @@ const VERB_LABELS = {
   delete: 'deleted',
   reorder: 'reordered',
   rekey: 're-keyed',
+  link: 'linked',
   drop: 'dropped',
 };
 
@@ -671,12 +672,22 @@ async function sync(options = {}) {
   const resolved = await askPending(report, { interactive });
   if (resolved) report = plan({ ...inputs, policy: { ...policy, resolved } });
 
+  // Whether this run is still one that prunes, which a declined confirmation
+  // makes it not. The report reads the answer rather than the flag: "nothing
+  // above was deleted; each line says why" is a claim about the plan, and after
+  // a decline there is no plan behind it to say why — the planner emitted no
+  // delete, so no orphan carries a reason and every line would be silent.
+  let pruningCanvas = wantsPruneCanvas;
+  let pruningLocal = wantsPruneLocal;
+
   // A dry run deletes nothing, so there is nothing to confirm — and hiding the
   // deletes behind a question the run will never act on is the opposite of
   // what a preview is for.
   if ((wantsPruneCanvas || wantsPruneLocal) && !dryRun) {
     const ok = await confirmPrune(report, { interactive, yes });
     if (!ok) {
+      pruningCanvas = false;
+      pruningLocal = false;
       report = plan({
         ...inputs,
         policy: {
@@ -716,8 +727,8 @@ async function sync(options = {}) {
     // refused and one the icon upload aborted — hands over what actually ran,
     // which for those two is nothing.
     applied: dryRun ? undefined : outcome.applied,
-    pruneCanvas: wantsPruneCanvas,
-    pruneLocal: wantsPruneLocal,
+    pruneCanvas: pruningCanvas,
+    pruneLocal: pruningLocal,
     baseUrl: state.canvas_base_url,
     courseId,
   });

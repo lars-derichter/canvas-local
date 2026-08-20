@@ -556,7 +556,7 @@ describe('npx course sync', () => {
     });
 
     it('cancels the prune when it cannot ask', async () => {
-      silence();
+      const out = silence();
       const { courseDir, file, gone } = orphaned();
       const calls = mockCanvas([
         { method: 'GET', path: '/modules/10/items', body: [ITEM, gone] },
@@ -597,6 +597,15 @@ describe('npx course sync', () => {
       assert.ok(
         readState(file).modules['01-intro'].items['01-intro/02-gone.md'],
       );
+      // The report follows the answer, not the flag. "Nothing above was
+      // deleted; each line says why" is a claim about the plan, and a declined
+      // prune leaves a plan with no deletes in it — so no orphan carries a
+      // reason and every line would be silent.
+      const printed = out.log.mock.calls
+        .map((call) => call.arguments.join(' '))
+        .join('\n');
+      assert.match(printed, /`--prune-canvas` is what deletes these/);
+      assert.doesNotMatch(printed, /each line says why/);
     });
   });
 
