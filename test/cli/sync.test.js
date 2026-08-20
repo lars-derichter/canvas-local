@@ -56,7 +56,10 @@ function stateFile(state) {
         course_id: Number(COURSE_ID),
         last_sync: null,
         modules: {},
-        icons: {},
+        // Already uploaded, which is what a course looks like after its first
+        // sync. `test/sync/apply-plan.test.js` is where the upload itself is
+        // tested; here they only have to be out of the way.
+        icons: recordedIcons(),
         files: {},
         ...state,
       },
@@ -66,6 +69,22 @@ function stateFile(state) {
     'utf8',
   );
   return file;
+}
+
+/** Alert icons recorded under the theme this repo is configured with. */
+function recordedIcons() {
+  const { ICON_FILES } = require('../../lib/convert/alert-icons');
+  const { loadTheme, themeFingerprint } = require('../../lib/config/theme');
+  const fingerprint = themeFingerprint(loadTheme());
+  const icons = {};
+  for (const type of Object.keys(ICON_FILES)) {
+    icons[type] = {
+      canvas_file_id: 900,
+      preview_url: `https://canvas.example.com/recorded/${type}`,
+      theme: fingerprint,
+    };
+  }
+  return icons;
 }
 
 const PAGE = {

@@ -40,7 +40,9 @@ function emptyState() {
     course_id: COURSE_ID,
     last_sync: null,
     modules: {},
-    icons: {},
+    // Icons already uploaded, which is what every course looks like after its
+    // first sync. A test about the icons themselves clears this.
+    icons: recordedIcons(),
     files: {},
   };
 }
@@ -53,6 +55,49 @@ function run(planned, options) {
     now: () => '2026-08-20T12:00:00.000Z',
     ...options,
   });
+}
+
+const { ICON_FILES } = require('../../lib/convert/alert-icons');
+const { loadTheme, themeFingerprint } = require('../../lib/config/theme');
+
+const ICON_COUNT = Object.keys(ICON_FILES).length;
+
+/**
+ * The two hops a Canvas file upload takes, per icon: the grant, then the form
+ * post to the URL the grant named.
+ */
+function iconUploadRoutes() {
+  const routes = [];
+  Object.keys(ICON_FILES).forEach((type, index) => {
+    routes.push({
+      method: 'POST',
+      path: '/courses/4242/files',
+      body: {
+        upload_url: `https://canvas.example.com/upload/${type}`,
+        upload_params: {},
+      },
+    });
+    routes.push({
+      method: 'POST',
+      path: `/upload/${type}`,
+      body: { id: 900 + index, display_name: ICON_FILES[type] },
+    });
+  });
+  return routes;
+}
+
+/** Icons already recorded under the theme this repo is configured with. */
+function recordedIcons() {
+  const fingerprint = themeFingerprint(loadTheme());
+  const icons = {};
+  for (const type of Object.keys(ICON_FILES)) {
+    icons[type] = {
+      canvas_file_id: 900,
+      preview_url: `https://canvas.example.com/recorded/${type}`,
+      theme: fingerprint,
+    };
+  }
+  return icons;
 }
 
 function calledWith(calls, method, fragment) {
@@ -654,6 +699,299 @@ describe('applyPlan, per action type', () => {
     // The YAML serializer quotes a URL; the assertion should not care.
     assert.match(written, /external_url: '?https:\/\/example\.com'?/);
     assert.match(written, /title: Docs/);
+  });
+
+  it('uploads the alert icons before it renders a page that uses one', async () => {
+    silence();
+    // `applyPlan` reads `getIconUrls`, so the engine has to be what calls
+    // `ensureIcons` too. Without it the callout goes to Canvas with no <img> —
+    // `markdownToHtml` omits it silently when the URL is missing — and the page
+    // is then fingerprinted as synced, so nothing ever puts the icon back.
+    const courseDir = tempCourse({
+      '01-intro/01-welcome.md':
+        '---\ntitle: Welcome\n---\n\n> [!NOTE]\n> Careful.\n',
+    });
+    const state = emptyState();
+    state.icons = {};
+    state.modules['01-intro'] = {
+      canvas_module_id: 10,
+      item_order: [],
+      items: {},
+    };
+
+    const calls = mockCanvas([
+      ...iconUploadRoutes(),
+      {
+        method: 'POST',
+        path: '/modules/10/items',
+        body: {
+          id: 91,
+          type: 'Page',
+          title: 'Welcome',
+          page_url: 'welcome',
+          indent: 0,
+        },
+      },
+      {
+        method: 'POST',
+        path: '/pages',
+        body: {
+          page_id: 501,
+          url: 'welcome',
+          title: 'Welcome',
+          body: '<p>whatever Canvas stored</p>',
+          updated_at: '2026-08-20T11:00:00.000Z',
+        },
+      },
+    ]);
+
+    const outcome = await run(
+      {
+        actions: [
+          {
+            type: 'create-canvas-item',
+            folder: '01-intro',
+            canvasModuleId: 10,
+            itemPath: '01-intro/01-welcome.md',
+            title: 'Welcome',
+            canvasType: 'page',
+            indent: 0,
+            position: 1,
+          },
+        ],
+      },
+      { courseDir, state },
+    );
+
+    assert.deepEqual(outcome.errors, []);
+    // The icons exist on Canvas and are recorded.
+    assert.equal(Object.keys(state.icons).length, ICON_COUNT);
+    assert.ok(state.icons.note.preview_url);
+    // And the body Canvas was handed names one.
+    const [pagePost] = calls.filter(
+      (call) => call.method === 'POST' && /\/pages$/.test(call.url),
+    );
+    assert.match(pagePost.body.wiki_page.body, /<img[^>]+src="[^"]*preview"/);
+  });
+
+  it('writes nothing at all when the icons cannot be uploaded', async () => {
+    silence();
+    // Carrying on would push the page with its callouts unmarked and record it
+    // as synced, which is the permanent silent failure the icon upload exists
+    // to prevent. Nothing has been written yet at this point, so stopping is
+    // free — and whatever did upload is kept, so the next run resumes.
+    const courseDir = tempCourse({
+      '01-intro/01-welcome.md':
+        '---\ntitle: Welcome\n---\n\n> [!NOTE]\n> Careful.\n',
+    });
+    const state = emptyState();
+    state.icons = {};
+    state.modules['01-intro'] = {
+      canvas_module_id: 10,
+      item_order: [],
+      items: {},
+    };
+
+    // Only the first icon can be uploaded. The second asks for a grant, finds
+    // no route left, and throws.
+    const [firstGrant, firstUpload] = iconUploadRoutes();
+    const saves = [];
+    const calls = mockCanvas([
+      firstGrant,
+      firstUpload,
+      {
+        method: 'POST',
+        path: '/modules/10/items',
+        body: { id: 91, type: 'Page', title: 'Welcome' },
+      },
+      {
+        method: 'POST',
+        path: '/pages',
+        body: {
+          page_id: 501,
+          url: 'welcome',
+          title: 'Welcome',
+          body: '<p>x</p>',
+        },
+      },
+    ]);
+
+    const outcome = await run(
+      {
+        actions: [
+          {
+            type: 'create-canvas-item',
+            folder: '01-intro',
+            canvasModuleId: 10,
+            itemPath: '01-intro/01-welcome.md',
+            title: 'Welcome',
+            canvasType: 'page',
+            indent: 0,
+            position: 1,
+          },
+        ],
+      },
+      { courseDir, state, save: () => saves.push(true) },
+    );
+
+    // No content reached Canvas: the page and module-item routes are untouched.
+    assert.equal(
+      calls.filter((call) => /\/pages$/.test(call.url)).length,
+      0,
+      'a page was pushed without its icons',
+    );
+    assert.equal(
+      calls.filter((call) => call.url.includes('/modules/10/items')).length,
+      0,
+    );
+    assert.deepEqual(outcome.applied, []);
+
+    // The error says what failed and that nothing was written.
+    assert.equal(outcome.errors.length, 1);
+    assert.equal(outcome.errors[0].action.type, 'ensure-icons');
+    assert.match(outcome.errors[0].error, /alert icons could not be uploaded/);
+    assert.match(outcome.errors[0].error, /nothing was written on either side/);
+
+    // Partial progress survives, so the next run does not upload a second copy.
+    assert.equal(state.icons.note.canvas_file_id, 900);
+    assert.equal(Object.keys(state.icons).length, 1);
+    assert.equal(saves.length, 1, 'what did upload was not saved');
+
+    // And no sync is claimed, because none happened.
+    assert.equal(state.last_sync, null);
+  });
+
+  it('uploads no icon at all on a run that only writes locally', async () => {
+    silence();
+    // The icons are files in the Canvas course. A run that writes nothing there
+    // has no business putting anything in it, so the absence of an upload route
+    // is the assertion: one request and the run would fail.
+    const courseDir = tempCourse();
+    const state = emptyState();
+    state.icons = {};
+    state.modules['01-intro'] = {
+      canvas_module_id: 10,
+      item_order: [],
+      items: {},
+    };
+
+    const outcome = await run(
+      {
+        actions: [
+          {
+            type: 'create-local-item',
+            folder: '01-intro',
+            itemPath: '01-intro/01-docs.md',
+            canvasModuleId: 10,
+            moduleItemId: 95,
+            canvasType: 'external_url',
+            canvasId: 95,
+            title: 'Docs',
+            indent: 0,
+            position: 1,
+            canvasHash: 'whatever',
+          },
+        ],
+      },
+      {
+        courseDir,
+        state,
+        canvasContent: new Map([
+          [
+            '95',
+            {
+              item: {
+                id: 95,
+                type: 'ExternalUrl',
+                title: 'Docs',
+                external_url: 'https://example.com',
+                indent: 0,
+              },
+              content: null,
+            },
+          ],
+        ]),
+      },
+    );
+
+    assert.deepEqual(outcome.errors, []);
+    assert.deepEqual(state.icons, {}, 'a local-only run uploaded an icon');
+  });
+
+  it('does not upload an icon the state already records under this theme', async () => {
+    silence();
+    // No upload routes at all: `ensureIcons` skips an icon whose stored theme
+    // fingerprint still matches, and that record is the whole of its
+    // idempotency.
+    const courseDir = tempCourse({
+      '01-intro/01-welcome.md':
+        '---\ntitle: Welcome\n---\n\n> [!NOTE]\n> Careful.\n',
+    });
+    const state = emptyState();
+    state.icons = recordedIcons();
+    state.modules['01-intro'] = {
+      canvas_module_id: 10,
+      item_order: [],
+      items: {},
+    };
+
+    const calls = mockCanvas([
+      {
+        method: 'POST',
+        path: '/modules/10/items',
+        body: {
+          id: 91,
+          type: 'Page',
+          title: 'Welcome',
+          page_url: 'welcome',
+          indent: 0,
+        },
+      },
+      {
+        method: 'POST',
+        path: '/pages',
+        body: {
+          page_id: 501,
+          url: 'welcome',
+          title: 'Welcome',
+          body: '<p>stored</p>',
+          updated_at: '2026-08-20T11:00:00.000Z',
+        },
+      },
+    ]);
+
+    const outcome = await run(
+      {
+        actions: [
+          {
+            type: 'create-canvas-item',
+            folder: '01-intro',
+            canvasModuleId: 10,
+            itemPath: '01-intro/01-welcome.md',
+            title: 'Welcome',
+            canvasType: 'page',
+            indent: 0,
+            position: 1,
+          },
+        ],
+      },
+      { courseDir, state },
+    );
+
+    assert.deepEqual(outcome.errors, []);
+    assert.equal(
+      calls.filter((call) => /\/courses\/\d+\/files$/.test(call.url)).length,
+      0,
+      'an icon was uploaded a second time',
+    );
+    // The recorded URLs are still the ones the render used.
+    const [pagePost] = calls.filter(
+      (call) => call.method === 'POST' && /\/pages$/.test(call.url),
+    );
+    assert.match(
+      pagePost.body.wiki_page.body,
+      /src="https:\/\/canvas\.example\.com\/recorded\/note"/,
+    );
   });
 
   it('deletes a quiz item without touching the quiz behind it', async () => {

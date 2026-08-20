@@ -12,6 +12,25 @@ function fakeResponse(body, { status = 200 } = {}) {
 }
 
 /**
+ * A recorded request body: the parsed JSON, or the raw value when it is not
+ * JSON at all.
+ *
+ * Step 2 of a Canvas file upload posts `FormData` rather than a JSON string —
+ * an icon upload, an embedded image, any binary — and `JSON.parse` on one
+ * throws, which would fail the request instead of answering it. A test that
+ * cares about a form post asserts on the URL; one that cares about a JSON body
+ * gets it parsed exactly as before.
+ */
+function readBody(body) {
+  if (!body) return null;
+  try {
+    return JSON.parse(body);
+  } catch {
+    return body;
+  }
+}
+
+/**
  * Answer Canvas requests from a route table of { method, path, body, status },
  * and record every request that was made. An unrouted request gets a 400, so a
  * missing route fails the test instead of hanging on the client's retries.
@@ -29,11 +48,7 @@ function mockCanvas(routes) {
   const calls = [];
   const remaining = routes.map((route) => ({ ...route }));
   mock.method(global, 'fetch', async (url, opts) => {
-    calls.push({
-      url,
-      method: opts.method,
-      body: opts.body ? JSON.parse(opts.body) : null,
-    });
+    calls.push({ url, method: opts.method, body: readBody(opts.body) });
     const index = remaining.findIndex(
       (route) => route.method === opts.method && url.includes(route.path),
     );

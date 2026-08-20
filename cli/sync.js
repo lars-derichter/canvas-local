@@ -540,7 +540,9 @@ async function sync(options = {}) {
     log.error(`\n[sync] ${plural(outcome.errors.length, 'error')}:`);
     for (const failure of outcome.errors) {
       log.error(
-        `  - ${failure.action.itemPath || failure.action.folder}: ${failure.error}`,
+        // A run-wide failure — the icon upload — names no path and no folder,
+        // so it falls back to its own name rather than printing "undefined".
+        `  - ${failure.action.itemPath || failure.action.folder || failure.action.type}: ${failure.error}`,
       );
     }
   }
