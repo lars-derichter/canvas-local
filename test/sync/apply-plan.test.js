@@ -1512,6 +1512,179 @@ describe('applyPlan, per action type', () => {
     ]);
   });
 
+  it('names the item it could not reposition and keeps the recorded order', async () => {
+    silence();
+    // An item the state holds no module item id for — a create that failed
+    // earlier in this same run is the ordinary way to get one — used to be
+    // skipped without a word while `item_order` was written from the plan.
+    // Canvas shifts the skipped item as its neighbours are placed, and the same
+    // shifting carries the items that did move away from the positions they
+    // were sent to, so the plan describes an arrangement Canvas never took.
+    // Recording it is what makes the next run read the failure as a Canvas-side
+    // reorder and renumber the author's files to match it.
+    const warnings = [];
+    const state = emptyState();
+    state.modules['01-intro'] = {
+      canvas_module_id: 7,
+      item_order: ['01-intro/01-a.md', '01-intro/02-b.md', '01-intro/03-c.md'],
+      items: {
+        '01-intro/01-a.md': { canvas_type: 'page', module_item_id: 11 },
+        '01-intro/02-b.md': { canvas_type: 'page' },
+        '01-intro/03-c.md': { canvas_type: 'page', module_item_id: 13 },
+      },
+    };
+    const calls = mockCanvas([
+      { method: 'PUT', path: '/modules/7/items/13', body: { id: 13 } },
+      { method: 'PUT', path: '/modules/7/items/11', body: { id: 11 } },
+    ]);
+
+    const outcome = await run(
+      {
+        actions: [
+          {
+            type: 'reorder-canvas-module',
+            folder: '01-intro',
+            canvasModuleId: 7,
+            order: [
+              { itemPath: '01-intro/03-c.md', position: 1 },
+              { itemPath: '01-intro/02-b.md', position: 2 },
+              { itemPath: '01-intro/01-a.md', position: 3 },
+            ],
+          },
+        ],
+      },
+      {
+        state,
+        courseDir: tempCourse(),
+        log: {
+          info: () => {},
+          warn: (line) => warnings.push(line),
+          verbose: () => {},
+          error: () => {},
+        },
+      },
+    );
+
+    // The rest of the module was still placed, and nothing failed.
+    assert.deepEqual(outcome.errors, []);
+    assert.deepEqual(
+      calls.map((call) => [
+        call.url.split('/').pop(),
+        call.body.module_item.position,
+      ]),
+      [
+        ['13', 1],
+        ['11', 3],
+      ],
+    );
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /01-intro\/02-b\.md to position 2/);
+
+    // The base is what the two sides last agreed on, and this run reached no
+    // new agreement, so it stays exactly as it was.
+    assert.deepEqual(state.modules['01-intro'].item_order, [
+      '01-intro/01-a.md',
+      '01-intro/02-b.md',
+      '01-intro/03-c.md',
+    ]);
+  });
+
+  it('keeps the recorded order when a reposition fails partway through', async () => {
+    silence();
+    // The items before the failure moved and the rest did not, which is a
+    // module in an arrangement this run cannot name. There is nothing a
+    // `finally` could record that this side knows — no row is written per
+    // item, and where Canvas left the ones that moved is Canvas's answer — so
+    // the base stays put and the action is reported as the error it is.
+    const state = emptyState();
+    state.modules['01-intro'] = {
+      canvas_module_id: 7,
+      item_order: ['01-intro/01-a.md', '01-intro/02-b.md', '01-intro/03-c.md'],
+      items: {
+        '01-intro/01-a.md': { canvas_type: 'page', module_item_id: 11 },
+        '01-intro/02-b.md': { canvas_type: 'page', module_item_id: 12 },
+        '01-intro/03-c.md': { canvas_type: 'page', module_item_id: 13 },
+      },
+    };
+    const calls = mockCanvas([
+      { method: 'PUT', path: '/modules/7/items/13', body: { id: 13 } },
+      {
+        method: 'PUT',
+        path: '/modules/7/items/12',
+        body: { errors: [{ message: 'Access denied' }] },
+        status: 403,
+      },
+    ]);
+
+    const outcome = await run(
+      {
+        actions: [
+          {
+            type: 'reorder-canvas-module',
+            folder: '01-intro',
+            canvasModuleId: 7,
+            order: [
+              { itemPath: '01-intro/03-c.md', position: 1 },
+              { itemPath: '01-intro/02-b.md', position: 2 },
+              { itemPath: '01-intro/01-a.md', position: 3 },
+            ],
+          },
+        ],
+      },
+      { state, courseDir: tempCourse() },
+    );
+
+    assert.equal(outcome.errors.length, 1);
+    assert.equal(outcome.errors[0].action.type, 'reorder-canvas-module');
+    // Stopped where it threw: the third item was never sent.
+    assert.deepEqual(
+      calls.map((call) => call.url.split('/').pop()),
+      ['13', '12'],
+    );
+    assert.deepEqual(state.modules['01-intro'].item_order, [
+      '01-intro/01-a.md',
+      '01-intro/02-b.md',
+      '01-intro/03-c.md',
+    ]);
+  });
+
+  it('does not empty the recorded order for an order that names nothing', async () => {
+    silence();
+    // The sequence is rewritten wholesale, so a degenerate action would erase
+    // the base every later run compares against — and a module with no base
+    // order reads as one whose items all appeared since the last sync.
+    const state = emptyState();
+    state.modules['01-intro'] = {
+      canvas_module_id: 7,
+      item_order: ['01-intro/01-a.md', '01-intro/02-b.md'],
+      items: {
+        '01-intro/01-a.md': { canvas_type: 'page', module_item_id: 11 },
+        '01-intro/02-b.md': { canvas_type: 'page', module_item_id: 12 },
+      },
+    };
+    const calls = mockCanvas([]);
+
+    await run(
+      {
+        actions: [
+          {
+            type: 'reorder-canvas-module',
+            folder: '01-intro',
+            canvasModuleId: 7,
+            order: [],
+          },
+        ],
+      },
+      { state, courseDir: tempCourse() },
+    );
+
+    assert.deepEqual(calls, []);
+    assert.deepEqual(state.modules['01-intro'].item_order, [
+      '01-intro/01-a.md',
+      '01-intro/02-b.md',
+    ]);
+  });
+
   it('warns that a graded discussion it writes locally is not the whole truth', async () => {
     // Push says this on every create and update. Without it in this direction,
     // an author who has only ever seen the file has no way to learn that
