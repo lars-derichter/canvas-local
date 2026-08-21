@@ -22,7 +22,6 @@ const commands = {
   'course.pushDryRun': 'npx course push --dry-run',
   'course.pull': 'npx course pull',
   'course.status': 'npx course status',
-  'course.diff': 'npx course diff',
   'course.validate': 'npx course validate',
 };
 

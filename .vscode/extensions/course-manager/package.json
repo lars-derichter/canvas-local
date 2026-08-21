@@ -126,10 +126,6 @@
         "title": "Course: Split Item at Cursor"
       },
       {
-        "command": "course.diff",
-        "title": "Course: Diff (Changes Since Last Sync)"
-      },
-      {
         "command": "course.validate",
         "title": "Course: Validate"
       },
@@ -215,10 +211,6 @@
         },
         {
           "command": "course.status",
-          "when": "view == courseTree"
-        },
-        {
-          "command": "course.diff",
           "when": "view == courseTree"
         },
         {
