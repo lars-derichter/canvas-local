@@ -5,9 +5,9 @@ const assert = require('node:assert/strict');
 process.env.CANVAS_API_URL = 'https://canvas.example.com';
 process.env.CANVAS_API_TOKEN = 'test-token-123';
 
-const pull = require('../../cli/pull');
+const localWrite = require('../../lib/sync/local-write');
 
-const { _createPullFileResolver: createPullFileResolver } = pull;
+const { createPullFileResolver } = localWrite;
 
 describe('createPullFileResolver', () => {
   it('resolves a Canvas file URL to a relative path', () => {
@@ -68,13 +68,13 @@ describe('createPullFileResolver', () => {
   });
 });
 
-describe('what lib/sync/apply.js borrows', () => {
-  // The engine reaches into this module by name through `pullInternals()`, so a
-  // rename here is a runtime failure there rather than a build one. Three
-  // names, pinned.
+describe('what lib/sync/apply.js calls', () => {
+  // The engine destructures these three by name, and a CommonJS destructure of
+  // a name that is not exported is silent until the call. So a rename here is
+  // still a runtime failure there rather than a build one. Three names, pinned.
   it('keeps the three helpers the engine calls by name', () => {
-    assert.equal(typeof pull._writeCategoryFile, 'function');
-    assert.equal(typeof pull._downloadReferencedFiles, 'function');
-    assert.equal(typeof pull._createPullFileResolver, 'function');
+    assert.equal(typeof localWrite.writeCategoryFile, 'function');
+    assert.equal(typeof localWrite.downloadReferencedFiles, 'function');
+    assert.equal(typeof localWrite.createPullFileResolver, 'function');
   });
 });

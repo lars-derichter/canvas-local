@@ -11,18 +11,18 @@ const {
   _annotateSubmissions: annotateSubmissions,
   _describeDoomedItem: describeDoomedItem,
   _submissionRiskNoun: submissionRiskNoun,
-  _refuseQuizBackedDelete: refuseQuizBackedDelete,
 } = push;
 
 /**
  * What `--prune-canvas` puts in front of the author before it asks.
  *
- * These four run over the plan's `delete-canvas-item` actions rather than over
+ * These three run over the plan's `delete-canvas-item` actions rather than over
  * the sync state, so the fixtures below are actions: `itemPath`, `canvasType`
  * and `canvasId` are the whole of what the planner hands them. Whether the
  * planner emits the right deletes in the first place is `test/sync/plan.test.js`
- * ("plan: pruning" and the truth table), and executing one is
- * `test/sync/apply-plan.test.js`.
+ * ("plan: pruning" and the truth table), executing one is
+ * `test/sync/apply-plan.test.js`, and the refusal that stops a quiz-backed
+ * assignment being deleted is `test/sync/canvas-write.test.js`.
  */
 
 describe('annotateSubmissions', () => {
@@ -629,67 +629,5 @@ describe('submissionRiskNoun', () => {
   it('handles an empty or missing list', () => {
     assert.equal(submissionRiskNoun([]), 'assignment');
     assert.equal(submissionRiskNoun(undefined), 'assignment');
-  });
-});
-
-describe('refuseQuizBackedDelete', () => {
-  const item = { canvasId: 500, itemPath: '01-mod/03-homework.md' };
-
-  it('allows an ordinary assignment through', async () => {
-    assert.equal(
-      await refuseQuizBackedDelete(42, item, async () => ({
-        id: 500,
-        is_quiz_assignment: false,
-      })),
-      null,
-    );
-  });
-
-  it('allows a New Quiz through: it is an assignment and nothing else', async () => {
-    assert.equal(
-      await refuseQuizBackedDelete(42, item, async () => ({
-        id: 500,
-        is_quiz_lti_assignment: true,
-        submission_types: ['external_tool'],
-      })),
-      null,
-    );
-  });
-
-  it('names the quiz it is protecting', async () => {
-    const refusal = await refuseQuizBackedDelete(42, item, async () => ({
-      id: 500,
-      quiz_id: 12,
-    }));
-
-    assert.match(refusal.lines[0], /gradebook half of quiz 12/);
-    assert.match(refusal.error, /quiz 12/);
-  });
-
-  it('refuses without a quiz id too', async () => {
-    const refusal = await refuseQuizBackedDelete(42, item, async () => ({
-      id: 500,
-      is_quiz_assignment: true,
-    }));
-
-    assert.match(refusal.lines[0], /gradebook half of a quiz/);
-  });
-
-  it('refuses when the check itself could not be made', async () => {
-    const refusal = await refuseQuizBackedDelete(42, item, async () => {
-      throw new Error('403 Forbidden');
-    });
-
-    assert.match(refusal.lines[0], /could not check whether assignment 500/);
-    assert.match(refusal.error, /403 Forbidden/);
-  });
-
-  it('lets a 404 through: the assignment is already gone', async () => {
-    assert.equal(
-      await refuseQuizBackedDelete(42, item, async () => {
-        throw new Error('Canvas API GET failed with status 404');
-      }),
-      null,
-    );
   });
 });

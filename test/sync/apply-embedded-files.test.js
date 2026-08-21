@@ -200,10 +200,10 @@ describe('embedded files land in the tree the run was pointed at', () => {
 
   it('refuses to download anything when no course directory was given', async () => {
     silence();
-    const pull = require('../../cli/pull');
+    const { downloadReferencedFiles } = require('../../lib/sync/local-write');
     await assert.rejects(
       () =>
-        pull._downloadReferencedFiles(
+        downloadReferencedFiles(
           COURSE_ID,
           PAGE_BODY,
           '01-intro',
