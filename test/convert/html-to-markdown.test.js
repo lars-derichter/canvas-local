@@ -24,7 +24,10 @@ describe('htmlToMarkdown', () => {
       '<p><strong>bold</strong> and <em>italic</em></p>',
     );
     assert.ok(md.includes('**bold**'), 'Expected bold markdown');
-    assert.ok(md.includes('_italic_'), 'Expected italic markdown');
+    // Asserted through the push rather than as a string: which delimiter
+    // turndown picked is cosmetic, whether what it wrote still reads as
+    // emphasis is not.
+    assert.match(markdownToHtml(md), /<em>italic<\/em>/);
   });
 
   it('converts strikethrough from every tag that spells it', () => {
@@ -545,9 +548,44 @@ describe('round trip through push and pull: text and inline formatting', () => {
     const rt = roundTrips('A **bold** word and an *italic* word.\n');
     assertSurvivesRoundTrip(rt);
     assert.match(rt.md2, /\*\*bold\*\*/);
-    // Either delimiter is emphasis when the next push re-parses it; which one
-    // turndown picks is not what this case is pinning.
-    assert.match(rt.md2, /_italic_|\*italic\*/);
+    // Nothing but whitespace either side, so the emphasis rule picks `_`, the
+    // delimiter Prettier writes. The cases below are the ones that cannot.
+    assert.match(rt.md2, /_italic_/);
+  });
+
+  it('survives emphasis between two word characters', () => {
+    // `_` cannot do this one: an underscore flanked by alphanumerics can
+    // neither open nor close emphasis, so a pull that wrote `2_3_4` would hand
+    // the next push three literal characters where an <em> used to be.
+    const rt = roundTrips('The default grid is 2*3*4 cells.\n');
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.md2, /2\*3\*4/);
+  });
+
+  it('survives emphasis with a word character on one side only', () => {
+    // A word character on the left and a space on the right still rules `_`
+    // out, because the opening one cannot open. This is why the rule asks
+    // whether either neighbour is a word character rather than both.
+    const rt = roundTrips('Type foo*bar* baz to run it.\n');
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.md2, /foo\*bar\* baz/);
+  });
+
+  it('survives strong wrapping emphasis', () => {
+    // The construct an unconditional `*` breaks: turndown collapses the two
+    // delimiters into `***both***`, which CommonMark re-reads as emphasis
+    // wrapping strong — the nesting inverted. Nothing covered this before,
+    // which is how a fully green suite missed it.
+    const rt = roundTrips('Make it **_both_** at once.\n');
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.md2, /\*\*_both_\*\*/);
+  });
+
+  it('survives emphasis wrapping strong', () => {
+    // The same pair the other way round, which has to keep its own nesting.
+    const rt = roundTrips('Make it _**both**_ at once.\n');
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.md2, /_\*\*both\*\*_/);
   });
 
   it('survives strikethrough', () => {
