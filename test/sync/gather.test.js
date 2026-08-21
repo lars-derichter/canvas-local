@@ -140,6 +140,134 @@ describe('gatherLocal', () => {
 });
 
 // ---------------------------------------------------------------------------
+// gatherLocal: what a killed reorder left behind
+// ---------------------------------------------------------------------------
+
+/**
+ * A process killed outright between the two halves of `reorderLocalModule`
+ * never runs its unwind, so files stay parked under `__ccb_order_*`.
+ * `scanCourse` skips every `_`-prefixed name, so without recovery the next run
+ * reads those items as locally deleted — and `push --prune-canvas` offers to
+ * delete the Canvas objects behind them. Hence: before the scan, in every
+ * direction.
+ */
+describe('gatherLocal: recovering an interrupted renumbering', () => {
+  const pathsOf = (module) => module.items.map((item) => item.itemPath);
+
+  it('puts a parked file back under its own name before scanning', () => {
+    const dir = tempCourse({
+      '01-intro/__ccb_order_01-welcome.md': '---\ntitle: Welcome\n---\n\nA.\n',
+      '01-intro/02-theory.md': '---\ntitle: Theory\n---\n\nB.\n',
+    });
+
+    const { modules, warnings } = gatherLocal({
+      courseDir: dir,
+      gitDirty: CLEAN,
+    });
+
+    assert.equal(
+      fs.existsSync(path.join(dir, '01-intro/01-welcome.md')),
+      true,
+      'the parked file is restored',
+    );
+    assert.equal(
+      fs.existsSync(path.join(dir, '01-intro/__ccb_order_01-welcome.md')),
+      false,
+    );
+    // The item is in the scan, which is the whole point: it is not reported as
+    // locally deleted, so nothing offers to delete its Canvas object.
+    assert.deepEqual(pathsOf(modules[0]), [
+      '01-intro/01-welcome.md',
+      '01-intro/02-theory.md',
+    ]);
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /Recovered 01-intro\/01-welcome\.md/);
+  });
+
+  it('reaches a parked file one level further down, inside a subfolder', () => {
+    const dir = tempCourse({
+      '01-intro/02-theory/__ccb_order_01-types.md':
+        '---\ntitle: Types\n---\n\nC.\n',
+      '01-intro/02-theory/_category_.json': '{ "label": "Theory" }\n',
+    });
+
+    const { modules } = gatherLocal({ courseDir: dir, gitDirty: CLEAN });
+
+    assert.equal(
+      fs.existsSync(path.join(dir, '01-intro/02-theory/01-types.md')),
+      true,
+    );
+    assert.deepEqual(pathsOf(modules[0]), [
+      '01-intro/02-theory',
+      '01-intro/02-theory/01-types.md',
+    ]);
+  });
+
+  it('recovers a parked subfolder, and everything the rename carries with it', () => {
+    // A subfolder is a text header, so a reorder parks directories too — and one
+    // rename takes the whole subtree back with it.
+    const dir = tempCourse({
+      '01-intro/__ccb_order_02-theory/_category_.json':
+        '{ "label": "Theory" }\n',
+      '01-intro/__ccb_order_02-theory/01-types.md':
+        '---\ntitle: Types\n---\n\nD.\n',
+    });
+
+    const { modules, warnings } = gatherLocal({
+      courseDir: dir,
+      gitDirty: CLEAN,
+    });
+
+    assert.deepEqual(pathsOf(modules[0]), [
+      '01-intro/02-theory',
+      '01-intro/02-theory/01-types.md',
+    ]);
+    assert.match(warnings[0], /Recovered 01-intro\/02-theory/);
+  });
+
+  it('leaves a parked file alone when its own name is occupied, and says so', () => {
+    // Deleting one of the two is how a recoverable interruption becomes lost
+    // work, so neither is touched. The occupant is scanned as usual, which is
+    // what keeps the run from reporting the item as deleted.
+    const dir = tempCourse({
+      '01-intro/__ccb_order_01-welcome.md': 'the parked copy\n',
+      '01-intro/01-welcome.md': '---\ntitle: Welcome\n---\n\nthe occupant\n',
+    });
+
+    const { modules, warnings } = gatherLocal({
+      courseDir: dir,
+      gitDirty: CLEAN,
+    });
+
+    assert.equal(
+      fs.readFileSync(
+        path.join(dir, '01-intro/__ccb_order_01-welcome.md'),
+        'utf8',
+      ),
+      'the parked copy\n',
+    );
+    assert.match(
+      fs.readFileSync(path.join(dir, '01-intro/01-welcome.md'), 'utf8'),
+      /the occupant/,
+    );
+    assert.deepEqual(pathsOf(modules[0]), ['01-intro/01-welcome.md']);
+    assert.equal(warnings.length, 1);
+    assert.match(
+      warnings[0],
+      /01-intro\/__ccb_order_01-welcome\.md .*occupied.*Nothing was deleted/s,
+    );
+  });
+
+  it('says nothing at all about a tree with no leftovers', () => {
+    const dir = tempCourse({ '01-intro/01-welcome.md': 'a\n' });
+
+    const { warnings } = gatherLocal({ courseDir: dir, gitDirty: CLEAN });
+
+    assert.deepEqual(warnings, []);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // gitDirtyPaths
 // ---------------------------------------------------------------------------
 

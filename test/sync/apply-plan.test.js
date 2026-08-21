@@ -1500,6 +1500,140 @@ describe('applyPlan, per action type', () => {
     ]);
   });
 
+  it('puts every parked file back when a rename fails partway through', async () => {
+    silence();
+    // A throw in the parking half used to leave the files it had already moved
+    // sitting under a name `scanCourse` skips. The next run read them as
+    // locally deleted, and `push --prune-canvas` would offer to delete their
+    // Canvas objects — so the failure did not stay local.
+    const courseDir = tempCourse({
+      '01-intro/01-a.md': 'a\n',
+      '01-intro/02-b.md': 'b\n',
+      '01-intro/03-c.md': 'c\n',
+    });
+    const state = emptyState();
+    state.modules['01-intro'] = {
+      canvas_module_id: 10,
+      item_order: ['01-intro/01-a.md', '01-intro/02-b.md', '01-intro/03-c.md'],
+      items: {
+        '01-intro/01-a.md': { canvas_type: 'page', canvas_id: 1 },
+        '01-intro/02-b.md': { canvas_type: 'page', canvas_id: 2 },
+        '01-intro/03-c.md': { canvas_type: 'page', canvas_id: 3 },
+      },
+    };
+    mockCanvas([]);
+
+    const realRename = fs.renameSync;
+    let renames = 0;
+    mock.method(fs, 'renameSync', (from, to) => {
+      renames += 1;
+      if (renames === 3) throw new Error('EPERM: operation not permitted');
+      return realRename(from, to);
+    });
+
+    const outcome = await run(
+      {
+        actions: [
+          {
+            type: 'reorder-local-module',
+            folder: '01-intro',
+            canvasModuleId: 10,
+            order: [
+              { itemPath: '01-intro/02-b.md', position: 1 },
+              { itemPath: '01-intro/03-c.md', position: 2 },
+              { itemPath: '01-intro/01-a.md', position: 3 },
+            ],
+          },
+        ],
+      },
+      { courseDir, state },
+    );
+
+    assert.equal(outcome.errors.length, 1);
+    assert.match(outcome.errors[0].error, /EPERM/);
+
+    // Every file is back under the name it had, and nothing is left parked.
+    assert.equal(
+      fs.readFileSync(path.join(courseDir, '01-intro/01-a.md'), 'utf8'),
+      'a\n',
+    );
+    assert.equal(
+      fs.readFileSync(path.join(courseDir, '01-intro/02-b.md'), 'utf8'),
+      'b\n',
+    );
+    assert.equal(
+      fs.readFileSync(path.join(courseDir, '01-intro/03-c.md'), 'utf8'),
+      'c\n',
+    );
+    assert.deepEqual(
+      fs
+        .readdirSync(path.join(courseDir, '01-intro'))
+        .filter((entry) => entry.startsWith('__ccb_order_')),
+      [],
+    );
+    assert.deepEqual(state.modules['01-intro'].item_order, [
+      '01-intro/01-a.md',
+      '01-intro/02-b.md',
+      '01-intro/03-c.md',
+    ]);
+  });
+
+  it('names the files by path when the unwind itself cannot put one back', async () => {
+    silence();
+    const courseDir = tempCourse({
+      '01-intro/01-a.md': 'a\n',
+      '01-intro/02-b.md': 'b\n',
+    });
+    const state = emptyState();
+    state.modules['01-intro'] = {
+      canvas_module_id: 10,
+      item_order: ['01-intro/01-a.md', '01-intro/02-b.md'],
+      items: {
+        '01-intro/01-a.md': { canvas_type: 'page', canvas_id: 1 },
+        '01-intro/02-b.md': { canvas_type: 'page', canvas_id: 2 },
+      },
+    };
+    mockCanvas([]);
+
+    // Park b (it moves first, into slot 1), fail parking a, then fail putting b
+    // back. Swallowing that leaves a file on disk under a name nothing would
+    // ever look for again.
+    const realRename = fs.renameSync;
+    let renames = 0;
+    mock.method(fs, 'renameSync', (from, to) => {
+      renames += 1;
+      if (renames >= 2) throw new Error('EPERM: operation not permitted');
+      return realRename(from, to);
+    });
+
+    const outcome = await run(
+      {
+        actions: [
+          {
+            type: 'reorder-local-module',
+            folder: '01-intro',
+            canvasModuleId: 10,
+            order: [
+              { itemPath: '01-intro/02-b.md', position: 1 },
+              { itemPath: '01-intro/01-a.md', position: 2 },
+            ],
+          },
+        ],
+      },
+      { courseDir, state },
+    );
+
+    assert.equal(outcome.errors.length, 1);
+    assert.match(outcome.errors[0].error, /01-intro\/02-b\.md/);
+    assert.match(outcome.errors[0].error, /could not be put back/);
+    // The name it is stranded under carries the basename, so the recovery
+    // sweep in `gatherLocal` can still find it on the next run.
+    assert.equal(
+      fs.existsSync(path.join(courseDir, '01-intro/__ccb_order_02-b.md')),
+      true,
+    );
+  });
+
   it('re-keys and drops base rows without touching either side', async () => {
     silence();
     const state = emptyState();
