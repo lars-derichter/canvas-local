@@ -4,6 +4,7 @@ const {
   htmlToMarkdown,
   canvasItemToMarkdown,
 } = require('../../lib/convert/html-to-markdown');
+const { markdownToHtml } = require('../../lib/convert/markdown-to-html');
 
 describe('htmlToMarkdown', () => {
   it('converts basic HTML to markdown', () => {
@@ -439,5 +440,350 @@ describe('canvasItemToMarkdown', () => {
     );
     assert.ok(!md.includes('lock_at'), 'Expected the same for lock_at');
     assert.match(md, /export: true/);
+  });
+});
+
+/**
+ * Compare two pieces of HTML the way a reader sees them rather than the way a
+ * diff does.
+ *
+ * Deliberately ignored, because none of it changes what the page says:
+ *
+ *   - whitespace between tags, so `</p>\n<ul>` and `</p><ul>` compare equal;
+ *   - runs of whitespace inside text, which HTML collapses when it renders, so
+ *     a newline where the other side has a space reads identically;
+ *   - leading and trailing whitespace of the whole document.
+ *
+ * Deliberately *not* ignored: everything inside a `<pre>`, where whitespace is
+ * the content and not the layout. Those spans are compared byte for byte, so a
+ * code block that comes back re-indented still fails. Nothing else is touched
+ * either — tag names, attributes (the alert class and its inline colours
+ * included), attribute order, element order and text all have to match.
+ */
+function normaliseHtml(html) {
+  return String(html)
+    .split(/(<pre[\s\S]*?<\/pre>)/)
+    .map((part, index) =>
+      index % 2 === 1
+        ? part
+        : part.replace(/>\s+</g, '><').replace(/\s+/g, ' '),
+    )
+    .join('')
+    .trim();
+}
+
+/**
+ * Push markdown to Canvas, pull it back down, and push the result again.
+ *
+ *   h1  — the HTML the first push sends to Canvas
+ *   md2 — the markdown the pull writes back into the file
+ *   h2  — the HTML the next push would send
+ */
+function roundTrips(sourceMarkdown) {
+  const h1 = markdownToHtml(sourceMarkdown);
+  const md2 = htmlToMarkdown(h1);
+  const h2 = markdownToHtml(md2);
+  return { h1, md2, h2 };
+}
+
+/**
+ * The invariant this whole suite exists for: an author's markdown, pushed to
+ * Canvas and pulled back down, means the same thing on the next push. If `h1`
+ * and `h2` differ, push and pull disagree about what the page says and the two
+ * commands can ping-pong the page forever.
+ *
+ * `md2 === source` is deliberately not the invariant and never will be:
+ * turndown indents lists and wraps lines its own way, and neither changes the
+ * meaning. Where the markdown a pull writes is worth pinning in its own right,
+ * the cases below assert on `md2` as well, because HTML equality alone would
+ * pass happily if both pushes were equally wrong.
+ */
+function assertSurvivesRoundTrip({ h1, md2, h2 }) {
+  assert.equal(
+    normaliseHtml(h2),
+    normaliseHtml(h1),
+    `A pull changed what the page says. The pull wrote:\n${md2}`,
+  );
+}
+
+describe('round trip through push and pull: text and inline formatting', () => {
+  it('survives consecutive paragraphs', () => {
+    const rt = roundTrips('An opening paragraph.\n\nA second paragraph.\n');
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.md2, /^An opening paragraph\.$/m);
+    assert.match(rt.md2, /^A second paragraph\.$/m);
+  });
+
+  it('survives strong and emphasis', () => {
+    const rt = roundTrips('A **bold** word and an *italic* word.\n');
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.md2, /\*\*bold\*\*/);
+    // Either delimiter is emphasis when the next push re-parses it; which one
+    // turndown picks is not what this case is pinning.
+    assert.match(rt.md2, /_italic_|\*italic\*/);
+  });
+
+  it('survives inline code', () => {
+    const rt = roundTrips('Run the `push` command first.\n');
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.md2, /`push`/);
+  });
+
+  it('survives a link', () => {
+    const rt = roundTrips('Read [the guide](https://example.com/guide).\n');
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.md2, /\[the guide\]\(https:\/\/example\.com\/guide\)/);
+  });
+
+  it('survives a link title', () => {
+    const rt = roundTrips(
+      'Read [the guide](https://example.com/guide "The guide").\n',
+    );
+    assertSurvivesRoundTrip(rt);
+    assert.match(
+      rt.md2,
+      /\[the guide\]\(https:\/\/example\.com\/guide "The guide"\)/,
+    );
+  });
+
+  it('survives an image', () => {
+    const rt = roundTrips('![A flow diagram](./_files/flow.png)\n');
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.md2, /!\[A flow diagram\]\(\.\/_files\/flow\.png\)/);
+  });
+
+  it('survives an image title', () => {
+    const rt = roundTrips('![A flow diagram](./_files/flow.png "Figure 1")\n');
+    assertSurvivesRoundTrip(rt);
+    assert.match(
+      rt.md2,
+      /!\[A flow diagram\]\(\.\/_files\/flow\.png "Figure 1"\)/,
+    );
+  });
+});
+
+describe('round trip through push and pull: block structure', () => {
+  it('survives every heading level', () => {
+    const rt = roundTrips(
+      '# One\n\n## Two\n\n### Three\n\n#### Four\n\n##### Five\n\n###### Six\n',
+    );
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.md2, /^# One$/m);
+    assert.match(rt.md2, /^## Two$/m);
+    assert.match(rt.md2, /^### Three$/m);
+    assert.match(rt.md2, /^#### Four$/m);
+    assert.match(rt.md2, /^##### Five$/m);
+    assert.match(rt.md2, /^###### Six$/m);
+  });
+
+  it('survives a fenced code block with its language hint', () => {
+    const rt = roundTrips(
+      '```js\nfunction add(a, b) {\n  return a + b;\n}\n```\n',
+    );
+    assertSurvivesRoundTrip(rt);
+    assert.ok(
+      rt.md2.includes('```js\n'),
+      'Expected the fence to come back with its language hint',
+    );
+    assert.ok(
+      rt.md2.includes('function add(a, b) {\n  return a + b;\n}'),
+      'Expected the body back with its indentation untouched',
+    );
+  });
+
+  it('survives a fenced code block indented deeper than one level', () => {
+    const rt = roundTrips(
+      '```python\ndef add(a, b):\n    total = a + b\n    return total\n```\n',
+    );
+    assertSurvivesRoundTrip(rt);
+    assert.ok(rt.md2.includes('```python\n'));
+    assert.ok(
+      rt.md2.includes('def add(a, b):\n    total = a + b\n    return total'),
+      'Expected four-space Python indentation to come back as four spaces',
+    );
+  });
+
+  it('survives an unordered list', () => {
+    const rt = roundTrips('- Apples\n- Pears\n- Plums\n');
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.md2, /^-\s+Apples$/m);
+    assert.match(rt.md2, /^-\s+Pears$/m);
+    assert.match(rt.md2, /^-\s+Plums$/m);
+  });
+
+  it('survives a nested unordered list', () => {
+    const rt = roundTrips('- Fruit\n  - Apples\n  - Pears\n- Vegetables\n');
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.md2, /^-\s+Fruit$/m);
+    assert.match(rt.md2, /^-\s+Vegetables$/m);
+    // How far turndown indents a nested item is its own business; that the
+    // item is still nested at all is not.
+    assert.match(rt.md2, /^\s+-\s+Apples$/m);
+    assert.match(rt.md2, /^\s+-\s+Pears$/m);
+  });
+
+  it('survives an ordered list', () => {
+    const rt = roundTrips('1. First\n2. Second\n3. Third\n');
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.md2, /^1\.\s+First$/m);
+    assert.match(rt.md2, /^2\.\s+Second$/m);
+    assert.match(rt.md2, /^3\.\s+Third$/m);
+  });
+
+  it('survives a blockquote of two paragraphs', () => {
+    const rt = roundTrips('> First quoted line.\n>\n> Second quoted line.\n');
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.md2, /^> First quoted line\.$/m);
+    assert.match(rt.md2, /^> Second quoted line\.$/m);
+  });
+
+  it('survives a GFM pipe table', () => {
+    const rt = roundTrips(
+      '| Name | Score |\n| --- | --- |\n| Alice | 10 |\n| Bob | 7 |\n',
+    );
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.md2, /\| Name \| Score \|/);
+    assert.match(rt.md2, /\| ---/, 'Expected header separator row');
+    assert.match(rt.md2, /\| Alice \| 10\s+\|/);
+    assert.match(rt.md2, /\| Bob\s+\| 7\s+\|/);
+  });
+});
+
+describe('round trip through push and pull: alerts', () => {
+  // Every type in ALERT_TYPE_MAP (lib/convert/html-to-markdown.js), which is
+  // the set this project supports.
+  const alertTypes = [
+    'NOTE',
+    'TIP',
+    'IMPORTANT',
+    'WARNING',
+    'ATTENTION',
+    'CHECK',
+  ];
+
+  for (const type of alertTypes) {
+    it(`survives ${type} alerts`, () => {
+      const rt = roundTrips(`> [!${type}]\n>\n> The body of the alert.\n`);
+      assertSurvivesRoundTrip(rt);
+      assert.match(rt.md2, new RegExp(`^> \\[!${type}\\]$`, 'm'));
+      assert.match(rt.md2, /^> The body of the alert\.$/m);
+    });
+  }
+
+  it('keeps ATTENTION spelled ATTENTION, though Canvas holds it as caution', () => {
+    // markdownToHtml rewrites [!ATTENTION] to [!CAUTION] so marked-alert knows
+    // it, which lands in Canvas as markdown-alert-caution; ALERT_TYPE_MAP maps
+    // that class back to ATTENTION. Both halves of the asymmetry, in one trip.
+    const rt = roundTrips('> [!ATTENTION]\n>\n> Mind the gap.\n');
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.h1, /markdown-alert-caution/);
+    assert.match(rt.md2, /\[!ATTENTION\]/);
+    assert.doesNotMatch(
+      rt.md2,
+      /\[!CAUTION\]/,
+      'Expected the pull to undo the rewrite the push made',
+    );
+  });
+
+  it('survives an alert whose body is more than one paragraph', () => {
+    const rt = roundTrips(
+      '> [!NOTE]\n>\n> The first paragraph.\n>\n> The second paragraph.\n',
+    );
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.md2, /^> \[!NOTE\]$/m);
+    assert.match(rt.md2, /^> The first paragraph\.$/m);
+    assert.match(rt.md2, /^> The second paragraph\.$/m);
+  });
+
+  it('survives an alert containing a list', () => {
+    const rt = roundTrips(
+      '> [!TIP]\n>\n> Do this:\n>\n> - Step one\n> - Step two\n',
+    );
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.md2, /^> \[!TIP\]$/m);
+    assert.match(rt.md2, /^> Do this:$/m);
+    assert.match(rt.md2, /^>\s+-\s+Step one$/m);
+    assert.match(rt.md2, /^>\s+-\s+Step two$/m);
+  });
+
+  it('survives inline formatting inside an alert', () => {
+    const rt = roundTrips(
+      '> [!IMPORTANT]\n>\n> Run **push** with the `--dry-run` flag.\n',
+    );
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.md2, /\*\*push\*\*/);
+    assert.match(rt.md2, /`--dry-run`/);
+  });
+
+  it('survives an alert followed by more content, spacer and all', () => {
+    const rt = roundTrips(
+      '> [!WARNING]\n>\n> Be careful.\n\nA paragraph after the alert.\n',
+    );
+    assertSurvivesRoundTrip(rt);
+    assert.match(
+      rt.h1,
+      /<p>&nbsp;<\/p>/,
+      'Expected the push to emit a spacer after the alert',
+    );
+    assert.doesNotMatch(
+      rt.md2,
+      /\u00a0|&nbsp;/,
+      'Expected the pull to strip that spacer again',
+    );
+    assert.match(rt.md2, /^> \[!WARNING\]$/m);
+    assert.match(rt.md2, /^A paragraph after the alert\.$/m);
+  });
+
+  it('survives two alerts in a row followed by more content', () => {
+    const rt = roundTrips(
+      '> [!NOTE]\n>\n> The first one.\n\n> [!TIP]\n>\n> The second one.\n\nAnd a closing paragraph.\n',
+    );
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.md2, /^> \[!NOTE\]$/m);
+    assert.match(rt.md2, /^> \[!TIP\]$/m);
+    assert.doesNotMatch(rt.md2, /\u00a0|&nbsp;/);
+    assert.match(rt.md2, /^And a closing paragraph\.$/m);
+  });
+});
+
+describe('round trip through push and pull: a whole page', () => {
+  it('survives a page that mixes every construct the suite covers', () => {
+    const rt = roundTrips(
+      [
+        '# Module 1',
+        '',
+        'An intro paragraph with **bold**, *italic* and `code`.',
+        '',
+        '## Steps',
+        '',
+        '1. Read [the guide](https://example.com/guide).',
+        '2. Run the command.',
+        '',
+        '> [!NOTE]',
+        '>',
+        '> Remember this bit.',
+        '',
+        '```js',
+        'const total = add(1, 2);',
+        '```',
+        '',
+        '- Apples',
+        '  - Pears',
+        '',
+        '| A | B |',
+        '| --- | --- |',
+        '| 1 | 2 |',
+        '',
+        '> A closing quotation.',
+        '',
+      ].join('\n'),
+    );
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.md2, /^# Module 1$/m);
+    assert.match(rt.md2, /^## Steps$/m);
+    assert.match(rt.md2, /^> \[!NOTE\]$/m);
+    assert.ok(rt.md2.includes('```js\nconst total = add(1, 2);\n```'));
+    assert.match(rt.md2, /\| ---/);
+    assert.match(rt.md2, /^> A closing quotation\.$/m);
   });
 });
