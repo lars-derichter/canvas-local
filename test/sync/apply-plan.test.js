@@ -1414,6 +1414,130 @@ describe('applyPlan, per action type', () => {
     ]);
   });
 
+  it('warns that a graded discussion it writes locally is not the whole truth', async () => {
+    // Push says this on every create and update. Without it in this direction,
+    // an author who has only ever seen the file has no way to learn that
+    // points, due date, grading type and group set live only in Canvas.
+    const warnings = [];
+    const courseDir = tempCourse();
+    const state = emptyState();
+    state.modules['01-intro'] = {
+      canvas_module_id: 10,
+      item_order: [],
+      items: {},
+    };
+    mockCanvas([]);
+
+    const outcome = await run(
+      {
+        actions: [
+          {
+            type: 'create-local-item',
+            folder: '01-intro',
+            itemPath: '01-intro/01-debate.md',
+            canvasModuleId: 10,
+            moduleItemId: 77,
+            canvasType: 'discussion',
+            canvasId: 600,
+            title: 'Debate',
+            indent: 0,
+            position: 1,
+            canvasHash: 'discussion-hash',
+          },
+        ],
+      },
+      {
+        courseDir,
+        state,
+        log: {
+          info: () => {},
+          warn: (line) => warnings.push(line),
+          verbose: () => {},
+          error: () => {},
+        },
+        // The cache is the normal path: `gatherCanvas` reads every discussion
+        // in one list request, so a pull never calls `getDiscussion`.
+        canvasContent: new Map([
+          [
+            '77',
+            {
+              item: { id: 77, type: 'Discussion', title: 'Debate', indent: 0 },
+              content: {
+                id: 600,
+                title: 'Debate',
+                message: '<p>Argue.</p>',
+                assignment_id: 9001,
+              },
+            },
+          ],
+        ]),
+      },
+    );
+
+    assert.deepEqual(outcome.errors, []);
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /discussion "Debate" is graded/);
+    assert.match(warnings[0], /no push or pull touches them/);
+  });
+
+  it('says nothing about an ungraded discussion', async () => {
+    const warnings = [];
+    const courseDir = tempCourse();
+    const state = emptyState();
+    state.modules['01-intro'] = {
+      canvas_module_id: 10,
+      item_order: [],
+      items: {},
+    };
+    mockCanvas([]);
+
+    await run(
+      {
+        actions: [
+          {
+            type: 'create-local-item',
+            folder: '01-intro',
+            itemPath: '01-intro/01-chat.md',
+            canvasModuleId: 10,
+            moduleItemId: 78,
+            canvasType: 'discussion',
+            canvasId: 601,
+            title: 'Chat',
+            indent: 0,
+            position: 1,
+            canvasHash: 'discussion-hash',
+          },
+        ],
+      },
+      {
+        courseDir,
+        state,
+        log: {
+          info: () => {},
+          warn: (line) => warnings.push(line),
+          verbose: () => {},
+          error: () => {},
+        },
+        canvasContent: new Map([
+          [
+            '78',
+            {
+              item: { id: 78, type: 'Discussion', title: 'Chat', indent: 0 },
+              content: {
+                id: 601,
+                title: 'Chat',
+                message: '<p>Say hello.</p>',
+                assignment_id: null,
+              },
+            },
+          ],
+        ]),
+      },
+    );
+
+    assert.deepEqual(warnings, []);
+  });
+
   it('deletes a local file and its row', async () => {
     silence();
     const courseDir = tempCourse({ '01-intro/01-gone.md': 'x\n' });
