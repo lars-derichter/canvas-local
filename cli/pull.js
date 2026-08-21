@@ -377,6 +377,22 @@ function sha256File(filePath) {
 /**
  * Scan HTML for Canvas file URLs and download any files not already tracked locally.
  * Updates syncData.files and canvasToLocal map as files are downloaded.
+ *
+ * `courseDir` is required and deliberately not defaulted to `COURSE_DIR`. It
+ * used to be, and the default was the whole of the defect: the engine resolves
+ * every other path against the `courseDir` its caller handed it, so a run
+ * pointed at any other tree wrote the markdown wrapper there and downloaded the
+ * binary it references into the working repo's `course/`. That left the wrapper
+ * pointing at a `_files/` entry that was not beside it, and left the
+ * already-downloaded check below looking in a tree the file was never in — so
+ * every run downloaded it again. A missing argument now fails instead.
+ *
+ * @param {string|number} courseId
+ * @param {string} html - The Canvas HTML to scan for file references.
+ * @param {string} folderName - The module folder the referencing item lives in.
+ * @param {object} syncData - The sync state; `files` is written in place.
+ * @param {Map<string, string>} canvasToLocal - Canvas preview URL to local path.
+ * @param {string} courseDir - Absolute path of the `course/` tree being written.
  */
 async function downloadReferencedFiles(
   courseId,
@@ -384,7 +400,15 @@ async function downloadReferencedFiles(
   folderName,
   syncData,
   canvasToLocal,
+  courseDir,
 ) {
+  if (!courseDir) {
+    throw new Error(
+      'downloadReferencedFiles was given no course directory. Every path it ' +
+        'writes is resolved against one, and guessing at the default would ' +
+        "put a run's embedded files in a tree it was never pointed at.",
+    );
+  }
   const filePattern = /\/courses\/\d+\/files\/(\d+)/g;
   const fileIds = new Set();
   let match;
@@ -403,14 +427,14 @@ async function downloadReferencedFiles(
     const canvasUrlPattern = `/courses/${courseId}/files/${fileId}/preview`;
     if (canvasToLocal.has(canvasUrlPattern)) {
       const localPath = canvasToLocal.get(canvasUrlPattern);
-      if (fs.existsSync(path.resolve(COURSE_DIR, localPath))) continue;
+      if (fs.existsSync(path.resolve(courseDir, localPath))) continue;
     }
 
     try {
       const fileMeta = await get(`/api/v1/files/${fileId}`);
       const fileName = fileMeta.display_name || `file-${fileId}`;
       const localRelPath = path.posix.join(folderName, '_files', fileName);
-      const destPath = path.resolve(COURSE_DIR, localRelPath);
+      const destPath = path.resolve(courseDir, localRelPath);
 
       log.info(`    [pull] Downloading file: ${fileName}`);
       await downloadFile(fileId, destPath);

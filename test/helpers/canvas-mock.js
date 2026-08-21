@@ -8,6 +8,18 @@ function fakeResponse(body, { status = 200 } = {}) {
     headers: { get: () => null },
     json: async () => body,
     text: async () => JSON.stringify(body),
+    // `downloadFile` reads the bytes rather than the JSON, so a route that
+    // stands in for a binary hands its body over as a string or a Buffer and
+    // gets those exact bytes written to disk.
+    arrayBuffer: async () => {
+      const buffer = Buffer.isBuffer(body)
+        ? body
+        : Buffer.from(typeof body === 'string' ? body : JSON.stringify(body));
+      return buffer.buffer.slice(
+        buffer.byteOffset,
+        buffer.byteOffset + buffer.byteLength,
+      );
+    },
   };
 }
 
@@ -47,14 +59,17 @@ function readBody(body) {
 function mockCanvas(routes) {
   const calls = [];
   const remaining = routes.map((route) => ({ ...route }));
-  mock.method(global, 'fetch', async (url, opts) => {
-    calls.push({ url, method: opts.method, body: readBody(opts.body) });
+  mock.method(global, 'fetch', async (url, opts = {}) => {
+    // A bare `fetch(url)` carries no options at all — that is how `downloadFile`
+    // pulls the bytes from the URL Canvas named — and its method is GET.
+    const method = opts.method || 'GET';
+    calls.push({ url, method, body: readBody(opts.body) });
     const index = remaining.findIndex(
-      (route) => route.method === opts.method && url.includes(route.path),
+      (route) => route.method === method && url.includes(route.path),
     );
     if (index === -1) {
       return fakeResponse(
-        { message: `unrouted ${opts.method} ${url}` },
+        { message: `unrouted ${method} ${url}` },
         { status: 400 },
       );
     }
