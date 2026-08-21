@@ -1016,6 +1016,209 @@ describe('applyPlan, per action type', () => {
     assert.ok(row.canvas_hash);
   });
 
+  // -------------------------------------------------------------------------
+  // Creating the two reference types, which resolve before they can be placed
+  // -------------------------------------------------------------------------
+
+  /**
+   * A course with one quiz item in it, and the plan that creates it. The routes
+   * differ per test; what the quiz list answers is the whole question.
+   */
+  function quizCreate() {
+    const courseDir = tempCourse({
+      '01-intro/05-test.md':
+        '---\ntitle: Test 1\ncanvas_type: quiz\n' +
+        'quiz_ref: evaluations/2526/test-1/test-1-qti.zip\n---\n',
+    });
+    const state = emptyState();
+    state.modules['01-intro'] = {
+      canvas_module_id: 10,
+      item_order: [],
+      items: {},
+    };
+    return {
+      courseDir,
+      state,
+      actions: [
+        {
+          type: 'create-canvas-item',
+          folder: '01-intro',
+          canvasModuleId: 10,
+          itemPath: '01-intro/05-test.md',
+          title: 'Test 1',
+          canvasType: 'quiz',
+          indent: 0,
+          position: 1,
+        },
+      ],
+    };
+  }
+
+  /** A log that keeps every line, so a test can say which channel carried one. */
+  function recordingLog() {
+    const warnings = [];
+    const errors = [];
+    return {
+      warnings,
+      errors,
+      log: {
+        info: () => {},
+        verbose: () => {},
+        warn: (line) => warnings.push(line),
+        error: (line) => errors.push(line),
+      },
+    };
+  }
+
+  it('places, records and applies a quiz that resolves by title', async () => {
+    silence();
+    // The success half of the two branches below: a quiz found by title is a
+    // real create, and pinning it is what keeps the refusals from swallowing
+    // the items they should let through.
+    const { courseDir, state, actions } = quizCreate();
+    const calls = mockCanvas([
+      { method: 'GET', path: '/quizzes', body: [{ id: 12, title: 'Test 1' }] },
+      {
+        method: 'POST',
+        path: '/modules/10/items',
+        body: {
+          id: 96,
+          type: 'Quiz',
+          title: 'Test 1',
+          content_id: 12,
+          indent: 0,
+        },
+      },
+    ]);
+
+    const outcome = await run({ actions }, { courseDir, state });
+
+    assert.deepEqual(outcome.errors, []);
+    assert.deepEqual(
+      outcome.applied.map((action) => action.itemPath),
+      ['01-intro/05-test.md'],
+    );
+    const [post] = calledWith(calls, 'POST', '/modules/10/items');
+    assert.equal(post.body.module_item.type, 'Quiz');
+    assert.equal(post.body.module_item.content_id, 12);
+    // The quiz's own id is the content id; the module item id is Canvas's.
+    const row = state.modules['01-intro'].items['01-intro/05-test.md'];
+    assert.equal(row.canvas_id, 12);
+    assert.equal(row.module_item_id, 96);
+  });
+
+  it('reports no item created when the course holds no quiz by that title', async () => {
+    const spies = silence();
+    // The defect this pins: `pushQuiz` warned and returned null, the handler
+    // returned, and a return is a success to the dispatch loop — so the action
+    // landed in `applied`, the run printed "Canvas: 1 item created" for an item
+    // that does not exist, and it exited 0 with the only trace a warning that
+    // `--quiet` drops.
+    const { courseDir, state, actions } = quizCreate();
+    const { warnings, errors, log } = recordingLog();
+    const calls = mockCanvas([{ method: 'GET', path: '/quizzes', body: [] }]);
+
+    const outcome = await run({ actions }, { courseDir, state, log });
+
+    // No POST route is on the table, so a create would have answered 400.
+    assert.equal(calledWith(calls, 'POST', '/modules/10/items').length, 0);
+    assert.deepEqual(outcome.applied, [], 'a create that did not create');
+    assert.equal(outcome.errors.length, 1);
+    assert.equal(outcome.errors[0].action.itemPath, '01-intro/05-test.md');
+    // The reason carries the procedure, and carries it on the error channel,
+    // which is the one `--quiet` does not suppress.
+    assert.match(outcome.errors[0].error, /holds no quiz by that name yet/);
+    assert.match(outcome.errors[0].error, /Import Course Content/);
+    assert.match(outcome.errors[0].error, /test-1-qti\.zip/);
+    assert.match(errors.join('\n'), /Import Course Content/);
+    const warned = [
+      ...warnings,
+      ...spies.warn.mock.calls.map((call) => call.arguments[0]),
+    ].join('\n');
+    assert.doesNotMatch(warned, /Import Course Content/);
+
+    // Nothing recorded for an item that was not created, so the next run plans
+    // the same create again.
+    assert.deepEqual(state.modules['01-intro'].items, {});
+  });
+
+  it('keeps the two unresolvable-quiz reasons apart', async () => {
+    silence();
+    // Two quizzes under one title is a different problem with a different
+    // remedy from a package that was never imported, and the author acts on
+    // the difference. One "could not create the item" for both would throw the
+    // useful half away.
+    const { courseDir, state, actions } = quizCreate();
+    const calls = mockCanvas([
+      {
+        method: 'GET',
+        path: '/quizzes',
+        body: [
+          { id: 12, title: 'Test 1' },
+          { id: 44, title: 'Test 1' },
+        ],
+      },
+    ]);
+
+    const outcome = await run({ actions }, { courseDir, state });
+
+    assert.equal(calledWith(calls, 'POST', '/modules/10/items').length, 0);
+    assert.deepEqual(outcome.applied, []);
+    assert.equal(outcome.errors.length, 1);
+    assert.match(
+      outcome.errors[0].error,
+      /2 quizzes in this course carry that title \(ids 12, 44\)/,
+    );
+    assert.doesNotMatch(
+      outcome.errors[0].error,
+      /Import Course Content/,
+      'the import procedure is the other reason, and does not fix this one',
+    );
+    assert.deepEqual(state.modules['01-intro'].items, {});
+  });
+
+  it('reports no item created when an external tool names no launch URL', async () => {
+    silence();
+    // The same field a `canvas_type: external_url` already fails the run over.
+    // One missing `external_url` used to get two answers depending on which of
+    // the two types the file claimed.
+    const courseDir = tempCourse({
+      '01-intro/04-lab.md':
+        '---\ntitle: Week 1 lab\ncanvas_type: external_tool\n---\n',
+    });
+    const state = emptyState();
+    state.modules['01-intro'] = {
+      canvas_module_id: 10,
+      item_order: [],
+      items: {},
+    };
+    const calls = mockCanvas([]);
+
+    const outcome = await run(
+      {
+        actions: [
+          {
+            type: 'create-canvas-item',
+            folder: '01-intro',
+            canvasModuleId: 10,
+            itemPath: '01-intro/04-lab.md',
+            title: 'Week 1 lab',
+            canvasType: 'external_tool',
+            indent: 0,
+            position: 1,
+          },
+        ],
+      },
+      { courseDir, state },
+    );
+
+    assert.deepEqual(calls, [], 'no probe and no create without a launch URL');
+    assert.deepEqual(outcome.applied, []);
+    assert.equal(outcome.errors.length, 1);
+    assert.match(outcome.errors[0].error, /names no external_url/);
+    assert.deepEqual(state.modules['01-intro'].items, {});
+  });
+
   it('writes title: into a file it creates the Canvas object from', async () => {
     silence();
     // The filename is the address and `title:` is the display name. Without

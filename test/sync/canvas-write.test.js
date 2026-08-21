@@ -316,8 +316,17 @@ describe('pushing an external tool', () => {
    * Run one external-tool markdown file through pushExternalTool with Canvas
    * mocked out, and hand back every request it made, what it warned about, and
    * the module item it says should carry the launch URL.
+   *
+   * A refusal throws, so `expectRefusal` says the throw is the thing under
+   * test and hands the error back as `refusal`. Without it an unexpected throw
+   * still fails the test it happened in, rather than reading as no item.
    */
-  async function pushTool({ frontmatter: extra = {}, routes, dryRun = false }) {
+  async function pushTool({
+    frontmatter: extra = {},
+    routes,
+    dryRun = false,
+    expectRefusal = false,
+  }) {
     mock.method(console, 'log', () => {});
     const warned = mock.method(console, 'warn', () => {});
 
@@ -334,13 +343,20 @@ describe('pushing an external tool', () => {
     fs.writeFileSync(filePath, serializeFrontmatter(frontmatter, ''), 'utf8');
 
     const calls = mockCanvas(routes || []);
-    const moduleItem = await pushExternalTool(
-      42,
-      { title: 'Week 1 lab', position: 4, indent: 0, frontmatter },
-      dryRun,
-    );
+    let moduleItem = null;
+    let refusal = null;
+    try {
+      moduleItem = await pushExternalTool(
+        42,
+        { title: 'Week 1 lab', position: 4, indent: 0, frontmatter },
+        dryRun,
+      );
+    } catch (err) {
+      if (!expectRefusal) throw err;
+      refusal = err;
+    }
 
-    return { calls, filePath, frontmatter, warned, moduleItem };
+    return { calls, filePath, frontmatter, warned, moduleItem, refusal };
   }
 
   const LAUNCH_URL = 'https://tool.example.com/launch';
@@ -396,18 +412,21 @@ describe('pushing an external tool', () => {
     assert.equal(warned.mock.callCount(), 0);
   });
 
-  it('warns and skips when the frontmatter has no external_url', async () => {
-    const { calls, warned, moduleItem } = await pushTool({
+  it('refuses when the frontmatter has no external_url', async () => {
+    const { calls, moduleItem, refusal } = await pushTool({
       frontmatter: { external_url: null },
       routes: [],
+      expectRefusal: true,
     });
 
     assert.equal(calls.length, 0, 'nothing is placed without a launch URL');
     assert.equal(moduleItem, null);
-    const lines = warned.mock.calls.map((c) => c.arguments[0]);
-    assert.equal(lines.length, 1);
-    assert.match(lines[0], /Skipping "Week 1 lab"/);
-    assert.match(lines[0], /external_url field is missing/);
+    // A throw rather than a warning, because a warning is dropped by --quiet
+    // and the caller has to remember to check a null.
+    assert.ok(refusal, 'expected the missing field to fail the item');
+    assert.match(refusal.message, /"Week 1 lab"/);
+    assert.match(refusal.message, /names no external_url/);
+    assert.match(refusal.message, /nothing was created/);
   });
 
   it('warns with both remedies but still places the item when no tool matches', async () => {
@@ -504,12 +523,16 @@ describe('pushing a quiz', () => {
    * Run one quiz markdown file through pushQuiz with Canvas mocked out, and
    * hand back every request it made, what it warned about, and the module item
    * it says should point at the quiz.
+   *
+   * A quiz that cannot be resolved throws, so `expectRefusal` says the throw is
+   * the thing under test and hands the error back as `refusal`.
    */
   async function pushQuizItem({
     frontmatter: extra = {},
     canvasId = null,
     routes,
     dryRun = false,
+    expectRefusal = false,
   }) {
     mock.method(console, 'log', () => {});
     const warned = mock.method(console, 'warn', () => {});
@@ -529,13 +552,20 @@ describe('pushing a quiz', () => {
     fs.writeFileSync(filePath, serializeFrontmatter(frontmatter, ''), 'utf8');
 
     const calls = mockCanvas(routes || []);
-    const moduleItem = await pushQuiz(
-      42,
-      { title: 'Test 1', canvasId, position: 5, indent: 0, frontmatter },
-      dryRun,
-    );
+    let moduleItem = null;
+    let refusal = null;
+    try {
+      moduleItem = await pushQuiz(
+        42,
+        { title: 'Test 1', canvasId, position: 5, indent: 0, frontmatter },
+        dryRun,
+      );
+    } catch (err) {
+      if (!expectRefusal) throw err;
+      refusal = err;
+    }
 
-    return { calls, filePath, frontmatter, warned, moduleItem };
+    return { calls, filePath, frontmatter, warned, moduleItem, refusal };
   }
 
   const QUIZ_REF = 'evaluations/2526/test-1/test-1-qti.zip';
@@ -612,39 +642,38 @@ describe('pushing a quiz', () => {
     assert.equal(moduleItem.contentId, 12);
   });
 
-  it('warns and skips when two quizzes carry the same title', async () => {
-    const { moduleItem, filePath, warned } = await pushQuizItem({
+  it('refuses when two quizzes carry the same title', async () => {
+    const { moduleItem, filePath, refusal } = await pushQuizItem({
       routes: [twoOfTheSameName],
+      expectRefusal: true,
     });
 
-    const text = warned.mock.calls.map((c) => c.arguments[0]).join('\n');
-    assert.match(text, /2 quizzes in this course carry that title/);
-    assert.match(text, /ids 12, 44/);
-    assert.equal(
-      moduleItem,
-      null,
-      'an ambiguous match must never be guessed at',
-    );
+    assert.ok(refusal, 'an ambiguous match must never be guessed at');
+    assert.match(refusal.message, /2 quizzes in this course carry that title/);
+    assert.match(refusal.message, /ids 12, 44/);
+    assert.equal(moduleItem, null);
     assert.doesNotMatch(fs.readFileSync(filePath, 'utf8'), /canvas_id/);
   });
 
-  it('prints the import procedure and skips when the quiz is not in Canvas', async () => {
-    const { moduleItem, warned } = await pushQuizItem({ routes: [noQuizzes] });
+  it('carries the import procedure in the refusal when the quiz is not in Canvas', async () => {
+    const { moduleItem, refusal } = await pushQuizItem({
+      routes: [noQuizzes],
+      expectRefusal: true,
+    });
 
-    const text = warned.mock.calls.map((c) => c.arguments[0]).join('\n');
-    assert.match(text, /holds no quiz by that name yet/);
-    assert.match(text, /Import Course Content/);
-    assert.match(text, /QTI \.zip file/);
-    assert.match(text, /Current Jobs/);
+    // The procedure travels in the message rather than beside it in a warning,
+    // because a scripted run under --quiet is told nothing else about the item
+    // it did not get.
+    assert.ok(refusal, 'a module item pointing at nothing is worse than none');
+    assert.match(refusal.message, /holds no quiz by that name yet/);
+    assert.match(refusal.message, /Import Course Content/);
+    assert.match(refusal.message, /QTI \.zip file/);
+    assert.match(refusal.message, /Current Jobs/);
     assert.ok(
-      text.includes(QUIZ_REF),
+      refusal.message.includes(QUIZ_REF),
       'the message names the package the item is waiting for',
     );
-    assert.equal(
-      moduleItem,
-      null,
-      'a module item pointing at nothing is worse than no item',
-    );
+    assert.equal(moduleItem, null);
   });
 
   it('places a quiz that has no quiz_ref but whose recorded id resolves', async () => {
@@ -675,20 +704,21 @@ describe('pushing a quiz', () => {
   });
 
   it('says there is nothing to import when the quiz is missing and so is quiz_ref', async () => {
-    const { moduleItem, warned } = await pushQuizItem({
+    const { moduleItem, refusal } = await pushQuizItem({
       frontmatter: { quiz_ref: null },
       routes: [noQuizzes],
+      expectRefusal: true,
     });
 
-    const lines = warned.mock.calls.map((c) => c.arguments[0]);
-    assert.equal(lines.length, 1, 'no import procedure without a package');
-    assert.match(lines[0], /Skipping "Test 1"/);
-    assert.match(lines[0], /names no quiz_ref/);
-    assert.equal(
-      moduleItem,
-      null,
-      'a module item pointing at nothing is worse than no item',
+    assert.ok(refusal, 'a module item pointing at nothing is worse than none');
+    assert.match(refusal.message, /"Test 1" was not placed/);
+    assert.match(refusal.message, /names no quiz_ref/);
+    assert.doesNotMatch(
+      refusal.message,
+      /Import Course Content/,
+      'no import procedure without a package to import',
     );
+    assert.equal(moduleItem, null);
   });
 
   it('makes no request at all on a dry run', async () => {
