@@ -684,6 +684,283 @@ describe('applyPlan, per action type', () => {
     assert.equal(calledWith(calls, 'PUT', '/pages/501').length, 1);
     assert.equal(calledWith(calls, 'PUT', '/modules/10/items').length, 0);
   });
+  it('treats an indent Canvas did not report as 0', async () => {
+    silence();
+    const courseDir = tempCourse({
+      '01-intro/01-welcome.md': '---\ntitle: Welcome\n---\n\nEdited.\n',
+    });
+    const state = emptyState();
+    state.modules['01-intro'] = {
+      canvas_module_id: 10,
+      item_order: ['01-intro/01-welcome.md'],
+      items: {
+        '01-intro/01-welcome.md': {
+          canvas_type: 'page',
+          canvas_id: 501,
+          page_url: 'welcome',
+          module_item_id: 91,
+          title: 'Welcome',
+        },
+      },
+    };
+    const calls = mockCanvas([
+      {
+        method: 'PUT',
+        path: '/pages/501',
+        body: {
+          page_id: 501,
+          url: 'welcome',
+          title: 'Welcome',
+          body: '<p>Edited.</p>',
+          updated_at: '2026-08-20T11:00:00.000Z',
+        },
+      },
+    ]);
+
+    const outcome = await run(
+      {
+        actions: [
+          {
+            type: 'update-canvas-item',
+            folder: '01-intro',
+            canvasModuleId: 10,
+            itemPath: '01-intro/01-welcome.md',
+            title: 'Welcome',
+            canvasType: 'page',
+            canvasId: 501,
+            pageUrl: 'welcome',
+            moduleItemId: 91,
+            indent: 0,
+          },
+        ],
+      },
+      {
+        courseDir,
+        state,
+        // Canvas omits indent on an item that has none, and means 0 by it.
+        canvasContent: new Map([
+          ['91', { item: { id: 91, title: 'Welcome' }, content: null }],
+        ]),
+      },
+    );
+
+    assert.deepEqual(outcome.errors, []);
+    assert.equal(calledWith(calls, 'PUT', '/modules/10/items').length, 0);
+  });
+
+  it('sends new_tab when the author flipped it and Canvas reported the old value', async () => {
+    silence();
+    const courseDir = tempCourse({
+      '01-intro/01-docs.md':
+        '---\ntitle: Docs\ncanvas_type: external_url\nexternal_url: https://example.com\nnew_tab: false\n---\n',
+    });
+    const state = emptyState();
+    state.modules['01-intro'] = {
+      canvas_module_id: 10,
+      item_order: ['01-intro/01-docs.md'],
+      items: {
+        '01-intro/01-docs.md': {
+          canvas_type: 'external_url',
+          canvas_id: 95,
+          module_item_id: 95,
+          title: 'Docs',
+        },
+      },
+    };
+    const calls = mockCanvas([
+      {
+        method: 'PUT',
+        path: '/modules/10/items/95',
+        body: {
+          id: 95,
+          type: 'ExternalUrl',
+          title: 'Docs',
+          external_url: 'https://example.com',
+          new_tab: false,
+          indent: 0,
+        },
+      },
+    ]);
+
+    const outcome = await run(
+      {
+        actions: [
+          {
+            type: 'update-canvas-item',
+            folder: '01-intro',
+            canvasModuleId: 10,
+            itemPath: '01-intro/01-docs.md',
+            title: 'Docs',
+            canvasType: 'external_url',
+            canvasId: 95,
+            moduleItemId: 95,
+            indent: 0,
+          },
+        ],
+      },
+      {
+        courseDir,
+        state,
+        canvasContent: new Map([
+          [
+            '95',
+            {
+              item: {
+                id: 95,
+                type: 'ExternalUrl',
+                title: 'Docs',
+                external_url: 'https://example.com',
+                new_tab: true,
+                indent: 0,
+              },
+              content: null,
+            },
+          ],
+        ]),
+      },
+    );
+
+    assert.deepEqual(outcome.errors, []);
+    const [sent] = calledWith(calls, 'PUT', '/modules/10/items/95');
+    assert.deepEqual(
+      sent.body.module_item,
+      { new_tab: false },
+      'only the field that moved is sent',
+    );
+  });
+
+  it('says nothing about new_tab when neither the file nor Canvas does', async () => {
+    silence();
+    // An LTI link points at a tool this project did not install, and Canvas
+    // does not report new_tab reliably for one, so an author who said nothing
+    // gets nothing sent — guessing would issue a PUT that changes nothing on
+    // every single run.
+    const courseDir = tempCourse({
+      '01-intro/01-wooclap.md':
+        '---\ntitle: Wooclap\ncanvas_type: external_tool\nexternal_url: https://app.wooclap.com/x\n---\n',
+    });
+    const state = emptyState();
+    state.modules['01-intro'] = {
+      canvas_module_id: 10,
+      item_order: ['01-intro/01-wooclap.md'],
+      items: {
+        '01-intro/01-wooclap.md': {
+          canvas_type: 'external_tool',
+          canvas_id: 96,
+          module_item_id: 96,
+          title: 'Wooclap',
+        },
+      },
+    };
+    const calls = mockCanvas([]);
+
+    const outcome = await run(
+      {
+        actions: [
+          {
+            type: 'update-canvas-item',
+            folder: '01-intro',
+            canvasModuleId: 10,
+            itemPath: '01-intro/01-wooclap.md',
+            title: 'Wooclap',
+            canvasType: 'external_tool',
+            canvasId: 96,
+            moduleItemId: 96,
+            indent: 0,
+          },
+        ],
+      },
+      {
+        courseDir,
+        state,
+        canvasContent: new Map([
+          [
+            '96',
+            {
+              item: {
+                id: 96,
+                type: 'ExternalTool',
+                title: 'Wooclap',
+                external_url: 'https://app.wooclap.com/x',
+                indent: 0,
+              },
+              content: null,
+            },
+          ],
+        ]),
+      },
+    );
+
+    assert.deepEqual(outcome.errors, []);
+    assert.equal(calledWith(calls, 'PUT', '/modules/10/items').length, 0);
+  });
+
+  it('leaves new_tab out of the comparison for a type that has none', async () => {
+    silence();
+    const courseDir = tempCourse({
+      '01-intro/01-welcome.md':
+        '---\ntitle: Welcome\nnew_tab: true\n---\n\nEdited.\n',
+    });
+    const state = emptyState();
+    state.modules['01-intro'] = {
+      canvas_module_id: 10,
+      item_order: ['01-intro/01-welcome.md'],
+      items: {
+        '01-intro/01-welcome.md': {
+          canvas_type: 'page',
+          canvas_id: 501,
+          page_url: 'welcome',
+          module_item_id: 91,
+          title: 'Welcome',
+        },
+      },
+    };
+    const calls = mockCanvas([
+      {
+        method: 'PUT',
+        path: '/pages/501',
+        body: {
+          page_id: 501,
+          url: 'welcome',
+          title: 'Welcome',
+          body: '<p>Edited.</p>',
+          updated_at: '2026-08-20T11:00:00.000Z',
+        },
+      },
+    ]);
+
+    const outcome = await run(
+      {
+        actions: [
+          {
+            type: 'update-canvas-item',
+            folder: '01-intro',
+            canvasModuleId: 10,
+            itemPath: '01-intro/01-welcome.md',
+            title: 'Welcome',
+            canvasType: 'page',
+            canvasId: 501,
+            pageUrl: 'welcome',
+            moduleItemId: 91,
+            indent: 0,
+          },
+        ],
+      },
+      {
+        courseDir,
+        state,
+        canvasContent: new Map([
+          [
+            '91',
+            { item: { id: 91, title: 'Welcome', indent: 0 }, content: null },
+          ],
+        ]),
+      },
+    );
+
+    assert.deepEqual(outcome.errors, []);
+    assert.equal(calledWith(calls, 'PUT', '/modules/10/items').length, 0);
+  });
 
   it('creates an external URL as a module item and takes its id as the content id', async () => {
     silence();
