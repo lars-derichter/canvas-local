@@ -1896,6 +1896,85 @@ describe('applyPlan, per action type', () => {
     ]);
   });
 
+  it('names the file it was told to renumber and could not find', async () => {
+    silence();
+    // A source missing at parking time is either a file the author deleted in
+    // the seconds since the scan or a caller handing over a path that was never
+    // there. Both used to `continue` without a word, which is how a bug of the
+    // second kind stayed invisible. The item keeps its number while everything
+    // around it moves, so the module ends up in an order nobody asked for —
+    // here, two items numbered 02.
+    const warnings = [];
+    const courseDir = tempCourse({
+      '01-intro/01-a.md': 'a\n',
+      '01-intro/03-c.md': 'c\n',
+    });
+    const state = emptyState();
+    state.modules['01-intro'] = {
+      canvas_module_id: 10,
+      item_order: ['01-intro/01-a.md', '01-intro/02-b.md', '01-intro/03-c.md'],
+      items: {
+        '01-intro/01-a.md': { canvas_type: 'page', canvas_id: 1 },
+        '01-intro/02-b.md': { canvas_type: 'page', canvas_id: 2 },
+        '01-intro/03-c.md': { canvas_type: 'page', canvas_id: 3 },
+      },
+    };
+    mockCanvas([]);
+
+    const outcome = await run(
+      {
+        actions: [
+          {
+            type: 'reorder-local-module',
+            folder: '01-intro',
+            canvasModuleId: 10,
+            order: [
+              { itemPath: '01-intro/03-c.md', position: 1 },
+              { itemPath: '01-intro/01-a.md', position: 2 },
+              { itemPath: '01-intro/02-b.md', position: 3 },
+            ],
+          },
+        ],
+      },
+      {
+        courseDir,
+        state,
+        log: {
+          info: () => {},
+          warn: (line) => warnings.push(line),
+          verbose: () => {},
+          error: () => {},
+        },
+      },
+    );
+
+    assert.equal(outcome.errors.length, 0);
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /nothing at 01-intro\/02-b\.md/);
+
+    // The rest of the module still moved.
+    assert.equal(
+      fs.readFileSync(path.join(courseDir, '01-intro/01-c.md'), 'utf8'),
+      'c\n',
+    );
+    assert.equal(
+      fs.readFileSync(path.join(courseDir, '01-intro/02-a.md'), 'utf8'),
+      'a\n',
+    );
+    // And the order says where things are, not where they were sent: the item
+    // that did not move keeps the number it had, clashing with the one that
+    // took its slot.
+    assert.deepEqual(state.modules['01-intro'].item_order, [
+      '01-intro/01-c.md',
+      '01-intro/02-a.md',
+      '01-intro/02-b.md',
+    ]);
+    assert.equal(
+      state.modules['01-intro'].items['01-intro/02-b.md'].canvas_id,
+      2,
+    );
+  });
+
   it('puts every parked file back when a rename fails partway through', async () => {
     silence();
     // A throw in the parking half used to leave the files it had already moved
