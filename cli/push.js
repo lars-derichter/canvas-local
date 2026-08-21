@@ -246,10 +246,14 @@ async function push(options = {}) {
     baseUrl: state.canvas_base_url,
     courseId,
   });
-  if (lines.length === 0) {
-    log.info('[push] Canvas already holds everything in course/.');
-  } else {
+  if (lines.length > 0) {
     for (const line of lines) log.info(line);
+  } else if (outcome.errors.length > 0) {
+    // A bare report is not agreement: nothing got as far as being applied, and
+    // the errors below are the whole account of this run.
+    log.info('[push] Nothing was applied. See the errors below.');
+  } else {
+    log.info('[push] Canvas already holds everything in course/.');
   }
 
   if (outcome.errors.length > 0) {

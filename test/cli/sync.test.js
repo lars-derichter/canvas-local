@@ -187,7 +187,7 @@ function writes(calls) {
 
 describe('npx course sync', () => {
   it('writes nothing when both sides already agree', async () => {
-    silence();
+    const out = silence();
     const { courseDir, file } = syncedFixture();
     const calls = mockCanvas(readRoutes());
 
@@ -199,7 +199,44 @@ describe('npx course sync', () => {
     });
 
     assert.deepEqual(writes(calls), [], 'a no-op sync must issue no write');
+    // The one run the in-sync sentence is true of, and it still says it.
+    assert.match(
+      out.log.mock.calls.map((call) => call.arguments.join(' ')).join('\n'),
+      /Everything is already in sync\./,
+    );
     assert.equal(process.exitCode, 0);
+  });
+
+  it('does not report a run in sync when its only action failed', async () => {
+    const out = silence();
+    // Three commands print a sentence for a bare report, and all three used to
+    // print the in-sync one whatever the errors said. This is the third.
+    const { courseDir, file } = syncedFixture();
+    fs.writeFileSync(
+      path.join(courseDir, '01-intro/01-welcome.md'),
+      '---\ntitle: Welcome\n---\n\nEdited here.\n',
+      'utf8',
+    );
+    // No PUT route, so the single write this run plans answers 400 and throws.
+    mockCanvas(readRoutes());
+
+    await sync({
+      courseDir,
+      syncFile: file,
+      gitDirty: CLEAN,
+      interactive: false,
+    });
+
+    const printed = out.log.mock.calls
+      .map((call) => call.arguments.join(' '))
+      .join('\n');
+    assert.doesNotMatch(printed, /already in sync/);
+    assert.match(printed, /Nothing was applied\. See the errors below\./);
+    assert.match(
+      out.error.mock.calls.map((call) => call.arguments.join(' ')).join('\n'),
+      /01-intro\/01-welcome\.md/,
+    );
+    assert.equal(process.exitCode, 1);
   });
 
   it('pushes a local edit and pulls nothing', async () => {

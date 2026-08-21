@@ -278,6 +278,42 @@ describe('npx course pull', () => {
     assert.equal(process.exitCode, 0);
   });
 
+  it('does not report a run in sync when its only action failed', async () => {
+    const out = silence();
+    // The same bare-report claim `push` used to make, from the other side. The
+    // module already exists on both sides, so the quiz item Canvas has gained
+    // is the run's only action — and a Quiz module item carrying no content_id
+    // names no quiz, so writing the reference file is refused.
+    const { courseDir, file } = syncedFixture();
+    mockCanvas(
+      readRoutes({
+        items: [
+          ITEM,
+          {
+            id: 92,
+            type: 'Quiz',
+            title: 'Test 1',
+            content_id: null,
+            position: 2,
+            indent: 0,
+          },
+        ],
+      }),
+    );
+
+    await pull({ courseDir, syncFile: file, gitDirty: CLEAN });
+
+    assert.deepEqual(tree(courseDir), [
+      '01-intro',
+      '01-intro/01-welcome.md',
+      '01-intro/_category_.json',
+    ]);
+    assert.doesNotMatch(printed(out), /already holds everything/);
+    assert.match(printed(out), /Nothing was applied\. See the errors below\./);
+    assert.match(errored(out), /names no content_id/);
+    assert.equal(process.exitCode, 1);
+  });
+
   it('writes the Canvas version over a local edit rather than pushing it', async () => {
     // conflict: 'canvas' is pinned, so a page that moved on both sides comes
     // down. Push, three commits ago, resolved the same case the other way.

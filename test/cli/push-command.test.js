@@ -220,7 +220,7 @@ async function withStdin(input, fn) {
 
 describe('npx course push', () => {
   it('writes nothing at all when Canvas already matches the tree', async () => {
-    silence();
+    const out = silence();
     const { courseDir, file } = syncedFixture();
     const calls = mockCanvas(readRoutes());
 
@@ -232,7 +232,41 @@ describe('npx course push', () => {
     });
 
     assert.deepEqual(writes(calls), [], 'a no-op push must issue no write');
+    // The one run the in-sync sentence is true of, and it still says it.
+    assert.match(printed(out), /Canvas already holds everything in course\//);
     assert.equal(process.exitCode, 0);
+  });
+
+  it('does not report a run in sync when its only action failed', async () => {
+    const out = silence();
+    // Nothing applied means nothing to report, and a bare report used to print
+    // the same sentence as a run with nothing to do — so the run's own summary
+    // claimed the two sides agreed while the errors under it said the item had
+    // not been written. Any action that throws reaches this; a failed page
+    // write is only the cheapest way to get there with one item.
+    const { courseDir, file } = syncedFixture();
+    fs.writeFileSync(
+      path.join(courseDir, '01-intro/01-welcome.md'),
+      '---\ntitle: Welcome\n---\n\nEdited here.\n',
+      'utf8',
+    );
+    // No PUT route, so the single write this run plans answers 400 and throws.
+    mockCanvas(readRoutes());
+
+    await push({
+      courseDir,
+      syncFile: file,
+      gitDirty: CLEAN,
+      interactive: false,
+    });
+
+    assert.doesNotMatch(printed(out), /already holds everything/);
+    assert.match(printed(out), /Nothing was applied\. See the errors below\./);
+    assert.match(
+      out.error.mock.calls.map((call) => call.arguments.join(' ')).join('\n'),
+      /01-intro\/01-welcome\.md/,
+    );
+    assert.equal(process.exitCode, 1);
   });
 
   it('pushes a local edit, and only that', async () => {

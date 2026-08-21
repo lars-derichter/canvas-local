@@ -259,8 +259,13 @@ function buildReport(report, options = {}) {
 
   // --- Applied -------------------------------------------------------------
   // An empty list renders no section at all, which is right for a run where
-  // every action failed as much as for one that planned nothing: `cli/sync.js`
-  // says "Everything is already in sync." when the report comes back bare.
+  // every action failed as much as for one that planned nothing. Those are not
+  // the same thing to say, and this cannot tell them apart: a report is a
+  // function of the plan and what ran, and the difference between the two is in
+  // the errors, which are neither. So each command reads its own `errors`
+  // before it decides what a bare report means. Every one of them used to
+  // answer both cases with the sentence for the second, and a run that refused
+  // its only action therefore reported the two sides as agreeing.
   section(
     run.executed ? 'Applied' : 'Would apply',
     summariseActions(run.executed ? options.applied : report.actions || []),
@@ -732,10 +737,14 @@ async function sync(options = {}) {
     baseUrl: state.canvas_base_url,
     courseId,
   });
-  if (lines.length === 0) {
-    log.info('[sync] Everything is already in sync.');
-  } else {
+  if (lines.length > 0) {
     for (const line of lines) log.info(line);
+  } else if (outcome.errors.length > 0) {
+    // A bare report is not agreement: nothing got as far as being applied, and
+    // the errors below are the whole account of this run.
+    log.info('[sync] Nothing was applied. See the errors below.');
+  } else {
+    log.info('[sync] Everything is already in sync.');
   }
 
   if (outcome.errors.length > 0) {
