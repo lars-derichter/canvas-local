@@ -27,6 +27,33 @@ describe('htmlToMarkdown', () => {
     assert.ok(md.includes('_italic_'), 'Expected italic markdown');
   });
 
+  it('converts strikethrough from every tag that spells it', () => {
+    // A pull's input is Canvas HTML, not this project's markdown, and Canvas's
+    // rich-content editor writes <s> where markdownToHtml writes <del>.
+    // <strike> is the legacy spelling still sitting in older pages. Without a
+    // rule for these, turndown keeps the text and drops the tag, so the
+    // strikethrough leaves the file and the next push makes the loss stick.
+    assert.equal(
+      htmlToMarkdown('<p>A <s>gone</s> word.</p>'),
+      'A ~~gone~~ word.',
+    );
+    assert.equal(
+      htmlToMarkdown('<p>A <strike>gone</strike> word.</p>'),
+      'A ~~gone~~ word.',
+    );
+    assert.equal(
+      htmlToMarkdown('<p>A <del>gone</del> word.</p>'),
+      'A ~~gone~~ word.',
+    );
+  });
+
+  it('sends Canvas <s> back up as <del> on the next push', () => {
+    // The one normalisation in that set: three spellings collapse to `~~`, and
+    // the push that follows picks <del>. Different tag, same strikethrough.
+    const md = htmlToMarkdown('<p>A <s>gone</s> word.</p>');
+    assert.match(markdownToHtml(md), /<del>gone<\/del>/);
+  });
+
   it('converts code blocks', () => {
     const md = htmlToMarkdown('<pre><code>const x = 1;</code></pre>');
     assert.match(md, /```/);
@@ -523,6 +550,13 @@ describe('round trip through push and pull: text and inline formatting', () => {
     assert.match(rt.md2, /_italic_|\*italic\*/);
   });
 
+  it('survives strikethrough', () => {
+    const rt = roundTrips('A ~~struck out~~ word and a plain one.\n');
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.md2, /~~struck out~~/);
+    assert.match(rt.md2, /and a plain one\./);
+  });
+
   it('survives inline code', () => {
     const rt = roundTrips('Run the `push` command first.\n');
     assertSurvivesRoundTrip(rt);
@@ -620,6 +654,32 @@ describe('round trip through push and pull: block structure', () => {
     // item is still nested at all is not.
     assert.match(rt.md2, /^\s+-\s+Apples$/m);
     assert.match(rt.md2, /^\s+-\s+Pears$/m);
+  });
+
+  it('survives a task list, box and tick alike', () => {
+    const rt = roundTrips('- [ ] Still to do\n- [x] Already done\n');
+    assertSurvivesRoundTrip(rt);
+    // Turndown's own three-space list indent plus the space the plugin adds
+    // after the box, so the gaps are wider than an author would type. It reads
+    // oddly and it re-parses as a task list all the same.
+    assert.match(rt.md2, /^-\s+\[ \]\s+Still to do$/m);
+    assert.match(rt.md2, /^-\s+\[x\]\s+Already done$/m);
+  });
+
+  it('survives inline formatting inside a task list item', () => {
+    const rt = roundTrips(
+      '- [ ] Run **push** with the `--dry-run` flag\n' +
+        '- [x] Read [the guide](https://example.com/guide)\n',
+    );
+    assertSurvivesRoundTrip(rt);
+    assert.match(
+      rt.md2,
+      /^-\s+\[ \]\s+Run \*\*push\*\* with the `--dry-run` flag$/m,
+    );
+    assert.match(
+      rt.md2,
+      /^-\s+\[x\]\s+Read \[the guide\]\(https:\/\/example\.com\/guide\)$/m,
+    );
   });
 
   it('survives an ordered list', () => {
