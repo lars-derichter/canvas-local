@@ -1,5 +1,6 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
+const TurndownService = require('turndown');
 const {
   htmlToMarkdown,
   canvasItemToMarkdown,
@@ -631,6 +632,173 @@ describe('round trip through push and pull: text and inline formatting', () => {
       rt.md2,
       /!\[A flow diagram\]\(\.\/_files\/flow\.png "Figure 1"\)/,
     );
+  });
+});
+
+describe('escaping on the way down from Canvas', () => {
+  it('leaves an underscore inside a word unescaped', () => {
+    assert.equal(
+      htmlToMarkdown('<p>Use snake_case and foo_bar_baz in Python.</p>'),
+      'Use snake_case and foo_bar_baz in Python.',
+    );
+  });
+
+  it('round-trips an underscore inside a word', () => {
+    const rt = roundTrips('Use snake_case and foo_bar_baz in Python.\n');
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.md2, /snake_case/);
+    assert.match(rt.md2, /foo_bar_baz/);
+    assert.doesNotMatch(rt.md2, /\\_/, 'Expected no backslash noise at all');
+  });
+
+  it('keeps escaping an underscore at either end of a word', () => {
+    // The guard that stops the fix over-reaching, and it matters more than the
+    // positive case: `_lead` can open emphasis and `trail_` can close it, so a
+    // pull that dropped these two backslashes would hand the next push a pair
+    // that italicises everything between them.
+    assert.equal(
+      htmlToMarkdown('<p>A _lead and a trail_ word.</p>'),
+      'A \\_lead and a trail\\_ word.',
+    );
+    const rt = roundTrips('A \\_lead and a trail\\_ word.\n');
+    assertSurvivesRoundTrip(rt);
+    assert.doesNotMatch(
+      markdownToHtml(rt.md2),
+      /<em>/,
+      'Expected the two underscores not to pair up into emphasis',
+    );
+  });
+
+  it('keeps escaping an underscore standing on its own', () => {
+    assert.equal(htmlToMarkdown('<p>a _ b</p>'), 'a \\_ b');
+    assert.equal(
+      htmlToMarkdown('<p>_ opens the line and closes it _</p>'),
+      '\\_ opens the line and closes it \\_',
+    );
+    assertSurvivesRoundTrip(roundTrips('a \\_ b\n'));
+  });
+
+  it('keeps escaping a doubled underscore, dunder names included', () => {
+    // Neither pair here is intraword on both sides: the leading `__` can open
+    // strong emphasis and the trailing `__` can close it, so unescaped it comes
+    // back from the next push as <strong>init</strong>. Escaping the whole run
+    // is the conservative reading of the rule and the correct one.
+    assert.equal(
+      htmlToMarkdown('<p>Python has __init__ methods.</p>'),
+      'Python has \\_\\_init\\_\\_ methods.',
+    );
+    const rt = roundTrips('Python has \\_\\_init\\_\\_ methods.\n');
+    assertSurvivesRoundTrip(rt);
+    assert.doesNotMatch(markdownToHtml(rt.md2), /<strong>/);
+  });
+
+  it('escapes and emphasises within the same run of text', () => {
+    // The new escape and the per-node emphasis delimiter exercised together:
+    // the two loose underscores are the <em>, the two inside words are text.
+    const md = htmlToMarkdown(
+      '<p>snake_case with <em>emphasis</em> and more_names</p>',
+    );
+    assert.equal(md, 'snake_case with _emphasis_ and more_names');
+    assert.equal(
+      normaliseHtml(markdownToHtml(md)),
+      normaliseHtml('<p>snake_case with <em>emphasis</em> and more_names</p>'),
+    );
+  });
+
+  it('counts a letter or digit in any script as a word character', () => {
+    // The condition is `\p{L}\p{N}`, not `\w`, so an accented or CJK neighbour
+    // makes the underscore literal exactly as an ASCII one does.
+    const rt = roundTrips('The names café_señor and 変数_名前 are literal.\n');
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.md2, /café_señor/);
+    assert.match(rt.md2, /変数_名前/);
+  });
+
+  it('neither doubles nor drops a backslash Canvas already holds', () => {
+    // The text node itself contains `\_`, i.e. someone escaped the underscore
+    // in Canvas. Both characters are literal text and both have to come back as
+    // literal text: the backslash escaped as `\\`, and the underscore still
+    // escaped, because a backslash is not a word character.
+    const md = htmlToMarkdown('<p>A back\\_slash already there.</p>');
+    assert.equal(md, 'A back\\\\\\_slash already there.');
+    assert.match(
+      markdownToHtml(md),
+      /A back\\_slash already there\./,
+      'Expected the next push to send the same two literal characters',
+    );
+  });
+
+  it('still escapes every other character turndown escapes', () => {
+    // `_` was the only one let through: `*` delimits emphasis intraword too, a
+    // backtick always opens a code span, and a bracket needs a parser to judge.
+    // Each case carries an intraword underscore as well, which also shows that
+    // hiding one disturbs no rule anchored to the start of the text node.
+    assert.equal(
+      htmlToMarkdown('<p>A * star and a ` tick in snake_case.</p>'),
+      'A \\* star and a \\` tick in snake_case.',
+    );
+    assert.equal(
+      htmlToMarkdown('<p>[a bracket] beside snake_case</p>'),
+      '\\[a bracket\\] beside snake_case',
+    );
+    assert.equal(
+      htmlToMarkdown('<p># not a heading, snake_case</p>'),
+      '\\# not a heading, snake_case',
+    );
+    assert.equal(
+      htmlToMarkdown('<p>&gt; not a quote, snake_case</p>'),
+      '\\> not a quote, snake_case',
+    );
+    assert.equal(
+      htmlToMarkdown('<p>1. not a list, snake_case</p>'),
+      '1\\. not a list, snake_case',
+    );
+    assert.equal(
+      htmlToMarkdown('<p>- not a bullet, snake_case</p>'),
+      '\\- not a bullet, snake_case',
+    );
+  });
+
+  it('hides an intraword underscore where no turndown rule can notice it', () => {
+    // The coupling the fix has to turndown's internals. Rather than copy
+    // turndown's escape table into this repo minus its `_` row, htmlToMarkdown
+    // swaps intraword underscores for U+0000, lets turndown's own escape do the
+    // work, and swaps them back. Two conditions make that sound, and both are
+    // pinned here so a turndown upgrade cannot break either quietly.
+    const placeholder = '\u0000';
+    const escapeAll = TurndownService.prototype.escape;
+
+    // One: no rule in the table matches the placeholder.
+    assert.equal(
+      escapeAll(`before${placeholder}after`),
+      `before${placeholder}after`,
+    );
+
+    // Two: no rule matches `_` either, bar the one being worked around, so a
+    // one-for-one swap at the same index is invisible to the other twelve. This
+    // is the leg that is easy to leave out, and matching no rule is not enough
+    // without it: six of the thirteen rules are anchored to the start of the
+    // string and read a prefix rather than one character, so a swap they could
+    // see would carry an escape off with it, and `-lead` without its backslash
+    // is a bullet on the next push. One string per anchored rule, escaped with
+    // the underscore hidden and with it showing, has to come out differing in
+    // nothing but that underscore.
+    for (const text of [
+      '-lead_word',
+      '+ plus_word',
+      '=setext_word',
+      '# heading_word',
+      '~~~fence_word',
+      '>quote_word',
+      '1. ordered_word',
+      '1_2. digits',
+    ]) {
+      assert.equal(
+        escapeAll(text.split('_').join(placeholder)),
+        escapeAll(text).split('\\_').join(placeholder),
+        `Hiding the underscore changed how turndown escaped ${text}`,
+      );
+    }
   });
 });
 
