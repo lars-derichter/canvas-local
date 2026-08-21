@@ -983,6 +983,104 @@ describe('applyPlan, per action type', () => {
     assert.match(written, /title: Docs/);
   });
 
+  it('refuses to write a quiz reference the module item names no quiz for', async () => {
+    silence();
+    // Same failure shape as the URL-less link: a reference file that looks
+    // synced, names no Canvas object, and is never retried because the next run
+    // finds a local file with a base row behind it.
+    const courseDir = tempCourse();
+    const state = emptyState();
+    state.modules['01-intro'] = {
+      canvas_module_id: 10,
+      item_order: [],
+      items: {},
+    };
+    mockCanvas([]);
+
+    const outcome = await run(
+      {
+        actions: [
+          {
+            type: 'create-local-item',
+            folder: '01-intro',
+            itemPath: '01-intro/01-midterm.md',
+            canvasModuleId: 10,
+            moduleItemId: 96,
+            canvasType: 'quiz',
+            canvasId: null,
+            title: 'Midterm',
+            indent: 0,
+            position: 1,
+            canvasHash: 'quiz-hash',
+          },
+        ],
+      },
+      { courseDir, state, canvasContent: new Map() },
+    );
+
+    assert.equal(outcome.errors.length, 1);
+    assert.match(outcome.errors[0].error, /content_id/);
+    assert.match(outcome.errors[0].error, /Midterm/);
+    assert.match(outcome.errors[0].error, /No file was written/);
+    assert.equal(
+      fs.existsSync(path.join(courseDir, '01-intro/01-midterm.md')),
+      false,
+      'no reference file may be left behind',
+    );
+    assert.equal(
+      state.modules['01-intro'].items['01-intro/01-midterm.md'],
+      undefined,
+      'and no row, or the next run would read the item as done',
+    );
+  });
+
+  it('writes the quiz reference when the module item does name one', async () => {
+    silence();
+    const courseDir = tempCourse();
+    const state = emptyState();
+    state.modules['01-intro'] = {
+      canvas_module_id: 10,
+      item_order: [],
+      items: {},
+    };
+    mockCanvas([]);
+
+    const outcome = await run(
+      {
+        actions: [
+          {
+            type: 'create-local-item',
+            folder: '01-intro',
+            itemPath: '01-intro/01-midterm.md',
+            canvasModuleId: 10,
+            moduleItemId: 96,
+            canvasType: 'quiz',
+            canvasId: 314,
+            title: 'Midterm',
+            indent: 0,
+            position: 1,
+            canvasHash: 'quiz-hash',
+          },
+        ],
+      },
+      { courseDir, state, canvasContent: new Map() },
+    );
+
+    assert.deepEqual(outcome.errors, []);
+    const written = fs.readFileSync(
+      path.join(courseDir, '01-intro/01-midterm.md'),
+      'utf8',
+    );
+    assert.match(written, /title: Midterm/);
+    assert.match(written, /canvas_type: quiz/);
+    // Which Canvas object a file is lives in the sync state, keyed by path —
+    // never in the frontmatter.
+    assert.equal(
+      state.modules['01-intro'].items['01-intro/01-midterm.md'].canvas_id,
+      314,
+    );
+  });
+
   it('uploads the alert icons before it renders a page that uses one', async () => {
     silence();
     // `applyPlan` reads `getIconUrls`, so the engine has to be what calls
