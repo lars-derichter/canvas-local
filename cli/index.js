@@ -111,8 +111,8 @@ program
 
 program
   .command('status')
-  .description('Compare local course content with Canvas sync state')
-  .option('-r, --remote', 'Also fetch and compare against Canvas course data')
+  .description('Show what a sync would do, without writing anything')
+  .option('-m, --module <name...>', 'Only report on these module folder names')
   .action(require('./status'));
 
 program
