@@ -1722,6 +1722,180 @@ describe('applyPlan, per action type', () => {
     ]);
   });
 
+  it('renumbers a text header and the children its rename carries along', async () => {
+    silence();
+    // Parking the whole module up front looked for the children under the
+    // folder's new name while the folder itself was sitting under its temporary
+    // one. They were at neither name, so every child was skipped in silence and
+    // the folder unparked carrying them at their old numbers — while
+    // `item_order` recorded the numbers they never got, naming two paths held
+    // by neither `items` nor the disk.
+    const courseDir = tempCourse({
+      '01-intro/01-theory/_category_.json': '{ "label": "Theory" }\n',
+      '01-intro/01-theory/01-a.md': 'a\n',
+      '01-intro/01-theory/02-b.md': 'b\n',
+    });
+    const state = emptyState();
+    state.modules['01-intro'] = {
+      canvas_module_id: 10,
+      item_order: [
+        '01-intro/01-theory',
+        '01-intro/01-theory/01-a.md',
+        '01-intro/01-theory/02-b.md',
+      ],
+      items: {
+        '01-intro/01-theory': { canvas_type: 'sub_header', module_item_id: 30 },
+        '01-intro/01-theory/01-a.md': { canvas_type: 'page', canvas_id: 1 },
+        '01-intro/01-theory/02-b.md': { canvas_type: 'page', canvas_id: 2 },
+      },
+    };
+    mockCanvas([]);
+
+    await run(
+      {
+        actions: [
+          {
+            type: 'reorder-local-module',
+            folder: '01-intro',
+            canvasModuleId: 10,
+            order: [
+              { itemPath: '01-intro/01-theory', position: 2 },
+              { itemPath: '01-intro/01-theory/01-a.md', position: 3 },
+              { itemPath: '01-intro/01-theory/02-b.md', position: 4 },
+            ],
+          },
+        ],
+      },
+      { courseDir, state },
+    );
+
+    assert.equal(
+      fs.readFileSync(
+        path.join(courseDir, '01-intro/02-theory/03-a.md'),
+        'utf8',
+      ),
+      'a\n',
+    );
+    assert.equal(
+      fs.readFileSync(
+        path.join(courseDir, '01-intro/02-theory/04-b.md'),
+        'utf8',
+      ),
+      'b\n',
+    );
+    // Rows and order describe the tree, and therefore each other.
+    assert.deepEqual(Object.keys(state.modules['01-intro'].items).sort(), [
+      '01-intro/02-theory',
+      '01-intro/02-theory/03-a.md',
+      '01-intro/02-theory/04-b.md',
+    ]);
+    assert.equal(
+      state.modules['01-intro'].items['01-intro/02-theory/03-a.md'].canvas_id,
+      1,
+    );
+    assert.deepEqual(state.modules['01-intro'].item_order, [
+      '01-intro/02-theory',
+      '01-intro/02-theory/03-a.md',
+      '01-intro/02-theory/04-b.md',
+    ]);
+    for (const itemPath of state.modules['01-intro'].item_order) {
+      assert.equal(
+        fs.existsSync(path.join(courseDir, itemPath)),
+        true,
+        `${itemPath} is named in item_order but is not on disk`,
+      );
+    }
+  });
+
+  it('parks two children that swap slots inside a folder that moved too', async () => {
+    silence();
+    // What the parking exists for, in the one shape that produces it: two items
+    // whose names differ only in the prefix, each moving onto the other's. And
+    // in a subfolder that is itself moving, so the swap happens a level below a
+    // rename — parking per level is what has to keep holding.
+    const courseDir = tempCourse({
+      '01-intro/02-part/_category_.json': '{ "label": "Part" }\n',
+      '01-intro/02-part/02-exercise.md': 'second\n',
+      '01-intro/02-part/03-exercise.md': 'third\n',
+    });
+    const state = emptyState();
+    state.modules['01-intro'] = {
+      canvas_module_id: 10,
+      item_order: [
+        '01-intro/02-part',
+        '01-intro/02-part/02-exercise.md',
+        '01-intro/02-part/03-exercise.md',
+      ],
+      items: {
+        '01-intro/02-part': { canvas_type: 'sub_header', module_item_id: 30 },
+        '01-intro/02-part/02-exercise.md': {
+          canvas_type: 'page',
+          canvas_id: 2,
+        },
+        '01-intro/02-part/03-exercise.md': {
+          canvas_type: 'page',
+          canvas_id: 3,
+        },
+      },
+    };
+    mockCanvas([]);
+
+    await run(
+      {
+        actions: [
+          {
+            type: 'reorder-local-module',
+            folder: '01-intro',
+            canvasModuleId: 10,
+            order: [
+              { itemPath: '01-intro/02-part', position: 1 },
+              { itemPath: '01-intro/02-part/03-exercise.md', position: 2 },
+              { itemPath: '01-intro/02-part/02-exercise.md', position: 3 },
+            ],
+          },
+        ],
+      },
+      { courseDir, state },
+    );
+
+    assert.equal(
+      fs.readFileSync(
+        path.join(courseDir, '01-intro/01-part/02-exercise.md'),
+        'utf8',
+      ),
+      'third\n',
+    );
+    assert.equal(
+      fs.readFileSync(
+        path.join(courseDir, '01-intro/01-part/03-exercise.md'),
+        'utf8',
+      ),
+      'second\n',
+    );
+    assert.deepEqual(
+      fs
+        .readdirSync(path.join(courseDir, '01-intro/01-part'))
+        .filter((entry) => entry.startsWith('__ccb_order_')),
+      [],
+    );
+    // The Canvas ids swapped with the files, not with the names.
+    assert.equal(
+      state.modules['01-intro'].items['01-intro/01-part/02-exercise.md']
+        .canvas_id,
+      3,
+    );
+    assert.equal(
+      state.modules['01-intro'].items['01-intro/01-part/03-exercise.md']
+        .canvas_id,
+      2,
+    );
+    assert.deepEqual(state.modules['01-intro'].item_order, [
+      '01-intro/01-part',
+      '01-intro/01-part/02-exercise.md',
+      '01-intro/01-part/03-exercise.md',
+    ]);
+  });
+
   it('puts every parked file back when a rename fails partway through', async () => {
     silence();
     // A throw in the parking half used to leave the files it had already moved
