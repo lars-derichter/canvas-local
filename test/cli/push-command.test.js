@@ -596,6 +596,105 @@ describe('npx course push, when Canvas was reordered', () => {
       /01-intro: would have taken the Canvas order \(only this side reordered\), but this command does not write to the local files/,
     );
   });
+
+  it('promises no answer for a contested order, and names who does ask', async () => {
+    // Push takes no `--order` flag, so it never settles a module both sides
+    // reordered. It used to say "awaiting an answer" all the same, which
+    // promised a prompt no command would ever issue.
+    const out = silence();
+    const THIRD_PAGE = {
+      page_id: 503,
+      url: 'third',
+      title: 'Third',
+      body: '<p>Third page.</p>',
+      updated_at: '2026-08-20T11:00:00.000Z',
+    };
+    const THIRD_ITEM = {
+      id: 93,
+      type: 'Page',
+      title: 'Third',
+      page_url: 'third',
+      content_id: 503,
+      position: 3,
+      indent: 0,
+    };
+    const courseDir = tempDir({
+      '01-intro/_category_.json': '{ "label": "Intro", "position": 1 }\n',
+      '01-intro/01-welcome.md': '---\ntitle: Welcome\n---\n\nHello there.\n',
+      '01-intro/02-second.md': '---\ntitle: Second\n---\n\nSecond page.\n',
+      '01-intro/03-third.md': '---\ntitle: Third\n---\n\nThird page.\n',
+    });
+    const {
+      hashLocalFile,
+      canvasFingerprint,
+    } = require('../../lib/sync/fingerprint');
+    const row = (itemPath, item, content) => ({
+      canvas_type: 'page',
+      canvas_id: content.page_id,
+      page_url: content.url,
+      module_item_id: item.id,
+      title: content.title,
+      local_hash: hashLocalFile(path.join(courseDir, itemPath)),
+      canvas_hash: canvasFingerprint({ item, content }, 'page'),
+      canvas_updated_at: content.updated_at,
+      synced_at: '2026-08-20T09:00:00.000Z',
+    });
+    const file = stateFile({
+      modules: {
+        '01-intro': {
+          canvas_module_id: 10,
+          name: 'Intro',
+          position: 1,
+          // The last sync recorded second, welcome, third. The filenames say
+          // welcome, second, third, and Canvas says second, third, welcome:
+          // both sides moved, and they disagree.
+          item_order: [
+            '01-intro/02-second.md',
+            '01-intro/01-welcome.md',
+            '01-intro/03-third.md',
+          ],
+          items: {
+            '01-intro/01-welcome.md': row('01-intro/01-welcome.md', ITEM, PAGE),
+            '01-intro/02-second.md': row(
+              '01-intro/02-second.md',
+              SECOND_ITEM,
+              SECOND_PAGE,
+            ),
+            '01-intro/03-third.md': row(
+              '01-intro/03-third.md',
+              THIRD_ITEM,
+              THIRD_PAGE,
+            ),
+          },
+        },
+      },
+    });
+    const calls = mockCanvas(
+      readRoutes({
+        items: [
+          { ...SECOND_ITEM, position: 1 },
+          { ...THIRD_ITEM, position: 2 },
+          { ...ITEM, position: 3 },
+        ],
+        pages: [PAGE, SECOND_PAGE, THIRD_PAGE],
+      }),
+    );
+
+    await push({
+      courseDir,
+      syncFile: file,
+      gitDirty: CLEAN,
+      interactive: false,
+    });
+
+    assert.deepEqual(writes(calls), [], 'a contested order moves nothing');
+    const text = printed(out);
+    assert.doesNotMatch(text, /awaiting an answer/);
+    assert.match(
+      text,
+      /01-intro: left as it is — both sides reordered, and this command never asks which wins; `npx course sync` is the one that does\./,
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------

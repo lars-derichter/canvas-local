@@ -837,6 +837,55 @@ describe('plan: ordering', () => {
     }
   });
 
+  it('asks nothing when the caller never said it could ask', () => {
+    // The default, and the reason it is `skip` rather than `ask`: `push`,
+    // `pull` and `status` all pass no order policy, and none of them collects
+    // what `ask` parks in `pending.order`. A caller that cannot answer must not
+    // be handed a question, and the author must not read that one is coming.
+    const result = plan({
+      ...ordered({ local: [B, A, C], canvas: [C, A, B] }),
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.deepEqual(result.pending.order, [], 'nothing is left pending');
+    assert.equal(result.ordering[0].skipped, true);
+    assert.doesNotMatch(result.ordering[0].reason, /awaiting an answer/);
+    assert.match(result.ordering[0].reason, /never asks which wins/);
+    assert.match(
+      result.ordering[0].reason,
+      /`npx course sync` is the one that does/,
+      'the line names the one command that settles it',
+    );
+    // Both orders travel with the entry, so the report can print them.
+    assert.deepEqual(result.ordering[0].local, [B, A, C]);
+    assert.deepEqual(result.ordering[0].canvas, [C, A, B]);
+  });
+
+  it('takes skip as a policy in its own right', () => {
+    const result = plan({
+      ...ordered({ local: [B, A, C], canvas: [C, A, B] }),
+      policy: { order: 'skip' },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.deepEqual(result.pending.order, []);
+    assert.match(result.ordering[0].reason, /never asks which wins/);
+  });
+
+  it('leaves a one-sided reorder alone under skip, the way ask does', () => {
+    // `order` bites only on a contested reorder. A module only one side moved
+    // is not a question, so the default must not turn it into one.
+    const result = plan({
+      ...ordered({ local: [B, A, C] }),
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), ['reorder-canvas-module']);
+    assert.equal(result.ordering[0].winner, 'local');
+    assert.equal(result.ordering[0].reason, 'only this side reordered');
+  });
+
   it('an answer beats the order policy', () => {
     const result = plan({
       ...ordered({ local: [B, A, C], canvas: [C, A, B] }),
