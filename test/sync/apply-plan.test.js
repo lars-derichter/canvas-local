@@ -15,6 +15,7 @@ process.env.CANVAS_API_URL = 'https://canvas.example.com';
 process.env.CANVAS_API_TOKEN = 'test-token-123';
 
 const { applyPlan } = require('../../lib/sync/apply');
+const { parseFrontmatter } = require('../../lib/convert/frontmatter');
 const { plan } = require('../../lib/sync/plan');
 const { gatherCanvas, gatherLocal } = require('../../lib/sync/gather');
 const { hashLocalFile } = require('../../lib/sync/fingerprint');
@@ -459,20 +460,8 @@ describe('a pull writes what `npm run format` would leave', () => {
     assert.deepEqual(again.skipped, []);
   });
 
-  it('keeps the file clean through the title a push writes into it', async () => {
-    silence();
-    // `writeTitleIfAbsent` re-serialises a file the run has already written, so
-    // it is the one write that can undo the formatting of another. It is also
-    // the write that happens to a file the author wrote, on the very first
-    // push of it — and that file's row is recorded from a re-read, so an
-    // unformatted round trip here reads as a local change for ever.
-    const courseDir = tempCourse({
-      '01-intro/_category_.json': '{ "label": "Intro", "position": 1 }\n',
-      '01-intro/01-welcome.md': `${PROSE}\n`,
-    });
-    const state = emptyState();
-    const welcome = path.join(courseDir, '01-intro/01-welcome.md');
-
+  /** The first push of a file the author wrote, through plan and apply. */
+  async function pushOne(courseDir, state) {
     mockCanvas([{ method: 'GET', path: '/modules', body: [] }]);
     const first = plan({
       base: state,
@@ -496,6 +485,31 @@ describe('a pull writes what `npm run format` would leave', () => {
     ]);
     const outcome = await run(first, { courseDir, state });
     assert.deepEqual(outcome.errors, []);
+    return outcome;
+  }
+
+  it('keeps the file clean through the title a push writes into it', async () => {
+    silence();
+    // `writeTitleIfAbsent` is the one write that happens to a file the author
+    // wrote, on the very first push of it. A clean file has to survive it
+    // clean: the row is recorded from a re-read, so a file this left in a
+    // shape `npm run format` disagrees with would read as a local change the
+    // moment anybody formatted the tree.
+    const wrapped =
+      'Een korte regel die ruim onder de tachtig tekens blijft.\n';
+    const courseDir = tempCourse({
+      '01-intro/_category_.json': '{ "label": "Intro", "position": 1 }\n',
+      '01-intro/01-welcome.md': wrapped,
+    });
+    const state = emptyState();
+    const welcome = path.join(courseDir, '01-intro/01-welcome.md');
+    assert.equal(
+      prettierCheck(courseDir, welcome),
+      true,
+      'the fixture has to start out clean or this proves nothing',
+    );
+
+    await pushOne(courseDir, state);
 
     assert.match(
       fs.readFileSync(welcome, 'utf8'),
@@ -506,6 +520,44 @@ describe('a pull writes what `npm run format` would leave', () => {
     assert.equal(
       state.modules['01-intro'].items['01-intro/01-welcome.md'].local_hash,
       hashLocalFile(welcome),
+    );
+  });
+
+  it('leaves an unformatted file exactly as unformatted as it found it', async () => {
+    silence();
+    // The other side of the same rule, and the one it is tempting to get
+    // wrong. This write runs over a file the author wrote and this run has not
+    // otherwise touched, so reformatting it is sync editing their prose
+    // unasked — the same class of thing as deleting a comment out of their
+    // frontmatter. And it buys nothing: `.prettierrc.json` sets
+    // `embeddedLanguageFormatting: "off"`, so Prettier never looks at
+    // frontmatter, and the added line cannot move `prettier --check` either
+    // way. The file was failing it before this run and is failing it after,
+    // for the author's own reason.
+    const unwrapped = `${PROSE}\n`;
+    const courseDir = tempCourse({
+      '01-intro/_category_.json': '{ "label": "Intro", "position": 1 }\n',
+      '01-intro/01-welcome.md': unwrapped,
+    });
+    const state = emptyState();
+    const welcome = path.join(courseDir, '01-intro/01-welcome.md');
+    assert.notEqual(
+      prettierCheck(courseDir, welcome),
+      true,
+      'the fixture has to start out unformatted or this proves nothing',
+    );
+
+    await pushOne(courseDir, state);
+
+    assert.equal(
+      fs.readFileSync(welcome, 'utf8'),
+      `---\ntitle: Welcome\n---\n\n${unwrapped}`,
+      'one line added and not a byte else',
+    );
+    assert.equal(
+      state.modules['01-intro'].items['01-intro/01-welcome.md'].local_hash,
+      hashLocalFile(welcome),
+      'the row still describes what is on disk',
     );
   });
 });
@@ -2509,6 +2561,193 @@ describe('applyPlan, per action type', () => {
       fs.readFileSync(path.join(courseDir, '01-intro/01-welcome.md'), 'utf8'),
       original,
       'the file must not have been rewritten',
+    );
+  });
+
+  it('adds title: to a hand-written block without rewriting the rest', async () => {
+    silence();
+    // The write used to go back through `matter.stringify`, which renders the
+    // *parsed* object: the comment was deleted outright, `canvas_type:   `
+    // lost its spacing and the inline list became a two-line one. All three on
+    // a file this run had otherwise only read.
+    const original = [
+      '---',
+      '# The Canvas type is deliberate: this is graded.',
+      'canvas_type:   assignment',
+      'tags: [ intro , welcome ]',
+      'points_possible: 20',
+      '---',
+      '',
+      'Hand in your work here.',
+      '',
+    ].join('\n');
+    const courseDir = tempCourse({ '01-intro/01-first-task.md': original });
+    const state = emptyState();
+    state.modules['01-intro'] = {
+      canvas_module_id: 10,
+      item_order: [],
+      items: {},
+    };
+    mockCanvas([
+      {
+        method: 'POST',
+        path: '/assignments',
+        body: {
+          id: 701,
+          name: 'First Task',
+          description: '<p>Hand in your work here.</p>',
+          updated_at: '2026-08-20T11:00:00.000Z',
+        },
+      },
+      {
+        method: 'POST',
+        path: '/modules/10/items',
+        body: { id: 91, type: 'Assignment', content_id: 701, indent: 0 },
+      },
+    ]);
+
+    const outcome = await run(
+      {
+        actions: [
+          {
+            type: 'create-canvas-item',
+            folder: '01-intro',
+            canvasModuleId: 10,
+            itemPath: '01-intro/01-first-task.md',
+            title: 'First Task',
+            canvasType: 'assignment',
+            indent: 0,
+            position: 1,
+          },
+        ],
+      },
+      { courseDir, state },
+    );
+    assert.deepEqual(outcome.errors, []);
+
+    const written = fs.readFileSync(
+      path.join(courseDir, '01-intro/01-first-task.md'),
+      'utf8',
+    );
+    assert.equal(
+      written,
+      [
+        '---',
+        'title: First Task',
+        '# The Canvas type is deliberate: this is graded.',
+        'canvas_type:   assignment',
+        'tags: [ intro , welcome ]',
+        'points_possible: 20',
+        '---',
+        '',
+        'Hand in your work here.',
+        '',
+      ].join('\n'),
+      'the only difference may be the one line that was added',
+    );
+
+    // Asserted on the parsed block as well as on the bytes. Text that looks
+    // right can still parse wrong — a second `---` block above the author's
+    // reads as one line added and demotes every key below it into the body.
+    assert.deepEqual(parseFrontmatter(written).data, {
+      title: 'First Task',
+      canvas_type: 'assignment',
+      tags: ['intro', 'welcome'],
+      points_possible: 20,
+    });
+
+    // And the row still describes the bytes on disk, which is what stops the
+    // next run reading the added line as a local change.
+    assert.equal(
+      state.modules['01-intro'].items['01-intro/01-first-task.md'].local_hash,
+      hashLocalFile(path.join(courseDir, '01-intro/01-first-task.md')),
+    );
+  });
+
+  it('adds no title at all to a block whose fence never closes', async () => {
+    silence();
+    const warnings = [];
+    // The refusal, exercised where it actually runs. `writeTitleIfAbsent`
+    // parses the file and then hands `insertFrontmatterKey` the same string,
+    // and gray-matter caches by input string: the cached copy it returns on
+    // that second call is missing `.matter`, which is a non-enumerable
+    // property `Object.assign` does not carry. A guard reading `.matter`
+    // therefore never fired in production and fired every time in a unit test
+    // calling the helper on a fresh string. What got through instead was a
+    // *second* frontmatter block above the author's, which pushes every key
+    // below it into the body: the item silently stops being an assignment.
+    const original = '---\ncanvas_type: assignment\npoints_possible: 20\n';
+    const courseDir = tempCourse({ '01-intro/01-first-task.md': original });
+    const state = emptyState();
+    state.modules['01-intro'] = {
+      canvas_module_id: 10,
+      item_order: [],
+      items: {},
+    };
+    mockCanvas([
+      {
+        method: 'POST',
+        path: '/assignments',
+        body: {
+          id: 701,
+          name: 'First Task',
+          description: '',
+          updated_at: '2026-08-20T11:00:00.000Z',
+        },
+      },
+      {
+        method: 'POST',
+        path: '/modules/10/items',
+        body: { id: 91, type: 'Assignment', content_id: 701, indent: 0 },
+      },
+    ]);
+
+    const outcome = await run(
+      {
+        actions: [
+          {
+            type: 'create-canvas-item',
+            folder: '01-intro',
+            canvasModuleId: 10,
+            itemPath: '01-intro/01-first-task.md',
+            title: 'First Task',
+            canvasType: 'assignment',
+            indent: 0,
+            position: 1,
+          },
+        ],
+      },
+      {
+        courseDir,
+        state,
+        log: {
+          info: () => {},
+          verbose: () => {},
+          warn: (line) => warnings.push(line),
+          error: () => {},
+        },
+      },
+    );
+    assert.deepEqual(outcome.errors, [], 'the push itself still goes through');
+
+    const written = fs.readFileSync(
+      path.join(courseDir, '01-intro/01-first-task.md'),
+      'utf8',
+    );
+    // The assertion that matters is what the file *parses* as, not what it
+    // reads as. Both of the author's keys have to still be frontmatter.
+    assert.deepEqual(parseFrontmatter(written).data, {
+      canvas_type: 'assignment',
+      points_possible: 20,
+    });
+    assert.equal(written, original, 'and not a byte was written at all');
+
+    // And the author is told, because a Canvas item that keeps taking its name
+    // from its filename is not something to fix silently.
+    assert.equal(warnings.length, 1);
+    assert.match(
+      warnings[0],
+      /Left the frontmatter of 01-intro\/01-first-task\.md/,
     );
   });
 
