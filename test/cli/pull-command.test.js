@@ -1099,6 +1099,169 @@ describe('npx course pull --prune-local', () => {
     assert.match(printed(out), /git-dirty/);
     assert.equal(process.exitCode, 1);
   });
+
+  // -------------------------------------------------------------------------
+  // A whole module folder, and the files under it no item can speak for
+  // -------------------------------------------------------------------------
+
+  /**
+   * A second local module that Canvas no longer holds, with an untracked
+   * binary in its `_files/`.
+   *
+   * `delete-local-module` is a recursive `rmSync` over the folder, and the
+   * guard between it and this image used to be `localModule.items.some(dirty)`
+   * — which can only ever see what `scanCourse` returned, and the scanner skips
+   * every `_`-prefixed folder. So the folder's one piece of uncommitted work
+   * was invisible, the module was pruned with nothing skipped, and the image
+   * went with it.
+   */
+  function orphanedModule() {
+    const courseDir = tempDir({
+      '01-intro/_category_.json': '{ "label": "Intro", "position": 1 }\n',
+      '01-intro/01-welcome.md':
+        '---\ntitle: Welcome\ncanvas_type: page\n---\n\nHello there.\n',
+      '02-loops/_category_.json': '{ "label": "Loops", "position": 2 }\n',
+      '02-loops/01-while.md':
+        '---\ntitle: While\ncanvas_type: page\n---\n\nRound and round.\n',
+      '02-loops/_files/diagram.png': 'MY-ONLY-COPY',
+    });
+    const { hashLocalFile } = require('../../lib/sync/fingerprint');
+    const file = stateFile({
+      modules: {
+        '01-intro': {
+          canvas_module_id: 10,
+          name: 'Intro',
+          position: 1,
+          item_order: ['01-intro/01-welcome.md'],
+          items: {
+            '01-intro/01-welcome.md': pageRowState(
+              courseDir,
+              '01-intro/01-welcome.md',
+              ITEM,
+              PAGE,
+            ),
+          },
+        },
+        '02-loops': {
+          canvas_module_id: 20,
+          name: 'Loops',
+          position: 2,
+          item_order: ['02-loops/01-while.md'],
+          items: {
+            '02-loops/01-while.md': {
+              canvas_type: 'page',
+              canvas_id: 601,
+              page_url: 'while',
+              module_item_id: 93,
+              title: 'While',
+              local_hash: hashLocalFile(
+                path.join(courseDir, '02-loops/01-while.md'),
+              ),
+              canvas_hash: 'stored-while-hash',
+              canvas_updated_at: '2026-08-20T11:00:00.000Z',
+              synced_at: '2026-08-20T09:00:00.000Z',
+            },
+          },
+        },
+      },
+    });
+    return { courseDir, file, routes: readRoutes() };
+  }
+
+  /** What `gitDirtyPaths` returns for that binary: the path and its ancestors. */
+  const DIRTY_ONLY_IN_FILES = {
+    available: true,
+    paths: new Set([
+      '02-loops',
+      '02-loops/_files',
+      '02-loops/_files/diagram.png',
+    ]),
+    reason: null,
+  };
+
+  it('deletes a whole orphaned module when nothing in it is dirty', async () => {
+    // The fence, first: the folder guard must not become a wall. Without this
+    // the refusal below would pass just as well against a guard that never let
+    // any module be deleted again.
+    silence();
+    const { courseDir, file, routes } = orphanedModule();
+    mockCanvas(routes);
+
+    await withStdin('y\n', () =>
+      pull({
+        courseDir,
+        syncFile: file,
+        gitDirty: CLEAN,
+        interactive: true,
+        pruneLocal: true,
+      }),
+    );
+
+    assert.deepEqual(tree(courseDir), [
+      '01-intro',
+      '01-intro/01-welcome.md',
+      '01-intro/_category_.json',
+    ]);
+    assert.equal(readState(file).modules['02-loops'], undefined);
+  });
+
+  it('refuses to delete a module folder over an untracked _files/ binary', async () => {
+    const out = silence();
+    const { courseDir, file, routes } = orphanedModule();
+    mockCanvas(routes);
+
+    await withStdin('y\n', () =>
+      pull({
+        courseDir,
+        syncFile: file,
+        gitDirty: DIRTY_ONLY_IN_FILES,
+        interactive: true,
+        pruneLocal: true,
+      }),
+    );
+
+    assert.equal(
+      read(courseDir, '02-loops/_files/diagram.png'),
+      'MY-ONLY-COPY',
+      'an untracked image is the case where the local copy is the only copy',
+    );
+    assert.ok(fs.existsSync(path.join(courseDir, '02-loops/01-while.md')));
+    assert.match(printed(out), /02-loops \(git-dirty\)/);
+    assert.match(printed(out), /Commit or stash/);
+    assert.equal(process.exitCode, 1, 'a refusal the author must act on');
+    assert.ok(
+      readState(file).modules['02-loops'],
+      'the module row is what makes the next run ask again',
+    );
+  });
+
+  it('--force deletes that folder anyway, image and all', async () => {
+    // `--force` is one lever, not two: the flag that lets a pull overwrite an
+    // uncommitted file lets `--prune-local` delete one. It clears the module
+    // flag as well as the item flags, or it would half work — files
+    // overwritten, folders spared.
+    silence();
+    const { courseDir, file, routes } = orphanedModule();
+    mockCanvas(routes);
+
+    await withStdin('y\n', () =>
+      pull({
+        courseDir,
+        syncFile: file,
+        gitDirty: DIRTY_ONLY_IN_FILES,
+        interactive: true,
+        pruneLocal: true,
+        force: true,
+      }),
+    );
+
+    assert.deepEqual(tree(courseDir), [
+      '01-intro',
+      '01-intro/01-welcome.md',
+      '01-intro/_category_.json',
+    ]);
+    assert.equal(readState(file).modules['02-loops'], undefined);
+  });
 });
 
 // ---------------------------------------------------------------------------

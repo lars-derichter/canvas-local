@@ -84,6 +84,11 @@ function lMod(folder, paths, extra = {}) {
     folder,
     name: extra.name ?? 'Introduction',
     position: extra.position ?? 1,
+    // The folder's own git answer, which `gatherLocal` sets from the module
+    // path itself. It covers everything the scanner never sees — a `_files/`
+    // binary, `_category_.json` — so it is the only flag that can speak for
+    // what a recursive `delete-local-module` would really remove.
+    dirty: extra.dirty ?? false,
     items: paths.map((itemPath, index) =>
       lItem(itemPath, {
         position: index + 1,
@@ -2726,6 +2731,68 @@ describe('plan: pruning', () => {
     assert.equal(module.pruned, false);
     assert.equal(result.skipped[0].reason, 'git-dirty');
     assert.equal(result.skipped[0].action, 'delete-local-module');
+  });
+
+  it('deletes a local folder that is clean, so the guard is not a wall', () => {
+    // The fence, and the one that matters most: nothing in this file used to
+    // assert that this delete ever happens, so a guard that refused every
+    // module for ever would have passed the whole suite.
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([A, B]) } },
+      local: { modules: [lMod(FOLDER, [A, B])] },
+      canvas: { modules: [] },
+      policy: { pruneLocal: true },
+    });
+
+    assert.deepEqual(types(result), ['delete-local-module']);
+    assert.deepEqual(result.skipped, []);
+    const module = result.orphans.local.find((o) => o.kind === 'module');
+    assert.equal(module.pruned, true);
+  });
+
+  it('will not delete a folder whose only dirty file the scanner never saw', () => {
+    // The defect. `delete-local-module` is a recursive `rmSync`, but the guard
+    // could only ask the items `scanCourse` returned — and the scanner skips
+    // every `_`-prefixed folder, so an untracked `_files/diagram.png` produces
+    // no item and had nothing to speak for it. The folder was pruned with the
+    // image inside it and `skipped` was empty.
+    //
+    // `gatherLocal` now answers for the folder itself, which is what the delete
+    // removes. Every item here is clean, exactly as it is on disk.
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([A, B]) } },
+      local: { modules: [lMod(FOLDER, [A, B], { dirty: true })] },
+      canvas: { modules: [] },
+      policy: { pruneLocal: true },
+    });
+
+    assert.deepEqual(types(result), []);
+    const module = result.orphans.local.find((o) => o.kind === 'module');
+    assert.equal(module.pruned, false);
+    assert.equal(result.skipped.length, 1);
+    assert.equal(result.skipped[0].kind, 'module');
+    assert.equal(result.skipped[0].reason, 'git-dirty');
+    assert.equal(result.skipped[0].action, 'delete-local-module');
+    assert.equal(result.skipped[0].moduleFolder, FOLDER);
+    assert.match(result.skipped[0].remedy, /Commit or stash/);
+  });
+
+  it('withholds that folder too when the policy forbids local writes', () => {
+    // The folder flag goes through the same `writeLands` check the item flags
+    // do, rather than around it: a skip carries a remedy and fails the run, and
+    // one raised over a delete the command was never going to make is a repair
+    // notice for nothing.
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([A, B]) } },
+      local: { modules: [lMod(FOLDER, [A, B], { dirty: true })] },
+      canvas: { modules: [] },
+      policy: { write: { canvas: true, local: false }, pruneLocal: true },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.deepEqual(result.skipped, []);
+    assert.equal(result.withheld.length, 1);
+    assert.equal(result.withheld[0].type, 'delete-local-module');
   });
 
   it('still will not, on a run that writes locally and nowhere else', () => {

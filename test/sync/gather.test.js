@@ -136,6 +136,72 @@ describe('gatherLocal', () => {
     });
 
     assert.ok(modules[0].items.every((item) => item.dirty === true));
+    assert.equal(modules[0].dirty, true, 'the folder cannot be told either');
+  });
+
+  it('marks the folder dirty for work no item can speak for', () => {
+    // The whole point of the module-level flag. `_files/` is skipped by the
+    // scanner, so an untracked binary in it produces no item at all — and
+    // `delete-local-module` is recursive, so the folder is what the delete
+    // actually removes and the folder is what has to be asked.
+    const dir = tempCourse({
+      '01-intro/01-welcome.md': 'a\n',
+      '01-intro/_files/diagram.png': 'PNG\n',
+    });
+
+    const { modules } = gatherLocal({
+      courseDir: dir,
+      // What `gitDirtyPaths` returns for one untracked `_files/` binary:
+      // the path plus every ancestor of it.
+      gitDirty: {
+        available: true,
+        paths: new Set([
+          '01-intro',
+          '01-intro/_files',
+          '01-intro/_files/diagram.png',
+        ]),
+        reason: null,
+      },
+    });
+
+    assert.deepEqual(
+      modules[0].items.map((item) => [item.itemPath, item.dirty]),
+      [['01-intro/01-welcome.md', false]],
+      'no scanned item can carry this fact',
+    );
+    assert.equal(modules[0].dirty, true);
+  });
+
+  it('leaves the folder clean when nothing under it is dirty', () => {
+    // The fence. A flag that were always true would refuse every local module
+    // delete for ever, and every test above it would still pass.
+    const dir = tempCourse({
+      '01-intro/01-welcome.md': 'a\n',
+      '02-loops/01-while.md': 'b\n',
+      '02-loops/_files/diagram.png': 'PNG\n',
+    });
+
+    const { modules } = gatherLocal({
+      courseDir: dir,
+      gitDirty: {
+        available: true,
+        paths: new Set([
+          '02-loops',
+          '02-loops/_files',
+          '02-loops/_files/diagram.png',
+        ]),
+        reason: null,
+      },
+    });
+
+    assert.deepEqual(
+      modules.map((module) => [module.folder, module.dirty]),
+      [
+        ['01-intro', false],
+        ['02-loops', true],
+      ],
+      'dirtiness is per folder, not per course',
+    );
   });
 });
 
@@ -388,6 +454,7 @@ describe('gitDirtyPaths', () => {
       ' M course/01-intro/01-welcome.md\0',
       '?? course/01-intro/03-new.md\0',
       'R  course/01-intro/05-to.md\0course/01-intro/04-from.md\0',
+      '?? course/02-loops/_files/diagram.png\0',
       ' M docs/user-guide.md\0',
     ].join('');
 
@@ -406,6 +473,12 @@ describe('gitDirtyPaths', () => {
     // A folder inherits the state of what is inside it, so a text header can
     // be asked the same question as a file.
     assert.ok(result.paths.has('01-intro'));
+    // Every ancestor, not just the immediate one — which is what lets a module
+    // folder answer for a binary two levels down, in a folder the course
+    // scanner never descends into. The module-level delete guard rests on it.
+    assert.ok(result.paths.has('02-loops/_files/diagram.png'));
+    assert.ok(result.paths.has('02-loops/_files'));
+    assert.ok(result.paths.has('02-loops'));
     // Anything outside course/ is none of a sync's business.
     assert.ok(!result.paths.has('docs/user-guide.md'));
   });

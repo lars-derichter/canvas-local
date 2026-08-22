@@ -160,6 +160,12 @@ async function pull(options = {}) {
   let writeGuard = gitDirty;
   if (force) {
     for (const module of local.modules) {
+      // The folder's own flag as well as its items'. It is what guards
+      // `delete-local-module` against uncommitted work the scanner cannot see,
+      // and `--force --prune-local` is exactly the run that is allowed to
+      // delete such a folder anyway. Leave it set and the flag would half work:
+      // files overwritten, folders spared.
+      module.dirty = false;
       for (const item of module.items) item.dirty = false;
     }
     writeGuard = { available: true, paths: new Set(), reason: null };
