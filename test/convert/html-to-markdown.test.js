@@ -910,6 +910,62 @@ describe('round trip through push and pull: block structure', () => {
     assert.match(rt.md2, /^3\.\s+Third$/m);
   });
 
+  // An author makes an empty bullet by pressing enter twice in Canvas's rich
+  // content editor, and `marked` produces `<li></li>` for the markdown form of
+  // it. That node is blank by turndown's test, so without the blankReplacement
+  // in htmlToMarkdown it never reaches the built-in listItem rule and the item
+  // is dropped. Losing the bullet is the small half; the blank line it leaves
+  // behind is what makes `marked` re-read a tight list as loose, so the next
+  // push sends `<li><p>One</p></li>` where the last one sent `<li>One</li>`.
+  it('survives an empty item in the middle of a list', () => {
+    const rt = roundTrips('- One\n-\n- Three\n');
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.md2, /^-\s+One$/m);
+    assert.match(rt.md2, /^-\s+Three$/m);
+    assert.match(rt.md2, /^-\s*$/m, 'Expected the empty item to come back');
+    // The half that breaks the round trip rather than merely losing content.
+    assert.doesNotMatch(
+      rt.h2,
+      /<li><p>/,
+      'A dropped empty item turns the tight list loose on the next push',
+    );
+  });
+
+  it('survives an empty item at either end of a list', () => {
+    // Only the middle case flips the list loose, so the first and last items
+    // used to vanish with nothing in the HTML to show for it.
+    const first = roundTrips('-\n- Two\n- Three\n');
+    assertSurvivesRoundTrip(first);
+    assert.equal((first.h1.match(/<li>/g) || []).length, 3);
+
+    const last = roundTrips('- One\n- Two\n-\n');
+    assertSurvivesRoundTrip(last);
+    assert.equal((last.h1.match(/<li>/g) || []).length, 3);
+  });
+
+  it('survives an empty item in an ordered list without renumbering', () => {
+    // Delegating to turndown's own listItem rule is what keeps the numbering
+    // right: it reads the item's index in its parent, so the items after the
+    // empty one keep the numbers they went out with.
+    const rt = roundTrips('1. One\n2.\n3. Three\n');
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.md2, /^1\.\s+One$/m);
+    assert.match(rt.md2, /^2\.\s*$/m, 'Expected the empty item to come back');
+    assert.match(rt.md2, /^3\.\s+Three$/m);
+  });
+
+  it('keeps turndown owning the list-item prefix', () => {
+    // The coupling the empty-item fix has to turndown's internals, and the only
+    // one: htmlToMarkdown's blankReplacement hands a blank <li> to
+    // `options.rules.listItem` rather than rebuilding the bullet marker, the
+    // `<ol start=…>` offset and the trailing newline itself. Pinned here so a
+    // turndown upgrade that moved or renamed that rule fails loudly instead of
+    // throwing inside every pull.
+    const rule = new TurndownService().options.rules.listItem;
+    assert.equal(typeof rule.replacement, 'function', 'rules.listItem moved');
+    assert.equal(rule.filter, 'li');
+  });
+
   it('survives a blockquote of two paragraphs', () => {
     const rt = roundTrips('> First quoted line.\n>\n> Second quoted line.\n');
     assertSurvivesRoundTrip(rt);
