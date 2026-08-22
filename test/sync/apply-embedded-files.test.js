@@ -446,6 +446,124 @@ describe('an embedded download onto uncommitted work', () => {
 });
 
 // ---------------------------------------------------------------------------
+// What the binary is called on disk
+// ---------------------------------------------------------------------------
+
+/**
+ * One Canvas file, one local name, whichever route reaches it.
+ *
+ * A Canvas file can arrive here two ways: embedded in a page's HTML, which is
+ * this module's `downloadReferencedFiles`, or as a `file` module item, which is
+ * `writeLocalFileItem` in `lib/sync/apply.js`. The second slugs Canvas's
+ * `display_name` and the first took it raw, so a file reachable both ways
+ * landed twice under two names — `Week 1 Handout.PDF` beside
+ * `week-1-handout.pdf`, each with its own row.
+ *
+ * The slug is the one to keep: every other path this tool writes is lowercase
+ * and hyphenated, and `toFileSlug` returns a name that already follows that
+ * convention unchanged, so nothing that was already right moves.
+ */
+
+const RAW_NAME = 'Week 1 Handout.PDF';
+const SLUGGED = '01-intro/_files/week-1-handout.pdf';
+const AWKWARD_ID = 778;
+
+function awkwardRoutes() {
+  const meta = {
+    id: AWKWARD_ID,
+    display_name: RAW_NAME,
+    url: `https://files.example.com/blob/${AWKWARD_ID}`,
+  };
+  return [
+    { method: 'GET', path: `/api/v1/files/${AWKWARD_ID}`, body: meta },
+    { method: 'GET', path: `/api/v1/files/${AWKWARD_ID}`, body: meta },
+    { method: 'GET', path: `/blob/${AWKWARD_ID}`, body: BINARY },
+  ];
+}
+
+/** The same page, embedding the awkwardly named file instead. */
+function awkwardPageContent() {
+  return new Map([
+    [
+      '91',
+      {
+        item: { id: 91, type: 'Page', title: 'Welcome', indent: 0 },
+        content: {
+          page_id: 501,
+          url: 'welcome',
+          title: 'Welcome',
+          body: `<p><img src="/courses/${COURSE_ID}/files/${AWKWARD_ID}/preview"></p>`,
+          updated_at: '2026-08-20T11:00:00.000Z',
+        },
+      },
+    ],
+  ]);
+}
+
+describe('an embedded binary takes the same name as a file item would', () => {
+  it('slugs the Canvas display_name rather than writing it raw', async () => {
+    silence();
+    const courseDir = tempCourse();
+    const state = stateWithModule();
+    mockCanvas(awkwardRoutes());
+
+    const outcome = await run([writeAction('create-local-item')], {
+      courseDir,
+      state,
+      gitDirty: CLEAN,
+      canvasContent: awkwardPageContent(),
+    });
+
+    assert.deepEqual(outcome.errors, []);
+    assert.deepEqual(fs.readdirSync(path.join(courseDir, '01-intro/_files')), [
+      'week-1-handout.pdf',
+    ]);
+    assert.equal(state.files[SLUGGED].canvas_file_id, AWKWARD_ID);
+
+    // The page points at the name that is really there.
+    const markdown = fs.readFileSync(
+      path.join(courseDir, '01-intro/01-welcome.md'),
+      'utf8',
+    );
+    assert.match(markdown, /\.\/_files\/week-1-handout\.pdf/);
+  });
+
+  it('renames nothing in a course that already holds the raw name', async () => {
+    // The migration question, and the answer is that there is none. A file the
+    // state already tracks and that is on disk short-circuits before the
+    // metadata read, so an existing course keeps the names and the rows it has;
+    // only a file being downloaded for the first time takes the new one.
+    silence();
+    const courseDir = tempCourse();
+    const raw = `01-intro/_files/${RAW_NAME}`;
+    fs.mkdirSync(path.join(courseDir, '01-intro/_files'), { recursive: true });
+    fs.writeFileSync(path.join(courseDir, raw), BINARY, 'utf8');
+
+    const state = stateWithModule();
+    state.files[raw] = {
+      canvas_file_id: AWKWARD_ID,
+      canvas_url: `/courses/${COURSE_ID}/files/${AWKWARD_ID}/preview`,
+      sha256: 'recorded-by-an-earlier-run',
+    };
+    const calls = mockCanvas([]);
+
+    const outcome = await run([writeAction('update-local-item')], {
+      courseDir,
+      state,
+      gitDirty: CLEAN,
+      canvasContent: awkwardPageContent(),
+    });
+
+    assert.deepEqual(outcome.errors, []);
+    assert.deepEqual(calls, [], 'a tracked file on disk costs no request');
+    assert.deepEqual(fs.readdirSync(path.join(courseDir, '01-intro/_files')), [
+      RAW_NAME,
+    ]);
+    assert.deepEqual(Object.keys(state.files), [raw]);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Deleting an embedded binary nothing points at any more
 // ---------------------------------------------------------------------------
 
