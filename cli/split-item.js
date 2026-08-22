@@ -152,7 +152,7 @@ async function splitItem(options) {
   }
 
   // Interactive mode
-  const rl = createRL();
+  const rl = createRL({ command: 'split-item', flags: '--file and --line' });
 
   console.log('[split-item] Split an item into two files\n');
 

@@ -1,4 +1,4 @@
-const { createRL, prompt } = require('./module-utils');
+const { ask, createRL, EOF } = require('./module-utils');
 const log = require('./logger');
 
 /** Where the three backup routes are written out. Referenced by every warning. */
@@ -15,27 +15,28 @@ const BACKUP_HINT = `Canvas has no undo. Back the course up first — see ${BACK
  * and so does an input stream that ends without answering: a CI run or a piped
  * command with nothing to say cancels rather than proceeding into a deletion.
  *
- * That second half is what the `'close'` hook buys, and it is load-bearing.
- * `rl.question`'s callback never fires once stdin reaches EOF, so without the
- * hook the promise never settles: the run stops mid-question with the event
- * loop drained, every caller's cancel path goes unrun, and the process exits 0
- * as though it had done what it was asked. `'close'` does fire on EOF, and on
- * an answered run it fires after the answer, so the race settles on whichever
- * of the two actually happened.
+ * That second half is what `ask` buys, and it is load-bearing. `rl.question`'s
+ * callback never fires once stdin reaches EOF, so a question that waits only
+ * for it never settles: the run stops mid-question with the event loop drained,
+ * every caller's cancel path goes unrun, and the process exits 0 as though it
+ * had done what it was asked. `ask` watches `'close'` alongside the answer, so
+ * whichever of the two actually happened is the one that settles it.
  *
  * It is deliberately not an `isTTY` check, and must not be tidied into one:
  * `printf 'y\n' | npx course push` has no terminal either, and piping the
  * answer in is a legitimate way to script this. What separates EOF from a real
  * answer is what arrived, not what is attached.
+ *
+ * `ask` rather than `prompt` is the whole difference between this and every
+ * other question in the tool. `prompt` throws at EOF, because a run that cannot
+ * say which module to create has no safe answer to fall back on. A destructive
+ * confirmation does: not deleting.
  */
 async function confirm(question) {
   const rl = createRL();
-  const closed = new Promise((resolve) =>
-    rl.once('close', () => resolve(null)),
-  );
-  const answer = await Promise.race([prompt(rl, question), closed]);
+  const answer = await ask(rl, question);
   rl.close();
-  return typeof answer === 'string' && answer.trim().toLowerCase() === 'y';
+  return answer !== EOF && answer.trim().toLowerCase() === 'y';
 }
 
 /**

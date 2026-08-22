@@ -123,7 +123,10 @@ async function moveToModule(options = {}) {
     return;
   }
 
-  const rl = createRL();
+  const rl = createRL({
+    command: 'movetomodule-item',
+    flags: '--path and --to-module',
+  });
 
   console.log('[movetomodule] Move an item to a different module\n');
 

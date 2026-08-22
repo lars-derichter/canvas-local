@@ -9,6 +9,7 @@ require('dotenv').config({
 const { Command } = require('commander');
 const pkg = require('../package.json');
 const log = require('./logger');
+const { UnanswerableError } = require('./module-utils');
 
 const program = new Command();
 
@@ -324,4 +325,21 @@ program
 // detection slices argv by only one element, leaving the script path as the
 // first command and producing "unknown command '.../cli/index.js'". Slicing off
 // node + script ourselves and parsing the rest as user args avoids that.
-program.parse(process.argv.slice(2), { from: 'user' });
+//
+// `parseAsync` rather than `parse` for one reason: most of these commands are
+// async, and `parse` drops the promise they return, so anything one of them
+// rejects with surfaces as an unhandled rejection — a stack dump around the
+// message rather than the message. Awaiting it is what gives a rejection
+// somewhere to land.
+program.parseAsync(process.argv.slice(2), { from: 'user' }).catch((err) => {
+  // A question that reached the end of its input stream is a scripted run this
+  // command cannot serve, not a crash: it earns the one line that says what to
+  // do instead, and the non-zero exit that stops a pipeline reading the silence
+  // as success. Anything else still fails the run with its stack.
+  if (err instanceof UnanswerableError) {
+    log.error(err.message);
+    process.exitCode = 1;
+    return;
+  }
+  throw err;
+});

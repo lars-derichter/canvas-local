@@ -33,7 +33,10 @@ async function moveModule(options = {}) {
       process.exit(1);
     }
   } else {
-    const rl = createRL();
+    const rl = createRL({
+      command: 'move-module',
+      flags: '--module and --position',
+    });
 
     console.log('[move-module] Move a course module to a new position\n');
 

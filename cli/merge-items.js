@@ -106,7 +106,10 @@ async function mergeItems(options) {
   }
 
   // Interactive mode
-  const rl = createRL();
+  const rl = createRL({
+    command: 'merge-items',
+    flags: '--source and --target',
+  });
 
   console.log('[merge-items] Merge two items in a module\n');
 

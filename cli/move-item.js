@@ -57,7 +57,7 @@ async function moveItem(options = {}) {
     return;
   }
 
-  const rl = createRL();
+  const rl = createRL({ command: 'move-item', flags: '--path and --position' });
 
   console.log('[move-item] Move an item to a new position\n');
 

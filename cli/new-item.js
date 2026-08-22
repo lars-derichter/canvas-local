@@ -172,7 +172,7 @@ async function newItem(options = {}) {
     return;
   }
 
-  const rl = createRL();
+  const rl = createRL({ command: 'new-item', flags: '--module and --type' });
 
   console.log('[new-item] Create a new item in a module\n');
 
@@ -259,3 +259,4 @@ async function newItem(options = {}) {
 
 module.exports = newItem;
 module.exports._createEntry = createEntry;
+module.exports._promptPosition = promptPosition;

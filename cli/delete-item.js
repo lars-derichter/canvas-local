@@ -79,7 +79,7 @@ async function deleteItem(options = {}) {
     return;
   }
 
-  const rl = createRL();
+  const rl = createRL({ command: 'delete-item', flags: '--path and --yes' });
 
   console.log('[delete-item] Delete an item from a module\n');
 

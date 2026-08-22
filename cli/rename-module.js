@@ -28,7 +28,10 @@ async function renameModule(options = {}) {
     }
     newName = options.name;
   } else {
-    const rl = createRL();
+    const rl = createRL({
+      command: 'rename-module',
+      flags: '--module and --name',
+    });
 
     console.log('[rename-module] Rename a course module\n');
 

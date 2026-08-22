@@ -1,8 +1,8 @@
 const fs = require('fs');
 const path = require('path');
-const readline = require('readline');
 
 const { PROJECT_ROOT } = require('./project-root');
+const { createRL, prompt } = require('./module-utils');
 const {
   emptyState,
   loadState,
@@ -54,20 +54,12 @@ function describeSyncTarget(syncData) {
   return url ? `${course} on ${url}` : course;
 }
 
-function prompt(rl, question, defaultValue) {
-  const suffix = defaultValue ? ` (${defaultValue})` : '';
-  return new Promise((resolve) => {
-    rl.question(`${question}${suffix}: `, (answer) => {
-      resolve(answer.trim() || defaultValue || '');
-    });
-  });
-}
-
 async function init() {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
+  // `init` has no flags at all, so a run that cannot answer has nowhere to put
+  // the three values and is told the only thing left to do: run it in a
+  // terminal. The shared prompt is what says so — a private copy of it here is
+  // what let this command keep hanging after the shared one was fixed.
+  const rl = createRL({ command: 'init' });
 
   console.log('[init] Canvas LMS setup');
   console.log(

@@ -58,7 +58,10 @@ async function deleteModule(options = {}) {
       process.exit(1);
     }
   } else {
-    const rl = createRL();
+    const rl = createRL({
+      command: 'delete-module',
+      flags: '--module and --yes',
+    });
 
     console.log('[delete-module] Delete a course module\n');
 

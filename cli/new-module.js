@@ -86,7 +86,7 @@ async function newModule(options = {}) {
     return;
   }
 
-  const rl = createRL();
+  const rl = createRL({ command: 'new-module', flags: '--name' });
 
   console.log('[new-module] Create a new course module\n');
 

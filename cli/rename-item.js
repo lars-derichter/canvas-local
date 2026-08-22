@@ -101,7 +101,7 @@ async function renameItem(options = {}) {
     return;
   }
 
-  const rl = createRL();
+  const rl = createRL({ command: 'rename-item', flags: '--path and --name' });
 
   console.log('[rename-item] Rename an item\n');
 
