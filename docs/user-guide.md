@@ -187,14 +187,15 @@ It is worth running, for three reasons:
   `npx course push`.
 
 Run it whenever suits you: before a commit, or after a long writing session. It
-is never required. Nothing checks your course, and `npx course push` does not
-care either way.
+covers what you write by hand; what the tool writes is formatted already,
+because sync needs one canonical form of every file under `course/`. A page
+whose bytes disagreed with Prettier's would read as changed on the next run and
+be pushed straight back, unaltered.
 
-If you would rather Prettier left your writing alone, add the content
-directories to `.prettierignore`:
+So `.prettierignore` cannot keep Prettier out of `course/`. It still works for
+the folders the tool never writes to:
 
 ```
-course/
 evaluations/
 sources/
 ```

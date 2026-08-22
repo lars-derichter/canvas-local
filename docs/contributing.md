@@ -148,6 +148,12 @@ codebase, so only three options are set:
   particular style, has to render exactly as written.
 - YAML keeps double quotes; everything else uses single.
 
+`.prettierrc.json` is read at runtime as well as by `npm run format`. The CLI
+formats every markdown file it writes into `course/` against the same resolved
+config, which is why `prettier` is a runtime dependency and not a development
+one: sync fingerprints files by their contents, so it needs a single canonical
+form of each. Changing an option above changes what a pull writes.
+
 `.editorconfig` covers the file types Prettier cannot parse —
 `update-from-upstream.sh`, `export-styles/filter.lua`, the Typst templates.
 
