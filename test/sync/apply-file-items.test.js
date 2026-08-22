@@ -707,3 +707,339 @@ describe('an upload that renamed nothing deletes nothing', () => {
     assert.deepEqual(fileReads(calls), []);
   });
 });
+
+// ---------------------------------------------------------------------------
+// The git guard on the binary a pulled `file` item brings down
+// ---------------------------------------------------------------------------
+
+/**
+ * What stops a pulled `file` item landing on bytes git holds no copy of.
+ *
+ * `writeLocalFileItem` writes twice: the wrapper markdown at `action.itemPath`,
+ * and the binary beside it under `_files/`. `guardDirty` in `lib/sync/plan.js`
+ * protects the first and has never known about the second — the binary's name
+ * is Canvas's `display_name` put through `toFileSlug`, so the destination does
+ * not exist as a fact until Canvas has answered, and the planner never touches
+ * the network. An author's own `handout.pdf` and a Canvas file of that name are
+ * therefore one path, and the Canvas one won by simply being written over it.
+ *
+ * This is `downloadReferencedFiles`'s case (see `apply-embedded-files.test.js`)
+ * with a different destination, and it takes the same remedy: the run's single
+ * git answer threaded down to the executor, asked by the same predicate,
+ * refused as a `skipped` entry with a remedy rather than as a failed run.
+ *
+ * **A refusal takes the whole item**, which is the one thing that differs from
+ * the embedded case. The row here is the item's identity, not an embedded
+ * file's bookkeeping, and a row naming a path with no file at it reads to the
+ * next `gatherLocal` as an item deleted locally — which under `--prune-canvas`
+ * deletes the Canvas object. So nothing is written at all and the base row is
+ * left exactly as it was, which is what makes the next run ask again.
+ *
+ * The fences are the last three: a clean tree still writes the file, a
+ * destination that is not there is never guarded, and a committed binary is
+ * still overwritten. A guard that quietly turned `file` items off would pass
+ * every test above it.
+ */
+
+const AUTHOR_BYTES = 'MY-ONLY-COPY';
+const CANVAS_BYTES = 'CANVAS-PDF-BYTES';
+const BINARY_REF = '01-intro/_files/handbook.pdf';
+
+const NO_GIT = {
+  available: false,
+  paths: new Set(),
+  reason: 'the tree is not inside a git repository',
+};
+/** What `gitDirtyPaths` returns for a dirty binary: the path and its ancestors. */
+const DIRTY_BINARY = {
+  available: true,
+  paths: new Set(['01-intro', '01-intro/_files', BINARY_REF]),
+  reason: null,
+};
+
+/** A tree holding the wrapper and nothing under `_files/` at all. */
+function courseWithoutBinary() {
+  const dir = tempCourse();
+  fs.rmSync(path.join(dir, BINARY_REF), { force: true });
+  return dir;
+}
+
+/** The action a pull plans for this item, and what `gatherCanvas` hands over. */
+function pullAction(type = 'update-local-item') {
+  return {
+    type,
+    folder: '01-intro',
+    itemPath: WRAPPER,
+    canvasModuleId: MODULE_ID,
+    moduleItemId: MODULE_ITEM_ID,
+    canvasType: 'file',
+    canvasId: OLD_FILE_ID,
+    title: 'Syllabus',
+    indent: 0,
+    position: 1,
+    canvasHash: 'canvas-file-hash',
+  };
+}
+
+function pullContent() {
+  return new Map([
+    [
+      String(MODULE_ITEM_ID),
+      {
+        item: {
+          id: MODULE_ITEM_ID,
+          type: 'File',
+          title: 'Syllabus',
+          indent: 0,
+          content_id: OLD_FILE_ID,
+        },
+        content: {
+          id: OLD_FILE_ID,
+          display_name: 'handbook.pdf',
+          size: 16,
+          updated_at: '2026-08-21T10:00:00.000Z',
+        },
+      },
+    ],
+  ]);
+}
+
+/** The metadata read and the byte fetch one download costs. */
+function pullRoutes() {
+  return [
+    {
+      method: 'GET',
+      path: `/api/v1/files/${OLD_FILE_ID}`,
+      body: {
+        id: OLD_FILE_ID,
+        display_name: 'handbook.pdf',
+        url: `https://files.example.com/blob/${OLD_FILE_ID}`,
+      },
+    },
+    { method: 'GET', path: `/blob/${OLD_FILE_ID}`, body: CANVAS_BYTES },
+  ];
+}
+
+/** Whether the run went past the metadata read to fetch the bytes. */
+function fetchedBytes(calls) {
+  return calls.some((call) => call.url.includes(`/blob/${OLD_FILE_ID}`));
+}
+
+function bytesAt(courseDir) {
+  return fs.readFileSync(path.join(courseDir, BINARY_REF), 'utf8');
+}
+
+describe('a pulled file item onto an uncommitted binary', () => {
+  it('leaves the binary alone, and reports the item it did not write', async () => {
+    silence();
+    const courseDir = tempCourse();
+    fs.writeFileSync(path.join(courseDir, BINARY_REF), AUTHOR_BYTES, 'utf8');
+    const state = stateWithFileItem();
+    const calls = mockCanvas(pullRoutes());
+
+    const outcome = await run([pullAction()], {
+      courseDir,
+      state,
+      canvasContent: pullContent(),
+      gitDirty: DIRTY_BINARY,
+    });
+
+    assert.deepEqual(outcome.errors, []);
+    assert.equal(
+      bytesAt(courseDir),
+      AUTHOR_BYTES,
+      'the only copy of the author’s bytes must survive',
+    );
+    assert.equal(fetchedBytes(calls), false, 'no bytes may be pulled down');
+
+    // Shaped like `guardDirty`: the run does not fail, it says what it would
+    // not do and how to let it.
+    assert.equal(outcome.skipped.length, 1);
+    assert.equal(outcome.skipped[0].reason, 'git-dirty');
+    assert.equal(outcome.skipped[0].itemPath, WRAPPER);
+    assert.equal(outcome.skipped[0].action, 'update-local-item');
+    assert.match(outcome.skipped[0].remedy, new RegExp(BINARY_REF));
+    assert.match(outcome.skipped[0].remedy, /Commit or stash/);
+  });
+
+  it('writes no wrapper and no row, so the next run asks the same question', async () => {
+    silence();
+    // Either half on its own is worse than nothing. The wrapper alone would put
+    // `local_hash` over the author's binary — `fileItemHash` spans both halves
+    // — against a `canvas_hash` describing Canvas's, and both sides would read
+    // as unchanged for ever after. The row alone names a path with no file at
+    // it, which the next `gatherLocal` reads as an item deleted locally.
+    const courseDir = tempCourse();
+    fs.writeFileSync(path.join(courseDir, BINARY_REF), AUTHOR_BYTES, 'utf8');
+    const state = stateWithFileItem();
+    const wrapperBefore = fs.readFileSync(
+      path.join(courseDir, WRAPPER),
+      'utf8',
+    );
+    const rowBefore = {
+      ...state.modules['01-intro'].items[WRAPPER],
+    };
+    mockCanvas(pullRoutes());
+
+    const outcome = await run([pullAction()], {
+      courseDir,
+      state,
+      canvasContent: pullContent(),
+      gitDirty: DIRTY_BINARY,
+    });
+
+    assert.equal(
+      fs.readFileSync(path.join(courseDir, WRAPPER), 'utf8'),
+      wrapperBefore,
+      'the wrapper must not be rewritten either',
+    );
+    assert.deepEqual(
+      state.modules['01-intro'].items[WRAPPER],
+      rowBefore,
+      'the base row is what makes the next run plan this write again',
+    );
+    // And the refusal is not an application: a report that lists this item as
+    // applied while `skipped` says it never happened contradicts itself, and
+    // tells the author their bytes are in git when nothing was written.
+    assert.deepEqual(outcome.applied, []);
+  });
+
+  it('creates no row for a brand-new item it refused', async () => {
+    silence();
+    // The `create-local-item` half, where there is no base row to fall back on.
+    // A row written here would be the whole identity of an item with no file
+    // behind it — and the next run reads that as deleted locally, which under
+    // `--prune-canvas` deletes the Canvas file.
+    const courseDir = tempCourse();
+    fs.writeFileSync(path.join(courseDir, BINARY_REF), AUTHOR_BYTES, 'utf8');
+    fs.rmSync(path.join(courseDir, WRAPPER));
+    const state = stateWithFileItem();
+    delete state.modules['01-intro'].items[WRAPPER];
+    mockCanvas(pullRoutes());
+
+    const outcome = await run([pullAction('create-local-item')], {
+      courseDir,
+      state,
+      canvasContent: pullContent(),
+      gitDirty: DIRTY_BINARY,
+    });
+
+    assert.deepEqual(outcome.errors, []);
+    assert.equal(outcome.skipped.length, 1);
+    assert.equal(fs.existsSync(path.join(courseDir, WRAPPER)), false);
+    assert.deepEqual(Object.keys(state.modules['01-intro'].items), []);
+    assert.equal(bytesAt(courseDir), AUTHOR_BYTES);
+  });
+
+  it('protects what is on disk when no git answer was handed in at all', async () => {
+    silence();
+    // The default is the refusal, not the write. A caller that forgets to pass
+    // the git answer must not be the one place the guard is quietly off.
+    const courseDir = tempCourse();
+    fs.writeFileSync(path.join(courseDir, BINARY_REF), AUTHOR_BYTES, 'utf8');
+    const state = stateWithFileItem();
+    const calls = mockCanvas(pullRoutes());
+
+    const outcome = await run([pullAction()], {
+      courseDir,
+      state,
+      canvasContent: pullContent(),
+    });
+
+    assert.equal(fetchedBytes(calls), false);
+    assert.equal(outcome.skipped.length, 1);
+    assert.equal(bytesAt(courseDir), AUTHOR_BYTES);
+  });
+
+  it('downloads into a clean tree, so the guard has not turned file items off', async () => {
+    silence();
+    // This is also the `--force` pin. `cli/pull.js` states the flag by handing
+    // the executor `{ available: true, paths: new Set() }` — `CLEAN`, exactly —
+    // rather than threading a second condition through every guard, so a run
+    // that forces its way past this refusal takes precisely this path.
+    const courseDir = tempCourse();
+    fs.writeFileSync(path.join(courseDir, BINARY_REF), AUTHOR_BYTES, 'utf8');
+    const state = stateWithFileItem();
+    mockCanvas(pullRoutes());
+
+    const outcome = await run([pullAction()], {
+      courseDir,
+      state,
+      canvasContent: pullContent(),
+      gitDirty: CLEAN,
+    });
+
+    assert.deepEqual(outcome.errors, []);
+    assert.deepEqual(outcome.skipped, []);
+    // A tracked binary with nothing uncommitted in it is one `git checkout`
+    // away, so Canvas wins it exactly as it wins a tracked markdown file.
+    assert.equal(bytesAt(courseDir), CANVAS_BYTES);
+    assert.match(
+      fs.readFileSync(path.join(courseDir, WRAPPER), 'utf8'),
+      /file_ref: _files\/handbook\.pdf/,
+    );
+    assert.equal(
+      state.modules['01-intro'].items[WRAPPER].canvas_hash,
+      'canvas-file-hash',
+      'the row has to describe what landed',
+    );
+    assert.equal(outcome.applied.length, 1);
+  });
+
+  it('still writes a binary that is not there at all when git cannot answer', async () => {
+    silence();
+    // "I cannot tell" is a reason to protect what exists, and nothing more.
+    // Refusing to create a file that is not there destroys nothing and would
+    // disable `file` items entirely outside a checkout.
+    const courseDir = courseWithoutBinary();
+    const state = stateWithFileItem();
+    mockCanvas(pullRoutes());
+
+    const outcome = await run([pullAction()], {
+      courseDir,
+      state,
+      canvasContent: pullContent(),
+      gitDirty: NO_GIT,
+    });
+
+    assert.deepEqual(outcome.errors, []);
+    assert.deepEqual(outcome.skipped, []);
+    assert.equal(bytesAt(courseDir), CANVAS_BYTES);
+  });
+
+  it('guards the destination Canvas named, not the one the wrapper names', async () => {
+    silence();
+    // The reason this cannot be a planner-side guard. The wrapper says
+    // `_files/handbook.pdf` and that file is clean; Canvas calls its file
+    // "Course Notes.pdf", which slugs to a different path — and the author has
+    // an untracked file sitting exactly there. Nothing the planner can read
+    // names that path.
+    const courseDir = tempCourse();
+    const collision = '01-intro/_files/course-notes.pdf';
+    fs.writeFileSync(path.join(courseDir, collision), AUTHOR_BYTES, 'utf8');
+    const state = stateWithFileItem();
+    const content = pullContent();
+    content.get(String(MODULE_ITEM_ID)).content.display_name =
+      'Course Notes.pdf';
+    const calls = mockCanvas(pullRoutes());
+
+    const outcome = await run([pullAction()], {
+      courseDir,
+      state,
+      canvasContent: content,
+      gitDirty: {
+        available: true,
+        paths: new Set(['01-intro', '01-intro/_files', collision]),
+        reason: null,
+      },
+    });
+
+    assert.equal(fetchedBytes(calls), false);
+    assert.equal(outcome.skipped.length, 1);
+    assert.match(outcome.skipped[0].remedy, /course-notes\.pdf/);
+    assert.equal(
+      fs.readFileSync(path.join(courseDir, collision), 'utf8'),
+      AUTHOR_BYTES,
+    );
+  });
+});
