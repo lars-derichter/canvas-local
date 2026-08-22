@@ -905,6 +905,53 @@ describe('the sync report', () => {
     assert.deepEqual(buildReport(plan, { applied: [] }), []);
   });
 
+  it('names an embedded binary nothing points at any more', () => {
+    // The half of this defect the author actually sees. Before the sweep, a
+    // renamed image left a second copy live in the course Files area and a dead
+    // row in the state, and no run said a word about either. An embedded file
+    // is in no module, so the line says which kind of orphan it is and links to
+    // the file itself rather than to a module item that does not exist.
+    const orphan = {
+      kind: 'file',
+      itemPath: '01-intro/_files/logo.png',
+      title: 'logo.png',
+      canvasType: 'file',
+      canvasFileId: 500,
+      pruned: false,
+    };
+    const plan = planOf([], { orphans: { canvas: [orphan], local: [] } });
+
+    const text = buildReport(plan, {
+      applied: [],
+      baseUrl: 'https://canvas.example.com',
+      courseId: COURSE_ID,
+    }).join('\n');
+
+    assert.match(text, /Orphaned on Canvas/);
+    assert.match(
+      text,
+      /01-intro\/_files\/logo\.png: embedded file "logo\.png", which nothing embeds any more/,
+    );
+    assert.match(text, /courses\/4242\/files\/500/);
+    assert.match(text, /`--prune-canvas` is what deletes these/);
+
+    // And once the delete has landed it stops being reported, like every other
+    // orphan: the applied list is what the report believes, not the plan.
+    const landed = buildReport(
+      planOf(
+        [{ type: 'delete-canvas-file', itemPath: '01-intro/_files/logo.png' }],
+        { orphans: { canvas: [{ ...orphan, pruned: true }], local: [] } },
+      ),
+      {
+        applied: [
+          { type: 'delete-canvas-file', itemPath: '01-intro/_files/logo.png' },
+        ],
+        pruneCanvas: true,
+      },
+    ).join('\n');
+    assert.doesNotMatch(landed, /Orphaned on Canvas/);
+  });
+
   it('keeps an orphan listed when its delete failed', () => {
     // `pruned` is the planner saying it emitted the delete. A delete that then
     // failed leaves the item in the course, and dropping it from the report

@@ -94,6 +94,11 @@ function canvasItemUrl({ baseUrl, courseId }, orphan) {
   if (orphan.kind === 'module' && orphan.canvasModuleId != null) {
     return ` — ${baseUrl}/courses/${courseId}/modules#module_${orphan.canvasModuleId}`;
   }
+  // An embedded binary is in the course Files area and in no module at all, so
+  // a module-item URL would point at nothing.
+  if (orphan.kind === 'file' && orphan.canvasFileId != null) {
+    return ` — ${baseUrl}/courses/${courseId}/files/${orphan.canvasFileId}`;
+  }
   if (orphan.moduleItemId != null) {
     return ` — ${baseUrl}/courses/${courseId}/modules/items/${orphan.moduleItemId}`;
   }
@@ -305,10 +310,14 @@ function buildReport(report, options = {}) {
   );
   if (canvasOrphans.length > 0) {
     const body = canvasOrphans.map((orphan) => {
+      // A `file` orphan is a binary in the course Files area that no page
+      // embeds any more, not a module item, so it says which of the two it is.
       const what =
         orphan.kind === 'module'
           ? `module "${orphan.title}" (${plural(orphan.itemCount || 0, 'item')})`
-          : `${orphan.canvasType} "${orphan.title || orphan.itemPath}"`;
+          : orphan.kind === 'file'
+            ? `embedded file "${orphan.title}", which nothing embeds any more`
+            : `${orphan.canvasType} "${orphan.title || orphan.itemPath}"`;
       const why = orphanNotes(orphan, run);
       return `  - ${orphan.itemPath || orphan.moduleFolder}: ${what}${canvasItemUrl(options, orphan)}${why}`;
     });

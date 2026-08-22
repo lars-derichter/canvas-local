@@ -765,3 +765,106 @@ describe('gatherCanvas', () => {
     assert.equal(modules[0].items[2].canvasId, 700);
   });
 });
+
+// ---------------------------------------------------------------------------
+// gatherLocal: what the whole course embeds
+// ---------------------------------------------------------------------------
+
+/**
+ * The reference set, and the flag that says whether it can be believed.
+ *
+ * It is collected here rather than where it is used, because this is the only
+ * place that reads the whole of `course/`. The planner is handed whichever
+ * modules `-m` named, and the executor sees only the items a run wrote — an
+ * unchanged page never passes through it at all. Anything that decides a
+ * `state.files` row is dead from either of those views declares the entire
+ * course unreferenced and deletes live images out of a live course, so
+ * `complete` is the licence, and it is default-deny.
+ */
+describe('gatherLocal: what the whole course embeds', () => {
+  it('collects every reference in the tree, whatever module it is in', () => {
+    const dir = tempCourse({
+      '01-intro/01-welcome.md':
+        '---\ntitle: Welcome\n---\n\n![Logo](./_files/logo.png)\n',
+      '01-intro/_files/logo.png': 'PNG',
+      '01-intro/02-theory/01-types.md':
+        '---\ntitle: Types\n---\n\n[Slides](../_files/slides.pdf)\n',
+      '01-intro/_files/slides.pdf': 'PDF',
+      '02-html/01-tags.md':
+        '---\ntitle: Tags\n---\n\n![Shared](../01-intro/_files/logo.png)\n',
+      // Neither of these is a reference: one is an example inside a fence, the
+      // other is a link to another item. The set is built by the same extractor
+      // that created the rows, so the two can never disagree about which is
+      // which.
+      '02-html/02-links.md':
+        '---\ntitle: Links\n---\n\n```md\n![Nope](./_files/example.png)\n```\n\n[Tags](./01-tags.md)\n',
+    });
+
+    const { embedded } = gatherLocal({ courseDir: dir, gitDirty: CLEAN });
+
+    assert.equal(embedded.complete, true);
+    assert.deepEqual(
+      [...embedded.refs].sort(),
+      ['01-intro/_files/logo.png', '01-intro/_files/slides.pdf'],
+      'a binary embedded from two modules is one reference, found from both',
+    );
+  });
+
+  it('refuses to claim the set is whole when an item is still parked', () => {
+    // A file left under `__ccb_order_*` that recovery could not put back is an
+    // item `scanCourse` never sees, so whatever it embedded is missing from the
+    // set. That is precisely the shape of a false "nothing references this".
+    const dir = tempCourse({
+      '01-intro/01-welcome.md': '---\ntitle: Welcome\n---\n\nA.\n',
+      '01-intro/__ccb_order_01-welcome.md':
+        '---\ntitle: Welcome\n---\n\n![Logo](./_files/logo.png)\n',
+    });
+
+    const { embedded, warnings } = gatherLocal({
+      courseDir: dir,
+      gitDirty: CLEAN,
+    });
+
+    assert.equal(embedded.complete, false);
+    assert.ok(warnings.some((line) => line.includes('occupied')));
+  });
+
+  it('refuses to claim it is whole when an item could not be read', () => {
+    const dir = tempCourse({
+      '01-intro/01-welcome.md':
+        '---\ntitle: Welcome\n---\n\n![Logo](./_files/logo.png)\n',
+      '01-intro/02-theory.md': '---\ntitle: Theory\n---\n\nB.\n',
+    });
+    silence();
+    // One item the scan lists and nothing can read — a permissions failure on a
+    // tree somebody else owns, or a file that vanished mid-run. Mocked rather
+    // than acted out, because `chmod 000` proves nothing when the tests run as
+    // root.
+    const unreadable = path.join(dir, '01-intro/02-theory.md');
+    const realRead = fs.readFileSync;
+    mock.method(fs, 'readFileSync', (target, ...rest) => {
+      if (target === unreadable) throw new Error('EACCES: permission denied');
+      return realRead(target, ...rest);
+    });
+
+    const { embedded } = gatherLocal({ courseDir: dir, gitDirty: CLEAN });
+
+    assert.equal(embedded.complete, false);
+    assert.ok(
+      embedded.refs.has('01-intro/_files/logo.png'),
+      'the items that did read are still collected',
+    );
+  });
+
+  it('says nothing is known when there is no course directory at all', () => {
+    const { embedded } = gatherLocal({
+      courseDir: path.join(os.tmpdir(), 'gather-test-nothing-here'),
+      gitDirty: CLEAN,
+    });
+
+    // An empty set that called itself whole reads as "the course embeds
+    // nothing", which is a licence to delete every file in the course.
+    assert.equal(embedded.complete, false);
+    assert.equal(embedded.refs.size, 0);
+  });
+});

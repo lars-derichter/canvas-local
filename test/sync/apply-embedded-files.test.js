@@ -214,3 +214,218 @@ describe('embedded files land in the tree the run was pointed at', () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// Deleting an embedded binary nothing points at any more
+// ---------------------------------------------------------------------------
+
+/**
+ * What `delete-canvas-file` does, and — mostly — what it refuses to do.
+ *
+ * The planner has already proved the hard part: it read every markdown item in
+ * `course/` and none of them names this row's path
+ * (`planEmbeddedFileOrphans` in `lib/sync/plan.js`). What is left here is a
+ * delete nobody typed the file's name into, so the executor asks Canvas one
+ * question first — is this still the file the row describes — and it holds to
+ * one rule throughout: **the row is never dropped while the file it names is
+ * still there.** The row is the only record that the file exists, so a row
+ * dropped without its file strands that file for good.
+ *
+ * The route table is the assertion, as in `apply-file-items.test.js`: a call
+ * the code should not make finds no route and fails the action rather than
+ * passing quietly.
+ */
+
+const ORPHAN_REF = '01-intro/_files/logo.png';
+const ORPHAN_ID = 500;
+
+/** A state whose only embedded row is the orphan, plus whatever else is given. */
+function stateWithOrphan(extra = {}) {
+  const state = stateWithModule();
+  state.files[ORPHAN_REF] = {
+    canvas_file_id: ORPHAN_ID,
+    canvas_url: `/courses/${COURSE_ID}/files/${ORPHAN_ID}/preview`,
+    sha256: 'abc123',
+  };
+  return { ...state, ...extra };
+}
+
+function sweepAction(ref = ORPHAN_REF) {
+  return {
+    type: 'delete-canvas-file',
+    itemPath: ref,
+    canvasFileId: ORPHAN_ID,
+    title: path.posix.basename(ref),
+  };
+}
+
+/** Every DELETE aimed at a Canvas file, which is the number under test. */
+function fileDeletes(calls) {
+  return calls.filter(
+    (call) =>
+      call.method === 'DELETE' && /\/api\/v1\/files\/\d+/.test(call.url),
+  );
+}
+
+describe('an embedded binary nothing points at any more', () => {
+  it('deletes the Canvas file and drops the row with it', async () => {
+    silence();
+    const state = stateWithOrphan();
+    const calls = mockCanvas([
+      {
+        method: 'GET',
+        path: `/api/v1/files/${ORPHAN_ID}`,
+        body: { id: ORPHAN_ID, display_name: 'logo.png' },
+      },
+      { method: 'DELETE', path: `/api/v1/files/${ORPHAN_ID}`, body: {} },
+    ]);
+
+    const outcome = await run([sweepAction()], {
+      courseDir: tempCourse(),
+      state,
+    });
+
+    assert.deepEqual(outcome.errors, []);
+    assert.equal(fileDeletes(calls).length, 1);
+    assert.deepEqual(Object.keys(state.files), []);
+  });
+
+  it('leaves a file Canvas calls something else alone, and keeps its row', async () => {
+    silence();
+    // The caution `46906ee` insisted on, pointed the other way. There it proved
+    // a file had been orphaned; here it proves nobody has taken it over. An
+    // upload goes up under the local basename, so a Canvas file wearing a
+    // different name is one somebody renamed by hand — and the row stays too,
+    // so the next run asks again instead of forgetting the question exists.
+    const state = stateWithOrphan();
+    const calls = mockCanvas([
+      {
+        method: 'GET',
+        path: `/api/v1/files/${ORPHAN_ID}`,
+        body: { id: ORPHAN_ID, display_name: 'course-logo-final.png' },
+      },
+    ]);
+
+    const outcome = await run([sweepAction()], {
+      courseDir: tempCourse(),
+      state,
+    });
+
+    assert.deepEqual(outcome.errors, []);
+    assert.deepEqual(fileDeletes(calls), [], 'a renamed file must survive');
+    assert.deepEqual(Object.keys(state.files), [ORPHAN_REF]);
+  });
+
+  it('keeps the file but drops the row when something else names it', async () => {
+    silence();
+    // A second row, an alert icon or a `file` item can carry the same id, and
+    // the file is reachable through that one. Only this row's dead bookkeeping
+    // goes: nothing is stranded, because the holder is still pointing at it.
+    const state = stateWithOrphan();
+    state.icons.note = {
+      canvas_file_id: ORPHAN_ID,
+      preview_url: 'https://canvas.example.com/icons/note',
+      theme: 'whatever',
+    };
+    const calls = mockCanvas([
+      {
+        method: 'GET',
+        path: `/api/v1/files/${ORPHAN_ID}`,
+        body: { id: ORPHAN_ID, display_name: 'logo.png' },
+      },
+    ]);
+
+    const outcome = await run([sweepAction()], {
+      courseDir: tempCourse(),
+      state,
+    });
+
+    assert.deepEqual(outcome.errors, []);
+    assert.deepEqual(fileDeletes(calls), []);
+    assert.deepEqual(Object.keys(state.files), []);
+  });
+
+  it('drops the row when Canvas no longer holds the file', async () => {
+    silence();
+    const state = stateWithOrphan();
+    const calls = mockCanvas([
+      {
+        method: 'GET',
+        path: `/api/v1/files/${ORPHAN_ID}`,
+        body: { message: 'not found' },
+        status: 404,
+      },
+    ]);
+
+    const outcome = await run([sweepAction()], {
+      courseDir: tempCourse(),
+      state,
+    });
+
+    assert.deepEqual(outcome.errors, []);
+    assert.deepEqual(fileDeletes(calls), []);
+    assert.deepEqual(
+      Object.keys(state.files),
+      [],
+      'a row for a file that is gone would be reported for ever',
+    );
+  });
+
+  it('keeps the row when the delete fails, so the file is not stranded', async () => {
+    silence();
+    const state = stateWithOrphan();
+    mockCanvas([
+      {
+        method: 'GET',
+        path: `/api/v1/files/${ORPHAN_ID}`,
+        body: { id: ORPHAN_ID, display_name: 'logo.png' },
+      },
+      {
+        method: 'DELETE',
+        path: `/api/v1/files/${ORPHAN_ID}`,
+        body: { message: 'forbidden' },
+        status: 403,
+      },
+    ]);
+
+    const outcome = await run([sweepAction()], {
+      courseDir: tempCourse(),
+      state,
+    });
+
+    assert.equal(outcome.errors.length, 1, 'the failure must reach the report');
+    assert.equal(outcome.errors[0].action.type, 'delete-canvas-file');
+    assert.deepEqual(
+      Object.keys(state.files),
+      [ORPHAN_REF],
+      'the row is the only thing that knows the file is still there',
+    );
+  });
+
+  it('does nothing at all on a second run', async () => {
+    silence();
+    const state = stateWithOrphan();
+    mockCanvas([
+      {
+        method: 'GET',
+        path: `/api/v1/files/${ORPHAN_ID}`,
+        body: { id: ORPHAN_ID, display_name: 'logo.png' },
+      },
+      { method: 'DELETE', path: `/api/v1/files/${ORPHAN_ID}`, body: {} },
+    ]);
+    await run([sweepAction()], { courseDir: tempCourse(), state });
+
+    // The row is gone, so a replayed action costs no request whatsoever — not
+    // even the metadata read that would otherwise precede the refusal.
+    mock.restoreAll();
+    silence();
+    const calls = mockCanvas([]);
+    const outcome = await run([sweepAction()], {
+      courseDir: tempCourse(),
+      state,
+    });
+
+    assert.deepEqual(outcome.errors, []);
+    assert.deepEqual(calls, [], 'a swept row must cost nothing to re-sweep');
+  });
+});

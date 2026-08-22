@@ -2667,3 +2667,147 @@ describe('plan: reference types', () => {
     assert.equal(result.withheld[0].reason, 'write-policy');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Embedded binaries nothing points at any more
+// ---------------------------------------------------------------------------
+
+/**
+ * The sweep over `state.files`, and the two fences that keep it from running on
+ * a partial view of the course.
+ *
+ * A row under `state.files` records the Canvas file behind one embedded binary,
+ * keyed by the path a markdown item points at. Rename the binary and fix the
+ * `![](…)` and the run uploads the bytes again under the new path: Canvas keeps
+ * two copies and the state keeps a row for a path that no longer exists.
+ *
+ * Deciding a row is dead means proving that **no markdown item anywhere in
+ * `course/`** names it, so the tests that matter here are the ones where the
+ * proof is missing. Both of them are worth more than the happy path: get either
+ * wrong and the tool deletes live images out of a live course.
+ */
+describe('plan: embedded binaries nothing points at any more', () => {
+  const LOGO = '01-intro/_files/logo.png';
+  const BRAND = '01-intro/_files/brand.png';
+
+  /** A course of one unchanged page, plus whatever the state and the tree say. */
+  function withFiles(files, embedded) {
+    return {
+      ...single(),
+      base: { modules: { [FOLDER]: bMod([PATH]) }, files },
+      local: { modules: [lMod(FOLDER, [PATH])], embedded },
+    };
+  }
+
+  /** What `gatherLocal` hands over: the whole tree's references, and proof of it. */
+  function seen(...refs) {
+    return { refs: new Set(refs), complete: true };
+  }
+
+  function row(id) {
+    return {
+      canvas_file_id: id,
+      canvas_url: `/files/${id}/preview`,
+      sha256: 'x',
+    };
+  }
+
+  it('reports a row nothing embeds any more, and deletes nothing for it', () => {
+    const result = plan({
+      ...withFiles({ [LOGO]: row(500), [BRAND]: row(501) }, seen(BRAND)),
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), [], 'a plain sync deletes nothing');
+    assert.equal(result.orphans.canvas.length, 1);
+    const orphan = result.orphans.canvas[0];
+    assert.equal(orphan.kind, 'file');
+    assert.equal(orphan.itemPath, LOGO);
+    assert.equal(orphan.title, 'logo.png');
+    assert.equal(orphan.canvasFileId, 500);
+    assert.equal(orphan.pruned, false);
+  });
+
+  it('deletes it under --prune-canvas, and leaves the live one alone', () => {
+    const result = plan({
+      ...withFiles({ [LOGO]: row(500), [BRAND]: row(501) }, seen(BRAND)),
+      policy: { pruneCanvas: true },
+    });
+
+    assert.deepEqual(types(result), ['delete-canvas-file']);
+    const action = only(result, 'delete-canvas-file');
+    assert.equal(action.itemPath, LOGO);
+    assert.equal(action.canvasFileId, 500);
+    assert.equal(result.orphans.canvas[0].pruned, true);
+  });
+
+  it('sweeps nothing at all under -m, however few modules it names', () => {
+    // The set handed in is deliberately complete — every call site scans the
+    // whole tree whatever `-m` says — so this is not the planner protecting
+    // itself from a partial view. It is `-m` meaning what it means everywhere
+    // else in this file: the author named the modules this run may touch, and a
+    // Canvas file is not exempt from that. Naming the very module the row lives
+    // in changes nothing, because a binary can be embedded from anywhere.
+    const result = plan({
+      ...withFiles({ [LOGO]: row(500) }, seen(BRAND)),
+      policy: { pruneCanvas: true, modules: [FOLDER] },
+    });
+
+    assert.deepEqual(types(result), [], 'a scoped run must delete nothing');
+    assert.deepEqual(
+      result.orphans.canvas,
+      [],
+      'a scoped run cannot even call it an orphan',
+    );
+  });
+
+  it('sweeps nothing when the gather could not read the tree whole', () => {
+    // One unreadable markdown item is one item whose images are invisible, so
+    // `complete` is the licence and it is default-deny. The absent case is the
+    // one that matters most: every hand-built `local` in this file omits
+    // `embedded` entirely, and so would any caller written before the flag.
+    for (const embedded of [
+      { refs: new Set(), complete: false },
+      { refs: new Set() },
+      undefined,
+    ]) {
+      const result = plan({
+        ...withFiles({ [LOGO]: row(500) }, embedded),
+        policy: { pruneCanvas: true },
+      });
+      assert.deepEqual(
+        types(result),
+        [],
+        `swept with embedded=${JSON.stringify(embedded)}`,
+      );
+      assert.deepEqual(result.orphans.canvas, []);
+    }
+  });
+
+  it('leaves a binary another item still embeds alone', () => {
+    // The reference this run happened to look at went away; another page's did
+    // not. Only a set built from the whole tree can tell the difference, which
+    // is why the set is built in the gather and not in the executor.
+    const result = plan({
+      ...withFiles({ [LOGO]: row(500) }, seen(LOGO)),
+      policy: { pruneCanvas: true },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.deepEqual(result.orphans.canvas, []);
+  });
+
+  it('withholds the delete rather than losing it under status', () => {
+    const result = plan({
+      ...withFiles({ [LOGO]: row(500) }, seen()),
+      policy: { write: { canvas: false, local: false }, pruneCanvas: true },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.equal(result.orphans.canvas.length, 1);
+    assert.equal(result.orphans.canvas[0].pruned, false);
+    assert.equal(result.withheld.length, 1);
+    assert.equal(result.withheld[0].type, 'delete-canvas-file');
+    assert.equal(result.withheld[0].reason, 'write-policy');
+  });
+});

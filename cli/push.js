@@ -306,7 +306,17 @@ async function confirmPrune(courseId, report, { interactive, dryRun }) {
   const doomedItems = actions.filter(
     (action) => action.type === 'delete-canvas-item',
   );
-  if (doomedModules.length === 0 && doomedItems.length === 0) {
+  // An embedded binary is neither: it sits in the course Files area, in no
+  // module at all. It still has to be listed and still has to be asked about —
+  // a delete this function does not count is a delete that runs unannounced.
+  const doomedFiles = actions.filter(
+    (action) => action.type === 'delete-canvas-file',
+  );
+  if (
+    doomedModules.length === 0 &&
+    doomedItems.length === 0 &&
+    doomedFiles.length === 0
+  ) {
     log.info('\n[push] Prune: nothing to remove from Canvas.');
     return true;
   }
@@ -342,6 +352,16 @@ async function confirmPrune(courseId, report, { interactive, dryRun }) {
     for (const action of doomedItems) log.info(describeDoomedItem(action));
   }
 
+  if (doomedFiles.length > 0) {
+    log.info(
+      `\n[push] Prune: ${plural(doomedFiles.length, 'embedded file')} ` +
+        'nothing in course/ points at any more, to remove from Canvas:',
+    );
+    for (const action of doomedFiles) {
+      log.info(`  - ${action.itemPath} ("${action.title}")`);
+    }
+  }
+
   for (const line of submissionWarningLines(
     risk,
     submissionRiskNoun(gradable),
@@ -353,8 +373,10 @@ async function confirmPrune(courseId, report, { interactive, dryRun }) {
 
   if (!interactive) {
     log.warn(
-      `[push] ${plural(doomedModules.length + doomedItems.length, 'thing')} ` +
-        'would be deleted, and this run cannot ask. Nothing was pruned; run ' +
+      `[push] ${plural(
+        doomedModules.length + doomedItems.length + doomedFiles.length,
+        'thing',
+      )} would be deleted, and this run cannot ask. Nothing was pruned; run ` +
         'it in a terminal.',
     );
     return false;

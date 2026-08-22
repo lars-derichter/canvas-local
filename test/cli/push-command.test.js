@@ -966,6 +966,78 @@ describe('npx course push --prune-canvas', () => {
     assert.match(printed(out), /^Would apply$/m);
   });
 
+  it('lists an embedded binary nothing points at, and asks before deleting it', async () => {
+    const out = silence();
+    // The whole course is in step; the only thing wrong is a `files` row for a
+    // path no page names any more — what a renamed image leaves behind. It is
+    // neither a module nor a module item, so the confirmation had to learn to
+    // count it: a delete this prompt does not list is a delete that runs
+    // unannounced.
+    const { courseDir } = syncedFixture();
+    const {
+      hashLocalFile,
+      canvasFingerprint,
+    } = require('../../lib/sync/fingerprint');
+    const file = stateFile({
+      modules: {
+        '01-intro': {
+          canvas_module_id: 10,
+          name: 'Intro',
+          position: 1,
+          item_order: ['01-intro/01-welcome.md'],
+          items: {
+            '01-intro/01-welcome.md': {
+              canvas_type: 'page',
+              canvas_id: 501,
+              page_url: 'welcome',
+              module_item_id: 91,
+              title: 'Welcome',
+              local_hash: hashLocalFile(
+                path.join(courseDir, '01-intro/01-welcome.md'),
+              ),
+              canvas_hash: canvasFingerprint(
+                { item: ITEM, content: PAGE },
+                'page',
+              ),
+              canvas_updated_at: PAGE.updated_at,
+              synced_at: '2026-08-20T09:00:00.000Z',
+            },
+          },
+        },
+      },
+      files: {
+        '01-intro/_files/logo.png': {
+          canvas_file_id: 500,
+          canvas_url: `/courses/${COURSE_ID}/files/500/preview`,
+          sha256: 'abc123',
+        },
+      },
+    });
+    const calls = mockCanvas([
+      ...readRoutes(),
+      {
+        method: 'GET',
+        path: '/api/v1/files/500',
+        body: { id: 500, display_name: 'logo.png' },
+      },
+      { method: 'DELETE', path: '/api/v1/files/500', body: {} },
+    ]);
+
+    await withStdin('y\n', () =>
+      push({
+        courseDir,
+        syncFile: file,
+        gitDirty: CLEAN,
+        interactive: true,
+        pruneCanvas: true,
+      }),
+    );
+
+    assert.match(printed(out), /01-intro\/_files\/logo\.png \("logo\.png"\)/);
+    assert.deepEqual(endpoints(calls), ['DELETE /files/500']);
+    assert.deepEqual(readState(file).files, {});
+  });
+
   it('names the student work behind a doomed assignment before it asks', async () => {
     const out = silence();
     const { courseDir, file, routes } = orphanedAssignment();

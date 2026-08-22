@@ -3082,3 +3082,195 @@ describe('applyPlan, per action type', () => {
     assert.equal(saves.length, 2);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Renaming an embedded binary
+// ---------------------------------------------------------------------------
+
+/**
+ * The whole of the defect, end to end: gather, plan and apply over one real
+ * tree.
+ *
+ * Canvas keys an upload on the filename, so renaming `_files/logo.png` to
+ * `_files/brand.png` and fixing the `![](…)` sends the same bytes up under a
+ * new name and gets a new file back. Before this, nothing noticed: Canvas kept
+ * two copies with nothing pointing at the first, `state.files` grew a second
+ * row for a path that no longer exists, and no later run could ever reach
+ * either — `--prune-canvas` only ever considered items.
+ *
+ * It has to be the whole loop rather than a planner test plus an executor test,
+ * because the two halves of the answer live on opposite sides of the split: the
+ * gather is the only thing that reads the whole tree, and the executor is the
+ * only thing that can ask Canvas whether the file is still the one the row
+ * describes.
+ */
+describe('renaming a binary a page embeds', () => {
+  const PAGE = '01-intro/01-welcome.md';
+  const OLD_REF = '01-intro/_files/logo.png';
+  const NEW_REF = '01-intro/_files/brand.png';
+  const OLD_FILE = 500;
+  const NEW_FILE = 501;
+
+  const page = (body) => ({
+    page_id: 501,
+    url: 'welcome',
+    title: 'Welcome',
+    body,
+    updated_at: '2026-08-20T11:00:00.000Z',
+  });
+  const moduleItem = {
+    id: 91,
+    type: 'Page',
+    title: 'Welcome',
+    page_url: 'welcome',
+    content_id: 501,
+    position: 1,
+    indent: 0,
+  };
+
+  /** The reads a gather of this course makes, specific route first. */
+  const canvasReads = (body) => [
+    { method: 'GET', path: '/modules/10/items', body: [moduleItem] },
+    {
+      method: 'GET',
+      path: '/modules',
+      body: [{ id: 10, name: 'Intro', position: 1 }],
+    },
+    { method: 'GET', path: '/pages/welcome', body: page(body) },
+    {
+      method: 'GET',
+      path: '/pages',
+      body: [
+        {
+          page_id: 501,
+          url: 'welcome',
+          title: 'Welcome',
+          updated_at: page(body).updated_at,
+        },
+      ],
+    },
+  ];
+
+  /** The two hops one upload takes, answered with the file id it lands as. */
+  const uploadRoutes = (slug, fileId, displayName) => [
+    {
+      method: 'POST',
+      path: `/api/v1/courses/${COURSE_ID}/files`,
+      body: {
+        upload_url: `https://canvas.example.com/upload/${slug}`,
+        upload_params: {},
+      },
+    },
+    {
+      method: 'POST',
+      path: `/upload/${slug}`,
+      body: { id: fileId, display_name: displayName, size: 7 },
+    },
+  ];
+
+  const imgFor = (fileId) =>
+    `<p><img src="/courses/${COURSE_ID}/files/${fileId}/preview" alt="Logo"></p>`;
+
+  it('leaves one live Canvas file and one state row behind', async () => {
+    silence();
+    const courseDir = tempCourse({
+      '01-intro/_category_.json': '{ "label": "Intro", "position": 1 }\n',
+      [PAGE]: '---\ntitle: Welcome\n---\n\n![Logo](./_files/logo.png)\n',
+      [OLD_REF]: 'PNG-ONE',
+    });
+    const state = emptyState();
+
+    // --- A first sync, so the state is one a sync really left ----------------
+    mockCanvas([{ method: 'GET', path: '/modules', body: [] }]);
+    let canvas = await gatherCanvas({ courseId: COURSE_ID, base: state });
+    const first = plan({
+      base: state,
+      local: gatherLocal({ courseDir, gitDirty: CLEAN }),
+      canvas,
+    });
+
+    mock.restoreAll();
+    mockCanvas([
+      { method: 'POST', path: '/modules/10/items', body: moduleItem },
+      {
+        method: 'POST',
+        path: '/modules',
+        body: { id: 10, name: 'Intro', position: 1 },
+      },
+      ...uploadRoutes('logo', OLD_FILE, 'logo.png'),
+      { method: 'POST', path: '/pages', body: page(imgFor(OLD_FILE)) },
+    ]);
+    assert.deepEqual(
+      (await run(first, { courseDir, state, canvasContent: canvas.content }))
+        .errors,
+      [],
+    );
+    assert.deepEqual(Object.keys(state.files), [OLD_REF]);
+
+    // --- The rename: the binary moves and the reference to it moves with it --
+    fs.renameSync(path.join(courseDir, OLD_REF), path.join(courseDir, NEW_REF));
+    fs.writeFileSync(
+      path.join(courseDir, PAGE),
+      '---\ntitle: Welcome\n---\n\n![Logo](./_files/brand.png)\n',
+      'utf8',
+    );
+
+    mock.restoreAll();
+    mockCanvas(canvasReads(imgFor(OLD_FILE)));
+    canvas = await gatherCanvas({ courseId: COURSE_ID, base: null });
+    const second = plan({
+      base: state,
+      local: gatherLocal({ courseDir, gitDirty: CLEAN }),
+      canvas,
+      policy: { pruneCanvas: true },
+    });
+    assert.deepEqual(
+      second.actions.map((action) => action.type),
+      ['update-canvas-item', 'delete-canvas-file'],
+      'the page is pushed and the file it stopped naming is swept',
+    );
+
+    mock.restoreAll();
+    const calls = mockCanvas([
+      ...uploadRoutes('brand', NEW_FILE, 'brand.png'),
+      { method: 'PUT', path: '/pages/501', body: page(imgFor(NEW_FILE)) },
+      {
+        method: 'GET',
+        path: `/api/v1/files/${OLD_FILE}`,
+        body: { id: OLD_FILE, display_name: 'logo.png' },
+      },
+      { method: 'DELETE', path: `/api/v1/files/${OLD_FILE}`, body: {} },
+    ]);
+    assert.deepEqual(
+      (await run(second, { courseDir, state, canvasContent: canvas.content }))
+        .errors,
+      [],
+    );
+
+    // One row, naming the file the page now points at.
+    assert.deepEqual(Object.keys(state.files), [NEW_REF]);
+    assert.equal(state.files[NEW_REF].canvas_file_id, NEW_FILE);
+    // One live Canvas file: the old one was deleted, exactly once.
+    const deletes = calls.filter((call) => call.method === 'DELETE');
+    assert.equal(deletes.length, 1);
+    assert.match(deletes[0].url, new RegExp(`/files/${OLD_FILE}$`));
+
+    // --- And a third run, which must do nothing at all -----------------------
+    mock.restoreAll();
+    const quiet = mockCanvas(canvasReads(imgFor(NEW_FILE)));
+    const third = plan({
+      base: state,
+      local: gatherLocal({ courseDir, gitDirty: CLEAN }),
+      canvas: await gatherCanvas({ courseId: COURSE_ID, base: null }),
+      policy: { pruneCanvas: true },
+    });
+
+    assert.deepEqual(third.actions, [], 'a sync after a sync must do nothing');
+    assert.deepEqual(third.orphans.canvas, [], 'the sweep found nothing left');
+    assert.deepEqual(
+      quiet.filter((call) => call.method !== 'GET'),
+      [],
+      'the third run wrote to Canvas',
+    );
+  });
+});
