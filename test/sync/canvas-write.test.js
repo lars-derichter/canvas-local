@@ -653,6 +653,16 @@ describe('pushing a quiz', () => {
     assert.match(refusal.message, /ids 12, 44/);
     assert.equal(moduleItem, null);
     assert.doesNotMatch(fs.readFileSync(filePath, 'utf8'), /canvas_id/);
+
+    // Both remedies have to be ones that work. Writing the id into the sync
+    // state does not: a row is matched to Canvas through `matchBaseToCanvas`,
+    // which only reads module items, so a row naming a quiz outside every
+    // module matches nothing and the planner writes nothing. This message said
+    // exactly that for as long as it was true of the old push, and kept saying
+    // it afterwards.
+    assert.match(refusal.message, /Delete the stale one in Canvas/);
+    assert.match(refusal.message, /add the one you mean to this module/);
+    assert.doesNotMatch(refusal.message, /\.canvas-sync\.json/);
   });
 
   it('carries the import procedure in the refusal when the quiz is not in Canvas', async () => {
