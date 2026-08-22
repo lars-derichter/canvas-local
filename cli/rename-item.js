@@ -15,13 +15,19 @@ const {
   selectTargetDir,
 } = require('./item-utils');
 const { recordRenames } = require('./sync-renames');
+const { writeMarkdown } = require('../lib/convert/format-markdown');
 
 /**
  * Core rename: renames a file or subsection folder inside targetDir,
  * updating the frontmatter title (.md) or _category_.json label (folder).
  * Returns the new entry name.
+ *
+ * Async because rewriting the title re-serialises the whole file through
+ * `writeMarkdown`, which formats it first — otherwise renaming an item is
+ * enough on its own to leave the file in a shape `npm run format` disagrees
+ * with.
  */
-function renameEntry(targetDir, entryName, newName) {
+async function renameEntry(targetDir, entryName, newName) {
   const oldPath = path.join(targetDir, entryName);
   const isDirectory = fs.statSync(oldPath).isDirectory();
   const prefixMatch = entryName.match(/^(\d+)/);
@@ -58,7 +64,7 @@ function renameEntry(targetDir, entryName, newName) {
     const parsed = matter(raw);
     parsed.data.title = newName;
     const updated = matter.stringify(parsed.content, parsed.data);
-    fs.writeFileSync(oldPath, updated, 'utf8');
+    await writeMarkdown(oldPath, updated);
   }
 
   if (newFileName !== entryName) {
@@ -78,7 +84,11 @@ async function renameItem(options = {}) {
     }
     const targetDir = path.dirname(itemPath);
     const oldEntryName = path.basename(itemPath);
-    const newEntryName = renameEntry(targetDir, oldEntryName, options.name);
+    const newEntryName = await renameEntry(
+      targetDir,
+      oldEntryName,
+      options.name,
+    );
     recordRenames([
       {
         fromDir: targetDir,
@@ -127,7 +137,7 @@ async function renameItem(options = {}) {
     process.exit(1);
   }
 
-  const newEntryName = renameEntry(targetDir, item.name, newName);
+  const newEntryName = await renameEntry(targetDir, item.name, newName);
   recordRenames([
     { fromDir: targetDir, renames: [{ from: item.name, to: newEntryName }] },
   ]);

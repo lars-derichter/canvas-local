@@ -9,6 +9,7 @@ const {
   selectTargetDir,
 } = require('./item-utils');
 const { renumberUp } = require('./renumber');
+const { writeMarkdown } = require('../lib/convert/format-markdown');
 const { recordRenames } = require('./sync-renames');
 
 const VALID_TYPES = ['page', 'assignment', 'url', 'subsection', 'file'];
@@ -39,8 +40,12 @@ async function promptPosition(rl, items) {
 /**
  * Create the item on disk. Shared by the interactive and flag-driven paths.
  * Returns the created entry name.
+ *
+ * Async because the markdown goes out through `writeMarkdown`, which formats it
+ * first: a file this tool writes must be the file `npm run format` would leave,
+ * or the author's very next format run shows up as an edit they did not make.
  */
-function createEntry(
+async function createEntry(
   targetDir,
   type,
   { name, position, url, points, filePath },
@@ -86,7 +91,7 @@ function createEntry(
   const createdName = `${pad(position)}-${toSlug(name)}.md`;
   // matter.stringify produces valid YAML for titles with colons, quotes, ...
   const content = matter.stringify(`\n# ${name}\n`, frontmatterData);
-  fs.writeFileSync(path.join(targetDir, createdName), content, 'utf8');
+  await writeMarkdown(path.join(targetDir, createdName), content);
   return createdName;
 }
 
@@ -154,7 +159,7 @@ async function newItem(options = {}) {
       process.exit(1);
     }
 
-    const createdName = createEntry(targetDir, type, {
+    const createdName = await createEntry(targetDir, type, {
       name: options.name,
       position,
       url: options.url,
@@ -239,7 +244,7 @@ async function newItem(options = {}) {
   const position = await promptPosition(rl, items);
   rl.close();
 
-  const createdName = createEntry(targetDir, type, {
+  const createdName = await createEntry(targetDir, type, {
     name,
     position,
     url,
@@ -253,3 +258,4 @@ async function newItem(options = {}) {
 }
 
 module.exports = newItem;
+module.exports._createEntry = createEntry;

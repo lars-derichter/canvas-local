@@ -6,6 +6,7 @@ const {
   parseFrontmatter,
   serializeFrontmatter,
 } = require('../lib/convert/frontmatter');
+const { writeMarkdown } = require('../lib/convert/format-markdown');
 const { COURSE_DIR } = require('./module-utils');
 const { SYNC_FILE } = require('../lib/sync/state');
 
@@ -60,7 +61,7 @@ async function resetSyncState() {
 
     if (data.canvas_id != null) {
       delete data.canvas_id;
-      fs.writeFileSync(filePath, serializeFrontmatter(data, content), 'utf8');
+      await writeMarkdown(filePath, serializeFrontmatter(data, content));
       log.info(
         `[reset] Removed canvas_id from ${path.relative(process.cwd(), filePath)}`,
       );

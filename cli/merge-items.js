@@ -10,17 +10,23 @@ const {
   removeFromSyncState,
 } = require('./item-utils');
 const { renumberSequential } = require('./renumber');
+const { writeMarkdown } = require('../lib/convert/format-markdown');
 const { recordRenames } = require('./sync-renames');
 
 /**
  * Core merge logic: append source body into target, delete source, renumber.
  * Exported as _mergeFiles for testing.
  *
+ * Async because the merged file goes out through `writeMarkdown`, which formats
+ * it first. Joining two bodies is exactly the moment stray blank lines and an
+ * unwrapped paragraph appear, and leaving them would show up as an edit in the
+ * author's next `npm run format`.
+ *
  * @param {string} targetPath - Absolute path to the target file (keeps frontmatter).
  * @param {string} sourcePath - Absolute path to the source file (appended, then deleted).
  * @param {string} targetDir  - Directory containing both files.
  */
-function _mergeFiles(targetPath, sourcePath, targetDir) {
+async function _mergeFiles(targetPath, sourcePath, targetDir) {
   const targetRaw = fs.readFileSync(targetPath, 'utf8');
   const sourceRaw = fs.readFileSync(sourcePath, 'utf8');
 
@@ -34,7 +40,7 @@ function _mergeFiles(targetPath, sourcePath, targetDir) {
 
   // Write merged content back to target (keeps target's frontmatter)
   const result = matter.stringify(merged, targetParsed.data);
-  fs.writeFileSync(targetPath, result, 'utf8');
+  await writeMarkdown(targetPath, result);
   console.log(`[merge-items] Merged content into ${path.basename(targetPath)}`);
 
   // The source file is about to go, and so is the row keyed by its path.
@@ -95,7 +101,7 @@ async function mergeItems(options) {
     }
 
     const targetDir = path.dirname(targetPath);
-    _mergeFiles(targetPath, sourcePath, targetDir);
+    await _mergeFiles(targetPath, sourcePath, targetDir);
     return;
   }
 
@@ -178,7 +184,7 @@ async function mergeItems(options) {
   const targetPath = path.join(targetDir, targetItem.name);
   const sourcePath = path.join(targetDir, sourceItem.name);
 
-  _mergeFiles(targetPath, sourcePath, targetDir);
+  await _mergeFiles(targetPath, sourcePath, targetDir);
 }
 
 module.exports = mergeItems;

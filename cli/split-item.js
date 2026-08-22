@@ -9,6 +9,7 @@ const {
   selectTargetDir,
 } = require('./item-utils');
 const { renumberUp } = require('./renumber');
+const { writeMarkdown } = require('../lib/convert/format-markdown');
 const { recordRenames } = require('./sync-renames');
 
 /**
@@ -28,12 +29,17 @@ function _frontmatterLineCount(rawContent) {
  * Core split logic: split file at bodyLine, create new file after original.
  * Exported as _splitFile for testing.
  *
+ * Async because both halves go out through `writeMarkdown`, which formats them
+ * first. A split rewrites the file it splits, so leaving either half
+ * unformatted would put an edit into the author's tree that their next
+ * `npm run format` undoes.
+ *
  * @param {string} filePath  - Absolute path to the file to split.
  * @param {number} bodyLine  - 1-based line number within the body to split at (lines 1..N stay in original).
  * @param {string} newTitle  - Title for the new (second) file.
  * @param {string} targetDir - Directory containing the file.
  */
-function _splitFile(filePath, bodyLine, newTitle, targetDir) {
+async function _splitFile(filePath, bodyLine, newTitle, targetDir) {
   const raw = fs.readFileSync(filePath, 'utf8');
   const parsed = matter(raw);
 
@@ -53,7 +59,7 @@ function _splitFile(filePath, bodyLine, newTitle, targetDir) {
 
   // Write first part back to original file
   const firstResult = matter.stringify('\n' + firstPart + '\n', parsed.data);
-  fs.writeFileSync(filePath, firstResult, 'utf8');
+  await writeMarkdown(filePath, firstResult);
   console.log(
     `[split-item] Updated ${path.basename(filePath)} (lines 1-${bodyLine})`,
   );
@@ -89,7 +95,7 @@ function _splitFile(filePath, bodyLine, newTitle, targetDir) {
     '\n' + secondPart + '\n',
     newFrontmatter,
   );
-  fs.writeFileSync(newFilePath, secondResult, 'utf8');
+  await writeMarkdown(newFilePath, secondResult);
   console.log(`[split-item] Created ${newFileName} (remaining lines)`);
 }
 
@@ -141,7 +147,7 @@ async function splitItem(options) {
     const originalTitle = parsed.data.title || path.basename(filePath, '.md');
     const newTitle = opts.title || `${originalTitle} (Part 2)`;
 
-    _splitFile(filePath, bodyLine, newTitle, targetDir);
+    await _splitFile(filePath, bodyLine, newTitle, targetDir);
     return;
   }
 
@@ -209,7 +215,7 @@ async function splitItem(options) {
     process.exit(1);
   }
 
-  _splitFile(filePath, bodyLine, newTitle, targetDir);
+  await _splitFile(filePath, bodyLine, newTitle, targetDir);
 }
 
 module.exports = splitItem;

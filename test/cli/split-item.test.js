@@ -43,7 +43,7 @@ describe('_splitFile', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it('splits file at the given body line', () => {
+  it('splits file at the given body line', async () => {
     createMdFile(
       tmpDir,
       '01-original.md',
@@ -51,7 +51,12 @@ describe('_splitFile', () => {
       'Line 1\nLine 2\nLine 3\nLine 4',
     );
 
-    _splitFile(path.join(tmpDir, '01-original.md'), 2, 'Part Two', tmpDir);
+    await _splitFile(
+      path.join(tmpDir, '01-original.md'),
+      2,
+      'Part Two',
+      tmpDir,
+    );
 
     const original = matter(
       fs.readFileSync(path.join(tmpDir, '01-original.md'), 'utf8'),
@@ -70,7 +75,7 @@ describe('_splitFile', () => {
     assert.ok(!newBody.includes('Line 1'));
   });
 
-  it('original file keeps its frontmatter', () => {
+  it('original file keeps its frontmatter', async () => {
     createMdFile(
       tmpDir,
       '01-original.md',
@@ -78,7 +83,12 @@ describe('_splitFile', () => {
       'Line 1\nLine 2\nLine 3',
     );
 
-    _splitFile(path.join(tmpDir, '01-original.md'), 1, 'Part Two', tmpDir);
+    await _splitFile(
+      path.join(tmpDir, '01-original.md'),
+      1,
+      'Part Two',
+      tmpDir,
+    );
 
     const original = matter(
       fs.readFileSync(path.join(tmpDir, '01-original.md'), 'utf8'),
@@ -88,7 +98,7 @@ describe('_splitFile', () => {
     assert.equal(original.data.canvas_id, 'original-page');
   });
 
-  it('new file gets updated title and no canvas_id', () => {
+  it('new file gets updated title and no canvas_id', async () => {
     createMdFile(
       tmpDir,
       '01-original.md',
@@ -96,7 +106,12 @@ describe('_splitFile', () => {
       'Line 1\nLine 2\nLine 3',
     );
 
-    _splitFile(path.join(tmpDir, '01-original.md'), 1, 'New Title', tmpDir);
+    await _splitFile(
+      path.join(tmpDir, '01-original.md'),
+      1,
+      'New Title',
+      tmpDir,
+    );
 
     const newFile = matter(
       fs.readFileSync(path.join(tmpDir, '02-new-title.md'), 'utf8'),
@@ -106,12 +121,17 @@ describe('_splitFile', () => {
     assert.equal(newFile.data.canvas_id, undefined);
   });
 
-  it('new file is inserted at correct position with renumbering', () => {
+  it('new file is inserted at correct position with renumbering', async () => {
     createMdFile(tmpDir, '01-first.md', { title: 'First' }, 'A1\nA2\nA3');
     createMdFile(tmpDir, '02-second.md', { title: 'Second' }, 'B');
     createMdFile(tmpDir, '03-third.md', { title: 'Third' }, 'C');
 
-    _splitFile(path.join(tmpDir, '01-first.md'), 1, 'First Part Two', tmpDir);
+    await _splitFile(
+      path.join(tmpDir, '01-first.md'),
+      1,
+      'First Part Two',
+      tmpDir,
+    );
 
     const files = fs.readdirSync(tmpDir).sort();
     assert.deepStrictEqual(files, [
@@ -122,7 +142,7 @@ describe('_splitFile', () => {
     ]);
   });
 
-  it('handles split at last line minus one', () => {
+  it('handles split at last line minus one', async () => {
     createMdFile(
       tmpDir,
       '01-original.md',
@@ -130,7 +150,12 @@ describe('_splitFile', () => {
       'Line 1\nLine 2\nLine 3',
     );
 
-    _splitFile(path.join(tmpDir, '01-original.md'), 2, 'Last Line', tmpDir);
+    await _splitFile(
+      path.join(tmpDir, '01-original.md'),
+      2,
+      'Last Line',
+      tmpDir,
+    );
 
     const original = matter(
       fs.readFileSync(path.join(tmpDir, '01-original.md'), 'utf8'),

@@ -26,21 +26,21 @@ describe('_mergeFiles', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it('appends source body into target file', () => {
+  it('appends source body into target file', async () => {
     createMdFile(tmpDir, '01-first.md', { title: 'First' }, 'Content A');
     createMdFile(tmpDir, '02-second.md', { title: 'Second' }, 'Content B');
 
     const targetPath = path.join(tmpDir, '01-first.md');
     const sourcePath = path.join(tmpDir, '02-second.md');
 
-    _mergeFiles(targetPath, sourcePath, tmpDir);
+    await _mergeFiles(targetPath, sourcePath, tmpDir);
 
     const result = fs.readFileSync(targetPath, 'utf8');
     assert.ok(result.includes('Content A'));
     assert.ok(result.includes('Content B'));
   });
 
-  it('keeps target frontmatter', () => {
+  it('keeps target frontmatter', async () => {
     createMdFile(
       tmpDir,
       '01-first.md',
@@ -57,7 +57,7 @@ describe('_mergeFiles', () => {
     const targetPath = path.join(tmpDir, '01-first.md');
     const sourcePath = path.join(tmpDir, '02-second.md');
 
-    _mergeFiles(targetPath, sourcePath, tmpDir);
+    await _mergeFiles(targetPath, sourcePath, tmpDir);
 
     const parsed = matter(fs.readFileSync(targetPath, 'utf8'));
     assert.equal(parsed.data.title, 'First');
@@ -65,7 +65,7 @@ describe('_mergeFiles', () => {
     assert.equal(parsed.data.canvas_id, 'first-page');
   });
 
-  it('discards source frontmatter', () => {
+  it('discards source frontmatter', async () => {
     createMdFile(tmpDir, '01-first.md', { title: 'First' }, 'Content A');
     createMdFile(
       tmpDir,
@@ -77,7 +77,7 @@ describe('_mergeFiles', () => {
     const targetPath = path.join(tmpDir, '01-first.md');
     const sourcePath = path.join(tmpDir, '02-second.md');
 
-    _mergeFiles(targetPath, sourcePath, tmpDir);
+    await _mergeFiles(targetPath, sourcePath, tmpDir);
 
     const parsed = matter(fs.readFileSync(targetPath, 'utf8'));
     assert.equal(parsed.data.title, 'First');
@@ -86,19 +86,19 @@ describe('_mergeFiles', () => {
     );
   });
 
-  it('deletes the source file', () => {
+  it('deletes the source file', async () => {
     createMdFile(tmpDir, '01-first.md', { title: 'First' }, 'Content A');
     createMdFile(tmpDir, '02-second.md', { title: 'Second' }, 'Content B');
 
     const targetPath = path.join(tmpDir, '01-first.md');
     const sourcePath = path.join(tmpDir, '02-second.md');
 
-    _mergeFiles(targetPath, sourcePath, tmpDir);
+    await _mergeFiles(targetPath, sourcePath, tmpDir);
 
     assert.ok(!fs.existsSync(sourcePath));
   });
 
-  it('renumbers remaining items sequentially', () => {
+  it('renumbers remaining items sequentially', async () => {
     createMdFile(tmpDir, '01-first.md', { title: 'First' }, 'A');
     createMdFile(tmpDir, '02-second.md', { title: 'Second' }, 'B');
     createMdFile(tmpDir, '03-third.md', { title: 'Third' }, 'C');
@@ -106,20 +106,20 @@ describe('_mergeFiles', () => {
     const targetPath = path.join(tmpDir, '01-first.md');
     const sourcePath = path.join(tmpDir, '02-second.md');
 
-    _mergeFiles(targetPath, sourcePath, tmpDir);
+    await _mergeFiles(targetPath, sourcePath, tmpDir);
 
     const files = fs.readdirSync(tmpDir).sort();
     assert.deepStrictEqual(files, ['01-first.md', '02-third.md']);
   });
 
-  it('combines multi-line content with a blank line separator', () => {
+  it('combines multi-line content with a blank line separator', async () => {
     createMdFile(tmpDir, '01-first.md', { title: 'First' }, 'Line 1\nLine 2');
     createMdFile(tmpDir, '02-second.md', { title: 'Second' }, 'Line 3\nLine 4');
 
     const targetPath = path.join(tmpDir, '01-first.md');
     const sourcePath = path.join(tmpDir, '02-second.md');
 
-    _mergeFiles(targetPath, sourcePath, tmpDir);
+    await _mergeFiles(targetPath, sourcePath, tmpDir);
 
     const parsed = matter(fs.readFileSync(targetPath, 'utf8'));
     const body = parsed.content.trim();

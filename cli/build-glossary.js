@@ -4,6 +4,7 @@ const yaml = require('js-yaml');
 
 const log = require('./logger');
 const { parseFrontmatter } = require('../lib/convert/frontmatter');
+const { formatMarkdown } = require('../lib/convert/format-markdown');
 const { LABEL_SETS } = require('../lib/config/labels');
 const { loadCourseConfig } = require('../lib/config/course-config');
 
@@ -258,10 +259,17 @@ async function buildGlossary(options = {}) {
         continue;
       }
 
-      const output = serializePage(
-        data,
-        renderBody(terms, lesson, config),
-        config,
+      // Formatted before the comparison rather than on the way out, and that
+      // order is the whole point. The page on disk is Prettier-canonical —
+      // `npm run format` covers `course/` and CI checks it — so comparing the
+      // raw render against it finds a difference on every run: `--check`
+      // reports the page stale for ever and a plain run rewrites it, only for
+      // the next format to put it back. Formatting first makes "unchanged"
+      // mean what it says. Prettier is idempotent, so the write below needs no
+      // second pass.
+      const output = await formatMarkdown(
+        filePath,
+        serializePage(data, renderBody(terms, lesson, config), config),
       );
 
       if (output === raw) {
