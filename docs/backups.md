@@ -13,12 +13,14 @@ a bad semester.
 >
 > Two commands can destroy Canvas content: `npx course reset-canvas` deletes
 > every module, page, assignment and file in the course, including content this
-> tool never created. `npx course push --prune-canvas` deletes the Canvas
-> modules and items you removed locally. Deleting an assignment is the one that
-> reaches student work: it takes the gradebook column and every submission on
-> it. An ordinary `npx course push` deletes nothing, but it does overwrite: the
-> Canvas copy of anything a local file tracks is replaced by what the file says.
-> See [Limitations](limitations.md) for exactly what each one touches.
+> tool never created. `--prune-canvas`, on either `npx course push` or
+> `npx course sync`, deletes the Canvas modules and items you removed locally,
+> and `npx course sync --prune` adds the other direction to it. Deleting an
+> assignment is the one that reaches student work: it takes the gradebook column
+> and every submission on it. A run without a prune flag deletes nothing, but it
+> does overwrite: the Canvas copy of anything a local file tracks is replaced by
+> what the file says. See [Limitations](limitations.md) for exactly what each
+> one touches.
 
 ## Route 1: Export the Course to a File
 
@@ -93,12 +95,15 @@ your markdown. Only a Canvas export or a course copy protects the course.
 The routes above protect different things, and the command you are about to run
 decides which one you need.
 
-| Command               | What it can destroy                                                                                                                            | What protects you                     |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| `push`                | the Canvas copy of anything a local file tracks, overwritten with what the file says                                                           | a course export or a course copy      |
-| `push --prune-canvas` | the Canvas modules, pages, assignments, discussions and files you deleted locally — and, with each assignment or graded discussion, its grades | a course export **and** the gradebook |
-| `reset-canvas`        | every module, page, assignment and file in the course, including content this tool never created, and every grade                              | a course export **and** the gradebook |
-| `pull --force`        | your local markdown, overwritten with the Canvas version                                                                                       | git: a commit, not a Canvas backup    |
+| Command                                      | What it can destroy                                                                                                                            | What protects you                               |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `push`                                       | the Canvas copy of anything a local file tracks, overwritten with what the file says                                                           | a course export or a course copy                |
+| `sync`                                       | the Canvas copy and the local copy of anything the sync state tracks, each replaced by whichever side changed it last                          | a course export or a course copy, plus a commit |
+| `push --prune-canvas`, `sync --prune-canvas` | the Canvas modules, pages, assignments, discussions and files you deleted locally — and, with each assignment or graded discussion, its grades | a course export **and** the gradebook           |
+| `pull --prune-local`, `sync --prune-local`   | the local files and folders Canvas no longer holds                                                                                             | git: a commit                                   |
+| `sync --prune`                               | both prune rows above, in one run                                                                                                              | a course export, the gradebook **and** a commit |
+| `reset-canvas`                               | every module, page, assignment and file in the course, including content this tool never created, and every grade                              | a course export **and** the gradebook           |
+| `pull --force`                               | your local markdown, overwritten with the Canvas version, uncommitted work included; with `--prune-local`, deleted rather than overwritten     | git: a commit, not a Canvas backup              |
 
 The assignment row is the one that bites. A course export carries assignments
 but not submissions or grades, so an export taken before a prune restores the
@@ -107,21 +112,28 @@ Grades live in one backup only, **Grades > Export**, and that CSV is a record
 rather than a restore: the files students uploaded are not in it, and a deleted
 assignment comes back as a new column you would paste the scores into by hand.
 
-One assignment neither command deletes: Canvas lists the gradebook half of a
-graded Classic Quiz among the course's assignments, and deleting it deletes the
-quiz, its questions and its submissions. `reset-canvas` skips those and names
-them; `push --prune-canvas` refuses them and says why. Quiz and LTI items are
-only ever unlinked from their module, never deleted. A course export is still
-the only thing that brings a quiz back.
+Every row above `pull --force` leaves uncommitted work alone. A local file git
+reports as modified or untracked is never overwritten and never deleted on any
+of them, and `sync` has no flag that changes that. `pull --force` is the one
+lever that switches the guard off, and outside a git checkout the guard covers
+every file in `course/`, so a forced pull there writes over all of them.
+
+One assignment none of them deletes: Canvas lists the gradebook half of a graded
+Classic Quiz among the course's assignments, and deleting it deletes the quiz,
+its questions and its submissions. `reset-canvas` skips those and names them;
+`--prune-canvas` refuses them and says why, on `push` and on `sync` alike,
+because the refusal lives in the engine rather than in either command. Quiz and
+LTI items are only ever unlinked from their module, never deleted. A course
+export is still the only thing that brings a quiz back.
 
 A **New** Quiz is not one of those. Canvas builds it as an assignment that
 launches an LTI tool, with no separate quiz object behind it, so the guard above
 has nothing to catch and this project manages it as the assignment it is.
 `reset-canvas` deletes it — with its questions and every submission on it — and
 names it in the summary so a count of assignments cannot hide it.
-`push --prune-canvas` deletes it too, and lists it as an ordinary assignment.
-Nothing in this repo can rebuild a New Quiz's questions; a course export is the
-only thing that brings one back.
+`--prune-canvas` deletes it too, and lists it as an ordinary assignment. Nothing
+in this repo can rebuild a New Quiz's questions; a course export is the only
+thing that brings one back.
 
 Deleting the local file of a **graded** discussion deletes the topic, every
 reply in it and the grades behind it. Prune checks for that: it resolves the
@@ -141,9 +153,10 @@ for why, and for the warnings the commands print before they act.
 
 - **Before the first push to any course that already has content.** The CLI
   warns you at this point and asks for confirmation.
-- **Before `reset-canvas` or `push --prune-canvas`**, every time. Both prompt,
-  and both point back here. On a course students have submitted to, export the
-  gradebook as well: no course export or course copy carries grades.
+- **Before `reset-canvas`, and before any run carrying a prune flag**, every
+  time. Each of them stops for a confirmation and points back here. On a course
+  students have submitted to, export the gradebook as well: no course export or
+  course copy carries grades.
 - **At the end of each academic year**, before you repoint the project at a new
   course.
 - **Before you try something you have not tried before**, which for a while is

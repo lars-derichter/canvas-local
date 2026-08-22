@@ -9,6 +9,8 @@ computer to a published Canvas module.
 - [Your first course, step by step](first-course.md): the beginner walkthrough,
   assuming no VS Code, terminal, or git experience
 - [User guide](user-guide.md): course structure and every daily command
+- [Canvas sync](user-guide.md#canvas-sync): `sync`, `push`, `pull` and `status`,
+  the flags each one takes, and what a prune deletes
 - [Git and GitHub basics](git-and-github.md): what they are and the commands you
   need
 - [Canvas setup](canvas-setup.md): API URL, access token, and course ID

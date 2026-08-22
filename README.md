@@ -15,10 +15,11 @@ publishing target.
   and review every change before it goes live.
 - **Instant preview.** A local website ([Docusaurus](https://docusaurus.io/))
   shows your course as you write, in the same structure students will see.
-- **One-command Canvas sync.** `npx course push` creates and updates modules,
-  pages, assignments, discussions and files in
-  [Canvas LMS](https://www.instructure.com/canvas). `pull` brings remote edits
-  back into markdown, and `status` shows what would change.
+- **One-command Canvas sync.** `npx course sync` reconciles modules, pages,
+  assignments, discussions and files with
+  [Canvas LMS](https://www.instructure.com/canvas) in both directions, and
+  deletes nothing unless you ask. `push` and `pull` are the same run with the
+  direction pinned, and `status` shows what a sync would do without doing it.
 - **PDF and DOCX export.** Hand out a styled course text or a single chapter,
   with your institution's branding.
 - **A VS Code extension.** Every command in the sidebar and command palette, so
@@ -46,8 +47,10 @@ Worth knowing before you commit a semester to it:
   on the file decides what it holds.
 - **The folder layout is a contract**: one folder per module, one level of
   nesting, numbered prefixes.
-- **Push and pull are not a merge.** Your markdown is the source of truth; pull
-  is for importing a course once, not for a routine round trip.
+- **Nothing merges two versions of one item.** A sync decides which side wins
+  and writes that copy whole; it never blends the two. Git is the undo, which is
+  why a local file holding uncommitted work is never written over, and only
+  `pull --force` overrides that.
 
 The full list, with what to do instead, is in
 [limitations](docs/limitations.md). Before pointing it at a course that already
