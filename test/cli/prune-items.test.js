@@ -5,13 +5,11 @@ const assert = require('node:assert/strict');
 process.env.CANVAS_API_URL = 'https://canvas.example.com';
 process.env.CANVAS_API_TOKEN = 'test-token-123';
 
-const push = require('../../cli/push');
-
 const {
-  _annotateSubmissions: annotateSubmissions,
-  _describeDoomedItem: describeDoomedItem,
-  _submissionRiskNoun: submissionRiskNoun,
-} = push;
+  annotateSubmissions,
+  describeDoomedItem,
+  submissionRiskNoun,
+} = require('../../cli/prune-warning');
 
 /**
  * What `--prune-canvas` puts in front of the author before it asks.

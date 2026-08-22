@@ -7,8 +7,9 @@ const {
 } = require('../lib/sync/gather');
 const { loadState, saveState } = require('../lib/sync/state');
 const { COURSE_DIR, createRL, prompt } = require('./module-utils');
-const { BACKUP_HINT } = require('./backup-warning');
+const { BACKUP_HINT, submissionRiskSuffix } = require('./backup-warning');
 const { warnGradeImpact } = require('./grade-impact');
+const { describeCanvasPrune, describeLocalPrune } = require('./prune-warning');
 const log = require('./logger');
 
 /**
@@ -564,17 +565,38 @@ async function askPending(report, { interactive }) {
   return resolved;
 }
 
-/** Whether the plan actually deletes anything, which is what needs confirming. */
-function countPrunes(report) {
-  return (report.actions || []).filter((action) =>
+/**
+ * List what a prune is about to delete on each side, name the student work
+ * behind the Canvas half of it, and ask.
+ *
+ * Sync is the only command that prunes both ways, so it is the only one that
+ * lists both. The Canvas listing is the same one `push --prune-canvas` prints,
+ * from the same module: it is the same delete against the same course, and a
+ * warning that differed between the two would be a warning the author could not
+ * rely on. Only the Canvas side carries a submission risk — deleting a local
+ * file costs whatever git has no copy of, which is a different sentence, and
+ * the git guard has already kept anything uncommitted out of the plan.
+ *
+ * The listing runs before every early return, so a run that will not ask still
+ * says what it found: a dry run, `--yes`, and a run with no terminal all print
+ * it. A preview drops the orphans a plan means to prune out of the report,
+ * which used to leave `--dry-run` with the count as its whole account.
+ *
+ * @returns {Promise<boolean>} Whether the deletes should stay in the plan.
+ */
+async function confirmPrune(courseId, report, { interactive, yes, dryRun }) {
+  const actions = report.actions || [];
+  const doomed = actions.filter((action) =>
     action.type.startsWith('delete-'),
   ).length;
-}
-
-/** Stop before a delete, the way every other destructive path in this tool does. */
-async function confirmPrune(report, { interactive, yes }) {
-  const doomed = countPrunes(report);
   if (doomed === 0) return true;
+
+  const { risk } = await describeCanvasPrune(courseId, actions, {
+    tag: 'sync',
+  });
+  describeLocalPrune(actions, { tag: 'sync' });
+
+  if (dryRun) return true;
   if (yes) return true;
   if (!interactive) {
     log.warn(
@@ -584,10 +606,12 @@ async function confirmPrune(report, { interactive, yes }) {
     return false;
   }
 
-  log.info(`\n[sync] ${plural(doomed, 'item')} will be deleted.`);
-  log.info(`[sync] ${BACKUP_HINT}`);
+  log.info(`\n[sync] ${BACKUP_HINT}`);
   const rl = createRL();
-  const answer = await prompt(rl, '[sync] Delete them? (y/N)');
+  const answer = await prompt(
+    rl,
+    `[sync] Delete them${submissionRiskSuffix(risk)}? (y/N)`,
+  );
   rl.close();
   const ok = answer.trim().toLowerCase() === 'y';
   if (!ok) log.info('[sync] Nothing was deleted.');
@@ -726,11 +750,16 @@ async function sync(options = {}) {
   let pruningCanvas = wantsPruneCanvas;
   let pruningLocal = wantsPruneLocal;
 
-  // A dry run deletes nothing, so there is nothing to confirm — and hiding the
-  // deletes behind a question the run will never act on is the opposite of
-  // what a preview is for.
-  if ((wantsPruneCanvas || wantsPruneLocal) && !dryRun) {
-    const ok = await confirmPrune(report, { interactive, yes });
+  // A dry run deletes nothing, so it gets the listing and the warnings and no
+  // question: hiding the deletes behind a prompt the run will never act on is
+  // the opposite of what a preview is for. `confirmPrune` draws that line
+  // itself, so the flags alone decide whether it runs.
+  if (wantsPruneCanvas || wantsPruneLocal) {
+    const ok = await confirmPrune(courseId, report, {
+      interactive,
+      yes,
+      dryRun,
+    });
     if (!ok) {
       pruningCanvas = false;
       pruningLocal = false;

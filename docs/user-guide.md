@@ -369,11 +369,12 @@ A run deletes nothing unless you ask for it.
 | `--prune-local`  | `sync`, `pull` | the local files and folders Canvas no longer has          |
 | `--prune`        | `sync`         | both of the above, in one run                             |
 
-Each one asks before it deletes. `push --prune-canvas` and `pull --prune-local`
-list every item first, and push flags the ones holding student submissions.
-`sync` gives the count and the backup pointer rather than the list, so run
-`npx course status` beforehand when you want to see which items are involved:
-with no prune flag it names every orphan on both sides.
+Each one asks before it deletes, and each lists every item first. `sync` and
+`push` check the Canvas side of that list for student work: an assignment or a
+graded discussion that already holds submissions is flagged on its own line, and
+the question you answer names the grades. `sync --prune` lists both sides, since
+it is the only command that deletes on both. A `--dry-run` prints the same
+listing and asks nothing.
 
 Two guards sit behind that question either way. A Canvas item the sync state
 never tracked is never a candidate, so a prune never deletes something a

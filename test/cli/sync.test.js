@@ -181,6 +181,36 @@ function writes(calls) {
   return calls.filter((call) => call.method !== 'GET');
 }
 
+function printed(out) {
+  return out.log.mock.calls.map((call) => call.arguments.join(' ')).join('\n');
+}
+
+/**
+ * Run a function with stdin replaced by a readable stream of `input`, so a
+ * readline prompt resolves without a terminal.
+ */
+async function withStdin(input, fn) {
+  const { Readable } = require('stream');
+  const original = Object.getOwnPropertyDescriptor(process, 'stdin');
+  const fake = Readable.from([input]);
+  fake.isTTY = false;
+  Object.defineProperty(process, 'stdin', { value: fake, configurable: true });
+  try {
+    return await fn();
+  } finally {
+    Object.defineProperty(process, 'stdin', original);
+  }
+}
+
+/**
+ * The questions as a user reads them. `console.log` is mocked out by `silence`,
+ * so what is left on stdout is what readline itself wrote — which is the only
+ * place the text of a prompt exists.
+ */
+function asked(wrote) {
+  return wrote.mock.calls.map((call) => String(call.arguments[0])).join('');
+}
+
 // ---------------------------------------------------------------------------
 // The run
 // ---------------------------------------------------------------------------
@@ -643,6 +673,141 @@ describe('npx course sync', () => {
         .join('\n');
       assert.match(printed, /`--prune-canvas` is what deletes these/);
       assert.doesNotMatch(printed, /each line says why/);
+    });
+  });
+
+  describe('--prune-canvas, over student work', () => {
+    const HW = {
+      id: 601,
+      name: 'Homework',
+      description: '<p>Do it.</p>',
+      points_possible: 10,
+      has_submitted_submissions: true,
+      updated_at: '2026-08-20T11:00:00.000Z',
+    };
+    const HW_ITEM = {
+      id: 92,
+      type: 'Assignment',
+      title: 'Homework',
+      content_id: 601,
+      position: 2,
+      indent: 0,
+    };
+
+    /** A graded assignment deleted locally and still sitting in the course. */
+    function doomedAssignment() {
+      const fixture = syncedFixture();
+      const { canvasFingerprint } = require('../../lib/sync/fingerprint');
+      const state = readState(fixture.file);
+      const module = state.modules['01-intro'];
+      module.item_order.push('01-intro/02-hw.md');
+      module.items['01-intro/02-hw.md'] = {
+        canvas_type: 'assignment',
+        canvas_id: 601,
+        module_item_id: 92,
+        title: 'Homework',
+        local_hash: 'whatever-it-was',
+        canvas_hash: canvasFingerprint(
+          { item: HW_ITEM, content: HW },
+          'assignment',
+        ),
+        canvas_updated_at: HW.updated_at,
+        synced_at: '2026-08-20T09:00:00.000Z',
+      };
+      fs.writeFileSync(fixture.file, JSON.stringify(state, null, 2), 'utf8');
+
+      return {
+        ...fixture,
+        routes: [
+          // The single fetch the quiz-backed check makes; ahead of the list
+          // routes, which its URL would otherwise be matched by.
+          { method: 'GET', path: '/assignments/601', body: HW },
+          { method: 'GET', path: '/modules/10/items', body: [ITEM, HW_ITEM] },
+          {
+            method: 'GET',
+            path: '/modules',
+            body: [{ id: 10, name: 'Intro', position: 1 }],
+          },
+          // One list for the fingerprints, one for the submission states.
+          { method: 'GET', path: '/assignments', body: [HW] },
+          { method: 'GET', path: '/assignments', body: [HW] },
+          { method: 'GET', path: `/pages/${PAGE.url}`, body: PAGE },
+          {
+            method: 'GET',
+            path: '/pages',
+            body: [
+              {
+                page_id: PAGE.page_id,
+                url: PAGE.url,
+                title: PAGE.title,
+                updated_at: PAGE.updated_at,
+              },
+            ],
+          },
+        ],
+      };
+    }
+
+    it('names the assignment, and names the grades in the question', async () => {
+      // The whole of C3. A count and a backup pointer is what this used to say
+      // before deleting a gradebook column, in the command an author reaches
+      // for most — the same act push has always spelled out item by item.
+      const out = silence();
+      const { courseDir, file, routes } = doomedAssignment();
+      const calls = mockCanvas([
+        ...routes,
+        { method: 'DELETE', path: '/assignments/601', body: {} },
+      ]);
+      const wrote = mock.method(process.stdout, 'write', () => true);
+
+      await withStdin('y\n', () =>
+        sync({
+          courseDir,
+          syncFile: file,
+          gitDirty: CLEAN,
+          interactive: true,
+          pruneCanvas: true,
+        }),
+      );
+
+      assert.match(
+        printed(out),
+        /01-intro\/02-hw\.md \(assignment\) {2}<-- HAS STUDENT SUBMISSIONS/,
+        'the listing has to name the item and what it holds',
+      );
+      assert.match(
+        asked(wrote),
+        /including the student submissions and grades/,
+        'the last thing read before typing y has to name the student work',
+      );
+      assert.deepEqual(
+        writes(calls).map(
+          (call) => `${call.method} ${call.url.split('/api/v1')[1]}`,
+        ),
+        [`DELETE /courses/${COURSE_ID}/assignments/601`],
+      );
+    });
+
+    it('lists what it would delete on a dry run too', async () => {
+      // A preview drops every orphan the plan means to prune out of the report,
+      // so without a listing of its own a dry run was the one place the count
+      // was the whole account.
+      const out = silence();
+      const { courseDir, file, routes } = doomedAssignment();
+      const calls = mockCanvas(routes);
+
+      await sync({
+        courseDir,
+        syncFile: file,
+        gitDirty: CLEAN,
+        interactive: false,
+        prune: true,
+        dryRun: true,
+      });
+
+      assert.deepEqual(writes(calls), [], 'a dry run deletes nothing');
+      assert.match(printed(out), /01-intro\/02-hw\.md/);
+      assert.match(printed(out), /HAS STUDENT SUBMISSIONS/);
     });
   });
 
