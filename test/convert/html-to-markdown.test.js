@@ -173,10 +173,24 @@ describe('htmlToMarkdown alerts', () => {
     assert.match(md, /Some plain text without a wrapper element\./);
   });
 
+  // No rule in html-to-markdown.js does this, and none needs to: `\s` matches
+  // U+00A0, so `<p>&nbsp;</p>` satisfies turndown's own `isBlank` test and
+  // `rules.forNode` hands it to `blankRule` before it ever scans the custom
+  // rules. The spacer markdownToHtml emits after every alert has always been
+  // dropped by turndown itself. Worth pinning anyway: the day that stops being
+  // true, every pulled alert grows a stray non-breaking space.
+  //
+  // The paragraph after the alert is what makes this a pin rather than a
+  // decoration. Turndown finishes by trimming `/[\t\r\n\s]+$/` off its output,
+  // and `\s` matches U+00A0 there too, so a spacer left as the last node is
+  // swept up by that trim whatever the blank handling did with it. Without
+  // something following it, this assertion passes even against a converter
+  // deliberately broken to emit the character.
   it('strips spacer paragraphs after alerts', () => {
-    const html = alertHtml('note', 'Info', 'Content.');
+    const html = alertHtml('note', 'Info', 'Content.') + '<p>After.</p>';
     const md = htmlToMarkdown(html);
     assert.doesNotMatch(md, /\u00a0/);
+    assert.match(md, /After\./);
   });
 });
 
