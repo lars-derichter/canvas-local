@@ -1585,6 +1585,122 @@ describe('the module link, over two passes', () => {
   });
 });
 
+describe('two Canvas modules that derive the same folder name', () => {
+  it('takes the first and refuses the second, writing nothing for it', async () => {
+    // A module's folder is `toFolderName(name, position)`, so two Canvas
+    // modules agreeing on both derive the same one and only the first can have
+    // it. The second used to reach the executor as `create-local-module` with
+    // `folder: null`: `path.join(courseDir, null)` threw, the run reported an
+    // internal error rather than the name clash it could describe — and the
+    // `create-local-item` ranked behind it carried its *real* suggested path,
+    // so it ran, wrote that module's page into the first module's folder, and
+    // filed the row under a state key of the literal string `"null"`.
+    silence();
+    const courseDir = tempCourse();
+    const state = emptyState();
+
+    const pageA = {
+      page_id: 501,
+      url: 'a',
+      title: 'A',
+      body: '<p>Module one.</p>',
+      updated_at: '2026-08-20T11:00:00.000Z',
+    };
+    const pageB = {
+      page_id: 502,
+      url: 'b',
+      title: 'B',
+      body: '<p>Module two.</p>',
+      updated_at: '2026-08-20T11:00:00.000Z',
+    };
+
+    mockCanvas([
+      {
+        method: 'GET',
+        path: '/modules/10/items',
+        body: [
+          {
+            id: 91,
+            type: 'Page',
+            title: 'A',
+            page_url: 'a',
+            content_id: 501,
+            position: 1,
+            indent: 0,
+          },
+        ],
+      },
+      {
+        method: 'GET',
+        path: '/modules/20/items',
+        body: [
+          {
+            id: 92,
+            type: 'Page',
+            title: 'B',
+            page_url: 'b',
+            content_id: 502,
+            position: 1,
+            indent: 0,
+          },
+        ],
+      },
+      {
+        method: 'GET',
+        path: '/modules',
+        body: [
+          { id: 10, name: 'Introduction', position: 1 },
+          { id: 20, name: 'Introduction', position: 1 },
+        ],
+      },
+      { method: 'GET', path: '/pages/a', body: pageA },
+      { method: 'GET', path: '/pages/b', body: pageB },
+      {
+        method: 'GET',
+        path: '/pages',
+        body: [
+          { page_id: 501, url: 'a', title: 'A', updated_at: pageA.updated_at },
+          { page_id: 502, url: 'b', title: 'B', updated_at: pageB.updated_at },
+        ],
+      },
+    ]);
+
+    const canvas = await gatherCanvas({ courseId: COURSE_ID, base: state });
+    assert.deepEqual(
+      canvas.modules.map((module) => module.suggestedFolder),
+      ['01-introduction', '01-introduction'],
+      'the gather really does hand two modules the one folder name',
+    );
+
+    const planned = plan({
+      base: state,
+      local: gatherLocal({ courseDir, gitDirty: CLEAN }),
+      canvas,
+    });
+    const outcome = await run(planned, {
+      courseDir,
+      state,
+      canvasContent: canvas.content,
+    });
+
+    assert.deepEqual(
+      outcome.errors,
+      [],
+      'a name clash is not an internal error',
+    );
+    assert.equal(planned.skipped.length, 1);
+    assert.equal(planned.skipped[0].reason, 'folder-taken');
+
+    assert.ok(fs.existsSync(path.join(courseDir, '01-introduction/01-a.md')));
+    assert.equal(
+      fs.existsSync(path.join(courseDir, '01-introduction/01-b.md')),
+      false,
+      'the second module’s page must not land in the first module’s folder',
+    );
+    assert.deepEqual(Object.keys(state.modules), ['01-introduction']);
+  });
+});
+
 describe('applyPlan, per action type', () => {
   it('creates a module and records the id every later action needs', async () => {
     silence();

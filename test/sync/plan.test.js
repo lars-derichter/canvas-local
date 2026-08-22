@@ -3133,6 +3133,96 @@ describe('plan: modules', () => {
       ['update-local-module'],
     );
   });
+
+  // -------------------------------------------------------------------------
+  // Two Canvas modules that want the same folder
+  // -------------------------------------------------------------------------
+
+  const LATER = '01-intro/02-later.md';
+
+  /** Two unclaimed Canvas modules deriving the one folder name. */
+  function twoWantingOneFolder() {
+    return {
+      base: { modules: {} },
+      local: { modules: [] },
+      canvas: {
+        modules: [
+          cMod([PATH], {
+            canvasModuleId: 100,
+            suggestedFolder: FOLDER,
+          }),
+          cMod([LATER], {
+            canvasModuleId: 200,
+            name: 'Introduction',
+            suggestedFolder: FOLDER,
+          }),
+        ],
+      },
+    };
+  }
+
+  it('refuses the Canvas module whose folder name is already taken', () => {
+    // A module's folder is its name and its position, so two Canvas modules
+    // agreeing on both derive the same one, and only the first can have it.
+    // The second reached `buildModuleContexts` as a context with `folder:
+    // null`, and everything downstream planned against that null.
+    const result = plan({ ...twoWantingOneFolder(), policy: {} });
+
+    assert.deepEqual(types(result), [
+      'create-local-module',
+      'create-local-item',
+    ]);
+    assert.deepEqual(
+      result.actions.filter((action) => action.folder === null),
+      [],
+      'nothing may be planned for a module with no folder to plan it in',
+    );
+    assert.deepEqual(
+      result.skipped.map((skip) => [
+        skip.kind,
+        skip.reason,
+        skip.moduleFolder,
+        skip.action,
+      ]),
+      [['module', 'folder-taken', FOLDER, 'create-local-module']],
+    );
+    assert.match(result.skipped[0].remedy, /already has that folder/);
+    assert.match(result.skipped[0].remedy, /Rename or renumber one of them/);
+  });
+
+  it('does not lose the second module’s page into the first one’s folder', () => {
+    // The half that made this more than a bad message. `create-local-module`
+    // threw on its null folder and was caught per action, but the
+    // `create-local-item` ranked behind it carried the item's *real*
+    // `suggestedPath` — so the run went on to write that page into the folder
+    // the other module had claimed, and recorded its row there.
+    const result = plan({ ...twoWantingOneFolder(), policy: {} });
+
+    assert.deepEqual(
+      result.actions
+        .filter((action) => action.type === 'create-local-item')
+        .map((action) => action.itemPath),
+      [PATH],
+      `${LATER} belongs to no folder this run can write`,
+    );
+  });
+
+  it('leaves push and status exactly as they were', () => {
+    // `writeLands`: neither writes locally, so neither can throw and neither
+    // can put a file in the wrong place. A skip there would fail the run over
+    // a Canvas-side name clash the command was never going to act on.
+    const result = plan({
+      ...twoWantingOneFolder(),
+      policy: { write: { canvas: true, local: false } },
+    });
+
+    assert.deepEqual(result.skipped, []);
+    assert.deepEqual(types(result), []);
+    assert.ok(
+      result.withheld.some((entry) => entry.type === 'create-local-module'),
+      'the fact is still recorded, as it always was',
+    );
+  });
 });
 
 describe('plan: -m confines the whole run', () => {
