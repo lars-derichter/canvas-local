@@ -30,11 +30,12 @@ Admin role in the Canvas course.
 
 ## Push Issues
 
-### Stale canvas_id (404 on Update)
+### A Stale Id on the Sync Row (404 on Update)
 
-If a page or assignment was deleted directly in Canvas, the local `canvas_id`
-becomes stale. Push detects this automatically via a 404 response and re-creates
-the resource. No manual action needed.
+If a page or assignment was deleted directly in Canvas, the id
+`.canvas-sync.json` holds for that file goes stale. Push detects this
+automatically via a 404 response on the update, creates the resource again, and
+records the new id on the same row. No manual action needed.
 
 ### "Module not found in course/ directory"
 
@@ -100,8 +101,10 @@ see [Backing up a Canvas course](backups.md).
 ### Corrupted .canvas-sync.json
 
 If the sync file becomes corrupted (e.g. partial write during a crash), delete
-it and run `npx course push` to regenerate it. Items with `canvas_id` in their
-frontmatter will be matched to existing Canvas resources.
+it and run `npx course push` to regenerate it. No markdown file names the Canvas
+object it became, so there is nothing to match on file by file: push claims a
+Canvas object of the same type and title in the module the file sits in, and
+writes the pair back into the state.
 
 A binary in `_files/` has no frontmatter to carry an id and needs none: push
 uploads it again, and Canvas overwrites the file of the same name it already

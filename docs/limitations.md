@@ -51,14 +51,39 @@ for that import, which is why it stays a manual step.
 
 How push decides which quiz an item means:
 
-1. The `canvas_id` in the frontmatter, if that quiz is still in the course.
-2. Otherwise a quiz in the course whose **title** matches the item's title. Push
-   writes the id it found back to the frontmatter, so it only has to look once.
-3. Otherwise the item is skipped, and push prints the QTI import procedure,
-   naming the `.zip` in `quiz_ref`.
+1. The id on the item's row in `.canvas-sync.json`, when it has one. Push goes
+   straight to it and never reads the quiz list at all.
+2. Otherwise a quiz item already sitting in that module under the same title,
+   which push claims for the file the way it claims any other object — see
+   [Push reconciles a module's item list](#push-reconciles-a-modules-item-list).
+3. Otherwise a quiz anywhere in the course whose **title** matches the item's
+   title exactly. Push places the item and records the id it found on the row,
+   so it only has to look once.
 
-Two quizzes sharing a title is ambiguous: push warns, names both ids, and skips
-the item rather than guess which one your students should get.
+The two ways that search ends badly are refusals, not guesses, and both are
+errors rather than skips: the action fails with its reason, the rest of the run
+carries on, and the run exits non-zero.
+
+- **No quiz by that title.** The error is the QTI import procedure, naming the
+  `.zip` in `quiz_ref` — or, when the file names no `quiz_ref` either, saying
+  there is no package to import and asking you to create the quiz under that
+  title.
+- **Two quizzes by that title.** The error names every id it found. A second
+  import of the same package is the ordinary way to arrive here; delete the
+  stale quiz in Canvas, or place the one you mean in the module by hand so push
+  can claim it there.
+
+Two edges are worth knowing:
+
+- **`--dry-run` cannot tell you any of this.** Which quiz an item means is
+  resolved while the item is written, and a dry run writes nothing, so it never
+  reads the quiz list. A quiz item with no row is reported as one push would
+  create — including when the quiz is not in the course and a real push would
+  refuse it.
+- **Pull refuses a quiz item that names no quiz.** A Canvas module item whose
+  `content_id` is empty, which is what a deleted quiz leaves behind, would
+  produce a reference file pointing at nothing. Pull writes no file and says so,
+  rather than leaving one that looks synced and is never retried.
 
 What that leaves you with:
 

@@ -12,12 +12,18 @@ external tool, write the file yourself with the frontmatter below.
 
 ## Common Fields
 
-| Field         | Type          | Description                                                                                                                               |
-| ------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `title`       | string        | Display title on Canvas. Auto-generated from filename if omitted.                                                                         |
-| `canvas_type` | string        | One of `page`, `assignment`, `discussion`, `quiz`, `external_url`, `external_tool`, `file`. Defaults to `page`.                           |
-| `canvas_id`   | string/number | Canvas resource ID. Written automatically after first push — do not set manually.                                                         |
-| `export`      | boolean       | Set `true` to include this item in `npx course export --flagged`. See [Exporting to PDF or DOCX](user-guide.md#exporting-to-pdf-or-docx). |
+| Field         | Type    | Description                                                                                                                               |
+| ------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `title`       | string  | Display title on Canvas. Auto-generated from filename if omitted.                                                                         |
+| `canvas_type` | string  | One of `page`, `assignment`, `discussion`, `quiz`, `external_url`, `external_tool`, `file`. Defaults to `page`.                           |
+| `export`      | boolean | Set `true` to include this item in `npx course export --flagged`. See [Exporting to PDF or DOCX](user-guide.md#exporting-to-pdf-or-docx). |
+
+No field here says which Canvas object a file became. That link lives in
+`.canvas-sync.json`, keyed by the file's path under `course/`. Older versions of
+this tool copied it into the frontmatter as `canvas_id`; this one ignores that
+key, pull strips it, and
+[`reset-sync-state`](advanced-commands.md#reset-sync-state) clears the ones left
+behind.
 
 ## Page
 
@@ -101,7 +107,6 @@ into markdown. Replies stay in Canvas and never appear here.
 title: "Test 1: Loops and Conditions"
 canvas_type: quiz
 quiz_ref: evaluations/2526/test-1/test-1.zip
-canvas_id: 45678
 ---
 ```
 
@@ -116,18 +121,23 @@ questions and submissions that nothing here could rebuild.
 
 Two things about this file are load-bearing:
 
-- **The title is the matching key.** When the `canvas_id` is missing or names a
-  quiz the course no longer holds, push looks for a course quiz with exactly
-  this title and writes the id it found back into the file. Rename the quiz in
-  Canvas and the match breaks. Two quizzes sharing the title is ambiguous: push
-  warns, names both ids, and skips the item rather than guess.
-- **`quiz_ref` is the rollover insurance, not a push requirement.** An item
-  whose `canvas_id` still resolves in this course is placed whatever `quiz_ref`
-  says. The path matters when the quiz is not in the course yet: it names the
-  package to import by hand, and push prints the import procedure with that
-  filename in it. `npx course validate` warns about a quiz with no `quiz_ref` (a
-  quiz pulled from Canvas has none, which is valid but not rebuildable) and
-  errors on a `quiz_ref` pointing at a file that is not there.
+- **The title is the matching key, and only until the sync state holds an id.**
+  Push places a quiz item it has no row for by reading the course's quiz list
+  and matching this file's title exactly, then records the id it found in
+  `.canvas-sync.json`. Every push after that goes straight to that id and never
+  reads the quiz list again, so a rename in Canvas breaks nothing once the row
+  exists — and breaks the match before it. A title that matches no quiz, and a
+  title two quizzes share, are both refusals rather than guesses: the item is
+  not placed, the reason is reported, the rest of the run carries on, and the
+  run ends non-zero. See [Limitations](limitations.md#quiz-questions-never-sync)
+  for the full order.
+- **`quiz_ref` is the rollover insurance, not a push requirement.** An item the
+  sync state already ties to a quiz is placed whatever `quiz_ref` says. The path
+  matters when the quiz is not in the course yet: it names the package to import
+  by hand, and the refusal quotes the import procedure with that filename in it.
+  `npx course validate` warns about a quiz with no `quiz_ref` (a quiz pulled
+  from Canvas has none, which is valid but not rebuildable) and errors on a
+  `quiz_ref` pointing at a file that is not there.
 
 The [`/quiz-build`](ai-assistants.md) skill produces the `.zip` under
 `evaluations/`. Canvas has no API for a QTI import, so that step stays manual:
@@ -217,38 +227,74 @@ export, list it by path or add it to a TOC file — see
 
 ## Adopting an Item You Made by Hand in Canvas
 
-Push adopts a Canvas object whose type and title match a local file, so an item
-you made by hand is usually claimed without you doing anything. When the titles
-differ, or when two candidates make the match ambiguous, adopt it yourself: give
-it a markdown file in the module's folder, carrying the `canvas_type` that
-matches what Canvas calls it and the `canvas_id` that names it. From the next
-push on, it is an item like any other, placed where the file's number says.
+Push adopts a Canvas object whose type and title match a local file in the same
+module, so an item you made by hand is usually claimed without you doing
+anything. Two cases defeat that match: the titles differ, or the module holds
+more than one candidate of that type and title and nothing says which claims
+which. Push names the ambiguous ones and adopts neither.
 
-| What Canvas shows | `canvas_type`   | `canvas_id` holds                                                    |
-| ----------------- | --------------- | -------------------------------------------------------------------- |
-| Page              | `page`          | the numeric page id, or the page's URL slug                          |
-| Assignment        | `assignment`    | the assignment id                                                    |
-| Discussion        | `discussion`    | the topic id                                                         |
-| Quiz              | `quiz`          | the quiz id (or leave it out and let the title match)                |
-| File              | `file`          | not needed: add the binary and a `file_ref` wrapper                  |
-| External URL      | `external_url`  | not needed: the `external_url` value is what push matches on         |
-| External tool     | `external_tool` | not needed: the launch URL in `external_url` is what push matches on |
+Adopt it yourself by writing the link the match would have written. Identity
+lives in `.canvas-sync.json`, keyed by the file's path under `course/`, so one
+row in that file is the whole of what adoption does. Give the local file the
+`canvas_type` that matches what Canvas calls the object, then:
 
-The ids are in the Canvas URL of the item: `/courses/123/assignments/456` gives
-`456`, `/courses/123/discussion_topics/789` gives `789`. For a page, the slug at
-the end of `/courses/123/pages/getting-started` works as well as the numeric id.
+1. **Take the id out of the Canvas URL of the item.**
+   `/courses/123/assignments/456` gives `456`, and
+   `/courses/123/discussion_topics/789` gives `789`. An external URL and an LTI
+   link are nothing but a module item, so what those two need is the module
+   item's own id, from `/courses/123/modules/items/456`.
+2. **Find the module in `.canvas-sync.json`.** Modules are keyed by their local
+   folder name.
+3. **Add a row under that module's `items`,** keyed by the file's path from
+   `course/`, with forward slashes on every platform. Two fields are enough:
+
+   ```json
+   "03-functions": {
+     "canvas_module_id": 67890,
+     "items": {
+       "03-functions/04-lab-brief.md": {
+         "canvas_type": "assignment",
+         "canvas_id": 456
+       }
+     }
+   }
+   ```
+
+4. **Push.** The row names the object without claiming anything about its state,
+   so push reads the file as changed and Canvas as unchanged, writes the file up
+   over the Canvas object, and fills in the rest of the row itself — the module
+   item id, the fingerprints, the slot in `item_order`.
+
+| What Canvas shows | `canvas_type`   | `canvas_id` holds                                |
+| ----------------- | --------------- | ------------------------------------------------ |
+| Page              | `page`          | the numeric page id; add `page_url` for the slug |
+| Assignment        | `assignment`    | the assignment id                                |
+| Discussion        | `discussion`    | the topic id                                     |
+| Quiz              | `quiz`          | the quiz id                                      |
+| File              | `file`          | the Canvas file id                               |
+| External URL      | `external_url`  | the module item id, not a content id             |
+| External tool     | `external_tool` | the module item id, not a content id             |
+
+> [!IMPORTANT]
+>
+> This works on a Canvas object that is already an item in the module. Push
+> reads a course through its modules, so an object sitting outside every one of
+> them — a discussion a Course Copy left behind, say — is invisible to it, and a
+> row naming that object reads as an object that was deleted: push writes
+> nothing and reports the file as having lost its Canvas copy. Put the item in
+> the module in Canvas first, and adopt it after that. A quiz in that state
+> needs no row instead: push searches the whole course's quiz list by title and
+> places the one it finds.
 
 Adopting a page, an assignment or a discussion means the local file becomes the
 source of truth for its body: the next push overwrites what Canvas holds with
 what the file says. Either copy the Canvas text into the file first, or run
-`npx course pull` and let it write the file for you. For a quiz or an external
-tool nothing is overwritten, because the file is only a reference.
+`npx course pull` and let it write the file for you. For a quiz, an external URL
+or an external tool nothing is overwritten, because the file is only a
+reference.
 
 ## Notes
 
-- `canvas_id` is managed by the CLI. Editing it manually may cause sync issues.
-  The one time to write it yourself is when adopting an item that already exists
-  in Canvas, as above.
 - Fields not recognised by Canvas are silently ignored during push. Only the
   fields listed above reach Canvas — see
   [Limitations](limitations.md#which-fields-reach-canvas) for what that leaves

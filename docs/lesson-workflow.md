@@ -140,8 +140,10 @@ _generated_, never hand-written:
   prefix).
 - `npx course build-glossary --check` verifies the pages are up to date without
   writing — useful before a push.
-- Existing frontmatter such as `canvas_id` is preserved, so regeneration is safe
-  on already-synced pages.
+- Regeneration is safe on an already-synced page. Which Canvas page it is lives
+  in `.canvas-sync.json`, keyed by the file's path, so rewriting the body cannot
+  break the link; and the page's existing frontmatter is carried over rather
+  than replaced.
 
 New terms enter the YAML file when you design a lesson (`/lesson-design` adds
 them) or build a module; the pages then follow from one command.

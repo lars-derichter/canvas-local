@@ -16,10 +16,15 @@ npx course reset-sync-state
 
 Removes all instance-specific sync artifacts from the local codebase:
 
-1. Walks every markdown file in `course/` and strips the `canvas_id` field from
-   its frontmatter.
-2. Deletes `.canvas-sync.json` (the file that tracks module IDs, item IDs, and
-   uploaded icon IDs).
+1. Deletes `.canvas-sync.json`, the one record of which Canvas module, item,
+   uploaded icon and embedded file each folder and file is. That deletion is the
+   reset.
+2. Sweeps up what older versions of this tool left in the tree: the `canvas_id`
+   in a markdown file's frontmatter and the `customProps.canvas_module_id` in a
+   folder's `_category_.json`. Neither is written any more, and a leftover one
+   is a second answer to a question the sync state now owns alone. `canvas_type`
+   is left alone — that is your declaration of what a file should become, not a
+   record of what Canvas did.
 
 After running this command the project is back to a "never pushed" state — the
 next `push` will create everything fresh on Canvas.

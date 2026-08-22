@@ -48,7 +48,9 @@ itself read no sync state and work throughout. Running `npx course init` at this
 step instead of editing `.env` by hand lifts the refusal straight away, because
 init rewrites the sync state too and leaves last year's module ids behind rather
 than filing them under the new course — but it does not touch the `canvas_id`
-fields in your markdown, so step 5 is still the step that strips those.
+and `canvas_module_id` fields older versions of this tool wrote into `course/`.
+Clearing those is all step 5 has left to do, and a course authored on this
+version carries none.
 
 ## 3. Clean the Remote Course (If Needed)
 
@@ -99,16 +101,16 @@ materials).
 
 ## 5. Reset Sync State
 
-Remove all Canvas IDs from your local files so the next push creates everything
-fresh on the new course:
+Make the project forget which Canvas objects it built last year:
 
 ```bash
 npx course reset-sync-state
 ```
 
-This strips the `canvas_id` field from every markdown file in `course/` and
-deletes `.canvas-sync.json`. Your content is untouched — only sync metadata is
-removed.
+This deletes `.canvas-sync.json`, the one record of which Canvas object each
+file and folder is, and sweeps up the `canvas_id` and `canvas_module_id` fields
+older versions of this tool wrote into `course/`. Your content is untouched —
+only the sync bookkeeping goes.
 
 ## 6. Push to Canvas
 
@@ -169,13 +171,14 @@ this repository as markdown, and Canvas has no API for a QTI import, so:
    Course Content > QTI .zip file** in the new course.
 2. Give the quiz the same title the markdown file has, because that title is how
    push finds it.
-3. Push. Push matches the quiz by title and writes the new `canvas_id` back into
-   the file for you.
+3. Push. Push matches the quiz by title and records the new id in
+   `.canvas-sync.json` for you.
 4. Set the availability dates and the time limit in Canvas. QTI carries neither,
    and the quiz arrives unpublished.
 
-Until the quiz is imported, push skips that item and prints the import procedure
-with the filename in it. Nothing else in the module is affected.
+Until the quiz is imported, push cannot place that item: the action fails with
+the import procedure and the filename in it, and the run ends non-zero. Nothing
+else in the module is affected — a failed action costs that action alone.
 
 A quiz file with no `quiz_ref` cannot be rebuilt at all: there is no package to
 import, and no questions in the repository. That is why `npx course validate`
@@ -206,8 +209,10 @@ find valid settings for this link".
 > and files it finds, but leaves discussions and quizzes alone. The copied
 > discussions then survive with no module item pointing at them, and your push
 > creates a second copy of each. Delete the copied discussions in Canvas before
-> pushing, or keep the copied ones and adopt them with `canvas_id` (see
-> [Frontmatter](frontmatter.md#adopting-an-item-you-made-by-hand-in-canvas)).
+> pushing. Adoption cannot rescue them: push reads a course through its modules,
+> so a discussion no module item points at is invisible to it, and claiming one
+> by hand needs it back in a module first — see
+> [Frontmatter](frontmatter.md#adopting-an-item-you-made-by-hand-in-canvas).
 
 ## Quick Reference
 

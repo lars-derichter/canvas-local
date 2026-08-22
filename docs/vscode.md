@@ -39,12 +39,12 @@ Hover over a tree item to see inline action buttons:
 | Cloud upload  | Push the item's module to Canvas  |
 | External link | Open the item in Canvas (browser) |
 
-"Open in Canvas" requires the item to have been pushed at least once. It reads
-the `canvas_id` from the file's frontmatter and the Canvas URL from `.env`.
-Pages, assignments and discussions open their Canvas page, file items open the
-Canvas file view, and external URL items open the URL itself. A quiz or an LTI
-link opens the Canvas page URL for its id, which is not where either of them
-lives; open those from the module in Canvas instead.
+"Open in Canvas" requires the item to have been pushed at least once. It looks
+the id up in `.canvas-sync.json` by the file's path, and takes the Canvas URL
+from `.env`. Pages, assignments, discussions and quizzes open their own Canvas
+page, file items open the Canvas file view, and external URL items open the URL
+itself. An LTI link has no page of its own, so it opens as the module item it
+is. An item with no row yet is reported as not pushed rather than guessed at.
 
 The sidebar's **New Item** creates pages, assignments, external URLs,
 subsections and file items. A discussion, a quiz or an LTI link is a file you
