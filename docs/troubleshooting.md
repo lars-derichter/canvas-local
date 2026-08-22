@@ -105,8 +105,7 @@ frontmatter will be matched to existing Canvas resources.
 
 A module holding a binary in `_files/` is the exception, because a file has no
 frontmatter to carry its id: with the sync state gone, push cannot tell its own
-upload from something added in Canvas, so it refuses that module. One
-`npx course push --drop-canvas-only` re-adopts them. See
+upload from something added in Canvas, so it refuses that module. See
 [a plain push rebuilds the module's item list](limitations.md#a-plain-push-rebuilds-the-modules-item-list).
 
 ### ".canvas-sync.json describes course N"
@@ -114,9 +113,9 @@ upload from something added in Canvas, so it refuses that module. One
 `.env` names one Canvas course and the sync state was built against another, so
 every command stops until the two agree. The ids in that file only mean
 something in the course they came from, and one of them is not scoped to a
-course at all: a Canvas file id is global, so `push --prune` — or renaming a
-binary in `_files/`, which deletes the file it replaces — would delete a file
-belonging to the other course.
+course at all: a Canvas file id is global, so `push --prune-canvas` — or
+renaming a binary in `_files/`, which deletes the file it replaces — would
+delete a file belonging to the other course.
 
 Two ways out, and which one is right depends on what you meant:
 

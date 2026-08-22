@@ -41,15 +41,14 @@ npx course init
 
 From here until step 5, `.env` names the new course while `.canvas-sync.json`
 still describes last year's, so any command that reads sync state — `status`,
-`diff`, `pull`, the item commands — refuses to run and names both courses. That
-is the guard against pushing last year's ids at this year's course, not a
-problem with your setup; step 5 clears it. `reset-canvas`, `validate` and
-`reset-sync-state` itself read no sync state and work throughout. Running
-`npx course init` at this step instead of editing `.env` by hand lifts the
-refusal straight away, because init rewrites the sync state too and leaves last
-year's module ids behind rather than filing them under the new course — but it
-does not touch the `canvas_id` fields in your markdown, so step 5 is still the
-step that strips those.
+`pull`, the item commands — refuses to run and names both courses. That is the
+guard against pushing last year's ids at this year's course, not a problem with
+your setup; step 5 clears it. `reset-canvas`, `validate` and `reset-sync-state`
+itself read no sync state and work throughout. Running `npx course init` at this
+step instead of editing `.env` by hand lifts the refusal straight away, because
+init rewrites the sync state too and leaves last year's module ids behind rather
+than filing them under the new course — but it does not touch the `canvas_id`
+fields in your markdown, so step 5 is still the step that strips those.
 
 ## 3. Clean the Remote Course (If Needed)
 
@@ -131,7 +130,7 @@ npx course push --dry-run
 Confirm everything synced correctly:
 
 ```bash
-npx course status --remote
+npx course status
 ```
 
 Then open the new Canvas course in your browser and spot-check a few pages and
@@ -142,8 +141,8 @@ assignments.
 > Never run `npx course pull` on the new course to "check" the result. Pull
 > overwrites local files with what Canvas holds and renames folders and files to
 > match Canvas's names and numbering. On a tree that already holds your course,
-> that is a rewrite, not a check. `status --remote` answers the same question
-> and writes nothing. See
+> that is a rewrite, not a check. `status` answers the same question and writes
+> nothing. See
 > [Push and pull are not a merge](limitations.md#push-and-pull-are-not-a-merge).
 
 ## What a Rollover Does to Each Type
@@ -230,7 +229,7 @@ npx course reset-sync-state
 npx course push
 
 # 8. Verify
-npx course status --remote
+npx course status
 ```
 
 Check the quiz and LTI items in Canvas afterwards: those are the two the push

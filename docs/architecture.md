@@ -95,8 +95,8 @@ Key properties:
 
 ### Prune Semantics
 
-`push --prune` deletes a Canvas resource only when no local file _claims_ its
-identity: a markdown file claims `canvas_id` (and `external_url`) via its
+`push --prune-canvas` deletes a Canvas resource only when no local file _claims_
+its identity: a markdown file claims `canvas_id` (and `external_url`) via its
 frontmatter, a module folder claims its id via `_category_.json`. Identity
 claims are collected over the whole course, so items moved to another module —
 even one outside a `--module` filter — are never mistaken for deletions.
@@ -161,7 +161,7 @@ the author and has to survive every pull.
 3. Build link map from sync state (link-resolver.js)
 4. For each module:
    a. Read what Canvas holds in the module, and skip the module when any
-      of it has no local counterpart (unless --drop-canvas-only)
+      of it has no local counterpart
    b. Create or update the Canvas module
    c. Clear existing module items (prevents duplicates on re-push;
       module items are links — deleting them keeps the content)
@@ -186,7 +186,7 @@ the author and has to survive every pull.
    f. Save sync state after each module
 5. Second pass: re-push items with unresolved links
    (now resolvable because referenced pages exist)
-6. Prune: delete Canvas modules and items removed locally (if --prune)
+6. Prune: delete Canvas modules and items removed locally (if --prune-canvas)
 7. Update last_sync timestamp
 ```
 

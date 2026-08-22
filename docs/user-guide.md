@@ -268,22 +268,19 @@ handy fallback when Canvas is unavailable. See the [hosting guide](hosting.md).
 >
 > Before your first push to a Canvas course that already has content, back it
 > up: see [Backing up a Canvas course](backups.md). Push takes over the modules
-> it manages, `--prune` deletes what you removed locally, and Canvas has no
-> undo. Pull runs the same risk in the other direction: `--force` replaces your
-> local markdown with the Canvas version, so commit before you use it.
+> it manages, `--prune-canvas` deletes what you removed locally, and Canvas has
+> no undo. Pull runs the same risk in the other direction: `--force` replaces
+> your local markdown with the Canvas version, so commit before you use it.
 > [Limitations](limitations.md) sets out exactly what each command touches.
 
 ```bash
 npx course push                  # push all modules to Canvas
 npx course push --dry-run        # preview without making changes
 npx course push -m 01-intro      # push a single module
-npx course push --prune          # also delete Canvas modules and items removed locally
-npx course push --drop-canvas-only  # rebuild a module even if it holds items added in Canvas
+npx course push --prune-canvas   # also delete Canvas modules and items removed locally
 npx course pull                  # import existing Canvas course
 npx course pull --force          # overwrite local files pull would otherwise skip
 npx course status                # compare local vs Canvas state
-npx course status --remote       # also fetch and compare against Canvas
-npx course diff                  # show what changed locally since the last sync
 npx course validate              # check course content for errors before pushing
 ```
 

@@ -119,17 +119,13 @@ a link, not the content — but the consequences are real:
   exactly as it is, carries on with the other modules, and ends the run with a
   non-zero exit status. Nothing is dropped silently.
 
-Three ways out of a refusal, all in the message push prints:
+Two ways out of a refusal, both in the message push prints:
 
 1. **Keep the items.** Add a file under the module's folder for each one,
    carrying the matching `canvas_type` and `canvas_id` in its frontmatter (see
    [frontmatter](frontmatter.md)), and push again. From then on they are yours
    to edit like any other item.
 2. **Move them in Canvas** into a module this project does not manage.
-3. **Let them go.** `npx course push --drop-canvas-only` rebuilds the module
-   regardless, listing what it removes as it goes. A page, assignment,
-   discussion, quiz or file behind an item stays in the course; an external URL
-   or an LTI link is nothing but a module item, so that one is gone.
 
 `--dry-run` reports the same refusal without touching Canvas, and exits non-zero
 too.
@@ -147,10 +143,9 @@ The guard has three edges:
   it as Canvas-only, and refuses. That combination is not exotic: the module's
   `canvas_module_id` lives in `_category_.json`, which is committed, while
   `.canvas-sync.json` is gitignored — so a fresh clone of a course that has been
-  pushed is exactly it. One push with `--drop-canvas-only` re-adopts the files.
-  A full [`reset-sync-state`](advanced-commands.md) does _not_ produce this,
-  because it strips the module id too: push then finds no module to protect and
-  creates a second one alongside the first.
+  pushed is exactly it. A full [`reset-sync-state`](advanced-commands.md) does
+  _not_ produce this, because it strips the module id too: push then finds no
+  module to protect and creates a second one alongside the first.
 
 The rule of thumb is unchanged: a module this tool manages is generated output.
 Anything you want to keep in it belongs in `course/`.
@@ -159,30 +154,31 @@ Two smaller cases where a plain push deletes something real:
 
 - Renaming a binary in `_files/` uploads the new one and deletes the old Canvas
   file.
-- `push --prune` deletes the Canvas modules, pages, assignments, discussions and
-  files whose local counterparts you removed. It lists them and asks first, and
-  flags the items that hold student work — an assignment with submissions, a
-  graded discussion, a discussion with replies in it; see
+- `push --prune-canvas` deletes the Canvas modules, pages, assignments,
+  discussions and files whose local counterparts you removed. It lists them and
+  asks first, and flags the items that hold student work — an assignment with
+  submissions, a graded discussion, a discussion with replies in it; see
   [Destructive operations and student work](#destructive-operations-and-student-work).
 
 ## Destructive Operations and Student Work
 
-Three commands delete things on Canvas: an ordinary `push`, `push --prune` and
-`reset-canvas`. What separates them is not how much they delete but which kind
-of object they delete, and only one of those kinds takes student work with it.
+Three commands delete things on Canvas: an ordinary `push`,
+`push --prune-canvas` and `reset-canvas`. What separates them is not how much
+they delete but which kind of object they delete, and only one of those kinds
+takes student work with it.
 
 - **Deleting a module item is safe.** A module item is a link. Removing it
   leaves the page, assignment or file it pointed at exactly where it was, with
   its gradebook column and its submissions untouched. That is all an ordinary
   push does to the modules it manages.
-- **A quiz and an LTI link are only ever unlinked.** `push --prune` and
+- **A quiz and an LTI link are only ever unlinked.** `push --prune-canvas` and
   `reset-canvas` remove the module item for either one and stop there: the quiz,
   its questions and every submission on it stay in Canvas, and so does the tool
   installation that other courses launch. Neither is this project's to delete.
 - **A discussion is deleted like a page.** It is authored content here, so
-  `push --prune` deletes the topic itself when you delete its local file, and
-  the replies go with it. `reset-canvas` leaves discussions alone.
-- **Deleting an assignment is not.** `push --prune` calls `DELETE` on the
+  `push --prune-canvas` deletes the topic itself when you delete its local file,
+  and the replies go with it. `reset-canvas` leaves discussions alone.
+- **Deleting an assignment is not.** `push --prune-canvas` calls `DELETE` on the
   assignment object itself, and Canvas takes its gradebook column and every
   submission on it. Canvas's `/undelete` sometimes brings the assignment back;
   the submissions frequently do not come with it, so the grades are gone for
@@ -196,11 +192,11 @@ of object they delete, and only one of those kinds takes student work with it.
   (`is_quiz_assignment: true`, with the quiz's id in `quiz_id`), and a `DELETE`
   on it deletes the quiz, its questions and every submission. Neither command
   does that any more: `reset-canvas` skips those assignments and names them, and
-  `push --prune` refuses to delete one, reports it as an error, and leaves it
-  tracked. If a local file claimed `canvas_type: assignment` for an id that
-  Canvas holds as a quiz, that mismatch is yours to settle — delete the quiz in
-  Canvas if that is what you meant. A practice quiz has no gradebook column and
-  never appears among the assignments, so it is never at risk.
+  `push --prune-canvas` refuses to delete one, reports it as an error, and
+  leaves it tracked. If a local file claimed `canvas_type: assignment` for an id
+  that Canvas holds as a quiz, that mismatch is yours to settle — delete the
+  quiz in Canvas if that is what you meant. A practice quiz has no gradebook
+  column and never appears among the assignments, so it is never at risk.
 - **A New Quiz is not covered by any of that**, and cannot be: it is genuinely
   an assignment that launches an LTI tool (`is_quiz_lti_assignment: true`, no
   `quiz_id`, no separate quiz object), so this project manages it as the
@@ -208,9 +204,9 @@ of object they delete, and only one of those kinds takes student work with it.
   its questions and every submission on it, and nothing in this repo could
   rebuild the questions — a New Quiz has no markdown source here the way an
   assignment body does. `reset-canvas` names each one it is about to delete, so
-  a count of "n assignments" cannot hide it. `push --prune` does not: it lists
-  the item as an ordinary assignment, which is the one place where the warning
-  is thinner than the loss.
+  a count of "n assignments" cannot hide it. `push --prune-canvas` does not: it
+  lists the item as an ordinary assignment, which is the one place where the
+  warning is thinner than the loss.
 
 Pages and files carry no grades, so pruning one costs you the content and
 nothing else — recoverable from git, or from a course export.
@@ -259,7 +255,7 @@ you know which one this is.
 Before it deletes anything that can hold grades, the tool asks Canvas whether
 that content already holds student work:
 
-- **`push --prune`** flags each doomed assignment in its listing
+- **`push --prune-canvas`** flags each doomed assignment in its listing
   (`<-- HAS STUDENT SUBMISSIONS: deletes the gradebook column and every grade in it`),
   counts them in a warning, and names them in the question itself:
   `Delete these from Canvas, including the student submissions and grades? (y/N)`.

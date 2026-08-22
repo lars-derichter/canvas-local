@@ -79,7 +79,7 @@ everything, and followed by `pull` overwrites the local markdown. `relink` is
 the missing third option that would make Course Copy a first-class rollover
 path.
 
-### Item Matching in `status --remote`
+### Item Matching in `status`
 
 `compareWithCanvas` in `cli/status.js` reports a "CANVAS-ONLY item" whenever
 `canvasItem.content_id || page_url || id` is absent from the set of local
@@ -155,8 +155,8 @@ that already has submissions.
 ### Flagging a New Quiz in a Prune
 
 `reset-canvas` names every New Quiz it is about to delete, because that deletion
-takes questions nothing in this repository could rebuild. `push --prune` deletes
-one just as thoroughly and says nothing: an item tracked as
+takes questions nothing in this repository could rebuild. `push --prune-canvas`
+deletes one just as thoroughly and says nothing: an item tracked as
 `canvas_type: assignment` that Canvas holds as a New Quiz is listed as an
 ordinary assignment. The guard is not what is missing — `refuseQuizBackedDelete`
 deliberately lets a New Quiz through, and rightly, because it really is an

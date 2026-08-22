@@ -19,9 +19,8 @@
   compares what Canvas holds in a module against what `course/` accounts for,
   and when anything is unaccounted for it names those items with their Canvas
   links, leaves the module exactly as it is, carries on with the other modules
-  and ends with a non-zero exit status. `--drop-canvas-only` restores the old
-  rebuild for a module you have finished with. The claim in the README that a
-  push silently drops hand-added items was accurate, and this is the fix for it
+  and ends with a non-zero exit status. The claim in the README that a push
+  silently drops hand-added items was accurate, and this is the fix for it
   rather than a note about it.
 - **An external tool is checked before it is created.** Canvas resolves an LTI
   module item by its launch URL, and when no installed tool claims that URL it
@@ -43,15 +42,15 @@
   assignments API like any other assignment. `DELETE` on it deletes the quiz,
   its questions and every submission with it, verified against a live course. So
   `reset-canvas` was destroying every graded quiz it found while printing
-  "Quizzes, discussions and announcements are left alone", and `push --prune`
-  would do the same to any item whose local file said `canvas_type: assignment`
-  for an id Canvas holds as a quiz. `reset-canvas` now skips those assignments,
-  names them, and keeps them out of the count of what it is about to delete;
-  `push --prune` refuses to delete one and reports the mismatch instead of
-  resolving it with a delete. A check that cannot be made is a refusal too. The
-  new `isQuizBackedAssignment` reads `is_quiz_assignment` and `quiz_id`;
-  practice quizzes never appear among the assignments, and a New Quiz is
-  genuinely an assignment, so neither is covered.
+  "Quizzes, discussions and announcements are left alone", and
+  `push --prune-canvas` would do the same to any item whose local file said
+  `canvas_type: assignment` for an id Canvas holds as a quiz. `reset-canvas` now
+  skips those assignments, names them, and keeps them out of the count of what
+  it is about to delete; `push --prune-canvas` refuses to delete one and reports
+  the mismatch instead of resolving it with a delete. A check that cannot be
+  made is a refusal too. The new `isQuizBackedAssignment` reads
+  `is_quiz_assignment` and `quiz_id`; practice quizzes never appear among the
+  assignments, and a New Quiz is genuinely an assignment, so neither is covered.
 - **`reset-canvas` no longer claims that grades survive it.** Both the command's
   own warning and [`docs/advanced-commands.md`](docs/advanced-commands.md) said
   grades were left alone, while the command deletes every assignment in the
@@ -65,15 +64,15 @@
   404s and push's stale-id recovery recreates the content, duplicating the whole
   course. One id is not scoped, though. Canvas file ids are global, so
   `DELETE /api/v1/files/:id` reaches a file in whichever course owns it, and
-  both `push --prune` and a renamed binary in `_files/` call it — a delete
-  landing in a course the run was never pointed at. Every command that reads
-  sync state now refuses while the two disagree, names both courses, and gives
-  the two ways out; the check also covers `CANVAS_API_URL`, where a matching
-  course id on a different instance is a different course. A file that claims no
-  course contradicts nothing and is stamped from the environment instead. `init`
-  is the exception that still reads such a file, because it is the repair: it
-  drops the old course's module, file and icon ids rather than filing them under
-  the new course id, which is what it used to do.
+  both `push --prune-canvas` and a renamed binary in `_files/` call it — a
+  delete landing in a course the run was never pointed at. Every command that
+  reads sync state now refuses while the two disagree, names both courses, and
+  gives the two ways out; the check also covers `CANVAS_API_URL`, where a
+  matching course id on a different instance is a different course. A file that
+  claims no course contradicts nothing and is stamped from the environment
+  instead. `init` is the exception that still reads such a file, because it is
+  the repair: it drops the old course's module, file and icon ids rather than
+  filing them under the new course id, which is what it used to do.
 - **`pull` no longer overwrites files it cannot judge.** With no
   `.canvas-sync.json` to compare timestamps against — right after
   `reset-sync-state`, or on a clone that has never synced — every local file
@@ -84,19 +83,19 @@
   hint before it writes, and asks first when `--force` meets a `course/` tree
   that already holds markdown with no sync state to judge it by.
 - **Deleting an assignment now says that it deletes the grades too.**
-  `push --prune` and `reset-canvas` both call `DELETE` on the assignment object,
-  which takes its gradebook column and every submission on it, and the prune
-  listing showed a semester of graded work as an ordinary filename. Both now
-  read `has_submitted_submissions`, flag the assignments that hold student work,
-  and name those grades in the confirmation question itself. A check that fails
-  reports "could not determine" and never passes for "no submissions".
+  `push --prune-canvas` and `reset-canvas` both call `DELETE` on the assignment
+  object, which takes its gradebook column and every submission on it, and the
+  prune listing showed a semester of graded work as an ordinary filename. Both
+  now read `has_submitted_submissions`, flag the assignments that hold student
+  work, and name those grades in the confirmation question itself. A check that
+  fails reports "could not determine" and never passes for "no submissions".
 - **Deleting a discussion now says what goes with it.** Discussions became a
   synced type in this release, and prune treated one as content with nothing
   behind it. Canvas grades a discussion by putting an Assignment behind the
-  topic and keeping the grades there, so `push --prune` was deleting a gradebook
-  column, every grade in it and every reply in the topic while the listing
-  showed the file as an ordinary path. Prune now resolves the assignment behind
-  each doomed topic, flags the item, counts it in the warning above the
+  topic and keeping the grades there, so `push --prune-canvas` was deleting a
+  gradebook column, every grade in it and every reply in the topic while the
+  listing showed the file as an ordinary path. Prune now resolves the assignment
+  behind each doomed topic, flags the item, counts it in the warning above the
   confirmation, and — because deleting a topic deletes the replies whatever its
   grading — names the reply count of an ungraded topic as well, saying outright
   that no grades are at stake in that one. A topic it cannot read counts as
@@ -113,8 +112,8 @@
   and nothing in the repository could rebuild the questions, while the line
   above the count promised that quizzes are left alone. Nothing changes about
   what gets deleted: the summary now names each New Quiz and says which kind of
-  quiz that promise covers. `push --prune` still lists one as the ordinary
-  assignment it is, which is written down in
+  quiz that promise covers. `push --prune-canvas` still lists one as the
+  ordinary assignment it is, which is written down in
   [`docs/roadmap.md`](docs/roadmap.md).
 - **`push` now warns when it changes a field that moves grades already given.**
   `points_possible` leaves the raw scores untouched, so a new denominator shifts
@@ -150,8 +149,8 @@
   ids change on every push, so a direct link to one goes stale. Also new: `push`
   warns and asks before its first push to a Canvas course that already holds
   content, `reset-canvas` lists what the course contains before asking rather
-  than prompting blind and gained a `--dry-run`, and the `--prune` prompt points
-  at the backup guide.
+  than prompting blind and gained a `--dry-run`, and the `--prune-canvas` prompt
+  points at the backup guide.
 - **Assignment `lock_at` and `unlock_at` are pushed.** Both were documented in
   three places and written back by `pull`, but neither string appeared in the
   push path, so the dates round-tripped locally and never reached Canvas.

@@ -90,8 +90,9 @@ into markdown. Replies stay in Canvas and never appear here.
 > type and group set belong to the assignment Canvas puts behind the topic, and
 > nothing here reads or writes it: those keys have no effect in this file. Push
 > and pull both warn when the topic they touched is graded. Note also that
-> `push --prune` deletes a discussion whose local file you deleted, replies and
-> grades included, without the submission check it gives assignments.
+> `push --prune-canvas` deletes a discussion whose local file you deleted,
+> replies and grades included, without the submission check it gives
+> assignments.
 
 ## Quiz
 
