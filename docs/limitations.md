@@ -102,75 +102,65 @@ Canvas first whether any installed tool claims the URL. When none does, push
 warns, names the tools that _are_ installed, and creates the item anyway. A
 visible broken item you can fix beats content dropped on the floor.
 
-## A Plain Push Rebuilds the Module's Item List
+## Push Reconciles a Module's Item List
 
-This one surprises people, so it is worth stating plainly.
+Older versions cleared a module and built its item list again on every push.
+This one reconciles it: each item is matched against what `.canvas-sync.json`
+recorded at the last sync, and only what differs is written.
 
-Every `npx course push` deletes and recreates all module items in the modules it
-manages. The underlying pages, assignments and files survive — a module item is
-a link, not the content — but the consequences are real:
+- **An item you added by hand in Canvas is adopted, not dropped.** Push looks
+  for a local file of the same type and title. When it finds one, that file
+  claims the Canvas object, and from then on it is an item like any other, with
+  the file as the source of its content. When nothing matches, push leaves the
+  item exactly where it is and names it in the report. A quiz you placed in the
+  module, a discussion, an LTI link, a page that is not in your repository: all
+  of them survive a push of the module they sit in.
+- **An ambiguous adoption is refused.** Two local files, or two Canvas objects,
+  sharing one type and one title, and push claims neither. It names them and
+  asks you to retitle one, or to link them by hand in `.canvas-sync.json`.
+- **Module item ids survive a push**, so a direct link of the form
+  `/courses/123/modules/items/456` keeps working. An item whose local file moved
+  to another module folder is moved on Canvas rather than recreated, and
+  reordering a module sends new positions to the items already in it. One
+  exception: a file item whose binary you renamed. Canvas keys an upload on the
+  filename, so a new name is a new Canvas file, and the module item is recreated
+  to point at it.
+- **A text header is an ordinary item.** It is matched on its module item id
+  like anything else, so one added by hand in Canvas is adopted or left alone by
+  the same rules. Push no longer regenerates the set from your subfolder names.
+- **A plain push deletes nothing on Canvas.** That is `push --prune-canvas`'s
+  job, and even there the only candidate is an item the sync state already
+  tracked and whose local file you deleted. Something push has never seen is
+  never one. See
+  [Destructive operations and student work](#destructive-operations-and-student-work)
+  for what that flag reaches and what it costs.
 
-- **Module item ids change on every push**, so direct links of the form
-  `/courses/123/modules/items/456` go stale. Link to pages, not to module items.
-- **Anything you add by hand in Canvas stops the push of that module.** Before
-  it clears a module, push compares what Canvas holds in it against what
-  `course/` accounts for. A quiz you placed there, a discussion, an LTI link, a
-  page that is not in your repository: push names them, leaves the module
-  exactly as it is, carries on with the other modules, and ends the run with a
-  non-zero exit status. Nothing is dropped silently.
+One thing does hold part of a push back: an item of a type this version does not
+recognise. The content and the membership of that module are still reconciled,
+but its order is left exactly as it stands on both sides, because placing the
+items around something the tool cannot identify would move it without knowing
+what it is. The report names the type it did not understand.
 
-Two ways out of a refusal, both in the message push prints:
-
-1. **Keep the items.** Add a file under the module's folder for each one,
-   carrying the matching `canvas_type` and `canvas_id` in its frontmatter (see
-   [frontmatter](frontmatter.md)), and push again. From then on they are yours
-   to edit like any other item.
-2. **Move them in Canvas** into a module this project does not manage.
-
-`--dry-run` reports the same refusal without touching Canvas, and exits non-zero
-too.
-
-The guard has three edges:
-
-- **Text headers are exempt.** Push regenerates them from your subfolders, so
-  one added by hand in Canvas is replaced without warning.
-- **A page list it cannot read refuses the module.** Matching a module item's
-  page slug against the page id in your frontmatter needs the course's page
-  list; when that request fails, push refuses rather than guess.
-- **A plain binary in a module folder claims its Canvas id through
-  `.canvas-sync.json` alone**, having no frontmatter to hold one. A module push
-  can still identify while that state is missing therefore reads every binary in
-  it as Canvas-only, and refuses. That combination is not exotic: the module's
-  `canvas_module_id` lives in `_category_.json`, which is committed, while
-  `.canvas-sync.json` is gitignored — so a fresh clone of a course that has been
-  pushed is exactly it. A full [`reset-sync-state`](advanced-commands.md) does
-  _not_ produce this, because it strips the module id too: push then finds no
-  module to protect and creates a second one alongside the first.
-
-The rule of thumb is unchanged: a module this tool manages is generated output.
-Anything you want to keep in it belongs in `course/`.
-
-Two smaller cases where a plain push deletes something real:
-
-- Renaming a binary in `_files/` uploads the new one and deletes the old Canvas
-  file.
-- `push --prune-canvas` deletes the Canvas modules, pages, assignments,
-  discussions and files whose local counterparts you removed. It lists them and
-  asks first, and flags the items that hold student work — an assignment with
-  submissions, a graded discussion, a discussion with replies in it; see
-  [Destructive operations and student work](#destructive-operations-and-student-work).
+Reconciling needs a sync state to tell a changed item from a new one. When
+`.canvas-sync.json` links nothing in a module and both sides hold items, every
+local item reads as new here and every Canvas item as new there, so writing both
+would duplicate the module. That is the state a
+[`reset-sync-state`](advanced-commands.md) leaves behind, and the one a first
+run against a course that already has content starts from. `npx course sync` and
+`npx course status` refuse that module rather than duplicate it, per module and
+not for the whole course, so a module that is genuinely new on one side does not
+trip it. Push and pull never hit the refusal: each pins a direction, which is
+what the refusal asks for, and adoption pairs the two sides up from there.
 
 ## Destructive Operations and Student Work
 
-Three commands delete things on Canvas: an ordinary `push`,
-`push --prune-canvas` and `reset-canvas`. What separates them is not how much
-they delete but which kind of object they delete, and only one of those kinds
-takes student work with it.
+Two commands delete things on Canvas: `push --prune-canvas` and `reset-canvas`.
+What separates them is not how much they delete but which kind of object they
+delete, and only one of those kinds takes student work with it.
 
 - **Deleting a module item is safe.** A module item is a link. Removing it
   leaves the page, assignment or file it pointed at exactly where it was, with
-  its gradebook column and its submissions untouched. That is all an ordinary
-  push does to the modules it manages.
+  its gradebook column and its submissions untouched.
 - **A quiz and an LTI link are only ever unlinked.** `push --prune-canvas` and
   `reset-canvas` remove the module item for either one and stop there: the quiz,
   its questions and every submission on it stay in Canvas, and so does the tool

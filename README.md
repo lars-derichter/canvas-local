@@ -40,9 +40,10 @@ Worth knowing before you commit a semester to it:
   module, and push never creates or changes the object itself.
 - **Quiz questions never sync.** A bundled skill generates a QTI package you
   import into Canvas by hand, once, in one direction.
-- **A push takes over the modules it manages.** It rebuilds their item lists. It
-  refuses to rebuild a module holding items you added by hand in Canvas, and
-  names them, rather than dropping them.
+- **A push makes your markdown win.** It reconciles a module item by item, so
+  anything you added by hand in Canvas stays where it is. But a Canvas object
+  whose type and title match a local file is claimed by that file, and from then
+  on the file decides what it holds.
 - **The folder layout is a contract**: one folder per module, one level of
   nesting, numbered prefixes.
 - **Push and pull are not a merge.** Your markdown is the source of truth; pull

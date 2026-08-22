@@ -48,9 +48,10 @@ types sync as content (page, assignment, discussion, file) against the two that
 sync only as a reference to a Canvas object (quiz, external tool), quiz
 questions never crossing in either direction, an LTI install that cannot be
 rebuilt from this repo because Canvas withholds `shared_secret`, the fact that a
-plain `push` rebuilds the item list of every module it manages, the one-level
-nesting limit (sub-subfolders are dropped silently), and why push/pull is not a
-merge. Never suggest a destructive command without pointing at
+plain `push` reconciles the item list of every module it manages rather than
+rebuilding it and deletes nothing on Canvas without `--prune-canvas`, the
+one-level nesting limit (sub-subfolders are dropped silently), and why push/pull
+is not a merge. Never suggest a destructive command without pointing at
 [`docs/backups.md`](docs/backups.md).
 
 Before handing code back, run `npm run lint` (ESLint; defects only) and

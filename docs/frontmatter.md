@@ -217,12 +217,12 @@ export, list it by path or add it to a TOC file — see
 
 ## Adopting an Item You Made by Hand in Canvas
 
-Push rebuilds the item list of every module it manages, so it refuses to push a
-module that holds items no local file accounts for, names them, and leaves that
-module untouched. One way out of the refusal is to adopt the items: give each
-one a markdown file in the module's folder, carrying the `canvas_type` that
+Push adopts a Canvas object whose type and title match a local file, so an item
+you made by hand is usually claimed without you doing anything. When the titles
+differ, or when two candidates make the match ambiguous, adopt it yourself: give
+it a markdown file in the module's folder, carrying the `canvas_type` that
 matches what Canvas calls it and the `canvas_id` that names it. From the next
-push on, they are items like any other, placed where the file's number says.
+push on, it is an item like any other, placed where the file's number says.
 
 | What Canvas shows | `canvas_type`   | `canvas_id` holds                                                    |
 | ----------------- | --------------- | -------------------------------------------------------------------- |

@@ -11,14 +11,14 @@ a bad semester.
 
 > [!WARNING]
 >
-> Three commands can destroy Canvas content: `npx course reset-canvas` deletes
+> Two commands can destroy Canvas content: `npx course reset-canvas` deletes
 > every module, page, assignment and file in the course, including content this
 > tool never created. `npx course push --prune-canvas` deletes the Canvas
-> modules and items you removed locally. And an ordinary `npx course push`
-> clears the item list of every module it manages, so anything you added by hand
-> in Canvas drops out of those modules. Deleting an assignment is the one that
+> modules and items you removed locally. Deleting an assignment is the one that
 > reaches student work: it takes the gradebook column and every submission on
-> it. See [Limitations](limitations.md) for exactly what each one touches.
+> it. An ordinary `npx course push` deletes nothing, but it does overwrite: the
+> Canvas copy of anything a local file tracks is replaced by what the file says.
+> See [Limitations](limitations.md) for exactly what each one touches.
 
 ## Route 1: Export the Course to a File
 
@@ -95,7 +95,7 @@ decides which one you need.
 
 | Command               | What it can destroy                                                                                                                            | What protects you                     |
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| `push`                | the item list of every module it manages                                                                                                       | a course export or a course copy      |
+| `push`                | the Canvas copy of anything a local file tracks, overwritten with what the file says                                                           | a course export or a course copy      |
 | `push --prune-canvas` | the Canvas modules, pages, assignments, discussions and files you deleted locally — and, with each assignment or graded discussion, its grades | a course export **and** the gradebook |
 | `reset-canvas`        | every module, page, assignment and file in the course, including content this tool never created, and every grade                              | a course export **and** the gradebook |
 | `pull --force`        | your local markdown, overwritten with the Canvas version                                                                                       | git: a commit, not a Canvas backup    |

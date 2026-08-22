@@ -103,10 +103,10 @@ If the sync file becomes corrupted (e.g. partial write during a crash), delete
 it and run `npx course push` to regenerate it. Items with `canvas_id` in their
 frontmatter will be matched to existing Canvas resources.
 
-A module holding a binary in `_files/` is the exception, because a file has no
-frontmatter to carry its id: with the sync state gone, push cannot tell its own
-upload from something added in Canvas, so it refuses that module. See
-[a plain push rebuilds the module's item list](limitations.md#a-plain-push-rebuilds-the-modules-item-list).
+A binary in `_files/` has no frontmatter to carry an id and needs none: push
+uploads it again, and Canvas overwrites the file of the same name it already
+holds. Nothing about a missing sync state makes push refuse the module. See
+[push reconciles a module's item list](limitations.md#push-reconciles-a-modules-item-list).
 
 ### ".canvas-sync.json describes course N"
 
