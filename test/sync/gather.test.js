@@ -203,6 +203,76 @@ describe('gatherLocal', () => {
       'dirtiness is per folder, not per course',
     );
   });
+
+  it('flags an uncommitted _category_.json on its own, not through the folder', () => {
+    // What guards `update-local-module`, which writes that one file. The
+    // folder's flag cannot do it: `gitDirtyPaths` adds every ancestor, so it is
+    // true for anything uncommitted anywhere under the module, and no scanned
+    // item can either — the scanner never returns `_category_.json` as an item.
+    const dir = tempCourse({
+      '01-intro/01-welcome.md': 'a\n',
+      '01-intro/_category_.json': '{ "label": "My Own Title" }\n',
+    });
+
+    const { modules } = gatherLocal({
+      courseDir: dir,
+      gitDirty: {
+        available: true,
+        paths: new Set(['01-intro', '01-intro/_category_.json']),
+        reason: null,
+      },
+    });
+
+    assert.equal(modules[0].categoryDirty, true);
+    assert.deepEqual(
+      modules[0].items.map((item) => item.dirty),
+      [false],
+      'no scanned item carries this fact either',
+    );
+  });
+
+  it('leaves _category_.json clean when the dirt is elsewhere in the folder', () => {
+    // The fence, and the one that matters: the folder reads dirty for the
+    // lesson beside it, and a guard resting on that would refuse to relabel any
+    // module its author is in the middle of working on.
+    const dir = tempCourse({
+      '01-intro/01-welcome.md': 'a\n',
+      '01-intro/_category_.json': '{ "label": "Intro" }\n',
+      '01-intro/_files/diagram.png': 'PNG\n',
+    });
+
+    const { modules } = gatherLocal({
+      courseDir: dir,
+      gitDirty: {
+        available: true,
+        paths: new Set([
+          '01-intro',
+          '01-intro/_files',
+          '01-intro/_files/diagram.png',
+        ]),
+        reason: null,
+      },
+    });
+
+    assert.equal(modules[0].dirty, true, 'the folder holds uncommitted work');
+    assert.equal(modules[0].categoryDirty, false, 'but not in this file');
+  });
+
+  it('does not flag a _category_.json that is not there, even blind', () => {
+    // Existence first, the rule `wouldDestroyUnsavedWork` states. Where git
+    // cannot answer everything reads dirty, and without this a module with no
+    // `_category_.json` would be refused its Canvas label — a refusal to
+    // overwrite nothing.
+    const dir = tempCourse({ '01-intro/01-welcome.md': 'a\n' });
+
+    const { modules } = gatherLocal({
+      courseDir: dir,
+      gitDirty: { available: false, paths: new Set(), reason: 'no git' },
+    });
+
+    assert.equal(modules[0].dirty, true, 'the folder cannot be told');
+    assert.equal(modules[0].categoryDirty, false, 'the file is not there');
+  });
 });
 
 // ---------------------------------------------------------------------------

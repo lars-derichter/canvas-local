@@ -166,6 +166,11 @@ async function pull(options = {}) {
       // delete such a folder anyway. Leave it set and the flag would half work:
       // files overwritten, folders spared.
       module.dirty = false;
+      // And the module's `_category_.json`, which is its own flag because it is
+      // its own write — the one `update-local-module` makes. Left set, a forced
+      // pull would take the Canvas label everywhere except the file that holds
+      // it.
+      module.categoryDirty = false;
       for (const item of module.items) item.dirty = false;
     }
     writeGuard = { available: true, paths: new Set(), reason: null };

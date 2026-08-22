@@ -89,6 +89,10 @@ function lMod(folder, paths, extra = {}) {
     // binary, `_category_.json` — so it is the only flag that can speak for
     // what a recursive `delete-local-module` would really remove.
     dirty: extra.dirty ?? false,
+    // And the answer for `_category_.json` alone, which is the one write
+    // `update-local-module` makes. Deliberately separate from the flag above:
+    // that one is true for anything uncommitted anywhere under the folder.
+    categoryDirty: extra.categoryDirty ?? false,
     items: paths.map((itemPath, index) =>
       lItem(itemPath, {
         position: index + 1,
@@ -2979,6 +2983,93 @@ describe('plan: modules', () => {
     });
 
     assert.equal(only(result, 'update-local-module').position, 1);
+  });
+
+  it('refuses the rename when _category_.json holds uncommitted work', () => {
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([PATH]) } },
+      local: { modules: [lMod(FOLDER, [PATH], { categoryDirty: true })] },
+      canvas: { modules: [cMod([PATH], { name: 'Kick-off' })] },
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), [], 'the label is the file’s own content');
+    assert.deepEqual(
+      result.skipped.map((skip) => [
+        skip.kind,
+        skip.reason,
+        skip.moduleFolder,
+        skip.action,
+      ]),
+      [['module', 'git-dirty', FOLDER, 'update-local-module']],
+    );
+    assert.match(result.skipped[0].remedy, /_category_\.json/);
+    assert.match(result.skipped[0].remedy, /Commit or stash/);
+  });
+
+  it('still relabels a module whose dirt is anywhere else in it', () => {
+    // The fence. `gitDirtyPaths` adds every ancestor of a dirty path, so the
+    // folder flag is true for one uncommitted lesson anywhere underneath; a
+    // guard reading that would wall off every metadata update for a module the
+    // author is working in, and every test above would still pass.
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([PATH]) } },
+      local: {
+        modules: [
+          lMod(FOLDER, [PATH], {
+            dirty: true,
+            items: { [PATH]: { dirty: true } },
+          }),
+        ],
+      },
+      canvas: { modules: [cMod([PATH], { name: 'Kick-off' })] },
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), ['update-local-module']);
+    assert.deepEqual(result.skipped, []);
+  });
+
+  it('does not settle the conflict it refused to write', () => {
+    // Worse than the silent overwrite: the entry used to say Canvas won and
+    // that the losing version is in git, when the losing version was the
+    // uncommitted file the write had just destroyed.
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([PATH]) } },
+      local: {
+        modules: [
+          lMod(FOLDER, [PATH], {
+            name: 'Getting started',
+            categoryDirty: true,
+          }),
+        ],
+      },
+      canvas: { modules: [cMod([PATH], { name: 'Kick-off' })] },
+      policy: { conflict: 'canvas' },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.equal(result.conflicts[0].winner, 'canvas');
+    assert.equal(result.conflicts[0].applied, false);
+    assert.equal(result.skipped[0].reason, 'git-dirty');
+  });
+
+  it('withholds rather than skips on a run that never writes locally', () => {
+    // `writeLands`: under `push` the action is suppressed by policy anyway, so
+    // a skip would tell the author to repair a write the command was never
+    // going to make — and fail the run over it.
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([PATH]) } },
+      local: { modules: [lMod(FOLDER, [PATH], { categoryDirty: true })] },
+      canvas: { modules: [cMod([PATH], { name: 'Kick-off' })] },
+      policy: { write: { local: false, canvas: true } },
+    });
+
+    assert.deepEqual(result.skipped, []);
+    assert.deepEqual(
+      result.withheld.map((entry) => entry.type),
+      ['update-local-module'],
+    );
   });
 });
 

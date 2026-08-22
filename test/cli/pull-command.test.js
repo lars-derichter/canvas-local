@@ -918,6 +918,75 @@ describe('npx course pull, over uncommitted work', () => {
     };
   }
 
+  /** What `gitDirtyPaths` returns for an edited `_category_.json`. */
+  const DIRTY_CATEGORY = {
+    available: true,
+    paths: new Set(['01-intro', '01-intro/_category_.json']),
+    reason: null,
+  };
+
+  it('refuses to write the Canvas label over an uncommitted _category_.json', async () => {
+    const out = silence();
+    const { courseDir, file, routes } = canvasRenamedTheModule();
+    mockCanvas(routes);
+
+    await pull({ courseDir, syncFile: file, gitDirty: DIRTY_CATEGORY });
+
+    assert.match(read(courseDir, '01-intro/_category_.json'), /"Intro"/);
+    // A module-level skip is filed under the folder; the remedy is what names
+    // the one file it is about.
+    assert.match(printed(out), /01-intro \(git-dirty\).*_category_\.json/);
+    assert.match(printed(out), /Commit or stash/);
+    assert.equal(process.exitCode, 1, 'a refusal the author must act on');
+  });
+
+  it('writes it when that file is clean, dirty lesson beside it and all', async () => {
+    // The fence in the shape that matters: `gitDirtyPaths` adds every ancestor,
+    // so `01-intro` reads dirty for the lesson under it. A guard reading the
+    // folder instead of the file would refuse every relabel from here on, and
+    // the refusal above would pass just as well.
+    silence();
+    const { courseDir, file, routes } = canvasRenamedTheModule();
+    mockCanvas(routes);
+
+    await pull({
+      courseDir,
+      syncFile: file,
+      gitDirty: {
+        available: true,
+        paths: new Set(['01-intro', '01-intro/01-welcome.md']),
+        reason: null,
+      },
+    });
+
+    assert.match(
+      read(courseDir, '01-intro/_category_.json'),
+      /"Renamed In Canvas"/,
+    );
+    assert.equal(readState(file).modules['01-intro'].name, 'Renamed In Canvas');
+  });
+
+  it('--force takes the Canvas label over it, once asked', async () => {
+    silence();
+    const { courseDir, file, routes } = canvasRenamedTheModule();
+    mockCanvas(routes);
+
+    await withStdin('y\n', () =>
+      pull({
+        courseDir,
+        syncFile: file,
+        gitDirty: DIRTY_CATEGORY,
+        force: true,
+      }),
+    );
+
+    assert.match(
+      read(courseDir, '01-intro/_category_.json'),
+      /"Renamed In Canvas"/,
+    );
+    assert.equal(process.exitCode, 0);
+  });
+
   it('keeps the folder’s own slot when it writes the label', async () => {
     // `writeCategoryFile` rewrites `position` whatever it is handed, so the
     // number has to come from the folder. Taken from the state row it was a
