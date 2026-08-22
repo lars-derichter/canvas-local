@@ -5,6 +5,11 @@ const os = require('os');
 const path = require('path');
 
 const { mockCanvas, silence } = require('../helpers/canvas-mock');
+const {
+  npmRunFormat,
+  prettierCheck,
+  seedPrettierConfig,
+} = require('../helpers/prettier-config');
 
 process.env.CANVAS_API_URL = 'https://canvas.example.com';
 process.env.CANVAS_API_TOKEN = 'test-token-123';
@@ -25,6 +30,7 @@ afterEach(() => mock.restoreAll());
 
 function tempCourse(tree = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'apply-plan-test-'));
+  seedPrettierConfig(dir);
   for (const [relative, contents] of Object.entries(tree)) {
     const full = path.join(dir, relative);
     fs.mkdirSync(path.dirname(full), { recursive: true });
@@ -298,6 +304,209 @@ describe('the fingerprint invariant, local direction', () => {
 
     assert.deepEqual(again.actions, [], 'a sync after a sync must do nothing');
     assert.deepEqual(again.skipped, []);
+  });
+});
+
+/**
+ * The formatting half of the same invariant.
+ *
+ * Prettier owns the shape of every markdown file in this repo and
+ * `.prettierrc.json` sets `proseWrap: "always"`. Turndown wraps nothing, so a
+ * pull used to write a file the next `npm run format` would immediately
+ * rewrite — and rewriting it moved the file off the `local_hash` the pull had
+ * just recorded. The next sync then read the item as changed locally and
+ * pushed it back, producing byte-identical HTML on Canvas and a phantom local
+ * change in every report until someone did.
+ *
+ * Nothing here asserts a particular wrapping. What is asserted is agreement:
+ * the bytes the pull wrote are the bytes `npm run format` would leave, and the
+ * row describes those bytes and not the ones on their way to them.
+ */
+describe('a pull writes what `npm run format` would leave', () => {
+  /** One long Canvas paragraph, which turndown hands over as one long line. */
+  const PROSE =
+    'Dit is een paragraaf die van Canvas komt en die turndown op één lange ' +
+    'regel zet, ver over de tachtig tekens, zoals elke gepulde pagina ' +
+    'eruitziet zolang niemand hem herwikkelt.';
+
+  const page = {
+    page_id: 501,
+    url: 'welcome',
+    title: 'Welcome',
+    body: `<p>${PROSE}</p>`,
+    updated_at: '2026-08-20T11:00:00.000Z',
+  };
+  const item = {
+    id: 91,
+    type: 'Page',
+    title: 'Welcome',
+    page_url: 'welcome',
+    content_id: 501,
+    position: 1,
+    indent: 0,
+  };
+  const canvasRoutes = () => [
+    { method: 'GET', path: '/modules/10/items', body: [item] },
+    {
+      method: 'GET',
+      path: '/modules',
+      body: [{ id: 10, name: 'Intro', position: 1 }],
+    },
+    { method: 'GET', path: '/pages/welcome', body: page },
+    {
+      method: 'GET',
+      path: '/pages',
+      body: [
+        {
+          page_id: 501,
+          url: 'welcome',
+          title: 'Welcome',
+          updated_at: page.updated_at,
+        },
+      ],
+    },
+  ];
+
+  /** Pull the page above into a fresh tree and hand back where it landed. */
+  async function pullOnce(courseDir, state) {
+    mockCanvas(canvasRoutes());
+    const canvas = await gatherCanvas({ courseId: COURSE_ID, base: state });
+    const first = plan({
+      base: state,
+      local: gatherLocal({ courseDir, gitDirty: CLEAN }),
+      canvas,
+    });
+    assert.deepEqual(
+      first.actions.map((action) => action.type),
+      ['create-local-module', 'create-local-item'],
+    );
+    const outcome = await run(first, {
+      courseDir,
+      state,
+      canvasContent: canvas.content,
+    });
+    assert.deepEqual(outcome.errors, []);
+    return path.join(courseDir, '01-intro/01-welcome.md');
+  }
+
+  it('leaves the file clean under the Prettier the repo runs', async () => {
+    silence();
+    const courseDir = tempCourse();
+    const written = await pullOnce(courseDir, emptyState());
+
+    // Checked by running the binary, not the API this tool calls: the claim is
+    // about `npm run format`, and asking the same call that wrote the file
+    // whether it likes the file would prove nothing.
+    assert.equal(prettierCheck(courseDir, written), true);
+    // And it really was rewrapped, so the check above is not passing on a file
+    // that had nothing to fix. Turndown hands the paragraph over as one line of
+    // 177 characters; every line on disk is inside the print width.
+    const lines = fs.readFileSync(written, 'utf8').split('\n');
+    assert.ok(
+      lines.every((line) => line.length <= 80),
+      `a line ran over the print width: ${JSON.stringify(lines)}`,
+    );
+    assert.ok(
+      lines.filter(
+        (line) => line.startsWith('Dit is') || line.startsWith('ver'),
+      ).length === 2,
+      `the prose was not wrapped at all: ${JSON.stringify(lines)}`,
+    );
+  });
+
+  it('writes exactly what `npm run format` would produce', async () => {
+    silence();
+    // The property the whole change rests on, asserted directly rather than
+    // inferred from the two halves agreeing about `--check`.
+    const courseDir = tempCourse();
+    const written = await pullOnce(courseDir, emptyState());
+
+    assert.equal(
+      fs.readFileSync(written, 'utf8'),
+      npmRunFormat(courseDir, written),
+    );
+  });
+
+  it('records the hash of the formatted bytes, so the next run is empty', async () => {
+    silence();
+    // Format first, hash second. Get it the other way round and the row
+    // describes a file that never existed on disk, the next gather reads the
+    // item as changed locally, and the defect is back one line down from where
+    // it was.
+    const courseDir = tempCourse();
+    const state = emptyState();
+    const written = await pullOnce(courseDir, state);
+
+    assert.equal(
+      state.modules['01-intro'].items['01-intro/01-welcome.md'].local_hash,
+      hashLocalFile(written),
+      'the row does not describe the bytes on disk',
+    );
+
+    mock.restoreAll();
+    mockCanvas(canvasRoutes());
+    const again = plan({
+      base: state,
+      local: gatherLocal({ courseDir, gitDirty: CLEAN }),
+      canvas: await gatherCanvas({ courseId: COURSE_ID, base: null }),
+    });
+    assert.deepEqual(
+      again.actions,
+      [],
+      'the pull left a change behind for the next run to push back',
+    );
+    assert.deepEqual(again.conflicts, []);
+    assert.deepEqual(again.skipped, []);
+  });
+
+  it('keeps the file clean through the title a push writes into it', async () => {
+    silence();
+    // `writeTitleIfAbsent` re-serialises a file the run has already written, so
+    // it is the one write that can undo the formatting of another. It is also
+    // the write that happens to a file the author wrote, on the very first
+    // push of it — and that file's row is recorded from a re-read, so an
+    // unformatted round trip here reads as a local change for ever.
+    const courseDir = tempCourse({
+      '01-intro/_category_.json': '{ "label": "Intro", "position": 1 }\n',
+      '01-intro/01-welcome.md': `${PROSE}\n`,
+    });
+    const state = emptyState();
+    const welcome = path.join(courseDir, '01-intro/01-welcome.md');
+
+    mockCanvas([{ method: 'GET', path: '/modules', body: [] }]);
+    const first = plan({
+      base: state,
+      local: gatherLocal({ courseDir, gitDirty: CLEAN }),
+      canvas: await gatherCanvas({ courseId: COURSE_ID, base: state }),
+    });
+    assert.deepEqual(
+      first.actions.map((action) => action.type),
+      ['create-canvas-module', 'create-canvas-item'],
+    );
+
+    mock.restoreAll();
+    mockCanvas([
+      { method: 'POST', path: '/modules', body: { id: 10, position: 1 } },
+      {
+        method: 'POST',
+        path: '/pages',
+        body: { page_id: 501, url: 'welcome', title: 'Welcome' },
+      },
+      { method: 'POST', path: '/modules/10/items', body: { ...item } },
+    ]);
+    const outcome = await run(first, { courseDir, state });
+    assert.deepEqual(outcome.errors, []);
+
+    assert.match(
+      fs.readFileSync(welcome, 'utf8'),
+      /^title: Welcome$/m,
+      'the title never reached the file, so this proves nothing',
+    );
+    assert.equal(prettierCheck(courseDir, welcome), true);
+    assert.equal(
+      state.modules['01-intro'].items['01-intro/01-welcome.md'].local_hash,
+      hashLocalFile(welcome),
+    );
   });
 });
 
