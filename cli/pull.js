@@ -127,12 +127,31 @@ async function pull(options = {}) {
   // in hand. A course that turns out to hold no modules is the one case where
   // that means asking about a run with nothing to do, and a wasted question is
   // cheaper than a wasted course read.
-  const guarded = local.modules
-    .flatMap((module) => module.items)
-    .filter((item) => item.dirty);
+  //
+  // Counted from git's own answer, not from the scanned items. The items are
+  // what `scanCourse` returns, and it never descends into a `_`-prefixed
+  // folder, so a tree whose only uncommitted work is a `_files/` binary or a
+  // `_category_.json` produced a count of zero and `--force` overrode every
+  // guard without asking anything at all. `gitDirty.files` is the raw set git
+  // named, without the ancestor directories `paths` adds — those are not files
+  // and counting them would inflate the number the question quotes.
+  //
+  // The question this asks is not "which destinations will be written", which
+  // is genuinely unknowable before Canvas answers. It is "is there uncommitted
+  // work under `course/` that `--force` will override", and git answered that
+  // in full above, before `gatherLocal` and before any request.
+  //
+  // **Where git could not answer, the items are still what is counted.** There
+  // is no file set to read — `available: false` carries empty ones — so
+  // counting them would be counting zero, and the question would vanish for
+  // the run that most needs it: outside a checkout `--force` is the only reason
+  // anything is written locally at all.
+  const guarded = gitDirty.available
+    ? gitDirty.files.size
+    : local.modules.flatMap((module) => module.items).length;
   const proceed = await confirmForcedPull({
     force,
-    guarded: guarded.length,
+    guarded,
     gitReason: gitDirty.available ? null : gitDirty.reason,
     pruneLocal,
     dryRun,
@@ -173,7 +192,12 @@ async function pull(options = {}) {
       module.categoryDirty = false;
       for (const item of module.items) item.dirty = false;
     }
-    writeGuard = { available: true, paths: new Set(), reason: null };
+    writeGuard = {
+      available: true,
+      paths: new Set(),
+      files: new Set(),
+      reason: null,
+    };
   }
 
   log.info(`[pull] Reading Canvas course ${courseId}...`);

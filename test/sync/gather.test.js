@@ -551,6 +551,22 @@ describe('gitDirtyPaths', () => {
     assert.ok(result.paths.has('02-loops'));
     // Anything outside course/ is none of a sync's business.
     assert.ok(!result.paths.has('docs/user-guide.md'));
+
+    // `files` is the same answer without the ancestors: exactly what git named,
+    // and the only one of the two that can be counted. `pull --force` counts it
+    // to decide whether to ask before overriding the guards, and counting
+    // `paths` would quote a number inflated by every directory on the way down.
+    assert.deepEqual(
+      [...result.files].sort(),
+      [
+        '01-intro/01-welcome.md',
+        '01-intro/03-new.md',
+        '01-intro/04-from.md',
+        '01-intro/05-to.md',
+        '02-loops/_files/diagram.png',
+      ],
+      'the files git named, and no directory it did not',
+    );
   });
 
   it('says everything is dirty when git is not there', () => {
@@ -565,6 +581,10 @@ describe('gitDirtyPaths', () => {
     assert.equal(result.available, false);
     assert.match(result.reason, /git could not be run/);
     assert.equal(result.paths.size, 0);
+    // Empty, and it has to be read as "no answer" rather than "no dirty files":
+    // `pull --force` falls back to counting scanned items here, or its question
+    // would vanish for the run that most needs it.
+    assert.equal(result.files.size, 0);
   });
 
   it('issues exactly two git commands, whatever the course holds', () => {

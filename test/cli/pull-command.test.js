@@ -17,12 +17,23 @@ const COURSE_ID = '4242';
 // Pull asks git what it holds, and a temp course directory is in no repository
 // at all. The answer is handed in so a test says the same thing wherever the
 // checkout it runs in happens to be.
-const CLEAN = { available: true, paths: new Set(), reason: null };
+//
+// `files` is the half of that answer without the ancestor directories `paths`
+// carries, and it is what `--force` counts before it asks its question. Every
+// fixture here sets both, because an answer that carried one and not the other
+// would be one `gitDirtyPaths` never produces.
+const CLEAN = {
+  available: true,
+  paths: new Set(),
+  files: new Set(),
+  reason: null,
+};
 
 /** What git answers where it cannot answer: every file counts as dirty. */
 const NO_GIT = {
   available: false,
   paths: new Set(),
+  files: new Set(),
   reason: 'the tree is not inside a git repository',
 };
 
@@ -212,15 +223,37 @@ function read(courseDir, relative) {
 }
 
 /**
- * Run a function with stdin replaced by a readable stream of `input`, so a
+ * Run `fn` with `process.stdin` replaced by a fake holding the answers, so a
  * readline prompt resolves without a terminal.
+ *
+ * A string is one stream for the whole run, which answers one question. **An
+ * array is one stream per question**, and it has to be: `readline` drains
+ * whatever it is attached to the moment it is asked, so two lines on one stream
+ * both reach the first `createRL` and the second one attaches to a spent stream
+ * that will never emit `'close'` — the run stops mid-question with the event
+ * loop drained rather than failing. Handing each `createRL` its own stream is
+ * what lets a run be asked twice, which `--force --prune-local` over a dirty
+ * tree now is: once about overwriting, once about deleting.
+ *
+ * An array that runs out answers the rest with an empty stream, which is EOF —
+ * a cancelled run and a failed assertion, rather than a hang.
  */
 async function withStdin(input, fn) {
   const { Readable } = require('stream');
+  const answers = Array.isArray(input) ? [...input] : null;
   const original = Object.getOwnPropertyDescriptor(process, 'stdin');
-  const fake = Readable.from([input]);
-  fake.isTTY = false;
-  Object.defineProperty(process, 'stdin', { value: fake, configurable: true });
+  const make = (text) => {
+    const fake = Readable.from([text]);
+    fake.isTTY = false;
+    return fake;
+  };
+  Object.defineProperty(
+    process,
+    'stdin',
+    answers
+      ? { configurable: true, get: () => make(answers.shift() ?? '') }
+      : { value: make(input), configurable: true },
+  );
   try {
     return await fn();
   } finally {
@@ -688,6 +721,7 @@ describe('npx course pull, over uncommitted work', () => {
   const DIRTY = {
     available: true,
     paths: new Set(['01-intro/01-welcome.md']),
+    files: new Set(['01-intro/01-welcome.md']),
     reason: null,
   };
 
@@ -704,6 +738,8 @@ describe('npx course pull, over uncommitted work', () => {
   const DIRTY_BINARY = {
     available: true,
     paths: new Set(['01-intro', '01-intro/_files', EMBEDDED_REF]),
+    // Git named one path; the other two are ancestors this added.
+    files: new Set([EMBEDDED_REF]),
     reason: null,
   };
 
@@ -769,9 +805,9 @@ describe('npx course pull, over uncommitted work', () => {
   });
 
   it('--force downloads over it, and records the row', async () => {
-    // Behind `withStdin` because the question depends on what else is dirty,
-    // not on this: `confirmForcedPull` counts scanned items, and `_files/` is
-    // not one. An unread answer costs nothing; a question with no answer hangs.
+    // Behind `withStdin` because the question is asked: `confirmForcedPull`
+    // counts what git named, and git named this binary even though the scanner
+    // never sees it.
     silence();
     const { courseDir, file, routes } = canvasEmbedsAnImage();
     mockCanvas(routes);
@@ -922,6 +958,7 @@ describe('npx course pull, over uncommitted work', () => {
   const DIRTY_CATEGORY = {
     available: true,
     paths: new Set(['01-intro', '01-intro/_category_.json']),
+    files: new Set(['01-intro/_category_.json']),
     reason: null,
   };
 
@@ -955,6 +992,7 @@ describe('npx course pull, over uncommitted work', () => {
       gitDirty: {
         available: true,
         paths: new Set(['01-intro', '01-intro/01-welcome.md']),
+        files: new Set(['01-intro/01-welcome.md']),
         reason: null,
       },
     });
@@ -1019,6 +1057,63 @@ describe('npx course pull, over uncommitted work', () => {
     const category = JSON.parse(read(courseDir, '01-intro/_category_.json'));
     assert.equal(category.label, 'Renamed In Canvas');
     assert.equal(category.position, 1, 'the folder is 01-, not 00-');
+  });
+
+  // -------------------------------------------------------------------------
+  // What --force counts before it asks
+  // -------------------------------------------------------------------------
+
+  it('asks before --force overrides a tree dirty only under _files/', async () => {
+    // The count used to be of scanned items, and `scanCourse` never descends
+    // into a `_`-prefixed folder — so a tree whose only uncommitted work was a
+    // binary counted zero, and `--force` overrode all three guards with no
+    // question at all. Answering no is what proves the question was asked: an
+    // unanswered one would have hung, and an unasked one would have pulled.
+    const out = silence();
+    const { courseDir, file, routes } = canvasEmbedsAnImage();
+    const calls = mockCanvas(routes);
+
+    await withStdin('n\n', () =>
+      pull({ courseDir, syncFile: file, gitDirty: DIRTY_BINARY, force: true }),
+    );
+
+    assert.deepEqual(calls, [], 'a cancelled run must not read the course');
+    assert.equal(read(courseDir, EMBEDDED_REF), 'MY-OWN-DIAGRAM');
+    assert.match(printed(out), /--force: 1 local file/);
+    assert.match(printed(out), /Cancelled/);
+    assert.equal(process.exitCode, 1);
+  });
+
+  it('counts the files git named, not the directories on the way to them', async () => {
+    // `gitDirtyPaths` adds every ancestor of a dirty path so a folder can be
+    // asked the same question as a file; counting those would quote a number
+    // three times the truth in the sentence the author is asked to agree to.
+    const out = silence();
+    const { courseDir, file, routes } = canvasEmbedsAnImage();
+    mockCanvas(routes);
+
+    await withStdin('n\n', () =>
+      pull({ courseDir, syncFile: file, gitDirty: DIRTY_BINARY, force: true }),
+    );
+
+    assert.doesNotMatch(printed(out), /3 local files/);
+    assert.equal(DIRTY_BINARY.paths.size, 3, 'the ancestors are still there');
+  });
+
+  it('counts the scanned items where git could not answer at all', async () => {
+    // The one branch that must not read the file set: `available: false`
+    // carries an empty one, so counting it would be counting zero and the
+    // question would vanish for the run that most needs it.
+    const out = silence();
+    const { courseDir, file, routes } = canvasMovedOn();
+    mockCanvas(routes);
+
+    await withStdin('n\n', () =>
+      pull({ courseDir, syncFile: file, gitDirty: NO_GIT, force: true }),
+    );
+
+    assert.match(printed(out), /all 1 local file under course\//);
+    assert.match(printed(out), /Cancelled/);
   });
 });
 
@@ -1209,6 +1304,7 @@ describe('npx course pull --prune-local', () => {
         gitDirty: {
           available: true,
           paths: new Set(['01-intro/02-gone.md']),
+          files: new Set(['01-intro/02-gone.md']),
           reason: null,
         },
         interactive: true,
@@ -1300,6 +1396,7 @@ describe('npx course pull --prune-local', () => {
       '02-loops/_files',
       '02-loops/_files/diagram.png',
     ]),
+    files: new Set(['02-loops/_files/diagram.png']),
     reason: null,
   };
 
@@ -1364,11 +1461,17 @@ describe('npx course pull --prune-local', () => {
     // uncommitted file lets `--prune-local` delete one. It clears the module
     // flag as well as the item flags, or it would half work — files
     // overwritten, folders spared.
+    //
+    // Two answers, because this run is asked twice: `--force` names the one
+    // dirty file it is about to override, then the prune names what it is about
+    // to delete. It used to be asked only the second — the count behind the
+    // first was of scanned items, and the one dirty thing here is a `_files/`
+    // binary that is not one.
     silence();
     const { courseDir, file, routes } = orphanedModule();
     mockCanvas(routes);
 
-    await withStdin('y\n', () =>
+    await withStdin(['y\n', 'y\n'], () =>
       pull({
         courseDir,
         syncFile: file,
