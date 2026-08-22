@@ -671,6 +671,78 @@ describe('npx course sync', () => {
     await sync({ conflict: 'newst' });
     assert.equal(process.exitCode, 1);
   });
+
+  describe('-m', () => {
+    it('refuses a module name neither side answers to', async () => {
+      // A typo used to report a clean course: the name was built into the
+      // filter, the filter matched nothing, and a run that touched none of the
+      // course said everything agreed.
+      const out = silence();
+      const { courseDir, file } = syncedFixture();
+      const calls = mockCanvas(readRoutes());
+
+      await sync({
+        courseDir,
+        syncFile: file,
+        gitDirty: CLEAN,
+        interactive: false,
+        module: '01-intoduction',
+      });
+
+      assert.deepEqual(writes(calls), [], 'a refused run writes nothing');
+      assert.equal(process.exitCode, 1);
+      assert.match(
+        out.error.mock.calls.map((call) => call.arguments.join(' ')).join('\n'),
+        /no module named 01-intoduction/,
+      );
+    });
+
+    it('accepts a module only Canvas has heard of', async () => {
+      // Sync writes both ways, so the name may belong to a folder that does not
+      // exist yet — push's local-only rule would refuse the very run that
+      // creates it. The union is what `pull` and `status` check against.
+      const out = silence();
+      const { courseDir, file } = syncedFixture();
+      mockCanvas([
+        { method: 'GET', path: '/modules/10/items', body: [ITEM] },
+        { method: 'GET', path: '/modules/20/items', body: [] },
+        {
+          method: 'GET',
+          path: '/modules',
+          body: [
+            { id: 10, name: 'Intro', position: 1 },
+            { id: 20, name: 'Later', position: 2 },
+          ],
+        },
+        { method: 'GET', path: `/pages/${PAGE.url}`, body: PAGE },
+        {
+          method: 'GET',
+          path: '/pages',
+          body: [
+            {
+              page_id: PAGE.page_id,
+              url: PAGE.url,
+              title: PAGE.title,
+              updated_at: PAGE.updated_at,
+            },
+          ],
+        },
+      ]);
+
+      await sync({
+        courseDir,
+        syncFile: file,
+        gitDirty: CLEAN,
+        interactive: false,
+        module: '02-later',
+      });
+
+      assert.doesNotMatch(
+        out.error.mock.calls.map((call) => call.arguments.join(' ')).join('\n'),
+        /no module named/,
+      );
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------

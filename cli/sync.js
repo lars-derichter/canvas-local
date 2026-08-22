@@ -669,6 +669,29 @@ async function sync(options = {}) {
   const canvas = await gatherCanvas({ courseId, base: state });
   for (const warning of canvas.warnings) log.warn(`[sync] ${warning}`);
 
+  // The union `pull` and `status` check against, rather than the local folders
+  // `push` checks: sync writes both ways, so a name may belong to a module that
+  // exists only in Canvas and is about to be written here for the first time.
+  // Refusing that would refuse the very run that creates the folder. A typo, on
+  // the other hand, matches nothing, scopes the run to nothing, and used to
+  // report a course in perfect agreement.
+  if (modules) {
+    const known = new Set([
+      ...local.modules.map((mod) => mod.folder),
+      ...Object.keys(state.modules || {}),
+      ...canvas.modules.map((mod) => mod.suggestedFolder).filter(Boolean),
+    ]);
+    const missing = modules.filter((name) => !known.has(name));
+    if (missing.length > 0) {
+      log.error(
+        `[sync] Error: no module named ${missing.join(', ')} — nothing under ` +
+          'course/ and nothing in the Canvas course answers to it.',
+      );
+      process.exitCode = 1;
+      return;
+    }
+  }
+
   const policy = {
     write: { canvas: true, local: true },
     conflict,
