@@ -2964,6 +2964,22 @@ describe('plan: modules', () => {
 
     assert.deepEqual(types(result), []);
   });
+
+  it('carries the local slot on the write, not the state’s and not Canvas’s', () => {
+    // `_category_.json` holds the Docusaurus sidebar position, and locally that
+    // is the folder's numeric prefix — what `scanCourse` reads back out of it
+    // and what `renameModule` writes into it. The executor used to take it from
+    // the state row instead, and a row with no `position` sent the module to
+    // the top of the sidebar on `?? 0`.
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([PATH]) } },
+      local: { modules: [lMod(FOLDER, [PATH])] },
+      canvas: { modules: [cMod([PATH], { name: 'Kick-off', position: 7 })] },
+      policy: {},
+    });
+
+    assert.equal(only(result, 'update-local-module').position, 1);
+  });
 });
 
 describe('plan: -m confines the whole run', () => {

@@ -1611,6 +1611,51 @@ describe('applyPlan, per action type', () => {
     assert.equal(state.modules['01-intro'].canvas_module_id, 77);
   });
 
+  it('writes a Canvas rename into the label and keeps the local slot', async () => {
+    // `writeCategoryFile` rewrites the whole `position` field, so where the
+    // number comes from is the whole question. It used to come from the state
+    // row — a record of the last run rather than of the folder — and a row with
+    // no `position` fell through to `?? 0`, which sent the module to the top of
+    // the sidebar behind the author's back. It is the action's now, and the
+    // planner sets that from the folder's own numeric prefix.
+    silence();
+    const courseDir = tempCourse({
+      '01-intro/_category_.json':
+        '{\n  "label": "My Own Title",\n  "position": 1,\n  "collapsed": true\n}\n',
+    });
+    const state = emptyState();
+    // No `position` on the row, which is what made the old read write 0.
+    state.modules['01-intro'] = {
+      canvas_module_id: 10,
+      name: 'My Own Title',
+      item_order: [],
+      items: {},
+    };
+    mockCanvas([]);
+
+    await run(
+      {
+        actions: [
+          {
+            type: 'update-local-module',
+            folder: '01-intro',
+            canvasModuleId: 10,
+            name: 'Renamed In Canvas',
+            position: 1,
+          },
+        ],
+      },
+      { state, courseDir, gitDirty: CLEAN },
+    );
+
+    const category = JSON.parse(
+      fs.readFileSync(path.join(courseDir, '01-intro/_category_.json'), 'utf8'),
+    );
+    assert.equal(category.label, 'Renamed In Canvas');
+    assert.equal(category.position, 1);
+    assert.equal(category.collapsed, true, 'the author’s own fields survive');
+  });
+
   it('updates a page and leaves the module item alone when it already agrees', async () => {
     silence();
     const courseDir = tempCourse({

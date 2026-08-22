@@ -896,6 +896,61 @@ describe('npx course pull, over uncommitted work', () => {
     assert.match(read(courseDir, '01-intro/01-welcome.md'), /Edited in Canvas/);
     assert.equal(process.exitCode, 0);
   });
+
+  // -------------------------------------------------------------------------
+  // The module label, which lives in a file no item stands for
+  // -------------------------------------------------------------------------
+
+  /** A synced course whose Canvas module has been renamed since. */
+  function canvasRenamedTheModule() {
+    const fixture = syncedFixture();
+    return {
+      ...fixture,
+      routes: [
+        { method: 'GET', path: '/modules/10/items', body: [ITEM] },
+        {
+          method: 'GET',
+          path: '/modules',
+          body: [{ id: 10, name: 'Renamed In Canvas', position: 1 }],
+        },
+        { method: 'GET', path: '/pages', body: [pageRow(PAGE)] },
+      ],
+    };
+  }
+
+  it('keeps the folder’s own slot when it writes the label', async () => {
+    // `writeCategoryFile` rewrites `position` whatever it is handed, so the
+    // number has to come from the folder. Taken from the state row it was a
+    // record of the last run, and a row with no `position` wrote `0`.
+    silence();
+    const { courseDir, routes } = canvasRenamedTheModule();
+    const file = stateFile({
+      modules: {
+        '01-intro': {
+          canvas_module_id: 10,
+          name: 'Intro',
+          item_order: ['01-intro/01-welcome.md'],
+          items: {
+            '01-intro/01-welcome.md': pageRowState(
+              courseDir,
+              '01-intro/01-welcome.md',
+              ITEM,
+              PAGE,
+            ),
+          },
+        },
+      },
+    });
+    mockCanvas(routes);
+
+    // Pull already pins `conflict: 'canvas'`, which is what settles the clash
+    // between the folder's slot and the row that does not name one.
+    await pull({ courseDir, syncFile: file, gitDirty: CLEAN });
+
+    const category = JSON.parse(read(courseDir, '01-intro/_category_.json'));
+    assert.equal(category.label, 'Renamed In Canvas');
+    assert.equal(category.position, 1, 'the folder is 01-, not 00-');
+  });
 });
 
 // ---------------------------------------------------------------------------
