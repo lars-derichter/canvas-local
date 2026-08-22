@@ -129,8 +129,8 @@ holds. Nothing about a missing sync state makes push refuse the module. See
 every command stops until the two agree. The ids in that file only mean
 something in the course they came from, and one of them is not scoped to a
 course at all: a Canvas file id is global, so `push --prune-canvas` — or
-renaming a binary in `_files/`, which deletes the file it replaces — would
-delete a file belonging to the other course.
+renaming the binary behind a file item, which deletes the Canvas file it
+replaces — would delete a file belonging to the other course.
 
 Two ways out, and which one is right depends on what you meant:
 

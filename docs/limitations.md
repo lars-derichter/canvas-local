@@ -149,14 +149,19 @@ recorded at the last sync, and only what differs is written.
   reordering a module sends new positions to the items already in it. One
   exception: a file item whose binary you renamed. Canvas keys an upload on the
   filename, so a new name is a new Canvas file, and the module item is recreated
-  to point at it.
+  to point at it. The file it replaces is deleted, because nothing points at it
+  any more and nothing else would ever clear it out. Push checks all three parts
+  of that before it does: Canvas came back with a different file id, the name
+  Canvas holds the old file under really did change, and no other row in
+  `.canvas-sync.json` still names it. Miss any one and the old file stays where
+  it is.
 - **A text header is an ordinary item.** It is matched on its module item id
   like anything else, so one added by hand in Canvas is adopted or left alone by
   the same rules. Push no longer regenerates the set from your subfolder names.
-- **A plain push deletes nothing on Canvas.** That is `push --prune-canvas`'s
-  job, and even there the only candidate is an item the sync state already
-  tracked and whose local file you deleted. Something push has never seen is
-  never one. See
+- **A plain push deletes one thing on Canvas**, and only one: the file a renamed
+  binary orphaned, above. Everything else is `push --prune-canvas`'s job, and
+  even there the only candidate is an item the sync state already tracked and
+  whose local file you deleted. Something push has never seen is never one. See
   [Destructive operations and student work](#destructive-operations-and-student-work)
   for what that flag reaches and what it costs.
 
@@ -180,8 +185,10 @@ what the refusal asks for, and adoption pairs the two sides up from there.
 ## Destructive Operations and Student Work
 
 Two commands delete things on Canvas: `push --prune-canvas` and `reset-canvas`.
-What separates them is not how much they delete but which kind of object they
-delete, and only one of those kinds takes student work with it.
+A plain push deletes one thing as well, the Canvas file a renamed binary
+orphaned, but a file carries no grades, so that case belongs above rather than
+here. What separates the two commands is not how much they delete but which kind
+of object they delete, and only one of those kinds takes student work with it.
 
 - **Deleting a module item is safe.** A module item is a link. Removing it
   leaves the page, assignment or file it pointed at exactly where it was, with
