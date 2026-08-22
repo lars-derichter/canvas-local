@@ -40,8 +40,27 @@ function collectVar(value, previous = {}) {
  * Load the Canvas link map (relativePath -> {canvasType, canvasId}) and course
  * id from .canvas-sync.json, used to footnote cross-links whose target falls
  * outside the export. Returns empty context when nothing has been synced.
+ *
+ * `skipEnvCheck` because the course-identity refusal in `loadState` exists to
+ * stop a *write* reaching the wrong Canvas course, and export never writes to
+ * Canvas. It reads the state for one thing: each item's Canvas id paired with
+ * the course id recorded beside it, which is the only course those ids mean
+ * anything in. What `.env` names does not enter into it, so a `.env` pointing
+ * somewhere else is not export's problem to have an opinion about. Left to
+ * throw, that refusal was swallowed by the catch below and the export came out
+ * with every cross-course link silently unresolved — neither working nor
+ * saying so.
+ *
+ * The catch stays, narrowed to what it was always for: a state file this
+ * version cannot read. A schema from another version throws, an unreadable file
+ * throws, and neither is worth failing a whole export over when the only thing
+ * lost is a footnote.
+ *
+ * @param {object} [options]
+ * @param {string} [options.file] - Injection point for tests, to `loadState`.
+ * @param {object} [options.env]  - Injection point for tests, to `loadState`.
  */
-function buildLinkContext() {
+function buildLinkContext({ file, env } = {}) {
   let loadState;
   let allItems;
   try {
@@ -51,7 +70,7 @@ function buildLinkContext() {
   }
   let state;
   try {
-    state = loadState({ allowNull: true });
+    state = loadState({ allowNull: true, skipEnvCheck: true, file, env });
   } catch {
     return {};
   }
@@ -65,7 +84,20 @@ function buildLinkContext() {
       canvasId: entry.canvas_id,
     });
   }
-  return { linkMap, courseId: state.course_id };
+  // A state that does not say which course it describes cannot produce a Canvas
+  // URL, and half of one is worse than none: `/courses/0/pages/77` is a link
+  // that resolves nowhere, printed into a PDF as though it worked. Handing out
+  // no id at all puts the footnote through the same door as a target the link
+  // map has never heard of — `rewriteCrossLinks` guards on `courseId != null`
+  // and falls back to unlinked plain text.
+  //
+  // Only skipping the env check makes this reachable. `assertStateMatchesEnv`
+  // used to stamp the environment's id onto a state that claimed none, so a
+  // `course_id: 0` never got this far. The test below is the same shape as the
+  // `fileCourse` expression there, deliberately: both have to agree on what
+  // counts as claiming no course, and 0 is how the state spells it.
+  const claimsCourse = state.course_id != null && Number(state.course_id) !== 0;
+  return { linkMap, courseId: claimsCourse ? state.course_id : undefined };
 }
 
 /**
@@ -490,6 +522,7 @@ async function run(style, theme, input, output, format, options, resourcePath) {
 }
 
 module.exports = exportCmd;
+module.exports.buildLinkContext = buildLinkContext;
 module.exports.collectVar = collectVar;
 module.exports.exportSlug = exportSlug;
 module.exports.resolveMode = resolveMode;
