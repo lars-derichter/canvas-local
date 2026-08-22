@@ -2101,6 +2101,342 @@ describe('plan: a title that moved without the content', () => {
 });
 
 // ---------------------------------------------------------------------------
+// An indent that moved on its own
+// ---------------------------------------------------------------------------
+
+/**
+ * The same hole as the title above, one field along, and reachable by an
+ * ordinary drag in a file manager: move `01-intro/03-notes.md` into
+ * `01-intro/theory/` without renaming it. The bytes did not move, so
+ * `local_hash` did not; the basename did not move, so the derived title did
+ * not and `hasTitleChanged` does not fire. The re-key lands and the text
+ * header is created, and the page keeps indent 0 — sitting beside the header
+ * it now belongs under rather than beneath it.
+ *
+ * An indent is one bit of the item's own path (`scanSubfolderItems` in
+ * `lib/convert/course-scanner.js`), so this is the only local change of the
+ * three that the author makes without opening a file at all.
+ */
+describe('plan: an indent that moved without the content', () => {
+  const NOTES = '01-intro/03-notes.md';
+  const MOVED = '01-intro/theory/03-notes.md';
+  const OTHER = '02-basics';
+
+  /**
+   * The header for `theory/` already synced on all three sides, so that the
+   * only thing under test is the page that was dragged into it. A brand-new
+   * subfolder is the case below, and it plans the header's create alongside.
+   */
+  function headerRow() {
+    return {
+      canvas_type: 'sub_header',
+      canvas_id: null,
+      page_url: null,
+      module_item_id: 7001,
+      local_hash: 'L:header',
+      canvas_hash: 'C:header',
+      title: 'Theory',
+      indent: 0,
+    };
+  }
+
+  function notesRow(overrides = {}) {
+    return {
+      canvas_type: 'page',
+      canvas_id: 1234,
+      page_url: 'notes',
+      module_item_id: 5003,
+      local_hash: 'L:notes',
+      canvas_hash: 'C:notes',
+      title: 'Notes',
+      indent: 0,
+      ...overrides,
+    };
+  }
+
+  function localNotes(itemPath, indent) {
+    return {
+      itemPath,
+      title: 'Notes',
+      canvasType: 'page',
+      indent,
+      position: 2,
+      localHash: 'L:notes',
+      localMtimeMs: LOCAL_TIME,
+      dirty: false,
+    };
+  }
+
+  function canvasNotes(indent, overrides = {}) {
+    return {
+      moduleItemId: 5003,
+      canvasType: 'page',
+      rawType: 'Page',
+      canvasId: 1234,
+      pageUrl: 'notes',
+      title: 'Notes',
+      indent,
+      position: 2,
+      canvasHash: 'C:notes',
+      canvasUpdatedAt: CANVAS_TIME,
+      suggestedPath: NOTES,
+      recognised: true,
+      ...overrides,
+    };
+  }
+
+  /**
+   * One module holding the text header and one page, with where the page sits
+   * locally, what indent the base recorded for it, and what Canvas still shows
+   * all given separately — every fence here is one of the three disagreeing.
+   */
+  function dragged({
+    basePath = NOTES,
+    localPath = MOVED,
+    localIndent = 1,
+    canvasIndent = 0,
+    row = {},
+  } = {}) {
+    return plan({
+      base: {
+        modules: {
+          [FOLDER]: {
+            canvas_module_id: 100,
+            name: 'Introduction',
+            position: 1,
+            item_order: [HEADER, basePath],
+            items: { [HEADER]: headerRow(), [basePath]: notesRow(row) },
+          },
+        },
+      },
+      local: {
+        modules: [
+          {
+            folder: FOLDER,
+            name: 'Introduction',
+            position: 1,
+            items: [plainHeader().local, localNotes(localPath, localIndent)],
+          },
+        ],
+      },
+      canvas: {
+        modules: [
+          {
+            canvasModuleId: 100,
+            name: 'Introduction',
+            position: 1,
+            suggestedFolder: null,
+            items: [plainHeader().canvas, canvasNotes(canvasIndent)],
+          },
+        ],
+      },
+      policy: {},
+    });
+  }
+
+  it('pushes the new indent of a page dragged into a subfolder', () => {
+    // The whole defect in one case. Before this the plan was the re-key and
+    // nothing else, and the page stayed at indent 0 on Canvas for good.
+    const result = dragged();
+
+    assert.deepEqual(types(result), ['rekey-base', 'update-canvas-item']);
+    const update = only(result, 'update-canvas-item');
+    assert.equal(update.itemPath, MOVED);
+    assert.equal(update.indent, 1, 'the page now sits under the text header');
+    assert.equal(update.title, 'Notes', 'and it was not renamed doing it');
+    assert.equal(
+      update.canvasId,
+      1234,
+      'the item still points at the Canvas object it always did',
+    );
+    assert.equal(
+      update.contentUnchanged,
+      true,
+      'the markdown is what it was, and the executor is told so',
+    );
+    assert.deepEqual(result.conflicts, []);
+  });
+
+  it('pushes it out of the subfolder again', () => {
+    // The other direction, which is the same signal read the other way and is
+    // not covered by the first: a `>` comparison, or a truthiness test on the
+    // local indent, passes the case above and fails this one.
+    const result = dragged({
+      basePath: MOVED,
+      localPath: NOTES,
+      localIndent: 0,
+      canvasIndent: 1,
+      row: { indent: 1 },
+    });
+
+    assert.deepEqual(types(result), ['rekey-base', 'update-canvas-item']);
+    assert.equal(only(result, 'update-canvas-item').indent, 0);
+  });
+
+  it('plans the header alongside when the subfolder is a new one', () => {
+    // The case as an author meets it: the subfolder did not exist before, so
+    // its text header is created in the same run. The two are separate items
+    // and neither stands in for the other — creating the header does nothing
+    // whatever to the indent of the page underneath it.
+    const result = plan({
+      base: {
+        modules: {
+          [FOLDER]: {
+            canvas_module_id: 100,
+            name: 'Introduction',
+            position: 1,
+            item_order: [NOTES],
+            items: { [NOTES]: notesRow() },
+          },
+        },
+      },
+      local: {
+        modules: [
+          {
+            folder: FOLDER,
+            name: 'Introduction',
+            position: 1,
+            items: [plainHeader().local, localNotes(MOVED, 1)],
+          },
+        ],
+      },
+      canvas: {
+        modules: [
+          {
+            canvasModuleId: 100,
+            name: 'Introduction',
+            position: 1,
+            suggestedFolder: null,
+            items: [canvasNotes(0)],
+          },
+        ],
+      },
+      policy: {},
+    });
+
+    assert.deepEqual(types(result).sort(), [
+      'create-canvas-item',
+      'rekey-base',
+      'update-canvas-item',
+    ]);
+    assert.equal(only(result, 'create-canvas-item').canvasType, 'sub_header');
+    assert.equal(only(result, 'update-canvas-item').indent, 1);
+  });
+
+  it('is silent on the run after the indent was recorded', () => {
+    // The run above re-keys the row and records the indent it pushed, so the
+    // next one compares 1 against 1 and finds nothing. Anything less makes
+    // every later sync issue the same PUT for ever.
+    const result = dragged({
+      basePath: MOVED,
+      localPath: MOVED,
+      localIndent: 1,
+      canvasIndent: 1,
+      row: { indent: 1 },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.deepEqual(result.withheld, []);
+    assert.deepEqual(result.orphans, { canvas: [], local: [] });
+  });
+
+  it('concludes nothing from a row that never recorded an indent', () => {
+    // The guard, and the one that costs most if it is missing: a state file
+    // written before this records no indent on any row, and reading that
+    // silence as "the indent moved" plans an update for every item in every
+    // course on the first run after the upgrade. No baseline, no conclusion —
+    // the re-key still lands, because that one is answered by the path.
+    assert.deepEqual(types(dragged({ row: { indent: undefined } })), [
+      'rekey-base',
+    ]);
+  });
+
+  it('does not read the base indent off the live Canvas item', () => {
+    // The route this rejected, in the shape that shows why. `indent` is in
+    // `COMMON_FIELDS`, so `!canvasChanged` looks like proof that
+    // `canvasItem.indent` is the indent the last sync left — but a page whose
+    // `updated_at` and title still match its row is never re-fetched, and
+    // `fingerprintCanvasItem` copies `row.canvas_hash` onto the live item
+    // verbatim while reading `indent` off it live (`lib/sync/gather.js`). So
+    // here Canvas reads as unchanged *and* disagrees with the row about the
+    // indent. The row is the baseline; the drift is Canvas's to be corrected,
+    // not evidence that the local side moved.
+    const result = dragged({
+      basePath: NOTES,
+      localPath: NOTES,
+      localIndent: 0,
+      canvasIndent: 1,
+    });
+
+    assert.deepEqual(types(result), []);
+  });
+
+  it('leaves a cross-module move to the action that already carries one', () => {
+    // A subfolder move that also crossed modules is `move-canvas-item`, which
+    // sends the indent itself. Nothing here may duplicate it: with the indent
+    // unmoved, the move is the whole plan.
+    const result = plan({
+      base: {
+        modules: {
+          [FOLDER]: {
+            canvas_module_id: 100,
+            name: 'Introduction',
+            position: 1,
+            item_order: [NOTES],
+            items: { [NOTES]: notesRow() },
+          },
+          [OTHER]: {
+            canvas_module_id: 200,
+            name: 'Basics',
+            position: 2,
+            item_order: [],
+            items: {},
+          },
+        },
+      },
+      local: {
+        modules: [
+          {
+            folder: FOLDER,
+            name: 'Introduction',
+            position: 1,
+            items: [],
+          },
+          {
+            folder: OTHER,
+            name: 'Basics',
+            position: 2,
+            items: [localNotes(`${OTHER}/03-notes.md`, 0)],
+          },
+        ],
+      },
+      canvas: {
+        modules: [
+          {
+            canvasModuleId: 100,
+            name: 'Introduction',
+            position: 1,
+            suggestedFolder: null,
+            items: [canvasNotes(0)],
+          },
+          {
+            canvasModuleId: 200,
+            name: 'Basics',
+            position: 2,
+            suggestedFolder: null,
+            items: [],
+          },
+        ],
+      },
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), ['rekey-base', 'move-canvas-item']);
+    assert.equal(only(result, 'move-canvas-item').indent, 0);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // A binary the body embeds that moved on its own
 // ---------------------------------------------------------------------------
 

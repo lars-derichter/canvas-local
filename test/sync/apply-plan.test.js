@@ -687,6 +687,280 @@ describe('the fingerprint invariant, a page and the binary it embeds', () => {
   });
 });
 
+describe('the fingerprint invariant, an item dragged into a subfolder', () => {
+  it('pushes the indent it gained, and is silent on the run after', async () => {
+    silence();
+    // An indent is not in either hash and cannot be: it is one bit of the
+    // item's own path, and the file is byte for byte what it was. Both halves
+    // are here because either alone is satisfied by a defect. The push has to
+    // be planned at all — that is the hole — and the row has to come out of it
+    // holding the new indent, or the planner has no baseline and issues the
+    // same PUT on every run for ever.
+    const courseDir = tempCourse({
+      '01-intro/_category_.json': '{ "label": "Intro", "position": 1 }\n',
+      '01-intro/01-welcome.md': '---\ntitle: Welcome\n---\n\nHello there.\n',
+    });
+    const state = emptyState();
+
+    const page = {
+      page_id: 501,
+      url: 'welcome',
+      title: 'Welcome',
+      body: '<p>Hello there.</p>',
+      updated_at: '2026-08-20T11:00:00.000Z',
+    };
+    const item = {
+      id: 91,
+      type: 'Page',
+      title: 'Welcome',
+      page_url: 'welcome',
+      content_id: 501,
+      position: 1,
+      indent: 0,
+    };
+    // The specific route first: `/pages` is a substring of `/pages/welcome`,
+    // and `/modules` of `/modules/10/items`.
+    const canvasReads = (items) => [
+      { method: 'GET', path: '/modules/10/items', body: items },
+      {
+        method: 'GET',
+        path: '/modules',
+        body: [{ id: 10, name: 'Intro', position: 1 }],
+      },
+      { method: 'GET', path: '/pages/welcome', body: page },
+      {
+        method: 'GET',
+        path: '/pages',
+        body: [
+          {
+            page_id: 501,
+            url: 'welcome',
+            title: 'Welcome',
+            updated_at: page.updated_at,
+          },
+        ],
+      },
+    ];
+
+    // --- Run one: the page is created at the top of its module --------------
+    mockCanvas([{ method: 'GET', path: '/modules', body: [] }]);
+    let canvas = await gatherCanvas({ courseId: COURSE_ID, base: state });
+    const first = plan({
+      base: state,
+      local: gatherLocal({ courseDir, gitDirty: CLEAN }),
+      canvas,
+    });
+    assert.deepEqual(
+      first.actions.map((action) => action.type),
+      ['create-canvas-module', 'create-canvas-item'],
+    );
+
+    mock.restoreAll();
+    mockCanvas([
+      { method: 'POST', path: '/modules/10/items', body: item },
+      {
+        method: 'POST',
+        path: '/modules',
+        body: { id: 10, name: 'Intro', position: 1 },
+      },
+      { method: 'POST', path: '/pages', body: page },
+    ]);
+    let outcome = await run(first, {
+      courseDir,
+      state,
+      canvasContent: canvas.content,
+    });
+    assert.deepEqual(outcome.errors, []);
+    const flat = state.modules['01-intro'].items['01-intro/01-welcome.md'];
+    assert.equal(flat.indent, 0, 'a create has to leave a baseline too');
+
+    // --- The author drags the file into a new subfolder, and renames nothing -
+    mock.restoreAll();
+    fs.mkdirSync(path.join(courseDir, '01-intro/theory'), { recursive: true });
+    fs.writeFileSync(
+      path.join(courseDir, '01-intro/theory/_category_.json'),
+      '{ "label": "Theory", "position": 1 }\n',
+      'utf8',
+    );
+    fs.renameSync(
+      path.join(courseDir, '01-intro/01-welcome.md'),
+      path.join(courseDir, '01-intro/theory/01-welcome.md'),
+    );
+
+    mockCanvas(canvasReads([item]));
+    canvas = await gatherCanvas({ courseId: COURSE_ID, base: state });
+    const moved = plan({
+      base: state,
+      local: gatherLocal({ courseDir, gitDirty: CLEAN }),
+      canvas,
+    });
+    assert.deepEqual(
+      moved.actions.map((action) => action.type),
+      ['rekey-base', 'create-canvas-item', 'update-canvas-item'],
+      'the text header is created and the page is pushed under it',
+    );
+    assert.equal(
+      moved.actions.at(-1).indent,
+      1,
+      'the page belongs beneath the header now',
+    );
+
+    mock.restoreAll();
+    const header = {
+      id: 92,
+      type: 'SubHeader',
+      title: 'Theory',
+      position: 1,
+      indent: 0,
+    };
+    const indented = { ...item, position: 2, indent: 1 };
+    const writes = mockCanvas([
+      { method: 'POST', path: '/modules/10/items', body: header },
+      { method: 'PUT', path: '/modules/10/items/91', body: indented },
+      { method: 'PUT', path: '/pages/501', body: page },
+    ]);
+    outcome = await run(moved, {
+      courseDir,
+      state,
+      canvasContent: canvas.content,
+    });
+    assert.deepEqual(outcome.errors, []);
+    assert.equal(
+      calledWith(writes, 'PUT', '/modules/10/items/91').length,
+      1,
+      'the indent reaches Canvas through the module item, exactly once',
+    );
+    assert.equal(
+      state.modules['01-intro'].items['01-intro/theory/01-welcome.md'].indent,
+      1,
+      'the row is the only baseline there is, and it has to hold the new indent',
+    );
+
+    // --- Run three: the run that proves the two sides agree ------------------
+    mock.restoreAll();
+    const settled = mockCanvas(canvasReads([header, indented]));
+    const last = plan({
+      base: state,
+      local: gatherLocal({ courseDir, gitDirty: CLEAN }),
+      canvas: await gatherCanvas({ courseId: COURSE_ID, base: state }),
+    });
+    assert.deepEqual(
+      last.actions,
+      [],
+      'the item is pushed on every run for ever unless the row recorded it',
+    );
+    assert.deepEqual(last.skipped, []);
+    assert.deepEqual(
+      settled.filter((call) => call.method !== 'GET'),
+      [],
+      'a settled course writes nothing',
+    );
+  });
+
+  it('leaves the same baseline when the item arrived by pull', async () => {
+    silence();
+    // The other direction, and the one a fix is easiest to leave half done in:
+    // a pull records its own row rather than going through the push-side
+    // recorder. Leave the indent out of that one and an item whose last write
+    // was a pull has no baseline at all, so dragging it out of its subfolder
+    // afterwards is invisible — the same defect, reachable by a different
+    // route.
+    const courseDir = tempCourse();
+    const state = emptyState();
+
+    const page = {
+      page_id: 501,
+      url: 'welcome',
+      title: 'Welcome',
+      body: '<p>Hello there.</p>',
+      updated_at: '2026-08-20T11:00:00.000Z',
+    };
+    const header = {
+      id: 92,
+      type: 'SubHeader',
+      title: 'Theory',
+      position: 1,
+      indent: 0,
+    };
+    const item = {
+      id: 91,
+      type: 'Page',
+      title: 'Welcome',
+      page_url: 'welcome',
+      content_id: 501,
+      position: 2,
+      indent: 1,
+    };
+    const reads = () => [
+      { method: 'GET', path: '/modules/10/items', body: [header, item] },
+      {
+        method: 'GET',
+        path: '/modules',
+        body: [{ id: 10, name: 'Intro', position: 1 }],
+      },
+      { method: 'GET', path: '/pages/welcome', body: page },
+      {
+        method: 'GET',
+        path: '/pages',
+        body: [
+          {
+            page_id: 501,
+            url: 'welcome',
+            title: 'Welcome',
+            updated_at: page.updated_at,
+          },
+        ],
+      },
+    ];
+
+    // --- The whole module comes down, header and indented page together -----
+    mockCanvas(reads());
+    const canvas = await gatherCanvas({ courseId: COURSE_ID, base: state });
+    const pulled = plan({
+      base: state,
+      local: gatherLocal({ courseDir, gitDirty: CLEAN }),
+      canvas,
+    });
+    assert.deepEqual(
+      pulled.actions.map((action) => action.type),
+      ['create-local-module', 'create-local-item', 'create-local-item'],
+    );
+
+    const outcome = await run(pulled, {
+      courseDir,
+      state,
+      canvasContent: canvas.content,
+    });
+    assert.deepEqual(outcome.errors, []);
+
+    const nested = '01-intro/01-theory/01-welcome.md';
+    assert.equal(
+      state.modules['01-intro'].items[nested].indent,
+      1,
+      'the page landed in the subfolder and the row has to say so',
+    );
+
+    // --- The author drags it back out to the top of the module ---------------
+    mock.restoreAll();
+    fs.renameSync(
+      path.join(courseDir, nested),
+      path.join(courseDir, '01-intro/02-welcome.md'),
+    );
+    mockCanvas(reads());
+    const dragged = plan({
+      base: state,
+      local: gatherLocal({ courseDir, gitDirty: CLEAN }),
+      canvas: await gatherCanvas({ courseId: COURSE_ID, base: state }),
+    });
+
+    assert.deepEqual(
+      dragged.actions.map((action) => action.type),
+      ['rekey-base', 'update-canvas-item'],
+    );
+    assert.equal(dragged.actions.at(-1).indent, 0);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // One test per action type
 // ---------------------------------------------------------------------------

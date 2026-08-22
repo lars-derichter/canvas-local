@@ -444,6 +444,21 @@ describe('a title change that the content did not cause', () => {
   });
 });
 
+/**
+ * `writeTitleIfAbsent` puts a `title:` into a markdown item that declares none,
+ * so that what the item is called on Canvas stops depending on what its file is
+ * called. Until now it ran on the create handler alone — and `adoptPair` does
+ * not create anything, it claims an object that is already there and emits an
+ * `update-canvas-item`. So an item this tool adopted kept taking its name from
+ * its filename indefinitely, and `renumber`, which renames files by the dozen,
+ * then silently renamed it on Canvas.
+ *
+ * A `file` wrapper is the shape that makes the ordering constraint bite. Its
+ * `local_hash` covers the binary *and* the wrapper's text (`fileItemHash` in
+ * `lib/sync/gather.js`), so the line this adds moves that hash: write it after
+ * the row is recorded and the wrapper reads as changed locally on the very next
+ * run, for ever.
+ */
 describe('an upload that renamed nothing deletes nothing', () => {
   it('costs no lookup at all when the upload landed on the same file', async () => {
     silence();
