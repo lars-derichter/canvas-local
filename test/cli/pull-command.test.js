@@ -730,6 +730,11 @@ describe('npx course pull, over uncommitted work', () => {
     assert.deepEqual(calls, [], 'a cancelled run must not read the course');
     assert.match(read(courseDir, '01-intro/01-welcome.md'), /Hello there/);
     assert.match(printed(out), /Cancelled/);
+    assert.equal(
+      process.exitCode,
+      1,
+      'a pull that pulled nothing must not report success to its caller',
+    );
   });
 
   it('--dry-run --force previews without asking', async () => {

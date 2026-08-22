@@ -184,7 +184,15 @@ async function push(options = {}) {
       };
     },
   });
-  if (!proceed) return;
+  if (!proceed) {
+    // Asked to push, pushed nothing. A caller that cannot see that from the
+    // exit code reads a cancelled run as a completed one, and `push && deploy`
+    // deploys. The answer's provenance makes no difference: a deliberate "n"
+    // and a scripted run with no answer to give both leave the command having
+    // not done the one thing it was told to do.
+    process.exitCode = 1;
+    return;
+  }
 
   log.info(`[push] Reading Canvas course ${courseId}...`);
   const canvas = await gatherCanvas({ courseId, base: state });

@@ -137,7 +137,15 @@ async function pull(options = {}) {
     pruneLocal,
     dryRun,
   });
-  if (!proceed) return;
+  if (!proceed) {
+    // Asked to pull, pulled nothing. A caller that cannot see that from the
+    // exit code reads a cancelled run as a completed one, and goes on to build
+    // from a tree that was never updated. The answer's provenance makes no
+    // difference: a deliberate "n" and a scripted run with no answer to give
+    // both leave the command having not done the one thing it was told to do.
+    process.exitCode = 1;
+    return;
+  }
 
   // The whole of what --force does. The planner reads `dirty` per item and
   // nothing else, so clearing it here is the flag, stated once, rather than a

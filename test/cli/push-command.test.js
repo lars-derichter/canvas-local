@@ -530,6 +530,11 @@ describe('npx course push, into a course that already holds content', () => {
       !calls.some((call) => call.url.includes('/modules/10/items')),
       'the course is not even read once the answer is no',
     );
+    assert.equal(
+      process.exitCode,
+      1,
+      'a push that pushed nothing must not report success to its caller',
+    );
   });
 });
 
