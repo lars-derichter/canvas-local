@@ -16,7 +16,7 @@ const {
   gitDirtyPaths,
   subHeaderHash,
 } = require('../../lib/sync/gather');
-const { hashLocalFile } = require('../../lib/sync/fingerprint');
+const { hashBinaryFile, hashLocalFile } = require('../../lib/sync/fingerprint');
 
 const COURSE_ID = 4242;
 
@@ -804,10 +804,65 @@ describe('gatherLocal: what the whole course embeds', () => {
 
     assert.equal(embedded.complete, true);
     assert.deepEqual(
-      [...embedded.refs].sort(),
+      [...embedded.refs.keys()].sort(),
       ['01-intro/_files/logo.png', '01-intro/_files/slides.pdf'],
       'a binary embedded from two modules is one reference, found from both',
     );
+  });
+
+  it('hashes each binary as bytes, and each item carries what it embeds', () => {
+    // The two things the planner needs to see an image edited in place: the
+    // paths one item points at, and what the bytes behind them are now. Hashed
+    // as bytes and not as text, because a 0x0d inside a PNG is data — normalise
+    // it and the digest matches no file that has ever been uploaded.
+    const dir = tempCourse({
+      '01-intro/01-welcome.md':
+        '---\ntitle: Welcome\n---\n\n![Logo](./_files/logo.png)\n[Slides](./_files/slides.pdf)\n',
+      '01-intro/_files/logo.png': 'PNG\r\nBYTES',
+      '01-intro/_files/slides.pdf': 'PDF',
+      '01-intro/02-theory.md': '---\ntitle: Theory\n---\n\nNo images here.\n',
+    });
+
+    const { modules, embedded } = gatherLocal({
+      courseDir: dir,
+      gitDirty: CLEAN,
+    });
+
+    assert.equal(
+      embedded.refs.get('01-intro/_files/logo.png'),
+      hashBinaryFile(path.join(dir, '01-intro/_files/logo.png')),
+    );
+    assert.notEqual(
+      embedded.refs.get('01-intro/_files/logo.png'),
+      hashLocalFile(path.join(dir, '01-intro/_files/logo.png')),
+      'the bytes of an image are not text and must not be normalised',
+    );
+    assert.deepEqual(modules[0].items[0].embeds, [
+      '01-intro/_files/logo.png',
+      '01-intro/_files/slides.pdf',
+    ]);
+    assert.deepEqual(modules[0].items[1].embeds, []);
+  });
+
+  it('records no hash for a binary it cannot read, and stays whole', () => {
+    // A `![](…)` pointing at nothing is still a reference the tree makes, so
+    // the row for it is not an orphan and `complete` has no business moving.
+    // What the missing file costs is one conclusion about one path: `null` says
+    // "conclude nothing", which is what `uploadEmbeddedFiles` does with it too.
+    const dir = tempCourse({
+      '01-intro/01-welcome.md':
+        '---\ntitle: Welcome\n---\n\n![Gone](./_files/missing.png)\n',
+    });
+
+    const { embedded } = gatherLocal({ courseDir: dir, gitDirty: CLEAN });
+
+    assert.equal(
+      embedded.complete,
+      true,
+      'one broken image is not a blind run',
+    );
+    assert.equal(embedded.refs.has('01-intro/_files/missing.png'), true);
+    assert.equal(embedded.refs.get('01-intro/_files/missing.png'), null);
   });
 
   it('refuses to claim the set is whole when an item is still parked', () => {

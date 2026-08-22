@@ -2100,6 +2100,174 @@ describe('plan: a title that moved without the content', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// A binary the body embeds that moved on its own
+// ---------------------------------------------------------------------------
+
+/**
+ * Redraw `_files/diagram.png` and save. The page around it is byte for byte
+ * what it was, so `local_hash` does not move and nothing in the truth table
+ * notices — the same hole a renamed title falls through, one level further in.
+ * The upload was never the problem: `uploadEmbeddedFiles` compares these two
+ * hashes itself, but it runs only inside a push that was planned already, so
+ * the new image went up when its page happened to be pushed for some other
+ * reason and never on its own.
+ *
+ * The fences matter as much as the case: a signal read one shade too eagerly
+ * re-uploads every image in the course on every run, and one read against a
+ * type whose body Canvas never receives plans a push the executor cannot carry
+ * out, which leaves the item reporting as changed for ever.
+ */
+describe('plan: a binary the body embeds that moved on its own', () => {
+  const IMAGE = '01-intro/_files/diagram.png';
+  const OLD = 'sha-of-the-first-draft';
+  const NEW = 'sha-of-the-redrawn-diagram';
+
+  /** What `gatherLocal` hands over: path against current bytes, plus the licence. */
+  function tree(hashes, { complete = true } = {}) {
+    return { refs: new Map(Object.entries(hashes)), complete };
+  }
+
+  /**
+   * One unchanged page that embeds one image, with the state's record of that
+   * image, what the tree says it hashes to now, and the item's own reference
+   * list all given separately — because every fence here is one of them going
+   * missing.
+   */
+  function embedding({
+    files = { [IMAGE]: { canvas_file_id: 770, sha256: OLD } },
+    embedded = tree({ [IMAGE]: NEW }),
+    embeds = [IMAGE],
+    canvasType = 'page',
+    policy = {},
+  } = {}) {
+    return plan({
+      base: {
+        modules: {
+          [FOLDER]: bMod([PATH], {
+            rows: { [PATH]: { canvas_type: canvasType } },
+          }),
+        },
+        files,
+      },
+      local: {
+        modules: [
+          lMod(FOLDER, [PATH], { items: { [PATH]: { canvasType, embeds } } }),
+        ],
+        // `null` stands for the caller that hands over no `embedded` key at
+        // all, which is every `local` built before the reference set existed.
+        ...(embedded === null ? {} : { embedded }),
+      },
+      canvas: {
+        modules: [cMod([PATH], { items: { [PATH]: { canvasType } } })],
+      },
+      policy,
+    });
+  }
+
+  it('pushes the page whose image was edited in place', () => {
+    const result = embedding();
+
+    assert.deepEqual(types(result), ['update-canvas-item']);
+    const update = only(result, 'update-canvas-item');
+    assert.equal(update.itemPath, PATH);
+    assert.equal(update.canvasType, 'page');
+    assert.equal(
+      update.localHash,
+      `L:${PATH}`,
+      'the page did not change and the action must not pretend it did',
+    );
+    assert.equal(
+      update.contentUnchanged,
+      true,
+      'the markdown is what it was, and the executor is told so',
+    );
+    assert.deepEqual(
+      result.conflicts,
+      [],
+      'only one side edited anything, so there is nothing to choose between',
+    );
+  });
+
+  it('plans nothing for an image that is the one the state recorded', () => {
+    // The fence that keeps this from re-uploading the whole course on every
+    // single run. Everything else about the case is identical.
+    assert.deepEqual(
+      types(embedding({ embedded: tree({ [IMAGE]: OLD }) })),
+      [],
+    );
+  });
+
+  it('plans nothing when the gather could not prove the tree whole', () => {
+    // The same licence the orphan sweep answers to, and default-deny in the
+    // same way: false, a plain `Set` from a caller written before the hashes,
+    // and no `embedded` at all are one answer. A run that cannot say what the
+    // course contains does not get to conclude that a binary moved.
+    const unusable = {
+      'complete: false': tree({ [IMAGE]: NEW }, { complete: false }),
+      'no flag at all': { refs: new Map([[IMAGE, NEW]]) },
+      'a set of paths, carrying no hashes': {
+        refs: new Set([IMAGE]),
+        complete: true,
+      },
+      'no reference set at all': null,
+    };
+    for (const [label, embedded] of Object.entries(unusable)) {
+      assert.deepEqual(
+        types(embedding({ embedded })),
+        [],
+        `planned an update with ${label}`,
+      );
+    }
+  });
+
+  it('concludes nothing about an item whose references are unknown', () => {
+    // `embeds: null` is the per-item half of the same silence: the gather could
+    // not read that item, so what it points at is nobody's guess.
+    assert.deepEqual(types(embedding({ embeds: null })), []);
+  });
+
+  it('concludes nothing from a binary or a row it has no hash for', () => {
+    // A `![](…)` pointing at a file that is not there hashes to null, and a row
+    // with no `sha256` is a baseline that was never written. Neither is evidence
+    // that anything moved, and `uploadEmbeddedFiles` skips both too — so a push
+    // planned on either would be one the run could not honour.
+    assert.deepEqual(
+      types(embedding({ embedded: tree({ [IMAGE]: null }) })),
+      [],
+    );
+    assert.deepEqual(
+      types(embedding({ files: { [IMAGE]: { canvas_file_id: 770 } } })),
+      [],
+    );
+    assert.deepEqual(types(embedding({ files: {} })), []);
+  });
+
+  it('says nothing about a type whose body Canvas never receives', () => {
+    // A `file` wrapper is markdown, so the gather collects what its stub
+    // embeds — but push sends the binary its `file_ref` names and never the
+    // stub. Plan an update here and the executor uploads nothing, the row keeps
+    // the old hash, and the item is planned again on every run for ever.
+    for (const canvasType of ['file', 'quiz', 'external_url', 'sub_header']) {
+      assert.deepEqual(
+        types(embedding({ canvasType })),
+        [],
+        `planned an update for a ${canvasType}`,
+      );
+    }
+  });
+
+  it('pushes an assignment and a discussion on the same evidence', () => {
+    for (const canvasType of ['assignment', 'discussion']) {
+      assert.deepEqual(
+        types(embedding({ canvasType })),
+        ['update-canvas-item'],
+        `${canvasType} bodies embed images too`,
+      );
+    }
+  });
+});
+
 describe('plan: pruning', () => {
   it('deletes nothing by default, on either side', () => {
     const result = plan({

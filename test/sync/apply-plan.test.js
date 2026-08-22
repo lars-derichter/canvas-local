@@ -505,6 +505,188 @@ describe('the fingerprint invariant, a file item and its binary', () => {
   });
 });
 
+describe('the fingerprint invariant, a page and the binary it embeds', () => {
+  it('pushes the page when only the image moved, and is silent after', async () => {
+    silence();
+    // The whole round trip, because each half alone is satisfied by a defect.
+    // Nothing but the PNG is touched between run two and run three: the page's
+    // markdown is byte-identical, so its own `local_hash` cannot answer this and
+    // the planner has to read `state.files` to see it at all. Run four is the
+    // other half — the upload has to record the new hash, or the page reports as
+    // changed on every run for ever.
+    const courseDir = tempCourse({
+      '01-intro/_category_.json': '{ "label": "Intro", "position": 1 }\n',
+      '01-intro/01-welcome.md':
+        '---\ntitle: Welcome\n---\n\n![Diagram](./_files/diagram.png)\n',
+      '01-intro/_files/diagram.png': 'first draft of the diagram',
+    });
+    const state = emptyState();
+
+    const uploaded = { id: 770, display_name: 'diagram.png' };
+    const page = {
+      page_id: 501,
+      url: 'welcome',
+      title: 'Welcome',
+      body: `<p><img src="/courses/${COURSE_ID}/files/770/preview"></p>`,
+      updated_at: '2026-08-20T11:00:00.000Z',
+    };
+    const item = {
+      id: 91,
+      type: 'Page',
+      title: 'Welcome',
+      page_url: 'welcome',
+      content_id: 501,
+      position: 1,
+      indent: 0,
+    };
+    // The specific route first: `/pages` is a substring of `/pages/welcome`, and
+    // `/modules` of `/modules/10/items`.
+    const canvasReads = () => [
+      { method: 'GET', path: '/modules/10/items', body: [item] },
+      {
+        method: 'GET',
+        path: '/modules',
+        body: [{ id: 10, name: 'Intro', position: 1 }],
+      },
+      { method: 'GET', path: '/pages/welcome', body: page },
+      {
+        method: 'GET',
+        path: '/pages',
+        body: [
+          {
+            page_id: 501,
+            url: 'welcome',
+            title: 'Welcome',
+            updated_at: page.updated_at,
+          },
+        ],
+      },
+    ];
+    const uploadRoutes = () => [
+      {
+        method: 'POST',
+        path: `/api/v1/courses/${COURSE_ID}/files`,
+        body: {
+          upload_url: 'https://canvas.example.com/upload/binary',
+          upload_params: {},
+        },
+      },
+      { method: 'POST', path: '/upload/binary', body: uploaded },
+    ];
+
+    // --- Run one: Canvas holds none of this ----------------------------------
+    mockCanvas([{ method: 'GET', path: '/modules', body: [] }]);
+    let canvas = await gatherCanvas({ courseId: COURSE_ID, base: state });
+    const first = plan({
+      base: state,
+      local: gatherLocal({ courseDir, gitDirty: CLEAN }),
+      canvas,
+    });
+    assert.deepEqual(
+      first.actions.map((action) => action.type),
+      ['create-canvas-module', 'create-canvas-item'],
+    );
+
+    mock.restoreAll();
+    mockCanvas([
+      { method: 'POST', path: '/modules/10/items', body: item },
+      {
+        method: 'POST',
+        path: '/modules',
+        body: { id: 10, name: 'Intro', position: 1 },
+      },
+      ...uploadRoutes(),
+      { method: 'POST', path: '/pages', body: page },
+    ]);
+    let outcome = await run(first, {
+      courseDir,
+      state,
+      canvasContent: canvas.content,
+    });
+    assert.deepEqual(outcome.errors, []);
+    const firstHash = state.files['01-intro/_files/diagram.png'].sha256;
+    assert.ok(firstHash, 'the upload recorded no hash for the binary');
+
+    // --- Run two: nothing was touched, so nothing may happen -----------------
+    mock.restoreAll();
+    const quiet = mockCanvas(canvasReads());
+    canvas = await gatherCanvas({ courseId: COURSE_ID, base: null });
+    const again = plan({
+      base: state,
+      local: gatherLocal({ courseDir, gitDirty: CLEAN }),
+      canvas,
+    });
+    assert.deepEqual(again.actions, [], 'a sync after a sync must do nothing');
+    assert.deepEqual(
+      quiet.filter((call) => call.method === 'POST'),
+      [],
+      'the second run uploaded something',
+    );
+
+    // --- Run three: the image is redrawn, and nothing else --------------------
+    mock.restoreAll();
+    fs.writeFileSync(
+      path.join(courseDir, '01-intro/_files/diagram.png'),
+      'the redrawn diagram, same page around it',
+      'utf8',
+    );
+    mockCanvas(canvasReads());
+    canvas = await gatherCanvas({ courseId: COURSE_ID, base: null });
+    const afterEdit = plan({
+      base: state,
+      local: gatherLocal({ courseDir, gitDirty: CLEAN }),
+      canvas,
+    });
+    assert.deepEqual(
+      afterEdit.actions.map((action) => action.type),
+      ['update-canvas-item'],
+      'redrawing an embedded image must reach Canvas',
+    );
+
+    mock.restoreAll();
+    const writes = mockCanvas([
+      ...uploadRoutes(),
+      { method: 'PUT', path: '/pages/501', body: page },
+    ]);
+    outcome = await run(afterEdit, {
+      courseDir,
+      state,
+      canvasContent: canvas.content,
+    });
+    assert.deepEqual(outcome.errors, []);
+    assert.equal(
+      writes.filter((call) => call.url.includes('/upload/binary')).length,
+      1,
+      'the planner said the binary moved and the run must actually send it',
+    );
+    assert.notEqual(
+      state.files['01-intro/_files/diagram.png'].sha256,
+      firstHash,
+      'the new bytes were uploaded but the old hash was left on the row',
+    );
+
+    // --- Run four: the run that proves the two sides agree -------------------
+    mock.restoreAll();
+    const settled = mockCanvas(canvasReads());
+    const last = plan({
+      base: state,
+      local: gatherLocal({ courseDir, gitDirty: CLEAN }),
+      canvas: await gatherCanvas({ courseId: COURSE_ID, base: null }),
+    });
+    assert.deepEqual(
+      last.actions,
+      [],
+      'the item reports as changed for ever unless the upload recorded the hash',
+    );
+    assert.deepEqual(last.skipped, []);
+    assert.deepEqual(
+      settled.filter((call) => call.method === 'POST'),
+      [],
+      'a settled course must upload nothing',
+    );
+  });
+});
+
 // ---------------------------------------------------------------------------
 // One test per action type
 // ---------------------------------------------------------------------------
