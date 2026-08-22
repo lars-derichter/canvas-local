@@ -691,6 +691,104 @@ describe('npx course pull, over uncommitted work', () => {
     reason: null,
   };
 
+  // The same rule, for the one write the planner cannot guard: the binary
+  // behind an embedded image. Its destination is the Canvas file's
+  // `display_name` under the module's `_files/`, which is not known until
+  // Canvas has answered, and `_files/` is a folder the course scanner never
+  // descends into — so no item's `dirty` speaks for it and the git answer has
+  // to reach the executor itself.
+  const EMBED_FILE_ID = 777;
+  const EMBEDDED_REF = '01-intro/_files/diagram.png';
+
+  /** What `gitDirtyPaths` returns for that binary alone: ancestors included. */
+  const DIRTY_BINARY = {
+    available: true,
+    paths: new Set(['01-intro', '01-intro/_files', EMBEDDED_REF]),
+    reason: null,
+  };
+
+  /** A synced course whose Canvas page now embeds an image the tree collides with. */
+  function canvasEmbedsAnImage() {
+    const fixture = syncedFixture();
+    const destination = path.join(fixture.courseDir, EMBEDDED_REF);
+    fs.mkdirSync(path.dirname(destination), { recursive: true });
+    fs.writeFileSync(destination, 'MY-OWN-DIAGRAM', 'utf8');
+
+    const embedding = {
+      ...PAGE,
+      body: `<p><img src="/courses/${COURSE_ID}/files/${EMBED_FILE_ID}/preview" alt="Diagram"></p>`,
+      updated_at: '2026-08-20T13:00:00.000Z',
+    };
+    const meta = {
+      id: EMBED_FILE_ID,
+      display_name: 'diagram.png',
+      url: `https://files.example.com/blob/${EMBED_FILE_ID}`,
+    };
+    return {
+      ...fixture,
+      routes: [
+        ...readRoutes({ pages: [embedding], fetch: [embedding] }),
+        // Two metadata reads: one to name the destination, one inside
+        // `downloadFile` to find the bytes. Then the bytes.
+        { method: 'GET', path: `/api/v1/files/${EMBED_FILE_ID}`, body: meta },
+        { method: 'GET', path: `/api/v1/files/${EMBED_FILE_ID}`, body: meta },
+        {
+          method: 'GET',
+          path: `/blob/${EMBED_FILE_ID}`,
+          body: 'CANVAS-DIAGRAM',
+        },
+      ],
+    };
+  }
+
+  it('refuses to download over an untracked binary in _files/', async () => {
+    const out = silence();
+    const { courseDir, file, routes } = canvasEmbedsAnImage();
+    mockCanvas(routes);
+
+    await pull({ courseDir, syncFile: file, gitDirty: DIRTY_BINARY });
+
+    assert.equal(
+      read(courseDir, EMBEDDED_REF),
+      'MY-OWN-DIAGRAM',
+      'an untracked image is the case where the local copy is the only copy',
+    );
+    assert.match(printed(out), /Skipped/);
+    assert.match(printed(out), /_files\/diagram\.png \(git-dirty\)/);
+    assert.match(printed(out), /Commit or stash/);
+    assert.equal(process.exitCode, 1, 'a refusal the author must act on');
+
+    // The page is still written — only the download was refused — and it points
+    // at Canvas rather than at a local binary that is not what Canvas shows.
+    const markdown = read(courseDir, '01-intro/01-welcome.md');
+    assert.match(markdown, /\/courses\/4242\/files\/777\/preview/);
+    assert.doesNotMatch(markdown, /_files\/diagram\.png/);
+
+    // And no row claiming the file id, or a hash, for bytes never written.
+    assert.deepEqual(readState(file).files, {});
+  });
+
+  it('--force downloads over it, and records the row', async () => {
+    // Behind `withStdin` because the question depends on what else is dirty,
+    // not on this: `confirmForcedPull` counts scanned items, and `_files/` is
+    // not one. An unread answer costs nothing; a question with no answer hangs.
+    silence();
+    const { courseDir, file, routes } = canvasEmbedsAnImage();
+    mockCanvas(routes);
+
+    await withStdin('y\n', () =>
+      pull({ courseDir, syncFile: file, gitDirty: DIRTY_BINARY, force: true }),
+    );
+
+    assert.equal(read(courseDir, EMBEDDED_REF), 'CANVAS-DIAGRAM');
+    assert.match(read(courseDir, '01-intro/01-welcome.md'), /_files\/diagram/);
+    assert.equal(
+      readState(file).files[EMBEDDED_REF].canvas_file_id,
+      EMBED_FILE_ID,
+    );
+    assert.equal(process.exitCode, 0);
+  });
+
   it('refuses to write over a file holding uncommitted work', async () => {
     const out = silence();
     const { courseDir, file, routes } = canvasMovedOn();

@@ -216,6 +216,236 @@ describe('embedded files land in the tree the run was pointed at', () => {
 });
 
 // ---------------------------------------------------------------------------
+// The git guard on an embedded download
+// ---------------------------------------------------------------------------
+
+/**
+ * What stops a download landing on bytes git holds no copy of.
+ *
+ * The destination is the Canvas file's `display_name` joined to the module's
+ * `_files/`, so an author's own `diagram.png` and a Canvas file called
+ * `diagram.png` are the same path — and the Canvas one wins by simply being
+ * written over it. Git is the undo for everything this tool writes; an
+ * untracked image is precisely the case where the local copy is the only copy,
+ * and `_files/` is where those live.
+ *
+ * The planner cannot make this call: the destination is not known until Canvas
+ * has answered `GET /files/:id` with a `display_name`, and the planner never
+ * touches the network. So the git answer the run already gathered is threaded
+ * through to the executor, and the refusal is shaped like `guardDirty` — a
+ * `skipped` entry with a reason and a remedy, not a failed run.
+ *
+ * The fence that matters most is the last two: a clean tree still downloads,
+ * and a destination that does not exist yet is never guarded. A guard that
+ * quietly turned embedded images off would pass every test above it.
+ */
+
+const AUTHOR_BYTES = 'MY-OWN-DIAGRAM';
+
+const CLEAN = { available: true, paths: new Set(), reason: null };
+const NO_GIT = {
+  available: false,
+  paths: new Set(),
+  reason: 'the tree is not inside a git repository',
+};
+/** What `gitDirtyPaths` returns for a dirty `_files/` binary: ancestors too. */
+const DIRTY_BINARY = {
+  available: true,
+  paths: new Set(['01-intro', '01-intro/_files', EMBEDDED_PATH]),
+  reason: null,
+};
+
+/** A course tree that already holds the author's own file at the collision. */
+function courseHolding(bytes) {
+  const courseDir = tempCourse();
+  const destination = path.join(courseDir, EMBEDDED_PATH);
+  fs.mkdirSync(path.dirname(destination), { recursive: true });
+  fs.writeFileSync(destination, bytes, 'utf8');
+  return courseDir;
+}
+
+/** Whether the run went past the metadata read to fetch the bytes. */
+function fetchedBytes(calls) {
+  return calls.some((call) => call.url.includes(`/blob/${FILE_ID}`));
+}
+
+describe('an embedded download onto uncommitted work', () => {
+  it('leaves an untracked binary alone, and reports the download it did not make', async () => {
+    silence();
+    const courseDir = courseHolding(AUTHOR_BYTES);
+    const state = stateWithModule();
+    const calls = mockCanvas(downloadRoutes());
+
+    const outcome = await run([writeAction('create-local-item')], {
+      courseDir,
+      state,
+      gitDirty: DIRTY_BINARY,
+    });
+
+    assert.deepEqual(outcome.errors, []);
+    assert.equal(
+      fs.readFileSync(path.join(courseDir, EMBEDDED_PATH), 'utf8'),
+      AUTHOR_BYTES,
+      'the only copy of the author’s bytes must survive',
+    );
+    assert.equal(fetchedBytes(calls), false, 'no bytes may be pulled down');
+
+    // Shaped like `guardDirty`: the run does not fail, it says what it would
+    // not do and how to let it.
+    assert.equal(outcome.skipped.length, 1);
+    assert.equal(outcome.skipped[0].reason, 'git-dirty');
+    assert.equal(outcome.skipped[0].itemPath, EMBEDDED_PATH);
+    assert.match(outcome.skipped[0].remedy, /Commit or stash/);
+
+    // No row: it would claim a Canvas file id and a hash for bytes this run
+    // never wrote, and the next run's already-downloaded check would then find
+    // the author's file sitting there and skip the download for ever.
+    assert.deepEqual(Object.keys(state.files), []);
+
+    // And the page keeps the Canvas URL rather than a relative link to a
+    // binary that is not the one Canvas is showing.
+    const markdown = fs.readFileSync(
+      path.join(courseDir, '01-intro/01-welcome.md'),
+      'utf8',
+    );
+    assert.match(markdown, /\/courses\/4242\/files\/777\/preview/);
+    assert.doesNotMatch(markdown, /\.\/_files\/diagram\.png/);
+  });
+
+  it('leaves a modified binary alone too', async () => {
+    silence();
+    // Git spells untracked `??` and modified ` M`; `gitDirtyPaths` collapses
+    // both into the same set, and so does the guard. Committed-then-edited
+    // bytes are no more recoverable than never-committed ones.
+    const courseDir = courseHolding('EDITED-SINCE-COMMIT');
+    const state = stateWithModule();
+    const calls = mockCanvas(downloadRoutes());
+
+    const outcome = await run([writeAction('update-local-item')], {
+      courseDir,
+      state,
+      gitDirty: DIRTY_BINARY,
+    });
+
+    assert.deepEqual(outcome.errors, []);
+    assert.equal(
+      fs.readFileSync(path.join(courseDir, EMBEDDED_PATH), 'utf8'),
+      'EDITED-SINCE-COMMIT',
+    );
+    assert.equal(fetchedBytes(calls), false);
+    assert.equal(outcome.skipped.length, 1);
+  });
+
+  it('downloads into a clean tree, so the guard has not turned the feature off', async () => {
+    silence();
+    const courseDir = tempCourse();
+    const state = stateWithModule();
+    mockCanvas(downloadRoutes());
+
+    const outcome = await run([writeAction('create-local-item')], {
+      courseDir,
+      state,
+      gitDirty: CLEAN,
+    });
+
+    assert.deepEqual(outcome.errors, []);
+    assert.deepEqual(outcome.skipped, []);
+    assert.equal(
+      fs.readFileSync(path.join(courseDir, EMBEDDED_PATH), 'utf8'),
+      BINARY,
+    );
+    assert.equal(state.files[EMBEDDED_PATH].canvas_file_id, FILE_ID);
+  });
+
+  it('writes over a committed binary, because git can put that one back', async () => {
+    silence();
+    // The guard is about what git cannot restore, not about `_files/` being
+    // special. A tracked file with no uncommitted changes is one `git checkout`
+    // away, so Canvas wins it exactly as it wins a tracked markdown file.
+    const courseDir = courseHolding('LAST-YEARS-DIAGRAM');
+    const state = stateWithModule();
+    mockCanvas(downloadRoutes());
+
+    const outcome = await run([writeAction('update-local-item')], {
+      courseDir,
+      state,
+      gitDirty: CLEAN,
+    });
+
+    assert.deepEqual(outcome.skipped, []);
+    assert.equal(
+      fs.readFileSync(path.join(courseDir, EMBEDDED_PATH), 'utf8'),
+      BINARY,
+    );
+  });
+
+  it('treats a binary already on disk as dirty when git cannot answer', async () => {
+    silence();
+    const courseDir = courseHolding(AUTHOR_BYTES);
+    const state = stateWithModule();
+    const calls = mockCanvas(downloadRoutes());
+
+    const outcome = await run([writeAction('update-local-item')], {
+      courseDir,
+      state,
+      gitDirty: NO_GIT,
+    });
+
+    assert.equal(fetchedBytes(calls), false);
+    assert.equal(outcome.skipped.length, 1);
+    assert.equal(
+      fs.readFileSync(path.join(courseDir, EMBEDDED_PATH), 'utf8'),
+      AUTHOR_BYTES,
+    );
+  });
+
+  it('protects what is on disk when no git answer was handed in at all', async () => {
+    silence();
+    // The default is the refusal, not the write. A caller that forgets to pass
+    // the git answer must not be the one place in the engine where the guard is
+    // quietly off.
+    const courseDir = courseHolding(AUTHOR_BYTES);
+    const state = stateWithModule();
+    const calls = mockCanvas(downloadRoutes());
+
+    const outcome = await run([writeAction('update-local-item')], {
+      courseDir,
+      state,
+    });
+
+    assert.equal(fetchedBytes(calls), false);
+    assert.equal(outcome.skipped.length, 1);
+    assert.equal(
+      fs.readFileSync(path.join(courseDir, EMBEDDED_PATH), 'utf8'),
+      AUTHOR_BYTES,
+    );
+  });
+
+  it('still downloads a file that is not there at all when git cannot answer', async () => {
+    silence();
+    // "I cannot tell" is a reason to protect what exists, and nothing more.
+    // Refusing to create a file that is not there destroys nothing and would
+    // disable embedded images entirely outside a checkout — which is also the
+    // default `applyPlan` falls back to when no git answer is handed in.
+    const courseDir = tempCourse();
+    const state = stateWithModule();
+    mockCanvas(downloadRoutes());
+
+    const outcome = await run([writeAction('create-local-item')], {
+      courseDir,
+      state,
+      gitDirty: NO_GIT,
+    });
+
+    assert.deepEqual(outcome.skipped, []);
+    assert.equal(
+      fs.readFileSync(path.join(courseDir, EMBEDDED_PATH), 'utf8'),
+      BINARY,
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Deleting an embedded binary nothing points at any more
 // ---------------------------------------------------------------------------
 

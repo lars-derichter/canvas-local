@@ -787,10 +787,15 @@ async function sync(options = {}) {
       courseId,
       courseDir,
       state,
+      gitDirty,
       canvasContent: canvas.content,
       save: (next) => saveState(next, syncFile),
       log,
     });
+    // A refusal the executor made belongs in the same section as the planner's,
+    // and is read by the same two things below: the "Skipped" listing and the
+    // exit code. Merged before the report is built, never after.
+    report.skipped.push(...outcome.skipped);
   } else {
     state.last_sync = new Date().toISOString();
     saveState(state, syncFile);

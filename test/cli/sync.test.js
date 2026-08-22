@@ -413,6 +413,99 @@ describe('npx course sync', () => {
       );
       assert.equal(process.exitCode, 1);
     });
+
+    it('refuses to download an embedded binary over uncommitted work', async () => {
+      // The same rule for the one write the planner cannot guard: the binary
+      // behind an embedded image, whose destination is not known until Canvas
+      // names it and which lands in a `_files/` folder the scanner never reads.
+      // The refusal comes from the executor, so this is also the assertion that
+      // sync merges those into the report the planner built.
+      const out = silence();
+      const { courseDir, file } = syncedFixture();
+      const embedded = '01-intro/_files/diagram.png';
+      fs.mkdirSync(path.join(courseDir, '01-intro/_files'), {
+        recursive: true,
+      });
+      fs.writeFileSync(path.join(courseDir, embedded), 'MY-OWN-DIAGRAM');
+
+      const embedding = {
+        ...PAGE,
+        body: '<p><img src="/courses/4242/files/777/preview" alt="Diagram"></p>',
+        updated_at: '2026-08-20T13:00:00.000Z',
+      };
+      mockCanvas([
+        ...readRoutes({ page: embedding }),
+        {
+          method: 'GET',
+          path: '/api/v1/files/777',
+          body: { id: 777, display_name: 'diagram.png' },
+        },
+      ]);
+
+      await sync({
+        courseDir,
+        syncFile: file,
+        interactive: false,
+        gitDirty: {
+          available: true,
+          paths: new Set(['01-intro', '01-intro/_files', embedded]),
+          reason: null,
+        },
+      });
+
+      assert.equal(
+        fs.readFileSync(path.join(courseDir, embedded), 'utf8'),
+        'MY-OWN-DIAGRAM',
+      );
+      assert.match(printed(out), /_files\/diagram\.png \(git-dirty\)/);
+      assert.deepEqual(readState(file).files, {});
+      assert.equal(process.exitCode, 1);
+    });
+
+    it('downloads an embedded binary over a committed one', async () => {
+      // The other half, and the one that proves sync hands the git answer down
+      // rather than the executor defaulting to "I cannot tell": a tracked file
+      // with no uncommitted changes is one `git checkout` away, so Canvas wins
+      // it exactly as it wins a tracked markdown file.
+      silence();
+      const { courseDir, file } = syncedFixture();
+      const embedded = '01-intro/_files/diagram.png';
+      fs.mkdirSync(path.join(courseDir, '01-intro/_files'), {
+        recursive: true,
+      });
+      fs.writeFileSync(path.join(courseDir, embedded), 'LAST-YEARS-DIAGRAM');
+
+      const embedding = {
+        ...PAGE,
+        body: '<p><img src="/courses/4242/files/777/preview" alt="Diagram"></p>',
+        updated_at: '2026-08-20T13:00:00.000Z',
+      };
+      const meta = {
+        id: 777,
+        display_name: 'diagram.png',
+        url: 'https://files.example.com/blob/777',
+      };
+      mockCanvas([
+        ...readRoutes({ page: embedding }),
+        { method: 'GET', path: '/api/v1/files/777', body: meta },
+        { method: 'GET', path: '/api/v1/files/777', body: meta },
+        { method: 'GET', path: '/blob/777', body: 'CANVAS-DIAGRAM' },
+      ]);
+
+      await sync({
+        courseDir,
+        syncFile: file,
+        interactive: false,
+        gitDirty: CLEAN,
+      });
+
+      assert.equal(
+        fs.readFileSync(path.join(courseDir, embedded), 'utf8'),
+        'CANVAS-DIAGRAM',
+      );
+      assert.equal(readState(file).files[embedded].canvas_file_id, 777);
+      assert.equal(process.exitCode, 0);
+    });
   });
 
   it('--dry-run writes to neither side', async () => {

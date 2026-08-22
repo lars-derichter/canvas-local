@@ -150,10 +150,19 @@ async function pull(options = {}) {
   // The whole of what --force does. The planner reads `dirty` per item and
   // nothing else, so clearing it here is the flag, stated once, rather than a
   // second condition threaded through every guard the engine has.
+  //
+  // The executor needs the same answer said its own way. Its one guarded write
+  // is the binary behind an embedded image, which lands in `_files/` — a folder
+  // the scanner never descends into, so no item's `dirty` can speak for it and
+  // the loop above cannot reach it. Handing the executor a clean git answer is
+  // the same sentence as that loop: for the rest of this run, treat the tree as
+  // holding nothing that needs protecting.
+  let writeGuard = gitDirty;
   if (force) {
     for (const module of local.modules) {
       for (const item of module.items) item.dirty = false;
     }
+    writeGuard = { available: true, paths: new Set(), reason: null };
   }
 
   log.info(`[pull] Reading Canvas course ${courseId}...`);
@@ -222,10 +231,15 @@ async function pull(options = {}) {
       courseId,
       courseDir,
       state,
+      gitDirty: writeGuard,
       canvasContent: canvas.content,
       save: (next) => saveState(next, syncFile),
       log,
     });
+    // A refusal the executor made belongs in the same section as the planner's,
+    // and is read by the same two things below: the "Skipped" listing and the
+    // exit code. Merged before the report is built, never after.
+    report.skipped.push(...outcome.skipped);
   } else {
     state.last_sync = new Date().toISOString();
     saveState(state, syncFile);
