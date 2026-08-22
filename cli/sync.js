@@ -8,6 +8,7 @@ const {
 const { loadState, saveState } = require('../lib/sync/state');
 const { COURSE_DIR, createRL, prompt } = require('./module-utils');
 const { BACKUP_HINT } = require('./backup-warning');
+const { warnGradeImpact } = require('./grade-impact');
 const log = require('./logger');
 
 /**
@@ -708,6 +709,14 @@ async function sync(options = {}) {
   // pure function of the same three inputs.
   const resolved = await askPending(report, { interactive });
   if (resolved) report = plan({ ...inputs, policy: { ...policy, resolved } });
+
+  // Three of the fields an assignment update sends move grades that are already
+  // in the gradebook, and the plan is what says which assignments this run
+  // updates at all. Asked after the questions rather than before them, because
+  // a conflict the author gave to Canvas is a local edit that never reaches the
+  // assignment — warning about it off the first plan would name a change this
+  // run has just decided not to make.
+  await warnGradeImpact(courseId, report, { courseDir, tag: 'sync' });
 
   // Whether this run is still one that prunes, which a declined confirmation
   // makes it not. The report reads the answer rather than the flag: "nothing

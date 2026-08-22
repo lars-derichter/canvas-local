@@ -1,13 +1,8 @@
-const fs = require('fs');
-const path = require('path');
-
-const { parseFrontmatter } = require('../lib/convert/frontmatter');
 const { listModules } = require('../lib/canvas/modules');
 const { listPages } = require('../lib/canvas/pages');
 const {
   listAssignments,
   getSubmissionStates,
-  hasStudentSubmissions,
 } = require('../lib/canvas/assignments');
 const {
   getDiscussion,
@@ -16,7 +11,6 @@ const {
 } = require('../lib/canvas/discussions');
 const { plan } = require('../lib/sync/plan');
 const { applyPlan } = require('../lib/sync/apply');
-const { assignmentStrategy } = require('../lib/sync/canvas-write');
 const {
   gatherCanvas,
   gatherLocal,
@@ -31,6 +25,7 @@ const {
   submissionRiskSuffix,
   submissionWarningLines,
 } = require('./backup-warning');
+const { warnGradeImpact } = require('./grade-impact');
 const buildReport = require('./sync')._buildReport;
 const log = require('./logger');
 
@@ -67,10 +62,9 @@ const log = require('./logger');
  * What this tool sends Canvas per type is no longer here: the three content
  * strategies, `buildFileResolver`, `pushQuiz`, `pushExternalTool` and
  * `refuseQuizBackedDelete` live in `lib/sync/canvas-write.js`, where the engine
- * that calls them can reach them without requiring a command. Push imports
- * `assignmentStrategy` from there like any other caller: the grade-impact
- * warning builds exactly what the push will send, so the comparison can never
- * drift from what goes over the wire.
+ * that calls them can reach them without requiring a command. Nor is the
+ * grade-impact warning: `sync` writes assignments too and needs the same words,
+ * so it lives in `cli/grade-impact.js`, which both commands import.
  */
 
 /** `1 item` / `3 items`, so a count never reads as a stutter. */
@@ -211,7 +205,7 @@ async function push(options = {}) {
   // Three of the fields an assignment update sends move grades that are already
   // in the gradebook, and the plan is what says which assignments this run
   // updates at all.
-  await warnGradeImpact(courseId, report, { courseDir });
+  await warnGradeImpact(courseId, report, { courseDir, tag: 'push' });
 
   // Whether this run is still one that prunes, which a declined confirmation
   // makes it not. The report reads the answer rather than the flag: "nothing
@@ -392,227 +386,6 @@ async function confirmPrune(courseId, report, { interactive, dryRun }) {
   const ok = answer.trim().toLowerCase() === 'y';
   if (!ok) log.info('[push] Nothing was deleted.');
   return ok;
-}
-
-// ---------------------------------------------------------------------------
-// Grades an assignment update moves
-// ---------------------------------------------------------------------------
-
-/** A value as it should read inside a warning; an absent one says so. */
-function describeValue(value) {
-  if (value == null || value === '') return 'not set';
-  if (Array.isArray(value)) return value.join(', ');
-  if (value instanceof Date) return value.toISOString();
-  return String(value);
-}
-
-/** Two dates are the same date when they name the same instant, however written. */
-function asInstant(value) {
-  if (value == null || value === '') return null;
-  const time = new Date(value).getTime();
-  return Number.isNaN(time) ? String(value) : time;
-}
-
-/** Submission types compare as a set: order and spacing are Canvas's business. */
-function asTypeSet(value) {
-  if (value == null) return '';
-  const list = Array.isArray(value) ? value : String(value).split(',');
-  return list
-    .map((type) => String(type).trim())
-    .filter(Boolean)
-    .sort()
-    .join(',');
-}
-
-/**
- * The three fields push sends that move grades on an assignment students have
- * already submitted to. Canvas applies each one silently: its web editor warns
- * about them, its API does not, so this is the only place the warning can come
- * from. `sent` reads what push is about to send, `live` what Canvas holds now.
- */
-const GRADE_IMPACT_FIELDS = [
-  {
-    name: 'points_possible',
-    sent: (opts) => opts.pointsPossible,
-    live: (assignment) => assignment.points_possible,
-    normalize: (value) =>
-      value == null || value === '' ? null : Number(value),
-    consequence:
-      'Canvas does not rescale the grades already given: the raw scores stay ' +
-      'as they are, so every percentage in that gradebook column moves.',
-  },
-  {
-    name: 'due_at',
-    sent: (opts) => opts.dueAt,
-    live: (assignment) => assignment.due_at,
-    normalize: asInstant,
-    consequence:
-      'Canvas recomputes late status against the new date, so an automatic ' +
-      'late policy re-applies or drops its deductions on submissions that ' +
-      'are already graded.',
-  },
-  {
-    name: 'submission_types',
-    sent: (opts) => opts.submissionTypes,
-    live: (assignment) => assignment.submission_types,
-    normalize: asTypeSet,
-    consequence:
-      'Canvas only accepts that change while an assignment has no ' +
-      'submissions: it ignores this one, reports the push as a success, and ' +
-      'keeps the value it already has, which the frontmatter no longer matches.',
-  },
-];
-
-/**
- * The warning lines for one assignment about to be updated: one per field that
- * changes value and moves grades with it.
- *
- * An assignment with no submissions has no grades to move, so it stays silent.
- * A submission state that could not be read is never treated as that, though —
- * it gets the same warning, hedged.
- *
- * @param {string} label     - The assignment, named as it is in the warning.
- * @param {object} opts      - What push is about to send (from buildOpts).
- * @param {object} current   - The Canvas Assignment object as it stands.
- * @returns {string[]}
- */
-function gradeImpactWarnings(label, opts, current) {
-  const state = hasStudentSubmissions(current);
-  if (state === false) return [];
-
-  const lead =
-    state === true
-      ? `WARNING: ${label} has student submissions, and this push changes`
-      : `WARNING: could not determine whether ${label} has student ` +
-        'submissions, and this push changes';
-  const hedge = state === true ? '' : 'Treat it as if it does. ';
-
-  const lines = [];
-  for (const field of GRADE_IMPACT_FIELDS) {
-    const sent = field.sent(opts);
-    // Not sent, not changed: buildOpts leaves a field out entirely when the
-    // frontmatter has none, and Canvas keeps whatever it holds.
-    if (sent === undefined) continue;
-    const live = field.live(current);
-    if (field.normalize(sent) === field.normalize(live)) continue;
-
-    lines.push(
-      `${lead} ${field.name} from ${describeValue(live)} to ` +
-        `${describeValue(sent)}. ${hedge}${field.consequence}`,
-    );
-  }
-  return lines;
-}
-
-/** The frontmatter of a local markdown item, or an empty object. */
-function frontmatterOf(courseDir, itemPath) {
-  try {
-    const raw = fs.readFileSync(path.join(courseDir, itemPath), 'utf8');
-    return parseFrontmatter(raw).data || {};
-  } catch {
-    return {};
-  }
-}
-
-/**
- * The assignments a run will update, read off the plan.
- *
- * The plan is the only thing that knows which assignments this run touches, and
- * it distinguishes the two cases that matter on its own: an update names a
- * Canvas object that already exists and may hold student work, a create names
- * one that does not exist yet and cannot. An adoption is an ordinary update, so
- * an assignment claimed from an existing Canvas one is covered too.
- *
- * Each entry carries the options push itself will send, built by the same
- * `buildOpts` the executor calls, so the comparison can never drift from what
- * goes over the wire. The description is irrelevant to all three fields, so an
- * empty body is enough to build them.
- *
- * @param {object} report            - What `plan()` returned.
- * @param {object} options
- * @param {string} options.courseDir - Absolute path of `course/`.
- */
-function collectUpdatedAssignments(report, { courseDir } = {}) {
-  const updated = [];
-  for (const action of (report && report.actions) || []) {
-    if (action.type !== 'update-canvas-item') continue;
-    if (action.canvasType !== 'assignment') continue;
-    if (action.canvasId == null) continue;
-    updated.push({
-      title: action.title,
-      relativePath: action.itemPath,
-      canvasId: action.canvasId,
-      opts: assignmentStrategy.buildOpts(
-        action.title,
-        '',
-        frontmatterOf(courseDir, action.itemPath),
-      ),
-    });
-  }
-  return updated;
-}
-
-/**
- * Warn about every field this push is about to change on an assignment that
- * students have already submitted to.
- *
- * Push sends the whole assignment on every update, and three of those fields
- * move grades that are already in the gradebook. What gets sent is unchanged
- * and nothing is blocked: a re-weighting can be deliberate, and only the author
- * knows. Naming the old and the new value is what separates the deliberate
- * change from the typo.
- *
- * One list request answers it for the entire run: the Assignment objects a list
- * returns carry has_submitted_submissions along with the current value of all
- * three fields, so nothing needs fetching per assignment. A run that updates no
- * existing assignment makes no request at all.
- *
- * A lookup that fails costs the warning, never the push.
- *
- * @param {string|number} courseId
- * @param {object} report                       - What `plan()` returned.
- * @param {object} options
- * @param {string} options.courseDir            - Absolute path of `course/`.
- * @param {Function} [options.fetchAssignments] - Injection point for tests.
- * @returns {Promise<string[]>} The warning lines, already logged.
- */
-async function warnGradeImpact(
-  courseId,
-  report,
-  { courseDir, fetchAssignments = listAssignments } = {},
-) {
-  const updated = collectUpdatedAssignments(report, { courseDir });
-  if (updated.length === 0) return [];
-
-  let current;
-  try {
-    current = await fetchAssignments(courseId);
-  } catch (err) {
-    log.warn(
-      '\n[push] WARNING: could not check the assignments for student ' +
-        `submissions, so this push may change grades without saying so: ${err.message}`,
-    );
-    return [];
-  }
-
-  const byId = new Map();
-  for (const assignment of current || []) {
-    byId.set(String(assignment.id), assignment);
-  }
-
-  const lines = [];
-  for (const { title, relativePath, canvasId, opts } of updated) {
-    const assignment = byId.get(String(canvasId));
-    // An id Canvas does not list is gone: the executor recreates the
-    // assignment, and a new one holds no student work.
-    if (!assignment) continue;
-    lines.push(
-      ...gradeImpactWarnings(`"${title}" (${relativePath})`, opts, assignment),
-    );
-  }
-
-  for (const line of lines) log.warn(`\n[push] ${line}`);
-  return lines;
 }
 
 // ---------------------------------------------------------------------------
@@ -813,8 +586,5 @@ function submissionRiskNoun(actions) {
 module.exports = push;
 // Exported for testing
 push._annotateSubmissions = annotateSubmissions;
-push._collectUpdatedAssignments = collectUpdatedAssignments;
 push._describeDoomedItem = describeDoomedItem;
-push._gradeImpactWarnings = gradeImpactWarnings;
 push._submissionRiskNoun = submissionRiskNoun;
-push._warnGradeImpact = warnGradeImpact;

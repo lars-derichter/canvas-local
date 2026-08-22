@@ -8,13 +8,11 @@ const path = require('path');
 process.env.CANVAS_API_URL = 'https://canvas.example.com';
 process.env.CANVAS_API_TOKEN = 'test-token-123';
 
-const push = require('../../cli/push');
-const { serializeFrontmatter } = require('../../lib/convert/frontmatter');
-
 const {
-  _warnGradeImpact: warnGradeImpact,
-  _collectUpdatedAssignments: collectUpdatedAssignments,
-} = push;
+  warnGradeImpact,
+  collectUpdatedAssignments,
+} = require('../../cli/grade-impact');
+const { serializeFrontmatter } = require('../../lib/convert/frontmatter');
 
 // ---------------------------------------------------------------------------
 // The grades an assignment update moves
@@ -79,7 +77,11 @@ function collectFor(entries) {
 /** `warnGradeImpact` over the plan these entries describe. */
 function warnFor(entries, fetchAssignments) {
   const { courseDir, report } = planned(entries);
-  return warnGradeImpact(42, report, { courseDir, fetchAssignments });
+  return warnGradeImpact(42, report, {
+    courseDir,
+    tag: 'push',
+    fetchAssignments,
+  });
 }
 
 /** A Canvas Assignment object as a list response returns it. */
@@ -234,7 +236,7 @@ describe('warnGradeImpact', () => {
       /changes submission_types from online_upload to online_text_entry/,
     );
     assert.match(lines[0], /it ignores this one/);
-    assert.match(lines[0], /reports the push as a success/);
+    assert.match(lines[0], /reports the write as a success/);
   });
 
   it('says nothing about an assignment without student submissions', async () => {

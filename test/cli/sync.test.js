@@ -646,6 +646,129 @@ describe('npx course sync', () => {
     });
   });
 
+  describe('an assignment update that moves grades', () => {
+    const ASSIGNMENT = {
+      id: 601,
+      name: 'Homework',
+      description: '<p>Do it.</p>',
+      points_possible: 10,
+      has_submitted_submissions: true,
+      updated_at: '2026-08-20T11:00:00.000Z',
+    };
+    const HW_ITEM = {
+      id: 91,
+      type: 'Assignment',
+      title: 'Homework',
+      content_id: 601,
+      position: 1,
+      indent: 0,
+    };
+
+    /** A course whose one assignment is re-weighted locally and not on Canvas. */
+    function reweighted() {
+      const courseDir = tempDir({
+        '01-intro/_category_.json': '{ "label": "Intro", "position": 1 }\n',
+        '01-intro/01-hw.md':
+          '---\ntitle: Homework\ncanvas_type: assignment\n' +
+          'points_possible: 12\n---\n\nDo it.\n',
+      });
+      const { canvasFingerprint } = require('../../lib/sync/fingerprint');
+      const file = stateFile({
+        modules: {
+          '01-intro': {
+            canvas_module_id: 10,
+            name: 'Intro',
+            position: 1,
+            item_order: ['01-intro/01-hw.md'],
+            items: {
+              '01-intro/01-hw.md': {
+                canvas_type: 'assignment',
+                canvas_id: 601,
+                module_item_id: 91,
+                title: 'Homework',
+                local_hash: 'whatever-it-was',
+                canvas_hash: canvasFingerprint(
+                  { item: HW_ITEM, content: ASSIGNMENT },
+                  'assignment',
+                ),
+                canvas_updated_at: ASSIGNMENT.updated_at,
+                synced_at: '2026-08-20T09:00:00.000Z',
+              },
+            },
+          },
+        },
+      });
+      return {
+        courseDir,
+        file,
+        routes: [
+          { method: 'GET', path: '/modules/10/items', body: [HW_ITEM] },
+          {
+            method: 'GET',
+            path: '/modules',
+            body: [{ id: 10, name: 'Intro', position: 1 }],
+          },
+          // One list for the fingerprints, one for the grade-impact check.
+          { method: 'GET', path: '/assignments', body: [ASSIGNMENT] },
+          { method: 'GET', path: '/assignments', body: [ASSIGNMENT] },
+          { method: 'PUT', path: '/assignments/601', body: ASSIGNMENT },
+        ],
+      };
+    }
+
+    it('names the field, both values and the consequence before it writes', async () => {
+      // Canvas applies all three of these silently through the API: its web
+      // editor warns, its API does not. A sync that pushed the change said
+      // nothing at all, in the command an author reaches for most.
+      const out = silence();
+      const { courseDir, file, routes } = reweighted();
+      mockCanvas(routes);
+
+      await sync({
+        courseDir,
+        syncFile: file,
+        gitDirty: CLEAN,
+        interactive: false,
+      });
+
+      const warned = out.warn.mock.calls
+        .map((call) => call.arguments.join(' '))
+        .join('\n');
+      assert.match(warned, /\[sync\]/, 'the warning is this command’s');
+      assert.match(warned, /"Homework" \(01-intro\/01-hw\.md\)/);
+      assert.match(warned, /has student submissions/);
+      assert.match(warned, /changes points_possible from 10 to 12/);
+      assert.match(warned, /does not rescale the grades already given/);
+    });
+
+    it('says nothing when Canvas holds no submissions for it', async () => {
+      const out = silence();
+      const { courseDir, file, routes } = reweighted();
+      mockCanvas(
+        routes.map((route) =>
+          route.method === 'GET' && route.path === '/assignments'
+            ? {
+                ...route,
+                body: [{ ...ASSIGNMENT, has_submitted_submissions: false }],
+              }
+            : route,
+        ),
+      );
+
+      await sync({
+        courseDir,
+        syncFile: file,
+        gitDirty: CLEAN,
+        interactive: false,
+      });
+
+      assert.doesNotMatch(
+        out.warn.mock.calls.map((call) => call.arguments.join(' ')).join('\n'),
+        /points_possible/,
+      );
+    });
+  });
+
   it('refuses a course whose state links nothing, and fails the run', async () => {
     silence();
     const courseDir = tempDir({
