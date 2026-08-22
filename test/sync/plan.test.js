@@ -1258,6 +1258,41 @@ describe('plan: adoption', () => {
     });
   });
 
+  it('marks the update as an adoption, which nothing else told apart', () => {
+    // `planCanvasUpdate` and `adoptPair` emit the same type and, before this,
+    // the same fields. The executor needs the difference for one thing:
+    // `writeTitleIfAbsent`, which puts a `title:` into a markdown item that
+    // declares none so that its Canvas name stops following its filename
+    // around. Creating an object and claiming one are the same moment for that
+    // — and an ordinary push is not, because writing into a file the author is
+    // merely pushing would be sync editing their tree unasked.
+    assert.equal(
+      only(
+        plan({ ...both(), policy: { adopt: 'local' } }),
+        'update-canvas-item',
+      ).adopted,
+      true,
+    );
+
+    const ordinary = plan({
+      base: { modules: { [FOLDER]: bMod([PATH]) } },
+      local: {
+        modules: [
+          lMod(FOLDER, [PATH], {
+            items: { [PATH]: { localHash: 'L:edited' } },
+          }),
+        ],
+      },
+      canvas: { modules: [cMod([PATH])] },
+      policy: {},
+    });
+    assert.equal(
+      only(ordinary, 'update-canvas-item').adopted,
+      undefined,
+      'an ordinary update must not claim to be an adoption',
+    );
+  });
+
   it('claims it the other way round under a Canvas-pinned run', () => {
     const result = plan({ ...both(), policy: { adopt: 'canvas' } });
 

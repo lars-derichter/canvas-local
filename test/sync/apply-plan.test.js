@@ -1066,6 +1066,135 @@ describe('the module link, over two passes', () => {
     assert.deepEqual(second.adopted, [], 'there is nothing left to adopt');
   });
 
+  it('writes a title into the item it adopted, and settles after', async () => {
+    // The page carries no `title:`, so its name comes from its filename — and
+    // that is the coupling `writeTitleIfAbsent` exists to break, because
+    // `renumber` renames files by the dozen and would then rename the Canvas
+    // item under the author. It ran on the create handler alone, and an
+    // adoption is not a create: it is an `update-canvas-item` from `adoptPair`.
+    //
+    // Both halves again. The title has to land in the file, and the row that
+    // the same write records has to describe the file *including* it, or the
+    // adopted item reads as changed locally on every run after this one.
+    silence();
+    const courseDir = tempCourse({
+      '01-intro/_category_.json': '{ "label": "Intro", "position": 1 }\n',
+      '01-intro/01-welcome.md': 'Local copy.\n',
+    });
+    const state = emptyState();
+    const welcome = path.join(courseDir, '01-intro/01-welcome.md');
+
+    const item = {
+      id: 91,
+      type: 'Page',
+      title: 'Welcome',
+      page_url: 'welcome',
+      content_id: 501,
+      position: 1,
+      indent: 0,
+    };
+    const page = {
+      page_id: 501,
+      url: 'welcome',
+      title: 'Welcome',
+      body: '<p>Local copy.</p>',
+      updated_at: '2026-08-20T11:00:00.000Z',
+    };
+    const reads = () => [
+      { method: 'GET', path: '/modules/10/items', body: [item] },
+      {
+        method: 'GET',
+        path: '/modules',
+        body: [{ id: 10, name: 'Intro', position: 1 }],
+      },
+      { method: 'GET', path: '/pages/welcome', body: page },
+      {
+        method: 'GET',
+        path: '/pages',
+        body: [
+          {
+            page_id: 501,
+            url: 'welcome',
+            title: 'Welcome',
+            updated_at: page.updated_at,
+          },
+        ],
+      },
+    ];
+    const pinned = {
+      write: { canvas: true, local: false },
+      adopt: 'local',
+    };
+
+    // --- Pass 1: the Canvas page is claimed rather than duplicated -----------
+    mockCanvas(reads());
+    let canvas = await gatherCanvas({ courseId: COURSE_ID, base: state });
+    const first = plan({
+      base: state,
+      local: gatherLocal({ courseDir, gitDirty: CLEAN }),
+      canvas,
+      policy: pinned,
+    });
+    assert.deepEqual(
+      first.actions.map((action) => action.type),
+      ['link-base-module', 'update-canvas-item'],
+    );
+
+    mock.restoreAll();
+    mockCanvas([{ method: 'PUT', path: '/pages/501', body: page }]);
+    const outcome = await run(first, {
+      courseDir,
+      state,
+      canvasContent: canvas.content,
+    });
+    assert.deepEqual(outcome.errors, []);
+
+    assert.match(
+      fs.readFileSync(welcome, 'utf8'),
+      /^title: Welcome$/m,
+      'the adopted item still has no title of its own',
+    );
+    assert.equal(
+      state.modules['01-intro'].items['01-intro/01-welcome.md'].local_hash,
+      hashLocalFile(welcome),
+      'the row has to describe the file as the write left it',
+    );
+
+    // --- Pass 2: nothing has moved on either side ----------------------------
+    mock.restoreAll();
+    mockCanvas(reads());
+    const second = plan({
+      base: state,
+      local: gatherLocal({ courseDir, gitDirty: CLEAN }),
+      canvas: await gatherCanvas({ courseId: COURSE_ID, base: state }),
+      policy: pinned,
+    });
+
+    assert.deepEqual(
+      second.actions,
+      [],
+      'the title write leaves the item reading as changed unless the row saw it',
+    );
+    assert.deepEqual(second.withheld, []);
+    assert.deepEqual(second.adopted, []);
+
+    // --- And renumbering the file no longer renames it on Canvas -------------
+    fs.renameSync(welcome, path.join(courseDir, '01-intro/04-welcome.md'));
+    mock.restoreAll();
+    mockCanvas(reads());
+    const renumbered = plan({
+      base: state,
+      local: gatherLocal({ courseDir, gitDirty: CLEAN }),
+      canvas: await gatherCanvas({ courseId: COURSE_ID, base: state }),
+      policy: pinned,
+    });
+    assert.deepEqual(
+      renumbered.actions.map((action) => action.type),
+      ['rekey-base'],
+      'the whole point: the file moved and the Canvas item kept its name',
+    );
+  });
+
   it('links a module plain sync paired, so the second pass is empty', async () => {
     // No adoption anywhere: a pair with items on one side only never trips the
     // collision guard, so `sync` reaches the same branch. Gating the link on

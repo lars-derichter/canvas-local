@@ -459,6 +459,140 @@ describe('a title change that the content did not cause', () => {
  * the row is recorded and the wrapper reads as changed locally on the very next
  * run, for ever.
  */
+describe('an item this tool adopted rather than created', () => {
+  /** The wrapper as an author leaves it: no `title:`, so the filename is it. */
+  function untitledWrapper(courseDir) {
+    fs.writeFileSync(
+      path.join(courseDir, WRAPPER),
+      '---\ncanvas_type: file\nfile_ref: _files/handbook.pdf\n---\n',
+      'utf8',
+    );
+  }
+
+  /** The module linked, and no row for the item — which is what adoption is. */
+  function stateAwaitingAdoption() {
+    const state = stateWithFileItem();
+    state.modules['01-intro'].items = {};
+    state.modules['01-intro'].item_order = [];
+    return state;
+  }
+
+  /** What the next `gatherLocal` will say the wrapper hashes to. */
+  function gatheredHash(courseDir) {
+    return gatherLocal({ courseDir, gitDirty: CLEAN })
+      .modules.flatMap((module) => module.items)
+      .find((item) => item.itemPath === WRAPPER).localHash;
+  }
+
+  it('writes the title in, and fingerprints the file including it', async () => {
+    silence();
+    // Two claims, because either alone is satisfied by a defect. The title has
+    // to reach the file at all — that is the hole — and the row has to describe
+    // the file *with* it, which is the ordering the docblock spells out and the
+    // half that `cfa6919` made easy to get wrong.
+    const courseDir = tempCourse();
+    untitledWrapper(courseDir);
+    const state = stateAwaitingAdoption();
+    const before = gatheredHash(courseDir);
+
+    mockCanvas([
+      ...uploadRoutes(OLD_FILE_ID, 'handbook.pdf'),
+      {
+        method: 'PUT',
+        path: `/modules/${MODULE_ID}/items/${MODULE_ITEM_ID}`,
+        body: { id: MODULE_ITEM_ID, title: 'Syllabus', indent: 0 },
+      },
+    ]);
+
+    const outcome = await run([{ ...updateAction(), adopted: true }], {
+      courseDir,
+      state,
+    });
+    assert.deepEqual(outcome.errors, []);
+
+    assert.match(
+      fs.readFileSync(path.join(courseDir, WRAPPER), 'utf8'),
+      /^title: Syllabus$/m,
+      'an adopted item still takes its name from its filename',
+    );
+
+    const recorded = state.modules['01-intro'].items[WRAPPER].local_hash;
+    assert.notEqual(
+      recorded,
+      before,
+      'the line moved the wrapper’s hash, so the row cannot predate it',
+    );
+    assert.equal(
+      recorded,
+      gatheredHash(courseDir),
+      'the row must describe the file the next gather will read',
+    );
+  });
+
+  it('does not write into the author’s file on an ordinary update', async () => {
+    silence();
+    // The fence that matters most. Every push of an edited item comes through
+    // the same handler, and writing a `title:` into each one would be sync
+    // editing the author's tree unasked — a different and worse thing than the
+    // one being fixed. The only difference between this and the case above is
+    // the flag.
+    const courseDir = tempCourse();
+    untitledWrapper(courseDir);
+    const original = fs.readFileSync(path.join(courseDir, WRAPPER), 'utf8');
+    const state = stateWithFileItem();
+
+    mockCanvas([
+      ...uploadRoutes(OLD_FILE_ID, 'handbook.pdf'),
+      {
+        method: 'PUT',
+        path: `/modules/${MODULE_ID}/items/${MODULE_ITEM_ID}`,
+        body: { id: MODULE_ITEM_ID, title: 'Syllabus', indent: 0 },
+      },
+    ]);
+
+    const outcome = await run([updateAction()], { courseDir, state });
+    assert.deepEqual(outcome.errors, []);
+    assert.equal(
+      fs.readFileSync(path.join(courseDir, WRAPPER), 'utf8'),
+      original,
+      'an ordinary push may not touch the file it is pushing',
+    );
+    assert.equal(
+      state.modules['01-intro'].items[WRAPPER].local_hash,
+      gatheredHash(courseDir),
+      'and the row still has to agree with the file either way',
+    );
+  });
+
+  it('leaves a title the author wrote exactly as it is', async () => {
+    silence();
+    // The wrapper the shared fixture builds already declares one. Adoption is
+    // not licence to rename the author's item: what it is called is theirs.
+    const courseDir = tempCourse();
+    const original = fs.readFileSync(path.join(courseDir, WRAPPER), 'utf8');
+    const state = stateAwaitingAdoption();
+
+    mockCanvas([
+      ...uploadRoutes(OLD_FILE_ID, 'handbook.pdf'),
+      {
+        method: 'PUT',
+        path: `/modules/${MODULE_ID}/items/${MODULE_ITEM_ID}`,
+        body: { id: MODULE_ITEM_ID, title: 'Syllabus', indent: 0 },
+      },
+    ]);
+
+    const outcome = await run(
+      [{ ...updateAction(), title: 'Something Else', adopted: true }],
+      { courseDir, state },
+    );
+    assert.deepEqual(outcome.errors, []);
+    assert.equal(
+      fs.readFileSync(path.join(courseDir, WRAPPER), 'utf8'),
+      original,
+    );
+  });
+});
+
 describe('an upload that renamed nothing deletes nothing', () => {
   it('costs no lookup at all when the upload landed on the same file', async () => {
     silence();
