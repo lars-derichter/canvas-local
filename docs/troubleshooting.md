@@ -100,11 +100,23 @@ see [Backing up a Canvas course](backups.md).
 
 ### Corrupted .canvas-sync.json
 
-If the sync file becomes corrupted (e.g. partial write during a crash), delete
-it and run `npx course push` to regenerate it. No markdown file names the Canvas
-object it became, so there is nothing to match on file by file: push claims a
-Canvas object of the same type and title in the module the file sits in, and
-writes the pair back into the state.
+The sync file is committed, so the first answer is git rather than the CLI. Take
+the last good copy back:
+
+```bash
+git checkout -- .canvas-sync.json
+```
+
+That gives you the file as your last commit had it. Anything a push created
+since that commit is missing from it, and the next push claims those objects
+back by title.
+
+If git has no good copy either, because the file was never committed or the
+corruption was committed with it, delete it and run `npx course push` to
+regenerate it. No markdown file names the Canvas object it became, so there is
+nothing to match on file by file: push claims a Canvas object of the same type
+and title in the module the file sits in, and writes the pair back into the
+state.
 
 A binary in `_files/` has no frontmatter to carry an id and needs none: push
 uploads it again, and Canvas overwrites the file of the same name it already
@@ -123,8 +135,9 @@ delete a file belonging to the other course.
 Two ways out, and which one is right depends on what you meant:
 
 - **You did not mean to switch.** Put the original course id back in `.env`.
-  This is the usual case: a `CANVAS_COURSE_ID=` you edited to try something, or
-  a one-off override that wrote the sync file.
+  This is the usual case: a `CANVAS_COURSE_ID=` you edited to try something, a
+  one-off override that wrote the sync file, or, now that the sync file is
+  committed, a clone or a branch that arrived already describing another course.
 - **You did mean to switch.** Run `npx course reset-sync-state`, then push. The
   new course gets everything fresh, so check that it does not already hold a
   copy — push cannot recognise content it has no ids for, and you would end up

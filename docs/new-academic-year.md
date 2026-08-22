@@ -112,6 +112,10 @@ file and folder is, and sweeps up the `canvas_id` and `canvas_module_id` fields
 older versions of this tool wrote into `course/`. Your content is untouched —
 only the sync bookkeeping goes.
 
+That file is committed, so its deletion is a change to your project like any
+other: stage it and commit it. The push in step 6 writes a new one, naming the
+new course's objects, and that belongs in a commit too.
+
 ## 6. Push to Canvas
 
 Push all course materials to the new Canvas course:

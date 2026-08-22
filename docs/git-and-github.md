@@ -157,6 +157,33 @@ changes:
 > quizzes, or student submissions. Backing those up is a separate job: see
 > [Backing up a Canvas course](backups.md).
 
+### Commit the Canvas Sync File
+
+Your project holds one file you did not write: `.canvas-sync.json`. Canvas
+Course Builder writes it when you connect the project to a Canvas course, and
+updates it on every push and pull after that. It records which Canvas page,
+assignment or discussion each of your markdown files became, and nothing else in
+your project does.
+
+Commit it like any other file. `git add .` picks it up along with your markdown,
+so the three commands above already do the right thing. What you must not do is
+add it to `.gitignore` to get it out of the way.
+
+It matters as soon as there is a second copy of your project: a clone on another
+machine, a colleague's checkout, or a fresh one you make after losing the
+original. With the file committed, that copy arrives already knowing which
+Canvas objects the course owns, and a push from it updates those objects.
+Without it, the copy falls back on matching titles, and anything whose title no
+longer matches the one in Canvas is created a second time instead of updated.
+
+There is one more thing to know about a copy that travels. The sync file names
+the Canvas course it was built against, and so does `.env`. If the two disagree,
+every command that reads the sync file stops and names both courses rather than
+pushing one course's ids at the other. A clone is the easy way to arrange that:
+point its `.env` at a course of your own and the sync file still describes the
+original. Troubleshooting covers
+[which of the two to change](troubleshooting.md#canvas-syncjson-describes-course-n).
+
 ## Next Steps
 
 With git and GitHub set up, continue with
