@@ -301,6 +301,210 @@ describe('the fingerprint invariant, local direction', () => {
   });
 });
 
+describe('the fingerprint invariant, a file item and its binary', () => {
+  it('is silent on the second run and speaks up when the binary moves', async () => {
+    silence();
+    // Two runs and then a third, because either half alone can be had cheaply
+    // and wrongly. A fingerprint that ignores the binary is quiet on run two
+    // and stays quiet after the edit; one that gather and apply spell
+    // differently notices the edit and also re-pushes the item for ever.
+    const courseDir = tempCourse({
+      '01-intro/_category_.json': '{ "label": "Intro", "position": 1 }\n',
+      '01-intro/03-syllabus.md':
+        '---\ntitle: Syllabus\ncanvas_type: file\nfile_ref: _files/handbook.pdf\n---\n',
+      '01-intro/_files/handbook.pdf': 'last year’s handbook',
+    });
+    const state = emptyState();
+
+    const uploaded = {
+      id: 770,
+      display_name: 'handbook.pdf',
+      size: 20,
+      updated_at: '2026-08-20T11:00:00.000Z',
+    };
+    const item = {
+      id: 91,
+      type: 'File',
+      title: 'Syllabus',
+      content_id: 770,
+      position: 1,
+      indent: 0,
+    };
+    // The order matters: `/modules` is a substring of `/modules/10/items`, so
+    // the specific route has to be offered to the matcher first.
+    const canvasReads = () => [
+      { method: 'GET', path: '/modules/10/items', body: [item] },
+      {
+        method: 'GET',
+        path: '/modules',
+        body: [{ id: 10, name: 'Intro', position: 1 }],
+      },
+      { method: 'GET', path: '/api/v1/files/770', body: uploaded },
+    ];
+
+    // --- Run one: the course is on Canvas and holds none of this -------------
+    mockCanvas([{ method: 'GET', path: '/modules', body: [] }]);
+    let canvas = await gatherCanvas({ courseId: COURSE_ID, base: state });
+    const first = plan({
+      base: state,
+      local: gatherLocal({ courseDir, gitDirty: CLEAN }),
+      canvas,
+    });
+    assert.deepEqual(
+      first.actions.map((action) => action.type),
+      ['create-canvas-module', 'create-canvas-item'],
+    );
+
+    mock.restoreAll();
+    mockCanvas([
+      { method: 'POST', path: '/modules/10/items', body: item },
+      {
+        method: 'POST',
+        path: '/modules',
+        body: { id: 10, name: 'Intro', position: 1 },
+      },
+      {
+        method: 'POST',
+        path: `/api/v1/courses/${COURSE_ID}/files`,
+        body: {
+          upload_url: 'https://canvas.example.com/upload/binary',
+          upload_params: {},
+        },
+      },
+      { method: 'POST', path: '/upload/binary', body: uploaded },
+    ]);
+    const outcome = await run(first, {
+      courseDir,
+      state,
+      canvasContent: canvas.content,
+    });
+    assert.deepEqual(outcome.errors, []);
+
+    // --- Run two: nothing was touched, so nothing may happen -----------------
+    mock.restoreAll();
+    const quiet = mockCanvas(canvasReads());
+    canvas = await gatherCanvas({ courseId: COURSE_ID, base: null });
+    const again = plan({
+      base: state,
+      local: gatherLocal({ courseDir, gitDirty: CLEAN }),
+      canvas,
+    });
+    assert.deepEqual(again.actions, [], 'a sync after a sync must do nothing');
+    assert.deepEqual(again.skipped, []);
+    assert.deepEqual(
+      quiet.filter((call) => call.method === 'POST'),
+      [],
+      'the second run uploaded something',
+    );
+
+    // --- Run three: this year's PDF, and nothing else, replaces last year's --
+    mock.restoreAll();
+    fs.writeFileSync(
+      path.join(courseDir, '01-intro/_files/handbook.pdf'),
+      'this year’s handbook!!',
+      'utf8',
+    );
+    mockCanvas(canvasReads());
+    const afterEdit = plan({
+      base: state,
+      local: gatherLocal({ courseDir, gitDirty: CLEAN }),
+      canvas: await gatherCanvas({ courseId: COURSE_ID, base: null }),
+    });
+    assert.deepEqual(
+      afterEdit.actions.map((action) => action.type),
+      ['update-canvas-item'],
+      'replacing the binary must reach Canvas',
+    );
+  });
+
+  it('records the same fingerprint after pulling one, so the next plan is empty', async () => {
+    silence();
+    // The other direction, and the one a fix is easiest to leave half done in:
+    // a pull writes a wrapper *and* downloads the binary, and records the row
+    // itself rather than through `localHashOf`. Record the wrapper's text alone
+    // there and the very next `gatherLocal` disagrees with the row this run
+    // wrote — the item reads as changed locally for ever and every sync pushes
+    // it back.
+    const courseDir = tempCourse();
+    const state = emptyState();
+
+    const file = {
+      id: 770,
+      display_name: 'handbook.pdf',
+      size: 14,
+      updated_at: '2026-08-20T11:00:00.000Z',
+      url: 'https://canvas.example.com/download/770',
+    };
+    const item = {
+      id: 91,
+      type: 'File',
+      title: 'Syllabus',
+      content_id: 770,
+      position: 1,
+      indent: 0,
+    };
+    const canvasReads = () => [
+      { method: 'GET', path: '/modules/10/items', body: [item] },
+      {
+        method: 'GET',
+        path: '/modules',
+        body: [{ id: 10, name: 'Intro', position: 1 }],
+      },
+      { method: 'GET', path: '/api/v1/files/770', body: file },
+    ];
+
+    mockCanvas([
+      ...canvasReads(),
+      // A second metadata read plus the bytes: `downloadFile` asks Canvas where
+      // the file is before fetching it.
+      { method: 'GET', path: '/api/v1/files/770', body: file },
+      { method: 'GET', path: '/download/770', body: 'handbook bytes' },
+    ]);
+    let canvas = await gatherCanvas({ courseId: COURSE_ID, base: state });
+    const first = plan({
+      base: state,
+      local: gatherLocal({ courseDir, gitDirty: CLEAN }),
+      canvas,
+    });
+    assert.deepEqual(
+      first.actions.map((action) => action.type),
+      ['create-local-module', 'create-local-item'],
+    );
+
+    const outcome = await run(first, {
+      courseDir,
+      state,
+      canvasContent: canvas.content,
+    });
+    assert.deepEqual(outcome.errors, []);
+
+    const wrapper = path.join(courseDir, '01-intro/01-syllabus.md');
+    assert.match(
+      fs.readFileSync(wrapper, 'utf8'),
+      /file_ref: _files\/handbook\.pdf/,
+    );
+    assert.equal(
+      fs.readFileSync(
+        path.join(courseDir, '01-intro/_files/handbook.pdf'),
+        'utf8',
+      ),
+      'handbook bytes',
+    );
+
+    mock.restoreAll();
+    mockCanvas(canvasReads());
+    canvas = await gatherCanvas({ courseId: COURSE_ID, base: null });
+    const again = plan({
+      base: state,
+      local: gatherLocal({ courseDir, gitDirty: CLEAN }),
+      canvas,
+    });
+
+    assert.deepEqual(again.actions, [], 'a sync after a pull must do nothing');
+    assert.deepEqual(again.skipped, []);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // One test per action type
 // ---------------------------------------------------------------------------

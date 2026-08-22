@@ -10,6 +10,8 @@ process.env.CANVAS_API_URL = 'https://canvas.example.com';
 process.env.CANVAS_API_TOKEN = 'test-token-123';
 
 const { applyPlan } = require('../../lib/sync/apply');
+const { gatherLocal } = require('../../lib/sync/gather');
+const { hashLocalFile } = require('../../lib/sync/fingerprint');
 
 /**
  * What a `file` item does to the Canvas file behind it.
@@ -32,6 +34,10 @@ const MODULE_ID = 10;
 const MODULE_ITEM_ID = 91;
 const OLD_FILE_ID = 770;
 const NEW_FILE_ID = 771;
+const WRAPPER = '01-intro/03-syllabus.md';
+
+/** Every path clean, which is what lets `gatherLocal` answer at all. */
+const CLEAN = { available: true, paths: new Set(), reason: null };
 
 afterEach(() => mock.restoreAll());
 
@@ -170,6 +176,48 @@ function fileReads(calls) {
 }
 
 // ---------------------------------------------------------------------------
+
+describe('the local fingerprint a push records for a wrapper', () => {
+  it('is the one gather computes, and it covers the binary', async () => {
+    silence();
+    // Two claims in one test because either alone is satisfied by the defect.
+    // The sides *agreeing* is what stops the item being pushed again on every
+    // run for ever (`lib/sync/fingerprint.js:1-25`); the hash covering the
+    // binary is what makes an edited PDF reach Canvas at all. Before the fix
+    // both sides agreed on a hash of the wrapper's text, so agreement held and
+    // the edit was invisible.
+    const courseDir = tempCourse();
+    const state = stateWithFileItem();
+    mockCanvas([
+      ...uploadRoutes(OLD_FILE_ID, 'handbook.pdf'),
+      {
+        method: 'PUT',
+        path: `/modules/${MODULE_ID}/items/${MODULE_ITEM_ID}`,
+        body: { id: MODULE_ITEM_ID, title: 'Syllabus', indent: 0 },
+      },
+    ]);
+
+    const outcome = await run([updateAction()], { courseDir, state });
+    assert.deepEqual(outcome.errors, []);
+
+    const recorded = state.modules['01-intro'].items[WRAPPER].local_hash;
+    const { modules } = gatherLocal({ courseDir, gitDirty: CLEAN });
+    const gathered = modules
+      .flatMap((mod) => mod.items)
+      .find((item) => item.itemPath === WRAPPER);
+
+    assert.equal(
+      recorded,
+      gathered.localHash,
+      'apply and gather must fingerprint the same wrapper identically',
+    );
+    assert.notEqual(
+      recorded,
+      hashLocalFile(path.join(courseDir, WRAPPER)),
+      'the wrapper’s text alone is not a fingerprint of the file it stands for',
+    );
+  });
+});
 
 describe('a renamed binary leaves no orphan behind', () => {
   it('deletes the previous Canvas file, exactly once', async () => {

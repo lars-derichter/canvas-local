@@ -140,6 +140,112 @@ describe('gatherLocal', () => {
 });
 
 // ---------------------------------------------------------------------------
+// gatherLocal: a file item and the binary behind it
+// ---------------------------------------------------------------------------
+
+/**
+ * A `file` item in wrapper form is two files pretending to be one: a markdown
+ * stub carrying `canvas_type: file` and `file_ref:`, and the binary that
+ * `file_ref` names. What a push sends Canvas is the **binary**, so a fingerprint
+ * taken over the wrapper's text alone answers the wrong question — replace last
+ * year's PDF with this year's and the run reports nothing while students go on
+ * downloading the old one.
+ */
+describe('gatherLocal: a file item and the binary behind it', () => {
+  const WRAPPER = '01-intro/03-syllabus.md';
+
+  function wrapperText(ref = '_files/handbook.pdf') {
+    return `---\ntitle: Syllabus\ncanvas_type: file\nfile_ref: ${ref}\n---\n`;
+  }
+
+  /** What `gatherLocal` recorded for one path, hash and warnings together. */
+  function gathered(dir, itemPath = WRAPPER) {
+    const { modules, warnings } = gatherLocal({
+      courseDir: dir,
+      gitDirty: CLEAN,
+    });
+    const item = modules
+      .flatMap((mod) => mod.items)
+      .find((entry) => entry.itemPath === itemPath);
+    return { item, warnings };
+  }
+
+  it('reads the wrapper as changed when only the binary behind it moved', () => {
+    const dir = tempCourse({
+      [WRAPPER]: wrapperText(),
+      '01-intro/_files/handbook.pdf': 'last year’s handbook',
+    });
+    const before = gathered(dir).item.localHash;
+
+    // The author swaps in this year's PDF and touches nothing else — the whole
+    // of the defect, in one line.
+    fs.writeFileSync(
+      path.join(dir, '01-intro/_files/handbook.pdf'),
+      'this year’s handbook',
+      'utf8',
+    );
+
+    assert.notEqual(
+      gathered(dir).item.localHash,
+      before,
+      'a wrapper whose binary was replaced must not read as unchanged',
+    );
+  });
+
+  it('keeps the hash across a rename that carried the binary along', () => {
+    // Rename detection pairs a vanished path with a new one by `local_hash`
+    // (`lib/sync/rename-detect.js`), so a hash that moved for a rename alone
+    // turns a re-key into a delete plus a create. Nothing about *where* the two
+    // files sit may reach the hash: only the wrapper's text and the bytes.
+    const dir = tempCourse({
+      [WRAPPER]: wrapperText(),
+      '01-intro/_files/handbook.pdf': 'handbook bytes',
+    });
+    const original = gathered(dir).item.localHash;
+
+    fs.renameSync(
+      path.join(dir, WRAPPER),
+      path.join(dir, '01-intro/07-syllabus.md'),
+    );
+    assert.equal(
+      gathered(dir, '01-intro/07-syllabus.md').item.localHash,
+      original,
+      'renumbering the wrapper changed its fingerprint',
+    );
+
+    // And the same again when the module folder itself moves, which carries
+    // the wrapper and its `_files/` together.
+    fs.renameSync(path.join(dir, '01-intro'), path.join(dir, '04-intro'));
+    assert.equal(
+      gathered(dir, '04-intro/07-syllabus.md').item.localHash,
+      original,
+      'moving the whole module changed the wrapper’s fingerprint',
+    );
+  });
+
+  it('warns instead of throwing when the file_ref names nothing', () => {
+    // Whether the reference is honourable at all is `npx course validate`'s
+    // question, and it already errors on both halves of it (`cli/validate.js`).
+    // All that is owed here is a run that survives: no hash, so the item reads
+    // as unchanged locally and nothing is written over on either side.
+    const dir = tempCourse({
+      [WRAPPER]: wrapperText('_files/missing.pdf'),
+      '01-intro/01-welcome.md': '---\ntitle: Welcome\n---\n\nHello.\n',
+    });
+
+    const { item, warnings } = gathered(dir);
+
+    assert.equal(item.localHash, null);
+    assert.ok(
+      warnings.some((line) => line.includes(WRAPPER)),
+      `no warning named the wrapper; got ${JSON.stringify(warnings)}`,
+    );
+    // One bad item costs that item and nothing else.
+    assert.ok(gathered(dir, '01-intro/01-welcome.md').item.localHash);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // gatherLocal: what a killed reorder left behind
 // ---------------------------------------------------------------------------
 
