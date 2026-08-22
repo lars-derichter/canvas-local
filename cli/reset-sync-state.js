@@ -1,6 +1,5 @@
 const fs = require('fs');
 const path = require('path');
-const readline = require('readline');
 const log = require('./logger');
 const {
   parseFrontmatter,
@@ -8,6 +7,7 @@ const {
 } = require('../lib/convert/frontmatter');
 const { writeMarkdown } = require('../lib/convert/format-markdown');
 const { COURSE_DIR } = require('./module-utils');
+const { confirm } = require('./backup-warning');
 const { SYNC_FILE } = require('../lib/sync/state');
 
 /**
@@ -25,25 +25,27 @@ const { SYNC_FILE } = require('../lib/sync/state');
  * would leave a stale second answer in the tree for anyone — or anything —
  * reading the frontmatter. `canvas_type` is untouched: that is the author's
  * declaration of what a file should become, not a record of what Canvas did.
+ *
+ * The question goes through `confirm`, the same one `reset-canvas` and the two
+ * pull and push confirmations use. This built its own readline interface and
+ * called `rl.question` raw, which is the defect `122bd72` and `cb24bbc` closed
+ * everywhere else: the callback never fires once stdin reaches EOF, so a
+ * scripted run printed the question, never settled, and exited 0 having deleted
+ * nothing and said nothing. `confirm` rather than `prompt` is the right half of
+ * that pair here — `prompt` throws, because a run that cannot say which module
+ * to create has no safe answer to fall back on, and a destructive confirmation
+ * does: not deleting.
  */
 async function resetSyncState() {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-  const answer = await new Promise((resolve) => {
-    rl.question(
-      '[reset] This will delete .canvas-sync.json, so the course forgets every ' +
-        'Canvas id it holds, and clear the leftover canvas_id and ' +
-        'canvas_module_id fields older versions wrote into course files. ' +
-        'Continue? (y/N) ',
-      resolve,
-    );
-  });
-  rl.close();
+  const ok = await confirm(
+    '[reset] This will delete .canvas-sync.json, so the course forgets every ' +
+      'Canvas id it holds, and clear the leftover canvas_id and ' +
+      'canvas_module_id fields older versions wrote into course files. ' +
+      'Continue? (y/N)',
+  );
 
-  if (answer.toLowerCase() !== 'y') {
-    console.log('[reset] Cancelled.');
+  if (!ok) {
+    log.info('[reset] Cancelled.');
     return;
   }
 
