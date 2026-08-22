@@ -389,7 +389,7 @@ describe('npx course sync', () => {
     });
 
     it('refuses to overwrite a file git holds uncommitted work for', async () => {
-      silence();
+      const out = silence();
       const { courseDir, file, movedPage } = conflicted();
       const calls = mockCanvas(readRoutes({ page: movedPage }));
 
@@ -412,6 +412,15 @@ describe('npx course sync', () => {
         'git is the undo, so a dirty file is never overwritten',
       );
       assert.equal(process.exitCode, 1);
+
+      // Both halves of the refusal reach the same section, and they have to
+      // agree: the guard's own line says commit the file, and the conflict line
+      // under it used to say run `npx course sync` — which is this command,
+      // over a file this guard will refuse again.
+      const text = printed(out);
+      assert.match(text, /\(git-dirty\): .*Commit or stash the file/);
+      assert.match(text, /\(conflict-unwritten\): .*refused \(git-dirty\)/);
+      assert.doesNotMatch(text, /Run `npx course sync` to settle it/);
     });
 
     it('refuses to download an embedded binary over uncommitted work', async () => {
@@ -1566,6 +1575,73 @@ describe('the sync report', () => {
     }).join('\n');
     assert.match(landed, /Conflicts resolved/);
     assert.doesNotMatch(landed, /conflict-unwritten/);
+  });
+
+  it('does not send the author back to sync over a write sync refused', () => {
+    // The two lines are printed in the same section, one after the other, and
+    // they used to contradict each other: the git-dirty entry says commit the
+    // file, and the conflict entry beneath it said run `npx course sync` — from
+    // inside a `sync` run, over a file the same guard will refuse again.
+    const itemPath = '01-intro/04-both.md';
+    const plan = planOf([], {
+      skipped: [
+        {
+          kind: 'item',
+          reason: 'git-dirty',
+          moduleFolder: '01-intro',
+          itemPath,
+          action: 'update-local-item',
+          remedy: `${itemPath} has uncommitted changes; Commit or stash it.`,
+        },
+      ],
+      conflicts: [
+        {
+          kind: 'item',
+          moduleFolder: '01-intro',
+          itemPath,
+          winner: 'canvas',
+          reason: 'newest: Canvas',
+          localMtimeMs: Date.parse('2026-08-19T08:00:00.000Z'),
+          canvasUpdatedAt: '2026-08-19T09:00:00.000Z',
+          applied: false,
+          refusal: 'git-dirty',
+        },
+      ],
+    });
+
+    const text = buildReport(plan, { applied: [] }).join('\n');
+    assert.match(text, /04-both\.md \(conflict-unwritten\)/);
+    assert.match(text, /the write was refused \(git-dirty\)/);
+    assert.match(text, /The git-dirty line above says what to fix/);
+    assert.doesNotMatch(text, /Run `npx course sync` to settle it/);
+  });
+
+  it('still sends them there when the direction is what withheld it', () => {
+    // The fence for the case above. A pinned run really does leave the other
+    // side untouched, and `sync` really is what settles it, so that sentence
+    // has to survive.
+    const plan = planOf([], {
+      withheld: [
+        { type: 'update-local-item', itemPath: '01-intro/04-both.md' },
+      ],
+      conflicts: [
+        {
+          kind: 'item',
+          moduleFolder: '01-intro',
+          itemPath: '01-intro/04-both.md',
+          winner: 'canvas',
+          reason: 'policy canvas',
+          localMtimeMs: Date.parse('2026-08-19T08:00:00.000Z'),
+          canvasUpdatedAt: '2026-08-19T09:00:00.000Z',
+          applied: false,
+          refusal: null,
+        },
+      ],
+    });
+
+    const text = buildReport(plan, { applied: [] }).join('\n');
+    assert.match(text, /this command does not write to the side that lost/);
+    assert.match(text, /Run `npx course sync` to settle it/);
   });
 
   it('does not call a pair adopted when the write failed', () => {

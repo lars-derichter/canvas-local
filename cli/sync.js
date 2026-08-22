@@ -392,12 +392,24 @@ function buildReport(report, options = {}) {
     ...unsettled.map((conflict) => {
       const where = conflict.itemPath || conflict.moduleFolder;
       const won = conflict.winner === 'local' ? 'local' : 'Canvas';
+      // Three reasons a decided write is not on disk, and only one of them is
+      // answered by running `sync`. The pinned direction is: sync writes to
+      // both sides, so it settles what a one-directional command left. A guard
+      // is not: sync meets the same guard and refuses again, and the author was
+      // being sent to do the one thing that cannot help — while the guard's own
+      // skip entry, printed a few lines above in this very section, carried the
+      // remedy that works. `refusal` is which guard it was, and it is the same
+      // word that line is tagged with.
       const remedy =
         conflict.applied === true
           ? 'the write failed, so both sides are as they were — see the ' +
             'errors below, then run again.'
-          : 'this command does not write to the side that lost, so nothing ' +
-            'changed. Run `npx course sync` to settle it.';
+          : conflict.refusal
+            ? `the write was refused (${conflict.refusal}), so nothing ` +
+              `changed. The ${conflict.refusal} line above says what to fix; ` +
+              'running again settles this only once it is fixed.'
+            : 'this command does not write to the side that lost, so nothing ' +
+              'changed. Run `npx course sync` to settle it.';
       return `  - ${where} (conflict-unwritten): ${won} would have won, but ${remedy}`;
     }),
   ]);

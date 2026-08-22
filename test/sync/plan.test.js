@@ -601,6 +601,62 @@ describe('plan: the git guard', () => {
     assert.equal(result.skipped[0].reason, 'git-dirty');
   });
 
+  it('names the refusal on the conflict it would not settle', () => {
+    // `applied: false` alone conflates two opposite situations. Under a pinned
+    // direction the write was never going to be made and `npx course sync` is
+    // exactly what settles it; under a guard the write was refused, sync meets
+    // the same guard, and that advice is the one thing that cannot help. The
+    // report has to tell them apart, so the planner has to say which it was.
+    const guarded = plan({
+      ...single({
+        localFields: { dirty: true, localHash: 'edited' },
+        canvasFields: { canvasHash: 'edited' },
+      }),
+      policy: { conflict: 'canvas' },
+    });
+
+    assert.equal(guarded.conflicts[0].applied, false);
+    assert.equal(guarded.conflicts[0].refusal, 'git-dirty');
+    assert.equal(
+      guarded.skipped[0].reason,
+      'git-dirty',
+      'the accurate remedy is on that entry, and this is the link to it',
+    );
+
+    const pinned = plan({
+      ...single({
+        localFields: { localHash: 'edited' },
+        canvasFields: { canvasHash: 'edited' },
+      }),
+      policy: { write: { canvas: true, local: false }, conflict: 'canvas' },
+    });
+
+    assert.equal(pinned.conflicts[0].applied, false);
+    assert.equal(
+      pinned.conflicts[0].refusal,
+      null,
+      'nothing refused this one; the policy withheld it',
+    );
+  });
+
+  it('names the refusal for a guard that is not the git one', () => {
+    // `refusalSince` reads the skip list rather than any one guard, so the
+    // type-changed refusal — the other reason a conflict's winning write never
+    // reaches Canvas — is covered without being named.
+    const result = plan({
+      ...single({
+        localFields: { canvasType: 'assignment', localHash: 'edited' },
+        canvasFields: { canvasHash: 'edited' },
+      }),
+      policy: { conflict: 'local' },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.equal(result.conflicts[0].winner, 'local');
+    assert.equal(result.conflicts[0].applied, false);
+    assert.equal(result.conflicts[0].refusal, 'type-changed');
+  });
+
   it('blocks a local prune of a dirty file', () => {
     const result = plan({
       ...single({ canvas: false, localFields: { dirty: true } }),
@@ -3052,6 +3108,12 @@ describe('plan: modules', () => {
     assert.equal(result.conflicts[0].winner, 'canvas');
     assert.equal(result.conflicts[0].applied, false);
     assert.equal(result.skipped[0].reason, 'git-dirty');
+    assert.equal(
+      result.conflicts[0].refusal,
+      'git-dirty',
+      'the module-level guard has to be named on its conflict too, or the ' +
+        'report sends the author back to `sync` over an uncommitted file',
+    );
   });
 
   it('withholds rather than skips on a run that never writes locally', () => {
