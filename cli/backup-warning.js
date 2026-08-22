@@ -235,17 +235,26 @@ async function confirmForcedPull({
 
   if (!force || guarded < 1 || dryRun) return true;
 
-  const files = `${guarded} local file${guarded === 1 ? '' : 's'}`;
+  // One dirty file is the ordinary case, not the edge one — the count comes
+  // from git, and a tree with a single uncommitted lesson in it is what most
+  // runs look like — so the sentence agrees with it rather than reading as a
+  // plural with the number swapped in. Every word that inflects is switched,
+  // the pronouns in `fate` included: "1 local file hold uncommitted changes"
+  // and "deleted where Canvas no longer holds them" are the same defect.
+  const one = guarded === 1;
+  const files = `${guarded} local file${one ? '' : 's'}`;
   const fate = pruneLocal
     ? 'overwritten with the Canvas version, or deleted where Canvas no longer ' +
-      'holds them'
+      `holds ${one ? 'it' : 'them'}`
     : 'overwritten with the Canvas version';
   log.info(
     gitReason
-      ? `[pull] --force: ${gitReason}, so all ${files} under course/ count as ` +
-          `holding work that exists nowhere else. Every one of them is ${fate}.`
-      : `[pull] --force: ${files} hold uncommitted or untracked changes, and ` +
-          `each is ${fate}. Git has no copy of what is in them.`,
+      ? `[pull] --force: ${gitReason}, so ${one ? 'the' : 'all'} ${files} ` +
+          `under course/ ${one ? 'counts' : 'count'} as holding work that ` +
+          `exists nowhere else. ${one ? 'It' : 'Every one of them'} is ${fate}.`
+      : `[pull] --force: ${files} ${one ? 'holds' : 'hold'} uncommitted or ` +
+          `untracked changes, and ${one ? 'it' : 'each'} is ${fate}. Git has ` +
+          `no copy of what is in ${one ? 'it' : 'them'}.`,
   );
 
   const ok = await confirm('[pull] Overwrite local course files? (y/N)');

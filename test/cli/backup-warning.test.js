@@ -325,6 +325,63 @@ describe('confirmForcedPull', () => {
     );
     assert.match(said(spy), /deleted where Canvas no longer/);
   });
+
+  // -------------------------------------------------------------------------
+  // A count of one
+  //
+  // The ordinary case, not the edge one: the count comes from git, and a tree
+  // holding one uncommitted lesson is what most runs look like. The sentence
+  // used to be written for the plural with the number swapped in, so it read
+  // "1 local file hold uncommitted or untracked changes".
+  // -------------------------------------------------------------------------
+
+  it('reads as a singular sentence for one file', async () => {
+    const spy = mock.method(console, 'log', () => {});
+    await withStdin('n\n', () =>
+      confirmForcedPull({ force: true, guarded: 1 }),
+    );
+    const text = said(spy);
+    assert.match(text, /1 local file holds uncommitted or untracked changes/);
+    assert.match(text, /and it is overwritten with the Canvas version/);
+    assert.match(text, /Git has no copy of what is in it\./);
+  });
+
+  it('keeps the plural sentence plural', async () => {
+    const spy = mock.method(console, 'log', () => {});
+    await withStdin('n\n', () =>
+      confirmForcedPull({ force: true, guarded: 2 }),
+    );
+    const text = said(spy);
+    assert.match(text, /2 local files hold uncommitted or untracked changes/);
+    assert.match(text, /and each is overwritten with the Canvas version/);
+    assert.match(text, /Git has no copy of what is in them\./);
+  });
+
+  it('agrees in the branch where git could not answer either', async () => {
+    const spy = mock.method(console, 'log', () => {});
+    await withStdin('n\n', () =>
+      confirmForcedPull({
+        force: true,
+        guarded: 1,
+        gitReason: 'course/ is not inside a git repository',
+      }),
+    );
+    const text = said(spy);
+    assert.match(text, /so the 1 local file under course\/ counts as holding/);
+    assert.match(text, /It is overwritten with the Canvas version\./);
+    assert.doesNotMatch(text, /all 1 local file/);
+  });
+
+  it('agrees in the pronoun a prune adds, which is a third sentence', async () => {
+    // `fate` is built once and dropped into whichever sentence runs, so it
+    // inflects on its own: "deleted where Canvas no longer holds them" is the
+    // same defect one clause further along.
+    const spy = mock.method(console, 'log', () => {});
+    await withStdin('n\n', () =>
+      confirmForcedPull({ force: true, guarded: 1, pruneLocal: true }),
+    );
+    assert.match(said(spy), /deleted where Canvas no longer holds it\./);
+  });
 });
 
 describe('BACKUP_DOC', () => {

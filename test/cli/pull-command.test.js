@@ -1112,7 +1112,10 @@ describe('npx course pull, over uncommitted work', () => {
       pull({ courseDir, syncFile: file, gitDirty: NO_GIT, force: true }),
     );
 
-    assert.match(printed(out), /all 1 local file under course\//);
+    // "the 1 local file", not "all 1 local file": the sentence agrees with the
+    // count it quotes. What this test is about is the count itself, and one is
+    // still what a course of one item comes to here.
+    assert.match(printed(out), /the 1 local file under course\//);
     assert.match(printed(out), /Cancelled/);
   });
 });
