@@ -59,10 +59,11 @@ const log = require('./logger');
  * work is the normal state, and a report that fails the run for being
  * interesting is one nobody can put in a script. Non-zero for the two things
  * that are not that. One is status not answering at all — no course id, a
- * course it cannot read, a `-m` naming nothing. The other is a collision,
- * which is not a state a sync works through but `sync` declining to start; a
- * refusal fails the run everywhere else in this tool, and `sync --dry-run`
- * over the same course exits non-zero too.
+ * course it cannot read, a `-m` naming nothing. The other is a course a `sync`
+ * would refuse rather than work through: a collision, or two Canvas modules
+ * deriving one folder name. Neither clears by syncing, both need a person, and
+ * a refusal fails the run everywhere else in this tool — `sync --dry-run` over
+ * either course exits non-zero too.
  *
  * @param {object} options - Commander's flags, plus three injection points for
  *   tests that commander never sets: `courseDir`, `syncFile` and `gitDirty`. A
@@ -178,10 +179,16 @@ async function status(options = {}) {
   log.info('[status] What `npx course sync` would do. Status wrote nothing.');
   for (const line of lines) log.info(line);
 
-  // `skipped` is in the condition for the shape, not for the cases: every one
-  // of its entries is gated on the write landing, and under this policy no
-  // write lands, so nothing can reach it. What the rule really says is that a
-  // collision exits non-zero here the way it does everywhere else.
+  // One kind of skip reaches this, and it is here on purpose: a Canvas module
+  // whose derived folder another module has already taken (`writesNothing` in
+  // `lib/sync/plan.js`). Every other entry in `skipped` is gated on the write
+  // landing, and under this policy no write lands, so none of those can. The
+  // difference is what the refusal is about. The rest protect a write this
+  // command does not make; that one says the Canvas course holds two modules
+  // that derive one folder name, which no run can work through and every run
+  // refuses. `sync` exits 1 over it and so does `sync --dry-run`, and a preview
+  // that exited 0 on a course its own subject refuses would be answering a
+  // different question than the one it advertises.
   if (report.skipped.length > 0 || report.collision) process.exitCode = 1;
 }
 

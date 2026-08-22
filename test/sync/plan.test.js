@@ -3207,10 +3207,15 @@ describe('plan: modules', () => {
     );
   });
 
-  it('leaves push and status exactly as they were', () => {
-    // `writeLands`: neither writes locally, so neither can throw and neither
-    // can put a file in the wrong place. A skip there would fail the run over
+  it('says nothing about it under push, which was never going to pull it', () => {
+    // `writeLands`: push writes nothing locally, so nothing can throw and
+    // nothing can land in the wrong place. A skip here would fail the run over
     // a Canvas-side name clash the command was never going to act on.
+    //
+    // What push withholds is the *other* module's create — the one that did
+    // get the folder. Nothing at all is recorded for the refused module, which
+    // is a real change from before the refusal existed: its create and its
+    // item used to be withheld, `folder: null` and all.
     const result = plan({
       ...twoWantingOneFolder(),
       policy: { write: { canvas: true, local: false } },
@@ -3218,10 +3223,39 @@ describe('plan: modules', () => {
 
     assert.deepEqual(result.skipped, []);
     assert.deepEqual(types(result), []);
-    assert.ok(
-      result.withheld.some((entry) => entry.type === 'create-local-module'),
-      'the fact is still recorded, as it always was',
+    assert.deepEqual(
+      result.withheld.map((entry) => [entry.type, entry.canvasModuleId]),
+      [
+        ['create-local-module', 100],
+        ['create-local-item', 100],
+      ],
+      'push may only withhold work for the module that has a folder',
     );
+  });
+
+  it('reports it under status, which exists to say what sync would do', () => {
+    // The one refusal here that is not about a write. Two Canvas modules
+    // deriving one folder name is a fact about the course: `sync` refuses it
+    // and exits 1, `sync --dry-run` over the same course exits 1, and a
+    // `status` that stayed silent would preview a run it does not resemble.
+    // `status` has nowhere else to put it either — with both write flags off,
+    // everything it can say is in the report.
+    const result = plan({
+      ...twoWantingOneFolder(),
+      policy: { write: { canvas: false, local: false } },
+    });
+
+    assert.deepEqual(types(result), [], 'status still plans no write');
+    assert.deepEqual(
+      result.skipped.map((skip) => [
+        skip.kind,
+        skip.reason,
+        skip.moduleFolder,
+        skip.canvasModuleId,
+      ]),
+      [['module', 'folder-taken', FOLDER, 200]],
+    );
+    assert.match(result.skipped[0].remedy, /Rename or renumber one of them/);
   });
 });
 

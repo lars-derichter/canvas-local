@@ -319,6 +319,60 @@ describe('npx course status', () => {
     );
   });
 
+  it('shows the Canvas module a sync would refuse a folder for', async () => {
+    // A module's folder is its name and its position, so two Canvas modules
+    // agreeing on both derive the same one and only the first can have it.
+    // `sync` refuses the second and exits 1; so does `sync --dry-run` over the
+    // same course. Status used to preview that course as one module's worth of
+    // work, say nothing about the second, and exit 0 — a preview of a run it
+    // does not resemble, on the one fact an author needs it for.
+    const out = silence();
+    const courseDir = tempDir({});
+    const file = stateFile({ modules: {} });
+    mockCanvas([
+      { method: 'GET', path: '/modules/10/items', body: [ITEM] },
+      { method: 'GET', path: '/modules/20/items', body: [SECOND_ITEM] },
+      {
+        method: 'GET',
+        path: '/modules',
+        body: [
+          { id: 10, name: 'Intro', position: 1 },
+          { id: 20, name: 'Intro', position: 1 },
+        ],
+      },
+      { method: 'GET', path: '/pages/welcome', body: PAGE },
+      { method: 'GET', path: '/pages/second', body: SECOND_PAGE },
+      {
+        method: 'GET',
+        path: '/pages',
+        body: [PAGE, SECOND_PAGE].map(pageRow),
+      },
+    ]);
+
+    await status({ courseDir, syncFile: file, gitDirty: CLEAN });
+
+    const text = printed(out);
+    assert.match(text, /^Skipped$/m);
+    assert.match(text, /01-intro \(folder-taken\)/);
+    assert.match(text, /Rename or renumber one of them in Canvas/);
+    // The module that does have the folder is still previewed as the work it
+    // is, so the refusal is an addition to the report and not a replacement.
+    assert.match(text, /Locally: 1 module created/);
+    assert.equal(
+      process.exitCode,
+      1,
+      'a refusal fails the run, the way it does for sync --dry-run',
+    );
+
+    // `readdirSync` rather than `snapshot`, which lists files only: the write
+    // this refusal is about is a *folder* being created.
+    assert.deepEqual(
+      fs.readdirSync(courseDir),
+      [],
+      'status put something in the tree',
+    );
+  });
+
   it('writes to neither side, with work waiting in both directions', async () => {
     // The whole promise of the command, asserted rather than taken on trust
     // from the policy: one file edited here, another edited on Canvas, so a
