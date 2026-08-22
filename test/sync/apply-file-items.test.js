@@ -11,7 +11,10 @@ process.env.CANVAS_API_TOKEN = 'test-token-123';
 
 const { applyPlan } = require('../../lib/sync/apply');
 const { gatherLocal } = require('../../lib/sync/gather');
-const { hashLocalFile } = require('../../lib/sync/fingerprint');
+const {
+  canvasFingerprint,
+  hashLocalFile,
+} = require('../../lib/sync/fingerprint');
 
 /**
  * What a `file` item does to the Canvas file behind it.
@@ -276,6 +279,168 @@ describe('a renamed binary leaves no orphan behind', () => {
     assert.deepEqual(outcome.errors, []);
     assert.equal(outcome.applied.length, 1);
     assert.equal(fileDeletes(calls).length, 1);
+  });
+});
+
+describe('a title change that the content did not cause', () => {
+  it('retitles the module item without touching the binary', async () => {
+    silence();
+    // The fence that matters most. `contentUnchanged` says the planner proved
+    // the local content did not move, so the upload is provably redundant — and
+    // an upload here is not merely wasteful: Canvas keys one on the filename, a
+    // renamed binary comes back with a new id, and the cleanup then deletes the
+    // file every student's existing link points at.
+    //
+    // The route table is the assertion. It offers the module-item PUT and
+    // nothing else, so an upload, a re-create or a delete finds no route and
+    // fails the action instead of passing quietly.
+    const courseDir = tempCourse();
+    const state = stateWithFileItem();
+    const calls = mockCanvas([
+      {
+        method: 'PUT',
+        path: `/modules/${MODULE_ID}/items/${MODULE_ITEM_ID}`,
+        body: { id: MODULE_ITEM_ID, title: 'Course Syllabus', indent: 0 },
+      },
+    ]);
+
+    const outcome = await run(
+      [
+        {
+          ...updateAction(),
+          title: 'Course Syllabus',
+          contentUnchanged: true,
+        },
+      ],
+      {
+        courseDir,
+        state,
+        // What the gather already read for this item, which is where the file
+        // object comes from once nothing re-uploads it.
+        canvasContent: new Map([
+          [
+            String(MODULE_ITEM_ID),
+            {
+              item: { id: MODULE_ITEM_ID, title: 'Syllabus', indent: 0 },
+              content: {
+                id: OLD_FILE_ID,
+                display_name: 'handbook.pdf',
+                size: 9,
+                updated_at: '2026-08-19T09:00:00.000Z',
+              },
+            },
+          ],
+        ]),
+      },
+    );
+
+    assert.deepEqual(outcome.errors, []);
+    assert.deepEqual(
+      calls.filter((call) => call.method === 'POST'),
+      [],
+      'nothing may be uploaded to change a title',
+    );
+    assert.deepEqual(fileDeletes(calls), []);
+    assert.deepEqual(fileReads(calls), []);
+
+    const put = calls.find((call) => call.method === 'PUT');
+    assert.equal(put.body.module_item.title, 'Course Syllabus');
+
+    const row = state.modules['01-intro'].items[WRAPPER];
+    assert.equal(
+      row.canvas_id,
+      OLD_FILE_ID,
+      'the Canvas file id must not churn over a rename',
+    );
+    assert.equal(row.title, 'Course Syllabus');
+  });
+
+  it('records a fingerprint the next gather will agree with', async () => {
+    silence();
+    // The half a skipped upload is easiest to get wrong. `recordCanvasWrite`
+    // rebuilds `canvas_hash` from the module item *and* the object behind it,
+    // and a `file`'s half of that is `display_name`, `size` and `updated_at`.
+    // Record it with no content object and all three read as null, which no
+    // gather ever produces — the item would read as changed on Canvas on the
+    // very next run and pull the remote copy over the author's file.
+    const courseDir = tempCourse();
+    const state = stateWithFileItem();
+    const content = {
+      id: OLD_FILE_ID,
+      display_name: 'handbook.pdf',
+      size: 9,
+      updated_at: '2026-08-19T09:00:00.000Z',
+    };
+    const item = { id: MODULE_ITEM_ID, title: 'Course Syllabus', indent: 0 };
+    mockCanvas([
+      {
+        method: 'PUT',
+        path: `/modules/${MODULE_ID}/items/${MODULE_ITEM_ID}`,
+        body: item,
+      },
+    ]);
+
+    const outcome = await run(
+      [{ ...updateAction(), title: 'Course Syllabus', contentUnchanged: true }],
+      {
+        courseDir,
+        state,
+        canvasContent: new Map([
+          [
+            String(MODULE_ITEM_ID),
+            { item: { ...item, title: 'Syllabus' }, content },
+          ],
+        ]),
+      },
+    );
+
+    assert.deepEqual(outcome.errors, []);
+    assert.equal(
+      state.modules['01-intro'].items[WRAPPER].canvas_hash,
+      canvasFingerprint({ item, content }, 'file'),
+      'the row must describe the item Canvas now holds, file object included',
+    );
+  });
+
+  it('uploads after all when nothing can say what Canvas holds', async () => {
+    silence();
+    // `gatherCanvas` records a null content object when `GET /files/:id` fails,
+    // and that leaves `canvasHash` null too — which reads as "Canvas unchanged"
+    // and lets the item reach the skipped-upload path. Skipping it there would
+    // record a `canvas_hash` built from three nulls, and the next run would read
+    // the item as changed on Canvas and pull the remote copy over the file.
+    // Falling back to the upload is what this always did.
+    const courseDir = tempCourse();
+    const state = stateWithFileItem();
+    const calls = mockCanvas([
+      ...uploadRoutes(OLD_FILE_ID, 'handbook.pdf'),
+      {
+        method: 'PUT',
+        path: `/modules/${MODULE_ID}/items/${MODULE_ITEM_ID}`,
+        body: { id: MODULE_ITEM_ID, title: 'Course Syllabus', indent: 0 },
+      },
+    ]);
+
+    const outcome = await run(
+      [{ ...updateAction(), title: 'Course Syllabus', contentUnchanged: true }],
+      {
+        courseDir,
+        state,
+        canvasContent: new Map([
+          [
+            String(MODULE_ITEM_ID),
+            { item: { id: MODULE_ITEM_ID, title: 'Syllabus' }, content: null },
+          ],
+        ]),
+      },
+    );
+
+    assert.deepEqual(outcome.errors, []);
+    assert.equal(
+      calls.filter((call) => call.url.includes('/upload/binary')).length,
+      1,
+      'an unprovable skip has to fall back to the upload',
+    );
   });
 });
 

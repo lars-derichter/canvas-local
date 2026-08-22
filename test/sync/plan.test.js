@@ -1665,12 +1665,19 @@ describe('plan: renames', () => {
   const RENAMED = '01-intro/01-hello.md';
 
   it('re-keys an exact rename silently and then classifies it as unchanged', () => {
+    // The title is pinned to the one the base row holds, which is what a file
+    // declaring `title:` in its frontmatter does when it is renamed. Leave it to
+    // be derived from the new filename and the rename moves the title too, and
+    // the item is then not unchanged at all — that case is its own describe,
+    // "a title that moved without the content".
     const result = plan({
       base: { modules: { [FOLDER]: bMod([PATH]) } },
       local: {
         modules: [
           lMod(FOLDER, [RENAMED], {
-            items: { [RENAMED]: { localHash: `L:${PATH}` } },
+            items: {
+              [RENAMED]: { localHash: `L:${PATH}`, title: titleOf(PATH) },
+            },
           }),
         ],
       },
@@ -1691,12 +1698,17 @@ describe('plan: renames', () => {
   });
 
   it('re-keys and then pushes a rename that also changed', () => {
+    // Both halves pin the title to the one the base row holds, for the reason
+    // the test above gives: a title left to be derived from the new filename
+    // moves with the rename, and the item is then not unchanged.
     const result = plan({
       base: { modules: { [FOLDER]: bMod([PATH]) } },
       local: {
         modules: [
           lMod(FOLDER, [RENAMED], {
-            items: { [RENAMED]: { localHash: `L:${PATH}` } },
+            items: {
+              [RENAMED]: { localHash: `L:${PATH}`, title: titleOf(PATH) },
+            },
           }),
         ],
       },
@@ -1712,7 +1724,7 @@ describe('plan: renames', () => {
         modules: [
           lMod(FOLDER, [RENAMED], {
             items: {
-              [RENAMED]: { localHash: `L:${PATH}`, title: 'welcome' },
+              [RENAMED]: { localHash: `L:${PATH}`, title: titleOf(PATH) },
             },
           }),
           // A second module so the first has something to be compared against.
@@ -1859,6 +1871,232 @@ describe('plan: renames', () => {
     ]);
     assert.equal(result.orphans.canvas.length, 1);
     assert.deepEqual(result.pending.renames, []);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// A title that moved on its own
+// ---------------------------------------------------------------------------
+
+/**
+ * An item's title is not in its `local_hash`, and deliberately not: rename
+ * detection pairs a vanished path with a new one by that hash, so a hash that
+ * moved for a rename alone would turn every re-key into a delete plus a create.
+ *
+ * The consequence is that a title can move while the content does not, and the
+ * three cases where it does are all renames of a file whose title is derived
+ * from its filename — a bare binary, a `file` wrapper, and a markdown item
+ * carrying no frontmatter `title:`. Nothing else in the truth table notices:
+ * every other branch already plans a write that carries the title along, and
+ * this one planned nothing at all.
+ */
+describe('plan: a title that moved without the content', () => {
+  const BINARY = '01-intro/03-handout.pdf';
+  const BINARY_RENAMED = '01-intro/03-course-handout.pdf';
+
+  /** A bare binary dropped in a module: type `file`, title from the filename. */
+  function binaryRow(overrides = {}) {
+    return {
+      canvas_type: 'file',
+      canvas_id: 770,
+      page_url: null,
+      module_item_id: 5003,
+      local_hash: 'L:pdf-bytes',
+      canvas_hash: 'C:handout',
+      title: 'Handout.Pdf',
+      ...overrides,
+    };
+  }
+
+  function binaryLocal(itemPath, title) {
+    return {
+      itemPath,
+      title,
+      canvasType: 'file',
+      indent: 0,
+      position: 1,
+      localHash: 'L:pdf-bytes',
+      localMtimeMs: LOCAL_TIME,
+      dirty: false,
+    };
+  }
+
+  function binaryCanvas() {
+    return {
+      moduleItemId: 5003,
+      canvasType: 'file',
+      rawType: 'File',
+      canvasId: 770,
+      pageUrl: null,
+      title: 'Handout.Pdf',
+      indent: 0,
+      position: 1,
+      canvasHash: 'C:handout',
+      canvasUpdatedAt: CANVAS_TIME,
+      suggestedPath: BINARY,
+      recognised: true,
+    };
+  }
+
+  function binaryPlan({ basePath = BINARY, localPath, title, row = {} } = {}) {
+    return plan({
+      base: {
+        modules: {
+          [FOLDER]: {
+            canvas_module_id: 100,
+            name: 'Introduction',
+            position: 1,
+            item_order: [basePath],
+            items: { [basePath]: binaryRow(row) },
+          },
+        },
+      },
+      local: {
+        modules: [
+          {
+            folder: FOLDER,
+            name: 'Introduction',
+            position: 1,
+            items: [binaryLocal(localPath, title)],
+          },
+        ],
+      },
+      canvas: {
+        modules: [
+          {
+            canvasModuleId: 100,
+            name: 'Introduction',
+            position: 1,
+            suggestedFolder: null,
+            items: [binaryCanvas()],
+          },
+        ],
+      },
+      policy: {},
+    });
+  }
+
+  it('pushes the new title of a renamed bare binary', () => {
+    // The whole defect in one case: the bytes did not move, so `local_hash` did
+    // not move, so nothing was planned — and the Canvas module item kept the
+    // name of a file that no longer exists.
+    const result = binaryPlan({
+      localPath: BINARY_RENAMED,
+      title: 'Course Handout.Pdf',
+    });
+
+    assert.deepEqual(types(result), ['rekey-base', 'update-canvas-item']);
+    const update = only(result, 'update-canvas-item');
+    assert.equal(update.itemPath, BINARY_RENAMED);
+    assert.equal(update.title, 'Course Handout.Pdf');
+    assert.equal(update.canvasType, 'file');
+    assert.equal(
+      update.canvasId,
+      770,
+      'the item still points at the Canvas file it always did',
+    );
+  });
+
+  it('tells the executor the content did not move', () => {
+    // The flag is the whole fence. Without it the update goes back through
+    // `writeFileContent`, which re-uploads the PDF, may be handed a new file id
+    // and then deletes the old Canvas file — all to change a string.
+    const renamed = binaryPlan({
+      localPath: BINARY_RENAMED,
+      title: 'Course Handout.Pdf',
+    });
+    assert.equal(only(renamed, 'update-canvas-item').contentUnchanged, true);
+
+    // And it is not set when the content really did move, or the binary would
+    // never be uploaded again.
+    const edited = plan({
+      base: { modules: { [FOLDER]: bMod([PATH]) } },
+      local: {
+        modules: [
+          lMod(FOLDER, [PATH], {
+            items: { [PATH]: { localHash: 'L:edited' } },
+          }),
+        ],
+      },
+      canvas: { modules: [cMod([PATH])] },
+      policy: {},
+    });
+    assert.equal(
+      only(edited, 'update-canvas-item').contentUnchanged,
+      undefined,
+      'an ordinary content update must not claim the content is unchanged',
+    );
+  });
+
+  it('does the same for a markdown item with no frontmatter title', () => {
+    // `writeTitleIfAbsent` only runs on the create handler, so an item this tool
+    // adopted rather than created carries no `title:` and takes its name from
+    // its filename for as long as the author does not add one by hand.
+    const RENAMED = '01-intro/01-hello.md';
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([PATH]) } },
+      local: {
+        modules: [
+          lMod(FOLDER, [RENAMED], {
+            items: { [RENAMED]: { localHash: `L:${PATH}` } },
+          }),
+        ],
+      },
+      canvas: { modules: [cMod([PATH])] },
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), ['rekey-base', 'update-canvas-item']);
+    const update = only(result, 'update-canvas-item');
+    assert.equal(
+      update.title,
+      'hello',
+      'the de-prefixed filename is the title',
+    );
+    assert.equal(update.canvasType, 'page');
+    assert.equal(update.contentUnchanged, true);
+  });
+
+  it('is silent on the run after the title was recorded', () => {
+    // The row is re-keyed and re-recorded by the run above, so the second run
+    // compares the local title against the one Canvas now holds and finds
+    // nothing. Anything less makes every later sync issue the same PUT.
+    const result = binaryPlan({
+      basePath: BINARY_RENAMED,
+      localPath: BINARY_RENAMED,
+      title: 'Course Handout.Pdf',
+      row: { title: 'Course Handout.Pdf' },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.deepEqual(result.withheld, []);
+    assert.deepEqual(result.orphans, { canvas: [], local: [] });
+  });
+
+  it('concludes nothing from an item that has no title either', () => {
+    // The mirror of the case below, and the one that costs more if it is got
+    // wrong: comparing a missing title against a recorded one reads as "it
+    // changed", and the update that follows PUTs a null title over the name the
+    // Canvas item has. Nothing under `course/` produces one today — a scanned
+    // item always falls back to its filename — so this guards the planner's
+    // contract rather than a path a course can reach.
+    const result = binaryPlan({ localPath: BINARY, title: null });
+
+    assert.deepEqual(types(result), []);
+  });
+
+  it('concludes nothing from a row that never recorded a title', () => {
+    // A row written before this version stores no title, and reading that
+    // silence as "the title changed" would re-push every item in the course on
+    // the first run after an upgrade. No baseline, no conclusion — the row
+    // gains one the next time anything else about the item is written.
+    const result = binaryPlan({
+      localPath: BINARY,
+      title: 'Something Else Entirely',
+      row: { title: undefined },
+    });
+
+    assert.deepEqual(types(result), []);
   });
 });
 
