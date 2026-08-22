@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 
 const {
   BACKUP_DOC,
+  confirm,
   confirmFirstPush,
   confirmForcedPull,
   countSubmissionRisk,
@@ -129,6 +130,40 @@ describe('submissionRiskSuffix', () => {
   });
 });
 
+describe('confirm', () => {
+  it('cancels when stdin ends without an answer', async () => {
+    const answer = await withStdin('', () =>
+      within(confirm('[test] Continue? (y/N)')),
+    );
+    assert.notEqual(
+      answer,
+      HUNG,
+      'rl.question never fires its callback at EOF, so a confirm that waits ' +
+        'only for one hangs the caller instead of cancelling it',
+    );
+    assert.equal(answer, false);
+  });
+
+  it('still takes a piped "y"', async () => {
+    const answer = await withStdin('y\n', () =>
+      within(confirm('[test] Continue? (y/N)')),
+    );
+    assert.equal(
+      answer,
+      true,
+      'piping the answer in is a legitimate way to script this and has no ' +
+        'terminal either, so cancelling on EOF must not cancel on that',
+    );
+  });
+
+  it('still takes a piped "n"', async () => {
+    const answer = await withStdin('n\n', () =>
+      within(confirm('[test] Continue? (y/N)')),
+    );
+    assert.equal(answer, false);
+  });
+});
+
 describe('confirmFirstPush', () => {
   const counts = { modules: 2, pages: 5, assignments: 1, files: 0 };
   const never = () => {
@@ -207,6 +242,27 @@ describe('confirmFirstPush', () => {
     );
     assert.equal(ok, true);
   });
+
+  it('cancels, and says so, when a scripted run has no answer to give', async () => {
+    const spy = mock.method(console, 'log', () => {});
+    const ok = await withStdin('', () =>
+      within(
+        confirmFirstPush({
+          courseId: 1,
+          syncData: { modules: {} },
+          dryRun: false,
+          fetchCounts: async () => counts,
+        }),
+      ),
+    );
+    assert.notEqual(ok, HUNG, 'the question has to settle without a terminal');
+    assert.equal(ok, false);
+    assert.match(
+      said(spy),
+      /Cancelled/,
+      'everything after the question used to be unreachable, this line first',
+    );
+  });
 });
 
 describe('confirmForcedPull', () => {
@@ -280,14 +336,40 @@ describe('BACKUP_DOC', () => {
   });
 });
 
+/** Returned in place of a promise that never settled. */
+const HUNG = Symbol('hung');
+
+/**
+ * Resolve to HUNG when `promise` has not settled shortly, so a question that
+ * never answers fails the test that awaited it instead of hanging the run.
+ *
+ * A plain await would be worse than no test at all here: the suite would stop
+ * dead on the first hung prompt, and `withStdin` would never reach its restore,
+ * leaving every test after it running against a stdin that is not stdin.
+ *
+ * The timer is deliberately not unref'd. A hung prompt leaves nothing else
+ * keeping the loop alive — that is the defect, a run that exits 0 with the
+ * question still on screen — so an unref'd timer would let the process exit
+ * before the test could fail.
+ */
+function within(promise, ms = 2000) {
+  let timer;
+  const expiry = new Promise((resolve) => {
+    timer = setTimeout(() => resolve(HUNG), ms);
+  });
+  return Promise.race([promise, expiry]).finally(() => clearTimeout(timer));
+}
+
 /**
  * Run a function with stdin replaced by a readable stream of `input`, so the
- * readline prompt resolves without a terminal.
+ * readline prompt resolves without a terminal. An empty `input` is a stream
+ * that ends without ever producing a line — what `< /dev/null`, a CI runner or
+ * a piped command with nothing left to say hands a prompt.
  */
 async function withStdin(input, fn) {
   const { Readable } = require('stream');
   const original = Object.getOwnPropertyDescriptor(process, 'stdin');
-  const fake = Readable.from([input]);
+  const fake = Readable.from(input ? [input] : []);
   fake.isTTY = false;
   Object.defineProperty(process, 'stdin', {
     value: fake,
