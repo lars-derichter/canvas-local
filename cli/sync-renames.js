@@ -16,7 +16,7 @@ function relativeTo(courseDir, dir, entryName) {
 /**
  * Carry the renames a command has just applied to disk into the sync state.
  *
- * The state is keyed by repo-relative path, so a file the tool renames without
+ * The state is keyed by the path under `course/`, so a file the tool renames without
  * re-keying leaves a row addressing nothing: the next push reads that as a
  * deletion at the old path and a create at the new one, and `--prune` offers to
  * delete a live Canvas object the author only renamed. Every command that

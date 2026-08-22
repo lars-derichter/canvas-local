@@ -170,7 +170,7 @@ async function selectTargetDir(rl, modulePath) {
  * Must still be called BEFORE the file is removed, but no longer because the
  * frontmatter holds the identity: a directory is recognised by asking the
  * filesystem what it is, and every row underneath it goes. A single file needs
- * nothing from disk at all — its repo-relative path is the key.
+ * nothing from disk at all — its path under `course/` is the key.
  *
  * The module is not named either. A path is unique across the whole state, so
  * the row is found wherever it lives, which is also what makes this correct for
