@@ -6,22 +6,28 @@ const {
   printItems,
   selectModule,
   selectTargetDir,
-  removeFromSyncState,
 } = require('./item-utils');
 const { renumberSequential } = require('./renumber');
 const { recordRenames } = require('./sync-renames');
 
 /**
- * Core delete: removes the entry, cleans its sync-state record, and
- * renumbers the remaining siblings.
+ * Core delete: removes the entry and renumbers the remaining siblings.
+ *
+ * The sync row for what it deletes stays behind, on purpose. A base row is the
+ * only thing that separates "the author deleted this" from "this tool has never
+ * seen it": drop it and the live Canvas page pairs with no local file and no
+ * base, which the planner reads as a page to write into `course/` — the next
+ * sync restores the item the author just deleted. Drop it and `--prune-canvas`
+ * has nothing to offer either, because a prune candidate *is* a base row. Left
+ * where it is, the item is reported under `Orphaned on Canvas` and a prune can
+ * reach it; when the Canvas object goes too, the planner drops the row itself.
+ *
+ * A directory is the same story, one level up: every row underneath it stays,
+ * and each becomes an orphan of its own.
  */
 function deleteEntry(targetDir, entryName) {
   const itemPath = path.join(targetDir, entryName);
   const isDirectory = fs.statSync(itemPath).isDirectory();
-
-  // Drop the sync row before the file goes: a directory is recognised by
-  // asking the filesystem what it is, which only works while it is there.
-  const removed = removeFromSyncState(itemPath);
 
   if (isDirectory) {
     fs.rmSync(itemPath, { recursive: true });
@@ -29,9 +35,6 @@ function deleteEntry(targetDir, entryName) {
     fs.unlinkSync(itemPath);
   }
   console.log(`[delete-item] Deleted ${entryName}`);
-  if (removed) {
-    console.log(`[delete-item] Removed ${removed} from sync state.`);
-  }
 
   // Renumber remaining items
   const renames = renumberSequential(targetDir, getItems);
