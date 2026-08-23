@@ -106,6 +106,25 @@ function runCli(args) {
           });
         resolve(false);
       } else {
+        // A run that succeeded and still wrote to stderr has something the
+        // author has to act on, and until this it was written where nobody
+        // looks: the output channel is only revealed behind the Show Log
+        // button on a failure, and the status bar below is built from stdout.
+        // The case that matters today is a delete whose renumber forced a sync
+        // row to be given up, which strands a Canvas object nothing in the
+        // project can reach afterwards — the CLI names each one, and a
+        // notification is what carries that across.
+        const warning = (stderr || '').trim();
+        if (warning) {
+          vscode.window
+            .showWarningMessage(
+              `Canvas Course Builder: ${warning.split('\n')[0]}`,
+              'Show Log',
+            )
+            .then((choice) => {
+              if (choice === 'Show Log') outputChannel.show();
+            });
+        }
         const lastLine = stdout.trim().split('\n').filter(Boolean).pop();
         if (lastLine)
           vscode.window.setStatusBarMessage(

@@ -484,4 +484,26 @@ describe('VS Code extension: CLI runner', () => {
       /terminals\.find\(\s*\(t\) => t\.name === 'Canvas Course Builder',?\s*\)/,
     );
   });
+
+  it('surfaces a warning a successful run wrote to stderr', () => {
+    // The silent runner drives every delete and the merge, and it used to
+    // append a successful run's stderr to a channel it never reveals. That is
+    // where `delete-item` and `delete-module` name the Canvas objects a
+    // renumber collision put out of reach, so the one warning in this tool
+    // that cannot be recovered from was the one nobody saw.
+    const success = extensionSource.slice(
+      extensionSource.indexOf('resolve(false);'),
+      extensionSource.indexOf('resolve(true);'),
+    );
+    assert.match(
+      success,
+      /showWarningMessage/,
+      'the success branch has to surface stderr, not only log it',
+    );
+    assert.match(
+      success,
+      /'Show Log'/,
+      'and offer the channel, because the CLI lists one object per line',
+    );
+  });
 });
