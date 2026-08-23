@@ -10,21 +10,21 @@
   what makes "changed here", "changed there", "changed on both sides" and
   "deleted here" four different questions with four different answers, so an
   item only you touched is pushed, an item only Canvas touched is pulled, and
-  only a genuine collision has to be settled at all — by the newest change, or
-  by whatever `--conflict local|canvas|ask` says. Deletion is not part of that:
-  an item that has vanished from one side is reported as an orphan and left
-  alone until a prune flag asks otherwise. See
+  only a genuine collision has to be settled at all: by the newest change, or by
+  whatever `--conflict local|canvas|ask` says. Deletion is not part of that: an
+  item that has vanished from one side is reported as an orphan and left alone
+  until a prune flag asks otherwise. See
   [The reconcile engine](docs/architecture.md#the-reconcile-engine).
 - **Change is detected by content, not by timestamps.** Each side is hashed and
   compared against its own stored hash from the last run, and the two hashes are
-  never compared with each other — Canvas rewrites markup it is handed, so a
-  page can be byte-different on the two sides and unchanged on both. Neither
-  hash reads a modification time, and that is what the old system got wrong:
-  pull refused any file whose mtime was later than `last_sync`, and status
-  called a fresh `git clone` — which stamps every file it checks out with the
-  checkout time — an entirely modified course. Exactly one decision still reads
-  a timestamp, the `newest` tiebreak, and only an item whose two hashes have
-  both moved reaches it; push and pull never do, because pinning a direction has
+  never compared with each other: Canvas rewrites markup it is handed, so a page
+  can be byte-different on the two sides and unchanged on both. Neither hash
+  reads a modification time, and that is what the old system got wrong: pull
+  refused any file whose mtime was later than `last_sync`, and status called a
+  fresh `git clone` (which stamps every file it checks out with the checkout
+  time) an entirely modified course. Exactly one decision still reads a
+  timestamp, the `newest` tiebreak, and only an item whose two hashes have both
+  moved reaches it; push and pull never do, because pinning a direction has
   already answered that question.
 - **`push`, `pull` and `status` are the same engine with one choice pinned.**
   Push writes only to Canvas and lets the local copy win; pull writes only to
@@ -42,7 +42,7 @@
   reading before you run a script that has been working. `npx course diff` is
   removed; `status` answers what it answered, against the live course rather
   than against a guess made from the local side. `status --remote` goes with it,
-  and so does the offline comparison the flag opted out of — status reads Canvas
+  and so does the offline comparison the flag opted out of: status reads Canvas
   on every run and errors when it cannot. `push --drop-canvas-only` is gone
   because nothing needs it any more. `push --prune` is now
   `push --prune-canvas`; the old spelling is still registered, but only so it
@@ -59,7 +59,7 @@
   folder's `_category_.json`. Three copies of one fact drift apart, so the first
   is now the only one. It is committed rather than ignored, it is keyed by each
   item's path under `course/`, and a push or a pull therefore leaves a change
-  there to commit beside the content that caused it — which is also what gives a
+  there to commit beside the content that caused it, which is also what gives a
   colleague who clones the repository a course that already knows what it is.
   Keyed by path it is legible on purpose: open it, recognise your own course in
   it, repair a row by hand. The schema is version 4, and a file written by any
@@ -67,7 +67,7 @@
   other way round and misreading the mapping would push a duplicate of
   everything. There is no migration: `reset-sync-state`, then `push`. Read
   [The sync state moved to schema v4](docs/updating-your-project.md#the-sync-state-moved-to-schema-v4-one-off)
-  first — that push is the part to watch. A `canvas_id` an older version left in
+  first. That push is the part to watch. A `canvas_id` an older version left in
   your frontmatter is inert from now on, ignored by every command, stripped by
   the next pull, and swept out of the tree by `reset-sync-state`.
 - **A Canvas object that is already there is claimed rather than copied a second
@@ -76,8 +76,8 @@
   tied together from then on. That is how this tool takes over a course it did
   not create, and it is the general form of the trick push used to do for
   quizzes alone: every type is eligible, text headers included. Types have to
-  match exactly — a local page does not adopt a Canvas assignment of the same
-  name, because that is a conversion and this tool cannot do one — and a title
+  match exactly (a local page does not adopt a Canvas assignment of the same
+  name, because that is a conversion and this tool cannot do one), and a title
   carried by two items on either side says nothing about which claims which, so
   nothing is adopted for it and the report names them. `sync` and `status` adopt
   nothing on purpose: with no direction pinned there is nothing to say which of
@@ -86,7 +86,7 @@
   [Adopting an item you made by hand in Canvas](docs/frontmatter.md#adopting-an-item-you-made-by-hand-in-canvas)
   covers the row to write when the match cannot be made.
 - **A rename is recognised as a rename.** The path is an item's address, so
-  renaming or renumbering a file used to read as a delete and a create — which
+  renaming or renumbering a file used to read as a delete and a create, which
   offers to delete the Canvas object and to build a second copy of it beside
   itself. The renaming commands re-key the row as they go, so the common case
   never needs detecting at all. One made by hand in Finder, or arriving with a
@@ -107,13 +107,13 @@
   moves one depth at a time so that a text header's children travel with the
   folder. If a write throws partway it puts back what it had already moved, and
   a run killed outright leaves names a later run recognises and sweeps back
-  before it scans — a parked file is invisible to the scanner, which would
+  before it scans: a parked file is invisible to the scanner, which would
   otherwise read it as an item deleted locally and offer its Canvas object to
   the next prune.
 - **Nothing overwrites work git cannot give back.** Git is the undo for this
   whole system, so a write onto a file holding uncommitted changes destroys the
   only copy of them. One `git status` covers the whole run, and every write into
-  `course/` is refused for a path it reports as modified or untracked — the item
+  `course/` is refused for a path it reports as modified or untracked: the item
   itself, a `_category_.json`, a binary being downloaded into `_files/`.
   Untracked counts, and it is the case that matters most: git holds no copy at
   all of a file it has never seen. The item is reported as skipped with the
@@ -138,19 +138,19 @@
 - **A question nothing can answer stops the run instead of hanging it.** Every
   prompt used to wait forever on a closed input stream, so a command run from a
   script, from an editor task or by an assistant stopped dead with the event
-  loop drained — after which the process exited 0, as though it had done what it
+  loop drained, after which the process exited 0, as though it had done what it
   was asked. The two shapes are now separate. A destructive confirmation
   cancels, because not deleting is a safe answer to it. Every other question has
-  no safe answer to fall back on — a run that cannot say which module to create
-  must not invent one — so it ends the run with an error naming the command, the
+  no safe answer to fall back on (a run that cannot say which module to create
+  must not invent one), so it ends the run with an error naming the command, the
   question and the flags that would have answered it, and exits 1. Three more
   runs exit non-zero rather than reading as clean: a declined first-push
   warning, a declined `pull --force` confirmation, and `status` over a course a
   `sync` would refuse rather than work through.
 - **`--help` names the flags that have to be paired.** Eight commands enter
-  their non-interactive path only when two flags are present — `move-item` wants
+  their non-interactive path only when two flags are present (`move-item` wants
   `--position` beside `--path`, `rename-module` wants `--name` beside
-  `--module`, and so on — while the help advertised the first as enough. A
+  `--module`, and so on), while the help advertised the first as enough. A
   script that passed only it used to get a prompt, and now that an unanswerable
   prompt is a failed run rather than a hang, that is a run that stops.
 - **A sync state describing another Canvas course stops the command before it
@@ -196,15 +196,15 @@
   you deleted is named under `Orphaned on Canvas` until a prune removes it, and
   when the Canvas object goes too the planner drops the row itself. One case
   cannot be kept, and it says so out loud. Where the renumber that follows a
-  delete slides a sibling onto the deleted entry's exact name — two items or two
-  modules sharing a slug at different prefixes — one path cannot hold both rows,
+  delete slides a sibling onto the deleted entry's exact name (two items or two
+  modules sharing a slug at different prefixes), one path cannot hold both rows,
   so the deleted one gives way and the run names every Canvas object that puts
   out of reach.
 - **Inserting a module keeps the modules it pushes down attached to Canvas.**
   `npx course new-module` at an occupied position renumbers every module above
   it, and it renamed those folders without telling the sync state. The items
-  inside survived — they are matched by content, so rename detection re-keyed
-  them silently — but nothing detects a module that way. Each shifted folder
+  inside survived (they are matched by content, so rename detection re-keyed
+  them silently), but nothing detects a module that way. Each shifted folder
   therefore read as a new module: `status` on a two-module course reported three
   modules to create, both pages to be moved out of the live Canvas modules they
   were in, and those two live modules orphaned for `--prune-canvas` to delete,
@@ -218,12 +218,12 @@
   the first `npm run format` after a pull rewrote half the course and buried the
   actual change. Worse, rewrapping a file moved its hash off the row the pull
   had just recorded, so the next run read it as changed locally and pushed it
-  back — byte-identical HTML on Canvas, and a phantom change in every report
+  back: byte-identical HTML on Canvas, and a phantom change in every report
   until somebody formatted. "Format your code" and "sync your course" fought.
   Every write now runs through Prettier against the project's own resolved
   config and records the hash of the bytes it actually wrote. That is the sync
   engine, and `new-item`, `split-item`, `merge-items`, `rename-item`,
-  `reset-sync-state` and `build-glossary` as well — that last one had been
+  `reset-sync-state` and `build-glossary` as well. That last one had been
   reporting its glossary pages stale on every `--check` for exactly this reason,
   because the page on disk is Prettier-canonical and its render was not.
   `prettier` moves from a development dependency to a runtime one, loaded
@@ -234,7 +234,7 @@
   `sources/`, which the tool never writes to.
 - **Markdown survives a push and a pull.** Turndown escaped `_`, `*`, backticks
   and brackets globally, so every pulled file came back peppered with
-  backslashes — `snake_case` returned as `snake\_case` — and strikethrough,
+  backslashes (`snake_case` returned as `snake\_case`), and strikethrough,
   task-list checkboxes and empty list items were dropped outright. An underscore
   inside a word is now left alone, the emphasis delimiter is chosen per node
   rather than once for the whole document, and the three dropped constructs come
@@ -245,7 +245,7 @@
   module can hold now crosses in both directions, but not all of them the same
   way. A discussion is content like a page: the markdown body is the message,
   push writes it, pull reads it back, and a rollover into a fresh course
-  recreates it from the repository. A quiz and an LTI link are references — the
+  recreates it from the repository. A quiz and an LTI link are references: the
   file says which Canvas object belongs at that position and holds nothing else,
   because a quiz's questions and submissions are not things this project could
   rebuild. Push never creates, updates or deletes either one. Which quiz an item
@@ -266,7 +266,7 @@
   rather than a note about it. The fix arrived twice. First as a refusal: push
   named the unaccounted-for items with their Canvas links, left the module
   exactly as it was and exited non-zero. Then the reconcile engine replaced that
-  with something better for a run that has picked a direction — push adopts what
+  with something better for a run that has picked a direction: push adopts what
   it can pair and leaves the rest where it is, so the module survives without
   the run stopping. The refusal itself lives on in `sync` and `status`, which
   pin no direction and so cannot pair anything.
@@ -277,7 +277,7 @@
   URL first, and on no match warns, names the tools that are installed, and
   creates the item anyway, because a broken item with an explanation beats
   content that disappears. A course-level LTI 1.1 install still cannot be
-  rebuilt from the repository — Canvas never returns a tool's `shared_secret` —
+  rebuilt from the repository (Canvas never returns a tool's `shared_secret`),
   and the rollover guide now says so and points at the account-level install
   that does survive.
 - **Quiz and external-tool items render as themselves.** Both have empty bodies
@@ -285,8 +285,8 @@
   give each one a type card and a line saying the item is managed in Canvas, in
   whichever language `course.config.yml` sets.
 - **Deleting an assignment no longer deletes a quiz.** A graded Classic Quiz is
-  two objects in Canvas — the quiz that holds the questions, and an assignment
-  that holds its gradebook column — and the second one is returned by the
+  two objects in Canvas (the quiz that holds the questions, and an assignment
+  that holds its gradebook column), and the second one is returned by the
   assignments API like any other assignment. `DELETE` on it deletes the quiz,
   its questions and every submission with it, verified against a live course. So
   `reset-canvas` was destroying every graded quiz it found while printing
@@ -302,35 +302,35 @@
 - **`reset-canvas` no longer claims that grades survive it.** Both the command's
   own warning and [`docs/advanced-commands.md`](docs/advanced-commands.md) said
   grades were left alone, while the command deletes every assignment in the
-  course — which takes its gradebook column and the student submissions on it.
+  course, which takes its gradebook column and the student submissions on it.
   Quizzes, discussions, announcements and rubrics do survive, and still say so.
 - **A sync state describing another Canvas course is refused.** Nothing compared
   `.canvas-sync.json`'s `course_id` against `CANVAS_COURSE_ID`, so a sync file
-  left over from a sandbox — or from a one-off run against a second course — was
+  left over from a sandbox (or from a one-off run against a second course) was
   used silently against whichever course `.env` named. Most of the damage stayed
   inside the current course: every id is scoped to `/courses/:id/`, so an update
   404s and push's stale-id recovery recreates the content, duplicating the whole
   course. One id is not scoped, though. Canvas file ids are global, so
   `DELETE /api/v1/files/:id` reaches a file in whichever course owns it, and
-  both `push --prune-canvas` and a renamed binary in `_files/` call it — a
-  delete landing in a course the run was never pointed at. `sync`, `push`,
-  `pull`, `status` and `delete-module` now refuse while the two disagree, name
-  both courses, and give the two ways out, and the item commands stop at the
-  point where each records its change, along with `move-module` and
-  `rename-module`. The check also covers `CANVAS_API_URL`, where a matching
-  course id on a different instance is a different course. A file that claims no
-  course contradicts nothing and is stamped from the environment instead. Two
-  commands read such a file and carry on, and neither writes to Canvas: `init`,
-  because it is the repair — it drops the old course's module, file and icon ids
-  rather than filing them under the new course id, which is what it used to do —
-  and `export`, which reads the ids only to footnote cross-links. Do not read
-  the refusal as a guard on everything, though. The commands that never open the
+  both `push --prune-canvas` and a renamed binary in `_files/` call it: a delete
+  landing in a course the run was never pointed at. `sync`, `push`, `pull`,
+  `status` and `delete-module` now refuse while the two disagree, name both
+  courses, and give the two ways out, and the item commands stop at the point
+  where each records its change, along with `move-module` and `rename-module`.
+  The check also covers `CANVAS_API_URL`, where a matching course id on a
+  different instance is a different course. A file that claims no course
+  contradicts nothing and is stamped from the environment instead. Two commands
+  read such a file and carry on, and neither writes to Canvas: `init`, because
+  it is the repair (it drops the old course's module, file and icon ids rather
+  than filing them under the new course id, which is what it used to do), and
+  `export`, which reads the ids only to footnote cross-links. Do not read the
+  refusal as a guard on everything, though. The commands that never open the
   file are not stopped at all, and `reset-canvas` is one of them: it deletes
   everything in the course `.env` names, and a mismatch is exactly the situation
   in which `.env` may not be naming the course you think it is.
 - **`delete-module` reads the sync state before it deletes the folder.** Both
-  refusals on that read — a state describing another Canvas course, and one
-  written by a schema this version cannot read — exist to stop the command
+  refusals on that read (a state describing another Canvas course, and one
+  written by a schema this version cannot read) exist to stop the command
   editing a state file that is not this course's. It ran the read after
   `fs.rmSync`, so the folder was already gone by the time the refusal arrived,
   which is the guard's promise exactly inverted. It now runs first, above the
@@ -350,8 +350,8 @@
   gradebook column, every grade in it and every reply in the topic while the
   listing showed the file as an ordinary path. Prune now resolves the assignment
   behind each doomed topic, flags the item, counts it in the warning above the
-  confirmation, and — because deleting a topic deletes the replies whatever its
-  grading — names the reply count of an ungraded topic as well, saying outright
+  confirmation, and (because deleting a topic deletes the replies whatever its
+  grading) names the reply count of an ungraded topic as well, saying outright
   that no grades are at stake in that one. A topic it cannot read counts as
   unknown rather than safe, and so does one that says it is graded but whose
   assignment Canvas does not list. The whole check still costs one submission
@@ -360,7 +360,7 @@
   it is no longer counting assignments.
 - **`reset-canvas` names the New Quizzes it deletes.** A New Quiz is an
   LTI-backed assignment with no separate quiz object behind it, so the guard
-  that spares a Classic quiz's shadow assignment does not catch it — and should
+  that spares a Classic quiz's shadow assignment does not catch it, and should
   not, because this project manages a New Quiz as the assignment it is. It is
   deleted with the rest, which takes its questions and every submission on it,
   and nothing in the repository could rebuild the questions, while the line
@@ -375,13 +375,13 @@
   submissions; and `submission_types` is ignored outright once anyone has
   submitted, while the push still reports success. Canvas's web editor warns
   about all three, its API does not. Each warning names the assignment and both
-  values, and `--dry-run` gets it too — the only moment the warning arrives
+  values, and `--dry-run` gets it too: the only moment the warning arrives
   before the change instead of with it. Nothing is blocked: only the author
   knows whether a re-weighting is deliberate.
 - **A second push no longer cancels a Pages deployment that is halfway through
   publishing.** The deploy workflow shared GitHub's `pages` concurrency group
   but set `cancel-in-progress: true`, so two pushes in quick succession could
-  kill a publish mid-flight and leave the site unpublished — after which every
+  kill a publish mid-flight and leave the site unpublished, after which every
   later run went green while the address served GitHub's "Site not found" page.
   [`docs/hosting.md`](docs/hosting.md) now covers that symptom too: how to read
   the deployment's own status, and the off-and-on-again that clears it when a
@@ -390,10 +390,10 @@
   Canvas course before finding out.** The only statement of unsupported Canvas
   types anywhere in the project used to be one line inside a pull FAQ, and a
   search of the whole repository for "backup" returned a single hit, about
-  GitHub. [`docs/limitations.md`](docs/limitations.md) is the honest list — the
+  GitHub. [`docs/limitations.md`](docs/limitations.md) is the honest list (the
   four types that sync, quizzes being import-only through a QTI package, the
   one-level nesting limit that drops a sub-subfolder without a warning, the
-  reasons push and pull are not a merge — and
+  reasons push and pull are not a merge), and
   [`docs/backups.md`](docs/backups.md) has the three ways to protect a course
   first. Three statements that were simply wrong are corrected: pull does not
   preserve extra frontmatter (now it does, see below), `reset-sync-state` does
@@ -401,9 +401,9 @@
 - **`push` asks before its first push into a Canvas course that already holds
   content.** It counts the modules, pages, assignments and files that are
   already there, names the count, and asks; declining ends the run without
-  writing. `reset-canvas` gained the same shape — it lists what the course
+  writing. `reset-canvas` gained the same shape (it lists what the course
   contains before asking, rather than prompting blind, and it takes a
-  `--dry-run` — and the `--prune-canvas` prompt points at
+  `--dry-run`), and the `--prune-canvas` prompt points at
   [`docs/backups.md`](docs/backups.md). This entry used to record something else
   besides: that a plain push cleared and rebuilt the item list of every module
   it manages, churning the module item ids with it. The reconcile engine
@@ -414,9 +414,9 @@
 - **`pull` no longer drops frontmatter keys it does not recognise.** It rebuilt
   each file's frontmatter from the Canvas response, so `export: true`, a
   `lesson:` number, or anything else you had added disappeared the moment pull
-  rewrote the file. Canvas stays authoritative for the fields it owns —
-  including clearing a due date you cleared in Canvas — and every other key is
-  carried over.
+  rewrote the file. Canvas stays authoritative for the fields it owns (including
+  clearing a due date you cleared in Canvas), and every other key is carried
+  over.
 - **`docs/first-course.md` starts from a computer with nothing installed.** The
   stated audience is colleagues who have never opened VS Code or a terminal, but
   nothing linked to code.visualstudio.com, `docs/vscode.md` opened on a command
@@ -427,8 +427,8 @@
   and the triplicated "Use this template" steps are gone.
 - **The getting-started module is rebuilt around what you are doing rather than
   what the tool can do.** Understand, write, organise, work in VS Code, publish,
-  export, save, automate, practise — with a new page on backing Canvas up before
-  the page that shows you how to push. It also exercises more of the pipeline
+  export, save, automate, practise (with a new page on backing Canvas up before
+  the page that shows you how to push). It also exercises more of the pipeline
   than before, since it doubles as the end-to-end sync test: three text headers
   instead of one, an assignment carrying all three date fields, a page carrying
   a live `export: true`, and pages that link to pages.
@@ -442,7 +442,7 @@
   accidentally publishes a pitch for the tooling to its own students.
 - **The lesson workflow points at the design chain it was always built on.**
   `course-context.md` has run goals, assessment, pedagogy from the start, and
-  `/evaluation-design` already refused to test what no lesson practised — but
+  `/evaluation-design` already refused to test what no lesson practised, but
   `docs/lesson-workflow.md` diagrammed idea → plan → module → push and put
   assessment structurally last, below the retro. Assessment moves up, the page
   opens on the chain, and both sources are cited. `/lesson-module-build` and
@@ -453,7 +453,7 @@
 - **`docs/`, `README.md` and `AGENTS.md` finally have a register.**
   `writing-style.md` assigned registers by path and covered `course/`,
   `evaluations/` and `sources/`, which left the project's own documentation
-  governed by nothing — which is why drift went unnoticed and why `/proofread`
+  governed by nothing, which is why drift went unnoticed and why `/proofread`
   could not pick a register for a file under `docs/` without asking. All four
   style baselines now say those files belong to the tooling project and are not
   the course author's to restyle. Separately, the skill-authoring reference
@@ -484,7 +484,7 @@
   was improvised, which is how a translation ends up sounding like one. The
   skill infers the source language, proposes the course language as the target
   when the source is not already in it, and takes its register from the source
-  rather than from a fixed rule — `writing-style.md` governs when the target is
+  rather than from a fixed rule: `writing-style.md` governs when the target is
   the course language, ordinary usage of the target language when it is not.
   Code, identifiers, links, and alert markers come through the pass untouched,
   while headings, link text, alt text, and captions are translated. Before it
@@ -500,8 +500,8 @@
   changes what is already there. `writing-style-*` and `course-context-*`
   already worked that way; `/export-style-create` and `/export-style-edit` were
   the last pair with a vocabulary of their own, so reaching for them meant
-  remembering which verb their author had picked. Nothing else changed — same
-  phases, same files, same plain-language triggers — and an upstream update
+  remembering which verb their author had picked. Nothing else changed (same
+  phases, same files, same plain-language triggers), and an upstream update
   removes the old folders, so you are not left with two skills answering the
   same request.
 - **`/course-context-update` folds a session's decisions into the course
@@ -510,14 +510,14 @@
   a learning-goal notation or a scope boundary you settled mid-session had
   nowhere durable to land and the next skill run asked about it again. The new
   skill sweeps the conversation, clusters what it finds against the document's
-  own headings — whatever language they are in — and either fills a section
-  still on `TODO` or replaces a fact the conversation overtook. It proposes
-  every edit before applying it, never reorders the backward-design sections,
-  and hands writing-style corrections to `/writing-style-update` rather than
-  writing them itself. `/issue-fix` and `/lesson-retro` now route to it too.
+  own headings (whatever language they are in) and either fills a section still
+  on `TODO` or replaces a fact the conversation overtook. It proposes every edit
+  before applying it, never reorders the backward-design sections, and hands
+  writing-style corrections to `/writing-style-update` rather than writing them
+  itself. `/issue-fix` and `/lesson-retro` now route to it too.
 - **The course context explains itself in a tip.** The three paragraphs of
-  meta-explanation that opened `context/course-context.md` — what the file is,
-  how to fill it in, why it belongs in `protected_files` — now sit in a `[!TIP]`
+  meta-explanation that opened `context/course-context.md` (what the file is,
+  how to fill it in, why it belongs in `protected_files`) now sit in a `[!TIP]`
   at the top, like the README template and the style guide. The document itself
   starts at its first real section.
 - **Course-context templates, in English and Dutch.**
@@ -543,7 +543,7 @@
   cover. The tagline subtitles those same covers. The point is where the setting
   lives: `docusaurus.config.js` belongs to the tooling project and is
   overwritten on update, `course.config.yml` is protected. Existing projects
-  need two small steps — see
+  need two small steps. See
   [The course title moved](docs/updating-your-project.md#the-course-title-moved-into-courseconfigyml-one-off).
 - **The style guide and course context moved to `context/`.** `docs/style.md`
   and `docs/course-context.md` are not documentation: they are per-course files
@@ -552,7 +552,7 @@
   which makes that split visible in the file tree, and the style guide is called
   `context/writing-style.md` so that nothing mistakes it for an export style.
   Existing projects need a one-off manual move, because a protected file that
-  changes location is the one case the update script cannot prune safely — see
+  changes location is the one case the update script cannot prune safely. See
   [Moving to `context/`](docs/updating-your-project.md#moving-to-context-one-off).
 - **A Dutch course README template.** `templates/README-course-nl.md` joins the
   English one, so a Dutch-language course no longer starts by translating its
@@ -577,7 +577,7 @@
   explains how to drop them if you would rather not carry them.
 - **Prettier and ESLint.** `npm run format` formats the repo and `npm run lint`
   reports defects; both are checked in CI. Formatting now includes markdown, so
-  `npm run format` will also rewrap your own course prose at 80 characters — see
+  `npm run format` will also rewrap your own course prose at 80 characters. See
   [Keeping your course files tidy](docs/user-guide.md#keeping-your-course-files-tidy)
   for why that is usually what you want, and how to opt out if it is not.
 - **The tooling moved from the Unlicense to the MIT licence.** Course content
@@ -608,7 +608,7 @@
   style plus the shared pandoc pipeline files. Overrides in
   `sources/export-style/` keep working unchanged.
 
-## 1.0.0 — 2026-08-10
+## 1.0.0 (2026-08-10)
 
 Initial public release: markdown course authoring with Docusaurus preview,
 Canvas LMS push/pull/status sync, PDF and DOCX export with customizable styling,
