@@ -94,9 +94,24 @@ to `essay_question`, and let the author choose.
       point value, set availability dates and time limit (QTI does not carry
       those), then publish.
 
-7. **Report in chat**: both paths, question count, total points, a pointer to
-   the import section in `questions.md`, and a reminder that a re-import creates
-   a second quiz — delete the old one in Canvas after replacing it.
+7. **Offer to place the quiz in a module.** Push only puts a quiz in a Canvas
+   module when `course/` holds a reference file for it, and
+   `npx course new-item` has no quiz type — so ask whether the author wants one
+   and in which module, then write it by hand:
+   `course/<NN-module>/<NN-slug>.md`, frontmatter only, with `title` exactly the
+   quiz title, `canvas_type: quiz`, and `quiz_ref` the zip's path **from the
+   repository root**. The body stays empty; the questions live in the package
+   and in Canvas. Fields and their rules:
+   [`docs/frontmatter.md`](../../../docs/frontmatter.md#quiz).
+
+   Name the order this imposes: import the package first, because push places
+   the item and never creates a quiz. Push a title the course does not hold yet
+   and that item is refused — with the step 6 procedure as the error message.
+
+8. **Report in chat**: every path written, question count, total points, a
+   pointer to the import section in `questions.md`, and a reminder that a
+   re-import creates a second quiz — delete the old one in Canvas after
+   replacing it.
 
 ## Rules
 
