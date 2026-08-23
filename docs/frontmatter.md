@@ -12,11 +12,25 @@ external tool, write the file yourself with the frontmatter below.
 
 ## Common Fields
 
-| Field         | Type    | Description                                                                                                                               |
-| ------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `title`       | string  | Display title on Canvas. Auto-generated from filename if omitted.                                                                         |
-| `canvas_type` | string  | One of `page`, `assignment`, `discussion`, `quiz`, `external_url`, `external_tool`, `file`. Defaults to `page`.                           |
-| `export`      | boolean | Set `true` to include this item in `npx course export --flagged`. See [Exporting to PDF or DOCX](user-guide.md#exporting-to-pdf-or-docx). |
+| Field         | Type    | Description                                                                                                                                         |
+| ------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `title`       | string  | Display title on Canvas. Derived from the filename if omitted, and written into your file the first time a run creates or adopts the Canvas object. |
+| `canvas_type` | string  | One of `page`, `assignment`, `discussion`, `quiz`, `external_url`, `external_tool`, `file`. Defaults to `page`.                                     |
+| `export`      | boolean | Set `true` to include this item in `npx course export --flagged`. See [Exporting to PDF or DOCX](user-guide.md#exporting-to-pdf-or-docx).           |
+
+The line is spliced in as text, nothing else in the file is touched, and a file
+that already declares a title is left alone. `push` writes it too: it is the one
+thing `push` puts in your working tree. Without it the Canvas item's name would
+keep tracking the filename, so renumbering a module would quietly rename items
+in Canvas. See
+[One Engine, Four Commands](user-guide.md#one-engine-four-commands).
+
+One file cannot take it: one whose opening `---` has no closing fence. There is
+no frontmatter block to add a line to, so the run warns and moves on.
+
+```text
+  [sync] Left the frontmatter of 01-intro/02-variables.md alone: its opening "---" has no closing fence this could read, so there is nowhere to add a title. Add one by hand, or the Canvas item keeps taking its name from the filename.
+```
 
 No field here says which Canvas object a file became. That link lives in
 `.canvas-sync.json`, keyed by the file's path under `course/`. Older versions of
