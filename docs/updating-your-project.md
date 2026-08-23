@@ -7,7 +7,7 @@ updates into your project.
 > [!TIP]
 >
 > Before updating, make sure all your local changes are committed. Run
-> `git status` to check — if it shows nothing to commit, you're good to go.
+> `git status` to check: if it shows nothing to commit, you're good to go.
 
 ## One-Time Setup
 
@@ -44,7 +44,7 @@ bash update-from-upstream.sh
 The script:
 
 1. Fetches the latest changes from upstream.
-2. Squash-merges them into a **single commit** on your branch — upstream's full
+2. Squash-merges them into a **single commit** on your branch: upstream's full
    history is not imported.
 3. Always keeps your protected paths. The content directories (`course/`,
    `evaluations/`, `sources/`) and the protected files (`README.md`,
@@ -111,7 +111,7 @@ overwritten. Commit the file after changing it.
 > `export-styles/` and `src/css/themes/` ship unprotected on purpose: they hold
 > defaults you copy out of, not edit in place. Keep your own export style or
 > theme under `sources/` and point `export.style:` / `theme:` in
-> `course.config.yml` at it — `sources/` is protected and `course.config.yml` is
+> `course.config.yml` at it. `sources/` is protected and `course.config.yml` is
 > too. If you would rather edit a shipped file in place, add it to
 > `protected_files`, or choose `a` at the conflict prompt. See
 > [Customization](customization.md#branding).
@@ -137,7 +137,7 @@ protected_files = README.md AGENTS.md CLAUDE.md context/writing-style.md context
 ```
 
 Protection restores a path from your own history, and a protected path absent
-from your history gets removed instead — which is what you want here. Commit the
+from your history gets removed instead, which is what you want here. Commit the
 deletions first, so "absent from your history" is true by the time the next
 update runs.
 
@@ -189,7 +189,7 @@ this step the next update overwrites both files with the shipped baselines.
 
 Finally, run
 `grep -rn "docs/style\.md\|context/style\.md\|docs/course-context\.md" .` and
-fix anything left in `course/`, `evaluations/` or `sources/` — those are
+fix anything left in `course/`, `evaluations/` or `sources/`: those are
 protected, so upstream never touches them and they may still point at the old
 locations.
 
@@ -305,7 +305,7 @@ Conflict: docusaurus.config.js
 | `u`    | Take the upstream version.                                                                                                            |
 | `m`    | Open the conflict-marked file in your editor so you can merge by hand. The script waits, then checks that no conflict markers remain. |
 | `a`    | Keep your version **and** add the file to `protected_files` in the config, so it stops conflicting on future updates.                 |
-| Enter  | Apply the default — whichever side was committed most recently (ties go to upstream).                                                 |
+| Enter  | Apply the default: whichever side was committed most recently (ties go to upstream).                                                  |
 
 If the script runs without a terminal (e.g. from another script), it applies the
 default automatically for every conflict.
@@ -319,7 +319,7 @@ won't be asked again.
 If you took the upstream version (`u`, or the default) of a file you'd actually
 customised, you can recover your version afterwards.
 
-**Before pushing** — restore your version from the previous commit:
+**Before pushing**, restore your version from the previous commit:
 
 ```bash
 git checkout HEAD~1 -- path/to/file
@@ -327,7 +327,7 @@ git add path/to/file
 git commit -m "Restore local changes to path/to/file"
 ```
 
-**After pushing** — recover from an earlier commit:
+**After pushing**, recover from an earlier commit:
 
 ```bash
 # See what changed
@@ -364,11 +364,11 @@ If you prefer to run the steps yourself instead of using the script:
    ```
 
 3. **Restore your content from HEAD**, then resolve any remaining conflicts. A
-   squash merge only flags conflicts when both sides modify the same file —
-   files that exist upstream but not locally are added silently as staged
-   additions. `git checkout HEAD --` will not unstage them (they are absent from
-   HEAD), so first reset the index for those paths, then check out from HEAD,
-   then clean the working tree:
+   squash merge only flags conflicts when both sides modify the same file: files
+   that exist upstream but not locally are added silently as staged additions.
+   `git checkout HEAD --` will not unstage them (they are absent from HEAD), so
+   first reset the index for those paths, then check out from HEAD, then clean
+   the working tree:
 
    ```bash
    # Unstage upstream-only additions in your content paths

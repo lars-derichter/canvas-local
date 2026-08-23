@@ -5,7 +5,7 @@ student-facing labels, an English writing style guide, and a neutral look for
 the preview site and the exports. Together they show what a fully configured
 course looks like, but they are starting points, not requirements. This page
 covers replacing each of them with your own language, course name, README,
-course context, branding, and licence — in that order, because the language you
+course context, branding, and licence, in that order, because the language you
 pick decides which of the later templates you want.
 
 > [!NOTE]
@@ -13,7 +13,7 @@ pick decides which of the later templates you want.
 > Everything this page asks you to edit survives an
 > [upstream update](updating-your-project.md): `README.md`, `course.config.yml`,
 > both files under `context/`, and anything you keep in `sources/`. The folders
-> you copy _out of_ — `templates/`, `export-styles/`, `src/css/themes/` — are
+> you copy _out of_ (`templates/`, `export-styles/`, `src/css/themes/`) are
 > deliberately unprotected: they hold shipped defaults, so take a copy rather
 > than editing one in place.
 
@@ -27,7 +27,7 @@ The wizard asks the questions on this page in this order, writes
 `course.config.yml`, and installs the templates that match the language you
 pick. It ends by offering the two things a fresh course still needs: removing
 the built-in tutorial module, and connecting Canvas. Run it again whenever you
-want to change an answer — it offers your current settings as the defaults, and
+want to change an answer. It offers your current settings as the defaults, and
 never replaces a file you have written in without asking.
 
 That leaves the writing itself: the README prose, and the course context. Both
@@ -55,7 +55,7 @@ overridden under `labels:`; the file contains a commented block showing every
 overridable key.
 
 Answer this one first. It also decides which README, course context and writing
-style guide you want below — each of those ships in more than one language.
+style guide you want below: each of those ships in more than one language.
 
 After changing the language or a label, re-push modules whose pages contain
 alerts (`npx course push`) and regenerate the glossary pages
@@ -72,7 +72,7 @@ tagline: Bachelor 1, semester 2 # optional, sits above the title on covers
 ```
 
 Leave `title` out and it falls back to the generic label for your course
-language — "Course", "Cursus" — which is a nudge, not a name. Set it once.
+language ("Course", "Cursus"), which is a nudge, not a name. Set it once.
 
 The `tagline` is optional and does double duty: Docusaurus keeps it in the site
 metadata, and it subtitles the cover of an export covering the whole course. A
@@ -86,7 +86,7 @@ project and is overwritten on upstream updates; a title set in
 ## The README
 
 The `README.md` in your project root describes Canvas Course Builder, the
-tooling — not your course. Replace it with the course README template:
+tooling (not your course). Replace it with the course README template:
 
 ```bash
 cp templates/README-course-en.md README.md
@@ -111,7 +111,7 @@ course _is_: learning goals, assessment, pedagogy, module conventions, scope
 boundaries. The lesson skills (`/lesson-design`, `/lesson-summarize`,
 `/lesson-module-build`) work from it instead of guessing, and it is equally the
 document to hand a colleague who takes the course over, a co-teacher joining
-you, or yourself next academic year — it holds the reasoning behind the course
+you, or yourself next academic year: it holds the reasoning behind the course
 rather than its contents.
 
 Those first three sections are in that order on purpose: what students should be
@@ -138,16 +138,16 @@ Three documents describe your course, and each answers a different question:
 | `README.md`                 | What is this course, and how do I work in this repository? | Whoever opens the repository                         |
 | `context/course-context.md` | Why is the course built this way, and what are its rules?  | The lesson skills, and anyone taking the course over |
 
-The name and the language live in `course.config.yml` — the other two point at
-it rather than restating it. `/course-context-init` reads `course.config.yml`
-and `README.md` before it asks you anything, so writing a fact in the README
-saves you typing it again.
+The name and the language live in `course.config.yml`: the other two point at it
+rather than restating it. `/course-context-init` reads `course.config.yml` and
+`README.md` before it asks you anything, so writing a fact in the README saves
+you typing it again.
 
 ## The Writing Style Guide
 
 [`context/writing-style.md`](../context/writing-style.md) holds the rules the
 authoring skills follow: language, tone, headings, callouts, punctuation. It
-ships as the English baseline, usable as it stands, but make it yours early —
+ships as the English baseline, usable as it stands, but make it yours early.
 `/proofread` derives its checks from whatever the guide says, so it follows your
 rules in whatever language you write as soon as you change them.
 
@@ -189,7 +189,7 @@ the complete house style.
 
 A theme is a CSS file of custom properties, and it is the single source of truth
 for colour. The preview site, the alert colours in Canvas pages, the alert icons
-uploaded to Canvas, and PDF exports all read the same file — so a colour you
+uploaded to Canvas, and PDF exports all read the same file, so a colour you
 change in one place changes everywhere.
 
 Built-in themes live in [`src/css/themes/`](../src/css/themes/):
@@ -205,7 +205,7 @@ reference. Two groups are worth knowing before you open it: the alert colours
 come as a `--ccb-alert-<kind>-fg` / `-bg` pair for each of `note`, `tip`,
 `important`, `warning`, `caution` and `check`, where `fg` is the left rule and
 the title and `bg` fills the box; and the font tokens set the preview site's
-typography only — export typography belongs to the export style below.
+typography only: export typography belongs to the export style below.
 
 To make a theme of your own, copy one into `sources/` and point `theme:` at the
 path:
@@ -227,7 +227,7 @@ Canvas pages pick it up on the next run.
 > exports are baked into the export style's `reference.docx` and cannot be
 > injected. Use `/export-style-update` to recolour it to match.
 
-[`src/css/custom.css`](../src/css/custom.css) holds no colours of its own — it
+[`src/css/custom.css`](../src/css/custom.css) holds no colours of its own: it
 maps the `--ccb-*` tokens onto Docusaurus's `--ifm-*` variables and styles the
 components. The site title and navbar label come from `title` in
 `course.config.yml`, above.
@@ -238,10 +238,10 @@ An export style decides how a PDF or Word document is laid out: typography,
 margins, the cover, and any fonts it ships. Built-in styles live in
 [`export-styles/`](../export-styles/):
 
-| Style         | Look                                                                                                                                                                                        |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `generic`     | The default. Helvetica/Arial, near-black headings, A4 with 2.5 cm margins, and a "Built with Canvas Course Builder" watermark on the cover.                                                 |
-| `thomas-more` | Century Gothic headings where the machine has that font, Nunito bundled as the fallback, and the Thomas More logo. The logo belongs to its owner — see [THIRD-PARTY.md](../THIRD-PARTY.md). |
+| Style         | Look                                                                                                                                                                                       |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `generic`     | The default. Helvetica/Arial, near-black headings, A4 with 2.5 cm margins, and a "Built with Canvas Course Builder" watermark on the cover.                                                |
+| `thomas-more` | Century Gothic headings where the machine has that font, Nunito bundled as the fallback, and the Thomas More logo. The logo belongs to its owner. See [THIRD-PARTY.md](../THIRD-PARTY.md). |
 
 `npx course export --style thomas-more` overrides the config for one run.
 
@@ -259,7 +259,7 @@ cp -r export-styles/generic sources/my-style
 ```
 
 Inside are `template.typ` for PDF, `reference.docx` for Word, an optional
-`logo.png` for the cover, and an optional `fonts/` for typefaces to embed — only
+`logo.png` for the cover, and an optional `fonts/` for typefaces to embed. Only
 put a font there if its licence allows you to redistribute it, and note it in
 `THIRD-PARTY.md`. To change one file without forking a whole style, drop it in
 `sources/export-style/` instead: that path wins per file over whatever style is
@@ -283,8 +283,8 @@ The licences follow the tooling/content split:
 ## The Built-in Tutorial Module
 
 `course/01-getting-started/` is two things at once: a friendly walkthrough of
-the project — markdown, alerts, course structure, syncing, exporting, working
-with an AI assistant — and a worked example of every content type the tooling
+the project (markdown, alerts, course structure, syncing, exporting, working
+with an AI assistant) and a worked example of every content type the tooling
 supports, which makes it the handiest reference while you build your first
 module.
 
@@ -302,7 +302,7 @@ readable in the
 [upstream repository](https://github.com/lars-derichter/canvas-course-builder/tree/main/course/01-getting-started),
 so you can consult it, or copy it back, long after your own course has replaced
 it. To keep it locally without publishing it, rename the folder with a leading
-underscore — `_01-getting-started` — which excludes it from Canvas syncing while
+underscore (`_01-getting-started`), which excludes it from Canvas syncing while
 the preview site still ignores it too.
 
 ## Files That Belong to the Tooling Project
@@ -314,5 +314,5 @@ says up front which project it applies to, so leaving them costs nothing and
 keeps the bug-report route open. Most people leave them.
 
 Deleting them takes one extra step, because the next upstream update would
-otherwise deliver them again — see
+otherwise deliver them again. See
 [deleting files that belong to the tooling project](updating-your-project.md#deleting-files-that-belong-to-the-tooling-project).

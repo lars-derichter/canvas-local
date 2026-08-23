@@ -1,7 +1,7 @@
 # New Academic Year
 
 How to switch your course materials to a new Canvas course at the start of a new
-academic year. Your markdown content stays the same — you just point it at the
+academic year. Your markdown content stays the same: you just point it at the
 new course and push.
 
 Most of your course rebuilds itself. Two types need a hand, and one of them
@@ -36,7 +36,7 @@ npx course init
 
 > [!TIP]
 >
-> The API URL and token usually stay the same between years — only the course ID
+> The API URL and token usually stay the same between years: only the course ID
 > changes.
 
 From here until step 5, `.env` names the new course while `.canvas-sync.json`
@@ -52,14 +52,14 @@ each folder name is a key, so lay out the new year's modules after step 5 rather
 than before it. Running `npx course init` at this step instead of editing `.env`
 by hand lifts the refusal straight away, because init rewrites the sync state
 too and leaves last year's module ids behind rather than filing them under the
-new course — but it does not touch the `canvas_id` and `canvas_module_id` fields
+new course, but it does not touch the `canvas_id` and `canvas_module_id` fields
 older versions of this tool wrote into `course/`. Clearing those is all step 5
 has left to do, and a course authored on this version carries none.
 
 ## 3. Clean the Remote Course (If Needed)
 
-If the new Canvas course already contains content — imported materials, starter
-templates, or leftover items from a previous setup — clear it first:
+If the new Canvas course already contains content (imported materials, starter
+templates, or leftover items from a previous setup), clear it first:
 
 ```bash
 npx course reset-canvas
@@ -79,9 +79,9 @@ Skip this step if the new course is already empty.
 
 Review your assignment frontmatter and update dates for the new academic year:
 
-- `due_at` — assignment deadline
-- `lock_at` — when the assignment closes
-- `unlock_at` — when the assignment becomes available
+- `due_at`: assignment deadline
+- `lock_at`: when the assignment closes
+- `unlock_at`: when the assignment becomes available
 
 Dates use ISO 8601 format:
 
@@ -94,7 +94,7 @@ due_at: "2026-10-15T23:59:00Z"
 ---
 ```
 
-Also check any `external_url` items — linked resources may have new URLs for the
+Also check any `external_url` items: linked resources may have new URLs for the
 current year (e.g. updated ECTS documents, external platforms, or reference
 materials).
 
@@ -113,7 +113,7 @@ npx course reset-sync-state
 
 This deletes `.canvas-sync.json`, the one record of which Canvas object each
 file and folder is, and sweeps up the `canvas_id` and `canvas_module_id` fields
-older versions of this tool wrote into `course/`. Your content is untouched —
+older versions of this tool wrote into `course/`. Your content is untouched:
 only the sync bookkeeping goes.
 
 That file is committed, so its deletion is a change to your project like any
@@ -186,7 +186,7 @@ this repository as markdown, and Canvas has no API for a QTI import, so:
 
 Until the quiz is imported, push cannot place that item: the action fails with
 the import procedure and the filename in it, and the run ends non-zero. Nothing
-else in the module is affected — a failed action costs that action alone.
+else in the module is affected: a failed action costs that action alone.
 
 A quiz file with no `quiz_ref` cannot be rebuilt at all: there is no package to
 import, and no questions in the repository. That is why `npx course validate`
@@ -219,7 +219,7 @@ find valid settings for this link".
 > creates a second copy of each. Delete the copied discussions in Canvas before
 > pushing. Adoption cannot rescue them: push reads a course through its modules,
 > so a discussion no module item points at is invisible to it, and claiming one
-> by hand needs it back in a module first — see
+> by hand needs it back in a module first. See
 > [Frontmatter](frontmatter.md#adopting-an-item-you-made-by-hand-in-canvas).
 
 ## Quick Reference
