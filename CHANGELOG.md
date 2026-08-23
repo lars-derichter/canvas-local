@@ -183,6 +183,19 @@
   still means "keep what you have", which is what makes this safe for a course
   whose frontmatter has never mentioned a date. See
   [Clearing a date](docs/frontmatter.md#clearing-a-date).
+- **Inserting a module keeps the modules it pushes down attached to Canvas.**
+  `npx course new-module` at an occupied position renumbers every module above
+  it, and it renamed those folders without telling the sync state. The items
+  inside survived — they are matched by content, so rename detection re-keyed
+  them silently — but nothing detects a module that way. Each shifted folder
+  therefore read as a new module: `status` on a two-module course reported three
+  modules to create, both pages to be moved out of the live Canvas modules they
+  were in, and those two live modules orphaned for `--prune-canvas` to delete,
+  along with every embedded image whose row had been left behind pointing at the
+  old folder. What the author had done was insert one module. The renumber is
+  recorded now, so the same insert reports one module created and two positions
+  updated. `new-module` opens the sync state to do it, which means it is also
+  refused when that state describes another Canvas course.
 - **Everything the tool writes under `course/` comes out Prettier-formatted.**
   Pull used to hand back markdown in whatever shape the converter produced, so
   the first `npm run format` after a pull rewrote half the course and buried the
