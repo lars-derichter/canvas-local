@@ -103,15 +103,16 @@ or modified. Use the refresh button in the view title bar to manually refresh.
 
 ### Title Bar Menu
 
-The title bar has a **Search** button that asks for a word or phrase and shows
-all matches (with context) in the terminal, and a **Preview** button that starts
-the Docusaurus dev server (if not already running) and opens the course in the
-browser. The dropdown includes **Sync with Canvas**, **Push to Canvas**, **Pull
-from Canvas**, **Status** and **Validate** for quick access to sync commands,
-plus **Export** — a quick pick to export the full course, only flagged items, or
-a curated selection via a table of contents. Choosing the TOC option opens the
-generated list for editing and reveals an **Export via TOC** action once it is
-ready.
+The title bar carries four buttons, in this order: **New Module**, which creates
+a module and asks for its name and position; **Search**, which asks for a word
+or phrase and shows all matches (with context) in the terminal; **Preview**,
+which starts the Docusaurus dev server (if not already running) and opens the
+course in the browser; and **Refresh**, above. The dropdown repeats **Preview**
+and adds **Sync with Canvas**, **Push to Canvas**, **Pull from Canvas**,
+**Status** and **Validate** for quick access to sync commands, plus **Export**,
+a quick pick to export the full course, only flagged items, or a curated
+selection via a table of contents. Choosing the TOC option opens the generated
+list for editing and reveals an **Export via TOC** action once it is ready.
 
 ## Commands
 
@@ -164,12 +165,12 @@ ready.
 
 ### Export
 
-| Command                    | Description                                              |
-| -------------------------- | -------------------------------------------------------- |
-| Export to PDF/DOCX         | Export the selected item(s) — multi-select combines them |
-| Export Module to PDF/DOCX  | Export a whole module                                    |
-| Course: Export to PDF/DOCX | Export the full course, only flagged items, or via a TOC |
-| Course: Export via TOC     | Render the curated `exports/toc.md` after editing it     |
+| Command                       | Description                                              |
+| ----------------------------- | -------------------------------------------------------- |
+| Export to PDF/DOCX...         | Export the selected item(s) — multi-select combines them |
+| Export Module to PDF/DOCX...  | Export a whole module                                    |
+| Course: Export to PDF/DOCX... | Export the full course, only flagged items, or via a TOC |
+| Course: Export via TOC...     | Render the curated `exports/toc.md` after editing it     |
 
 See [export styling](export-styling.md) for customising fonts, colours, and
 margins.
@@ -183,8 +184,11 @@ margins.
   silently in the background; results appear as notifications and in the
   **Canvas Course Builder** output channel, and the tree refreshes
   automatically.
-- Most commands validate that a `course/` directory exists in the workspace
-  before running. The Init command is exempt from this check.
+- The workspace check blocks on one thing. `validateWorkspace` stops a command
+  when no workspace folder is open at all; a workspace with no `course/`
+  directory only draws a warning pointing at Init, and the command runs
+  regardless. That is what lets Setup and New Module run in a project that has
+  no `course/` yet. Init is exempt from the check altogether.
 - **Push Module** presents a quick-pick list of all module folders so you can
   select which one to push.
 - **Preview** checks whether the Docusaurus dev server is already running. If
