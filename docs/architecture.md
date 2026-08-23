@@ -439,12 +439,17 @@ relative link).
 
 ## Error Recovery
 
-- **Retry**: a call that comes back 429 (rate limit) or 5xx is retried up to 3
-  times on top of the first attempt, with exponential backoff, so a failing
-  request is made 4 times before it gives up. A network error is retried the
-  same way with one exception: a `POST` is not, because a dropped connection
-  leaves it unknown whether Canvas processed the request and a duplicate page or
-  assignment is worse than a clean failure.
+- **Retry**: a call that comes back 429, 5xx, or a throttled 403 (Canvas reports
+  rate limiting as 403 with "Rate Limit Exceeded" in the body) is retried up to
+  3 times on top of the first attempt, so a failing request is made 4 times
+  before it gives up. Each retry waits the server's `Retry-After` when the
+  response names one (capped at 60 seconds), with exponential backoff otherwise.
+  A request with no answer after 60 seconds times out, and network errors and
+  timeouts are retried the same way. The exception is `POST`: it is retried only
+  when Canvas refused the request before running it (429 or throttled 403),
+  never on a 5xx, network error, or timeout, because those leave it unknown
+  whether Canvas processed the request and a duplicate page or assignment is
+  worse than a clean failure.
 - **Rate limiting**: pauses 1 second when `x-rate-limit-remaining` drops
   below 50.
 - **Stale IDs**: a 404 on updating a page, assignment or discussion means the

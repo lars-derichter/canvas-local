@@ -149,13 +149,17 @@ everything.
 
 ## Resilience and Conflict Detection
 
-- **Retry logic**: a call that comes back 429 (rate limit) or 5xx is retried up
-  to 3 times on top of the first attempt, with exponential backoff, so a failing
-  request is made 4 times before it gives up. The log counts them:
-  `(attempt 2/4)`. A network error is retried the same way with one exception, a
-  `POST`, because a dropped connection leaves it unknown whether Canvas
-  processed the request and a duplicate page or assignment is worse than a clean
-  failure.
+- **Retry logic**: a call that comes back 429, 5xx, or a throttled 403 (Canvas
+  reports rate limiting as 403 with "Rate Limit Exceeded" in the body) is
+  retried up to 3 times on top of the first attempt, so a failing request is
+  made 4 times before it gives up. The log counts them: `(attempt 2/4)`. Each
+  retry waits the server's `Retry-After` when the response names one, with
+  exponential backoff otherwise. A request with no answer after 60 seconds times
+  out, and network errors and timeouts are retried the same way. The exception
+  is a `POST`: it is retried only when Canvas refused the request before running
+  it (429 or throttled 403), never on a 5xx, network error, or timeout, because
+  those leave it unknown whether Canvas processed the request and a duplicate
+  page or assignment is worse than a clean failure.
 - **Error recovery**: If a single module or item fails during push/pull, the
   remaining items continue and a summary of errors is shown at the end.
 - **Conflict detection**: what changed is decided by content, not by a

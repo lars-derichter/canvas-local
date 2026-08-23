@@ -11,6 +11,7 @@ const {
   post,
   put,
   del,
+  CanvasApiError,
 } = require('../../lib/canvas/client');
 
 /**
@@ -263,6 +264,246 @@ describe('canvasRequest', () => {
       );
       assert.equal(fetchMock.mock.calls.length, 1);
     });
+
+    it('does not retry a plain 403 permission error', async () => {
+      fetchMock = mock.method(global, 'fetch', async () =>
+        fakeResponse('user not authorized to perform that action', {
+          status: 403,
+        }),
+      );
+
+      await assert.rejects(
+        () => canvasRequest('GET', '/api/v1/courses/42'),
+        (err) => {
+          assert.match(err.message, /failed with status 403/);
+          return true;
+        },
+      );
+      assert.equal(fetchMock.mock.calls.length, 1);
+    });
+  });
+
+  describe('typed errors', () => {
+    it('throws CanvasApiError carrying status, method, path and body', async () => {
+      fetchMock = mock.method(global, 'fetch', async () =>
+        fakeResponse('Not Found', { status: 404 }),
+      );
+
+      await assert.rejects(
+        () => canvasRequest('GET', '/api/v1/courses/42'),
+        (err) => {
+          assert.ok(err instanceof CanvasApiError);
+          assert.equal(err.status, 404);
+          assert.equal(err.method, 'GET');
+          assert.equal(err.path, '/api/v1/courses/42');
+          assert.equal(err.body, 'Not Found');
+          // The message still names the status the old way, because callers
+          // match on it until they switch to `.status`.
+          assert.match(err.message, /failed with status 404/);
+          return true;
+        },
+      );
+    });
+
+    it('caps the body snippet but keeps the full body in the message', async () => {
+      const bigBody = 'x'.repeat(1000);
+      fetchMock = mock.method(global, 'fetch', async () =>
+        fakeResponse(bigBody, { status: 422 }),
+      );
+
+      await assert.rejects(
+        () => canvasRequest('GET', '/api/v1/courses/42'),
+        (err) => {
+          assert.equal(err.body.length, 300);
+          // The external-tools probe JSON-parses the body back out of the
+          // message tail, so the message must keep it whole.
+          assert.ok(err.message.endsWith(bigBody));
+          return true;
+        },
+      );
+    });
+  });
+
+  describe('throttled 403', () => {
+    it('retries a 403 whose body signals Canvas throttling', async () => {
+      let callCount = 0;
+      fetchMock = mock.method(global, 'fetch', async () => {
+        callCount++;
+        if (callCount === 1) {
+          return fakeResponse('403 Forbidden (Rate Limit Exceeded)', {
+            status: 403,
+            headers: { 'retry-after': '0' },
+          });
+        }
+        return fakeResponse({ id: 1 });
+      });
+
+      const result = await canvasRequest('GET', '/api/v1/courses/42');
+      assert.deepEqual(result, { id: 1 });
+      assert.equal(fetchMock.mock.calls.length, 2);
+    });
+
+    it('retries a 403 whose rate-limit quota is drained', async () => {
+      let callCount = 0;
+      fetchMock = mock.method(global, 'fetch', async () => {
+        callCount++;
+        if (callCount === 1) {
+          return fakeResponse('Forbidden', {
+            status: 403,
+            headers: {
+              'x-rate-limit-remaining': '0',
+              'retry-after': '0',
+            },
+          });
+        }
+        return fakeResponse({ id: 1 });
+      });
+
+      const result = await canvasRequest('GET', '/api/v1/courses/42');
+      assert.deepEqual(result, { id: 1 });
+      assert.equal(fetchMock.mock.calls.length, 2);
+    });
+  });
+
+  describe('Retry-After', () => {
+    it('waits the Retry-After delay instead of the backoff delay', async () => {
+      let callCount = 0;
+      fetchMock = mock.method(global, 'fetch', async () => {
+        callCount++;
+        if (callCount === 1) {
+          return fakeResponse('rate limited', {
+            status: 429,
+            headers: { 'retry-after': '0' },
+          });
+        }
+        return fakeResponse({ id: 1 });
+      });
+
+      const start = Date.now();
+      const result = await canvasRequest('GET', '/api/v1/courses/42');
+      const elapsed = Date.now() - start;
+
+      assert.deepEqual(result, { id: 1 });
+      assert.equal(fetchMock.mock.calls.length, 2);
+      // Retry-After: 0 replaces the 1000ms backoff, so the retry is immediate.
+      assert.ok(
+        elapsed < 500,
+        `Expected immediate retry but took ${elapsed}ms`,
+      );
+    });
+
+    it('falls back to backoff when Retry-After is unparseable', async () => {
+      let callCount = 0;
+      fetchMock = mock.method(global, 'fetch', async () => {
+        callCount++;
+        if (callCount === 1) {
+          return fakeResponse('rate limited', {
+            status: 429,
+            headers: { 'retry-after': 'Wed, 21 Oct 2026 07:28:00 GMT' },
+          });
+        }
+        return fakeResponse({ id: 1 });
+      });
+
+      const start = Date.now();
+      await canvasRequest('GET', '/api/v1/courses/42');
+      const elapsed = Date.now() - start;
+
+      assert.equal(fetchMock.mock.calls.length, 2);
+      // The HTTP-date form is not honoured, so the 1000ms backoff applies.
+      assert.ok(elapsed >= 900, `Expected backoff delay but took ${elapsed}ms`);
+    });
+  });
+
+  describe('POST retry semantics', () => {
+    it('does not retry POST on 5xx (the object may have landed)', async () => {
+      fetchMock = mock.method(global, 'fetch', async () =>
+        fakeResponse('Internal Server Error', { status: 500 }),
+      );
+
+      await assert.rejects(
+        () =>
+          canvasRequest('POST', '/api/v1/courses/42/pages', { wiki_page: {} }),
+        (err) => {
+          assert.match(err.message, /failed with status 500/);
+          return true;
+        },
+      );
+      assert.equal(fetchMock.mock.calls.length, 1);
+    });
+
+    it('retries POST on 429 (refused before executing)', async () => {
+      let callCount = 0;
+      fetchMock = mock.method(global, 'fetch', async () => {
+        callCount++;
+        if (callCount === 1) {
+          return fakeResponse('rate limited', {
+            status: 429,
+            headers: { 'retry-after': '0' },
+          });
+        }
+        return fakeResponse({ id: 99 }, { status: 201 });
+      });
+
+      const result = await canvasRequest('POST', '/api/v1/courses/42/pages', {
+        wiki_page: {},
+      });
+      assert.deepEqual(result, { id: 99 });
+      assert.equal(fetchMock.mock.calls.length, 2);
+    });
+
+    it('retries POST on a throttled 403 (refused before executing)', async () => {
+      let callCount = 0;
+      fetchMock = mock.method(global, 'fetch', async () => {
+        callCount++;
+        if (callCount === 1) {
+          return fakeResponse('403 Forbidden (Rate Limit Exceeded)', {
+            status: 403,
+            headers: { 'retry-after': '0' },
+          });
+        }
+        return fakeResponse({ id: 99 }, { status: 201 });
+      });
+
+      const result = await canvasRequest('POST', '/api/v1/courses/42/pages', {
+        wiki_page: {},
+      });
+      assert.deepEqual(result, { id: 99 });
+      assert.equal(fetchMock.mock.calls.length, 2);
+    });
+  });
+
+  describe('timeouts', () => {
+    it('passes an abort signal on every fetch', async () => {
+      fetchMock = mock.method(global, 'fetch', async () =>
+        fakeResponse({ id: 1 }),
+      );
+
+      await canvasRequest('GET', '/api/v1/courses/42');
+
+      const [, opts] = fetchMock.mock.calls[0].arguments;
+      assert.ok(opts.signal instanceof AbortSignal);
+    });
+
+    it('does not retry POST on a timeout and names the timeout', async () => {
+      fetchMock = mock.method(global, 'fetch', async () => {
+        throw new DOMException(
+          'The operation was aborted due to timeout',
+          'TimeoutError',
+        );
+      });
+
+      await assert.rejects(
+        () =>
+          canvasRequest('POST', '/api/v1/courses/42/pages', { wiki_page: {} }),
+        (err) => {
+          assert.match(err.message, /failed after 1 attempt/);
+          assert.match(err.message, /timed out after 60000ms/);
+          return true;
+        },
+      );
+      assert.equal(fetchMock.mock.calls.length, 1);
+    });
   });
 
   describe('pagination', () => {
@@ -352,6 +593,32 @@ describe('canvasRequest', () => {
       const result = await canvasRequest('GET', '/api/v1/courses/42/modules');
       assert.deepEqual(result, [{ id: 1 }, { id: 2 }]);
       assert.equal(fetchMock.mock.calls.length, 3);
+    });
+
+    it('follows a next link whose URL contains a comma', async () => {
+      const nextUrl =
+        'https://canvas.example.com/api/v1/courses/42/modules?page=2&search_term=a,b';
+      let callCount = 0;
+      fetchMock = mock.method(global, 'fetch', async () => {
+        callCount++;
+        if (callCount === 1) {
+          return fakeResponse([{ id: 1 }], {
+            headers: {
+              link: `<${nextUrl}>; rel="next", <https://canvas.example.com/api/v1/courses/42/modules?page=3>; rel="last"`,
+            },
+          });
+        }
+        return fakeResponse([{ id: 2 }]);
+      });
+
+      const result = await canvasRequest('GET', '/api/v1/courses/42/modules');
+      assert.deepEqual(result, [{ id: 1 }, { id: 2 }]);
+      assert.equal(fetchMock.mock.calls.length, 2);
+
+      const [url, opts] = fetchMock.mock.calls[1].arguments;
+      assert.equal(url, nextUrl);
+      // The pagination path carries the timeout signal too.
+      assert.ok(opts.signal instanceof AbortSignal);
     });
   });
 
