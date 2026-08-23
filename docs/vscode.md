@@ -106,30 +106,34 @@ or modified. Use the refresh button in the view title bar to manually refresh.
 The title bar has a **Search** button that asks for a word or phrase and shows
 all matches (with context) in the terminal, and a **Preview** button that starts
 the Docusaurus dev server (if not already running) and opens the course in the
-browser. The dropdown includes **Push to Canvas**, **Pull from Canvas**,
-**Status** and **Validate** for quick access to sync commands, plus **Export** —
-a quick pick to export the full course, only flagged items, or a curated
-selection via a table of contents. Choosing the TOC option opens the generated
-list for editing and reveals an **Export via TOC** action once it is ready.
+browser. The dropdown includes **Sync with Canvas**, **Push to Canvas**, **Pull
+from Canvas**, **Status** and **Validate** for quick access to sync commands,
+plus **Export** — a quick pick to export the full course, only flagged items, or
+a curated selection via a table of contents. Choosing the TOC option opens the
+generated list for editing and reveals an **Export via TOC** action once it is
+ready.
 
 ## Commands
 
 ### Setup
 
-| Command      | Description                  |
-| ------------ | ---------------------------- |
-| Course: Init | Interactive Canvas API setup |
+| Command                          | Description                                    |
+| -------------------------------- | ---------------------------------------------- |
+| Course: Setup (First-Run Wizard) | Course name, language, templates, look, Canvas |
+| Course: Init (Canvas Setup)      | Interactive Canvas API setup                   |
 
 ### Sync
 
-| Command                          | Description                            |
-| -------------------------------- | -------------------------------------- |
-| Course: Push to Canvas           | Push all modules to Canvas             |
-| Course: Push to Canvas (Dry Run) | Preview push without making changes    |
-| Course: Push Module to Canvas    | Pick a module from a list and push it  |
-| Course: Pull from Canvas         | Pull Canvas course into local markdown |
-| Course: Status                   | Compare local vs Canvas state          |
-| Course: Validate                 | Check course content for errors        |
+| Command                            | Description                                |
+| ---------------------------------- | ------------------------------------------ |
+| Course: Sync with Canvas           | Two-way sync: newest wins, nothing deleted |
+| Course: Sync with Canvas (Dry Run) | Preview a sync without writing anything    |
+| Course: Push to Canvas             | Push all modules to Canvas                 |
+| Course: Push to Canvas (Dry Run)   | Preview push without making changes        |
+| Course: Push Module to Canvas...   | Pick a module from a list and push it      |
+| Course: Pull from Canvas           | Pull Canvas course into local markdown     |
+| Course: Status                     | Compare local vs Canvas state              |
+| Course: Validate                   | Check course content for errors            |
 
 ### Module Management
 
@@ -172,9 +176,9 @@ margins.
 
 ## How It Works
 
-- Long-running sync commands (push, pull, status, validate, init) run in a
-  single shared **Canvas Course Builder** terminal so you can follow their
-  output.
+- Long-running commands run in a single shared **Canvas Course Builder**
+  terminal so you can follow their output: Setup, Init, Sync, Push, Pull,
+  Status, Validate, and the two dry runs.
 - Structural commands (new/rename/move/delete, merge, split) run the CLI
   silently in the background; results appear as notifications and in the
   **Canvas Course Builder** output channel, and the tree refreshes
