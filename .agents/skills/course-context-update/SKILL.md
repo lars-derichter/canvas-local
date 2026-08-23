@@ -19,11 +19,11 @@ the whole document from the repo and an interview.
    lesson-plan or module conventions they corrected, code and download rules,
    glossary decisions, and scope calls ("that belongs in the follow-up course").
    Separate a durable course fact from a one-off decision about the artefact in
-   hand — only the first belongs in the document.
+   hand: only the first belongs in the document.
 
 2. **Cluster the findings by the actual current headings of
-   `course-context.md`** — read them at runtime, never assume the section list
-   or its language. A Dutch course has Dutch headings and its own goal notation;
+   `course-context.md`**: read them at runtime, never assume the section list or
+   its language. A Dutch course has Dutch headings and its own goal notation;
    the set of sections is fixed and ordered, the names are not. Each finding
    lands in one of two cases: a section still on `TODO` that the conversation
    now answers, or a filled section a new fact contradicts or sharpens.
@@ -33,7 +33,7 @@ the whole document from the repo and an interview.
    section's HTML guidance comment. For a filled section, propose a replacement
    rather than an append, and say which it is. Apply only after confirmation,
    with surgical, minimal edits so the author can review a small diff. Never
-   reorder the sections — their order is the backward-design chain.
+   reorder the sections: their order is the backward-design chain.
 
 4. **Flag what this document cannot fix.** A course name or language settled in
    conversation also lives in `course.config.yml`; a changed goal notation
@@ -50,7 +50,7 @@ the whole document from the repo and an interview.
 - **Language.** Write new content in the language `course-context.md` itself
   uses. Reply in chat in the language the author writes in.
 - If the conversation holds no course-design signals, say so and stop. Do not
-  invent facts, and do not go read the repo to find some — filling the document
+  invent facts, and do not go read the repo to find some: filling the document
   from the repo is `/course-context-init`'s job.
 - Prefer concrete, checkable statements over intentions: "goals are referenced
   as `LG3` in each lesson plan's own goals section" beats "goals are clearly

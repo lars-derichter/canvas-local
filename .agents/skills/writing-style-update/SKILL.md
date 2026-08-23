@@ -18,11 +18,11 @@ drafts material.
    non-obvious choices, and word-choice preferences ("use _folder_ instead of
    _directory_", "never _leuk_").
 
-2. **Cluster the findings by the actual current headings of `writing-style.md`**
-   — read them at runtime, never assume a section list. Mind the registers: a
-   preference expressed about student material belongs in the student-facing
-   section, one about lesson plans in the colleague-facing section, and only
-   genuinely general rules under the shared rules.
+2. **Cluster the findings by the actual current headings of
+   `writing-style.md`**: read them at runtime, never assume a section list. Mind
+   the registers: a preference expressed about student material belongs in the
+   student-facing section, one about lesson plans in the colleague-facing
+   section, and only genuinely general rules under the shared rules.
 
 3. **Propose the edits**: a concise list of additions, rewordings, or removals
    with the reason for each, sourced from the conversation. Apply only after
@@ -37,7 +37,7 @@ drafts material.
 
 - **Language.** Write new rules in the language `writing-style.md` itself uses.
   Reply in chat in the language the author writes in.
-- If the conversation has no style signals, say so and stop — do not invent
+- If the conversation has no style signals, say so and stop. Do not invent
   rules.
 - Prefer concrete examples over abstract rules: "avoid _utilise_, prefer _use_"
   (or "avoid _hanteren_, prefer _gebruiken_") beats "keep diction plain".

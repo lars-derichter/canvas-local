@@ -1,6 +1,6 @@
 ---
 name: export-style-init
-description: Derive a reusable PDF/DOCX export style from a reference — a Word document, a PDF, a website URL, or a CSS file — and write it to sources/export-style/ so course exports match that look. Phase A proposes a style spec and stops for approval; Phase B writes template.typ + reference.docx and regenerates the sample. Use for "initialize export style", "set up an export style", "match this Word template", "build a house style for the export", "exportstijl opzetten", "maak een huisstijl voor de export".
+description: Derive a reusable PDF/DOCX export style from a reference (a Word document, a PDF, a website URL, or a CSS file) and write it to sources/export-style/ so course exports match that look. Phase A proposes a style spec and stops for approval; Phase B writes template.typ + reference.docx and regenerates the sample. Use for "initialize export style", "set up an export style", "match this Word template", "build a house style for the export", "exportstijl opzetten", "maak een huisstijl voor de export".
 ---
 
 # Export Style Init
@@ -10,7 +10,7 @@ Turn a reference document, website, or stylesheet into a custom export style for
 upstream updates) and overrides, per file, whichever style `export.style` in
 `course.config.yml` selects from `export-styles/`.
 
-Layout and colour are separate axes. This skill owns **layout** — `template.typ`
+Layout and colour are separate axes. This skill owns **layout**: `template.typ`
 and `reference.docx`. **Colour** lives in the theme
 (`src/css/themes/<name>.css`), shared with the preview site and Canvas, and
 injected into `template.typ` at export time. A colour the reference calls for
@@ -26,33 +26,33 @@ source is not a document, URL, or stylesheet.
 
 ## Steps
 
-### Phase A — Inspect and Propose (Writes Nothing)
+### Phase A: Inspect and Propose (Writes Nothing)
 
-1. **Read first**: [`docs/export-styling.md`](../../../docs/export-styling.md) —
+1. **Read first**: [`docs/export-styling.md`](../../../docs/export-styling.md),
    what `template.typ` (PDF via Typst) and `reference.docx` (DOCX via Word
    styles) each control, and how `--var` variables map into the template;
-   [`export-styles/generic/template.typ`](../../../export-styles/generic/template.typ)
-   — the default you will fork; note the `conf(...)` signature (font, codefont,
+   [`export-styles/generic/template.typ`](../../../export-styles/generic/template.typ),
+   the default you will fork; note the `conf(...)` signature (font, codefont,
    fontsize, margin, paper, logo), the `pick(...)` helper that reads theme
    colours, and the `alert-colors` map. Also read
    [`src/css/themes/github.css`](../../../src/css/themes/github.css) for the
    `--ccb-*` colour tokens. The custom paragraph styles inside the style's
-   `reference.docx` — the twelve per-kind `AlertTitle<Kind>`/`AlertBody<Kind>`
+   `reference.docx` (the twelve per-kind `AlertTitle<Kind>`/`AlertBody<Kind>`
    pairs (Note, Tip, Important, Warning, Caution, Check) plus `LinkCard`,
-   `LinkCardTitle`, `Attachment`, and `SourceCode` — are mapped by the Lua
-   filter and **must survive** any edit to the DOCX.
+   `LinkCardTitle`, `Attachment`, and `SourceCode`) are mapped by the Lua filter
+   and **must survive** any edit to the DOCX.
 
 2. **Extract the visual decisions** from the reference:
-   - `.docx` — unzip into a fresh directory in the session scratchpad; read
+   - `.docx`: unzip into a fresh directory in the session scratchpad; read
      `word/styles.xml` (font, size, colour of `Title`, `Heading1/2/3`,
      `Normal`), `word/theme/theme1.xml` (theme fonts, colours), and the
      `<w:sectPr>` in `word/document.xml` (margins).
-   - `.pdf` — read it with the Read tool (it renders pages); judge fonts,
-     heading treatment, body size, colours, and margins by eye.
-   - Website URL — fetch the page and its stylesheet (your web-fetch tool, or
+   - `.pdf`: read it with the Read tool (it renders pages); judge fonts, heading
+     treatment, body size, colours, and margins by eye.
+   - Website URL: fetch the page and its stylesheet (your web-fetch tool, or
      `curl`); extract `font-family` for body and headings, base `font-size`,
      link and heading colours, content `max-width`/margins, accent colour.
-   - `.css` — parse the same properties directly.
+   - `.css`: parse the same properties directly.
 
 3. **Present the style spec** as a table, one row per decision with where it
    applies:
@@ -77,7 +77,7 @@ source is not a document, URL, or stylesheet.
 
    Stop. Wait for explicit approval before starting Phase B.
 
-### Phase B — Write and Regenerate (Only After Approval)
+### Phase B: Write and Regenerate (Only After Approval)
 
 4. **Fork the selected style** into `sources/export-style/` (create the folder
    if absent). Resolve the style from `export.style` in `course.config.yml`,
@@ -98,7 +98,7 @@ source is not a document, URL, or stylesheet.
    ```
 
    Keep the `alert(...)`, `linkcard(...)`, `attachment(...)` helpers and the
-   `alert-colors` map — the Lua filter calls them by name. Keep the
+   `alert-colors` map: the Lua filter calls them by name. Keep the
    `pick("$ccb-…$", "#fallback")` calls too: they are how theme colours reach
    the PDF. Change a colour by editing the theme and, if you want the standalone
    fallback to match, the literal second argument.
@@ -113,12 +113,12 @@ source is not a document, URL, or stylesheet.
    ( cd "$D" && zip -Xrq "<absolute repo path>/sources/export-style/reference.docx" . )
    ```
 
-   In `word/styles.xml`: `Normal`, `Heading1/2/3`, `Hyperlink` — font via
+   In `word/styles.xml`: `Normal`, `Heading1/2/3`, `Hyperlink`. Font via
    `<w:rFonts>`, size via `<w:sz>` in half-points (`28` = 14pt), colour via
    `<w:color w:val="RRGGBB">` (no `#`); theme fonts via `<a:latin typeface>` in
    `word/theme/theme1.xml`. Leave the per-kind `AlertTitle*`/`AlertBody*` pairs,
    `LinkCard`, `LinkCardTitle`, `Attachment`, and `SourceCode` untouched (unless
-   the new style redefines the alert palette — then keep the style _names_ and
+   the new style redefines the alert palette, then keep the style _names_ and
    change only their colours).
 
 7. **Regenerate and show the sample**: `npx course export --sample -f pdf` and
@@ -129,12 +129,12 @@ source is not a document, URL, or stylesheet.
 
 ## Rules
 
-- Write only under `sources/` — `sources/export-style/` for the style files, and
+- Write only under `sources/`: `sources/export-style/` for the style files, and
   a theme copied to `sources/` for colours. Never edit `export-styles/` or
   `src/css/themes/` (shipped defaults, overwritten on upstream updates).
 - Keep PDF and DOCX in sync: apply each format-agnostic decision (fonts,
   colours, margins) to both files.
-- If the reference uses a licensed font the system lacks, say so — Typst uses
+- If the reference uses a licensed font the system lacks, say so. Typst uses
   installed system fonts plus the style's `fonts/` directory (the exporter
   passes `sources/export-style/fonts/`, or the selected style's `fonts/`, to
   Typst via `TYPST_FONT_PATHS`); suggest `typst fonts` to list installed ones,

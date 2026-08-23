@@ -1,13 +1,13 @@
 ---
 name: course-setup
-description: Turn a fresh copy of the Canvas Course Builder template into a real course — course.config.yml, the README, the course context and the writing style guide — by gathering the answers, running npx course setup, and writing the prose the command cannot. Phase A proposes every answer and stops for approval; Phase B applies them. Use for "set up the course", "set up this template", "make this template my course", "cursus opzetten", "dit template mijn cursus maken".
+description: Turn a fresh copy of the Canvas Course Builder template into a real course (course.config.yml, the README, the course context and the writing style guide) by gathering the answers, running npx course setup, and writing the prose the command cannot. Phase A proposes every answer and stops for approval; Phase B applies them. Use for "set up the course", "set up this template", "make this template my course", "cursus opzetten", "dit template mijn cursus maken".
 ---
 
 # Course Setup
 
-Configure a new course end to end. `npx course setup` owns the mechanical part —
-writing `course.config.yml` without disturbing its comments, copying the
-language-matched templates into place, removing the built-in tutorial module —
+Configure a new course end to end. `npx course setup` owns the mechanical part
+(writing `course.config.yml` without disturbing its comments, copying the
+language-matched templates into place, removing the built-in tutorial module)
 and this skill owns the judgement around it: working out the answers from the
 repo and the author, and then writing the README prose that no command can
 generate.
@@ -17,21 +17,21 @@ confirmed and change only what the author asks for.
 
 ## Steps
 
-### Phase A — Gather and Propose (Writes Nothing)
+### Phase A: Gather and Propose (Writes Nothing)
 
 1. **Read what is already set.** In order:
-   - `course.config.yml` — `title`, `tagline`, `language`, `theme`,
+   - `course.config.yml`: `title`, `tagline`, `language`, `theme`,
      `export.style`. Anything other than the shipped defaults
      (`title: Canvas Course Builder`, `language: en`, `theme: github`,
      `export.style: generic`) is an answer the author already gave.
-   - `README.md` — if its H1 is still `# Canvas Course Builder`, it is the
+   - `README.md`: if its H1 is still `# Canvas Course Builder`, it is the
      tooling's README and needs replacing. Otherwise it is the author's, and the
      course name, overview and module table in it are facts, not placeholders.
-   - `context/course-context.md` and `context/writing-style.md` — whether each
+   - `context/course-context.md` and `context/writing-style.md`: whether each
      still holds shipped content or has been written in.
-   - `course/` — which modules exist, and whether `01-getting-started/` is still
+   - `course/`: which modules exist, and whether `01-getting-started/` is still
      there.
-   - `.env` — whether Canvas is already connected. Never print the token.
+   - `.env`: whether Canvas is already connected. Never print the token.
 
 2. **Interview the author for the rest, in one bundled round.** Ask only what
    the repo did not answer:
@@ -46,12 +46,12 @@ confirmed and change only what the author asks for.
      actually contain.
    - Whether to replace the course home page (`course/index.md`) with the
      language-matched template. Upstream that file is the project's own landing
-     page — this repo publishes its `course/` as the project site — so a course
+     page (this repo publishes its `course/` as the project site), so a course
      that keeps it markets the tooling to its own students. Under `--yes` the
      command leaves the file alone unless `--course-home copy` says otherwise,
      so the answer only counts once it reaches the invocation in step 3.
-   - Whether to remove `course/01-getting-started/`. Say what it is — a
-     walkthrough of the project and a worked example of every content type — and
+   - Whether to remove `course/01-getting-started/`. Say what it is (a
+     walkthrough of the project and a worked example of every content type) and
      that it publishes to students on the first `npx course push` if it stays.
      Mention it remains readable in the upstream repository afterwards.
 
@@ -63,7 +63,7 @@ confirmed and change only what the author asks for.
 
    Stop. Wait for explicit approval before starting Phase B.
 
-### Phase B — Apply (Only After Approval)
+### Phase B: Apply (Only After Approval)
 
 4. **Run the command** with the approved flags, always with `--yes` so it never
    tries to prompt:
@@ -80,7 +80,7 @@ confirmed and change only what the author asks for.
    flag out and whatever `course.config.yml` already holds stands.
 
    Report what it wrote and what it left alone. If it refused a destination, do
-   not work around it by writing the file yourself — tell the author and ask.
+   not work around it by writing the file yourself. Tell the author and ask.
 
 5. **Write the README prose.** The command copies the template; the words are
    this skill's job. Fill in the course overview and the module table from
@@ -90,15 +90,15 @@ confirmed and change only what the author asks for.
    the author has to decide something you cannot.
 
 6. **Hand off to the two documents that need their own interview.** Offer to run
-   `/course-context-init` first — what the course is — then
-   `/writing-style-init` — how it is written. Both are separate skills with
-   their own approval gates; do not inline their work here.
+   `/course-context-init` first (what the course is), then `/writing-style-init`
+   (how it is written). Both are separate skills with their own approval gates;
+   do not inline their work here.
 
 7. **Report, and name what is left.** State what changed, then the steps the
    author still owns: `npm start` to check the look, `npx course new-module` to
    begin, and `npx course init` for Canvas if it is not connected yet. Name
-   `npx course init` rather than running it — it prompts for credentials, and
-   the author types those, not you.
+   `npx course init` rather than running it. It prompts for credentials, and the
+   author types those, not you.
 
 ## Rules
 

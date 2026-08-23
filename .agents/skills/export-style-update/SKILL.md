@@ -1,14 +1,14 @@
 ---
 name: export-style-update
-description: Make a plain-language change to how course exports look — heading colour, fonts, margins, alert colours, paper size — by editing the theme (colour) and/or sources/export-style/template.typ and reference.docx (layout), then regenerating the sample to show the result. Forks the shipped defaults on first use. Use for "update export style", "headings dark blue", "different font for the export", "exportstijl aanpassen", "koppen donkerblauw", "ander lettertype voor de export".
+description: Make a plain-language change to how course exports look (heading colour, fonts, margins, alert colours, paper size) by editing the theme (colour) and/or sources/export-style/template.typ and reference.docx (layout), then regenerating the sample to show the result. Forks the shipped defaults on first use. Use for "update export style", "headings dark blue", "different font for the export", "exportstijl aanpassen", "koppen donkerblauw", "ander lettertype voor de export".
 ---
 
 # Export Style Update
 
 Apply a small, plain-language change to how `npx course export` looks, and show
 the result. The iterate-in-place companion to
-[`export-style-init`](../export-style-init/SKILL.md) — use that skill to derive
-a whole new look from a reference.
+[`export-style-init`](../export-style-init/SKILL.md). Use that skill to derive a
+whole new look from a reference.
 
 Unlike `/writing-style-update` and `/course-context-update`, this skill does not
 sweep the conversation for decisions to record. It takes the change asked of it
@@ -38,24 +38,24 @@ document/site", hand off to `export-style-init`.
      `theme: sources/theme.css` in `course.config.yml`. Skip this when it
      already points into `sources/`.
 
-   Never edit `export-styles/` or `src/css/themes/` in place — shipped defaults,
+   Never edit `export-styles/` or `src/css/themes/` in place: shipped defaults,
    overwritten on upstream updates.
 
 2. **Locate the change** (see
    [`docs/export-styling.md`](../../../docs/export-styling.md) if unsure):
 
-   | Request                  | Site, Canvas and PDF                                                                                                                             | DOCX — `reference.docx`                                  |
-   | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------- |
-   | Heading colour           | `--ccb-heading` in the theme                                                                                                                     | `Heading1/2/3` in `word/styles.xml`                      |
-   | Link/accent colour       | `--ccb-link`, `--ccb-accent` in the theme                                                                                                        | `Hyperlink` colour                                       |
-   | Alert colours            | `--ccb-alert-<kind>-fg` / `-bg` in the theme                                                                                                     | the per-kind `AlertTitle<Kind>`/`AlertBody<Kind>` styles |
-   | Body/muted/border colour | `--ccb-fg`, `--ccb-fg-muted`, `--ccb-border` in the theme                                                                                        | the matching Word styles                                 |
-   | Heading font             | `show heading: set text(font:)` in `template.typ`                                                                                                | `Heading1/2/3` in `word/styles.xml`                      |
-   | Body font/size           | `font:`/`fontsize:` in `conf()`                                                                                                                  | `Normal` + theme `<a:latin>`                             |
-   | Margins / paper          | `margin:`/`paper:` in `conf()`                                                                                                                   | `<w:pgMar>`/`<w:pgSz>`                                   |
-   | Cover logo               | `sources/export-style/logo.png` (PDF only)                                                                                                       | —                                                        |
-   | Heading numbering        | `sectionnumbering:` in `conf()`                                                                                                                  | the `numId 900` numbering + heading `numPr`              |
-   | Bundled font files       | `sources/export-style/fonts/` (PDF only, via `TYPST_FONT_PATHS`) — only fonts whose licence permits redistribution, recorded in `THIRD-PARTY.md` | install the font on the machine that opens the DOCX      |
+   | Request                  | Site, Canvas and PDF                                                                                                                            | DOCX: `reference.docx`                                   |
+   | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+   | Heading colour           | `--ccb-heading` in the theme                                                                                                                    | `Heading1/2/3` in `word/styles.xml`                      |
+   | Link/accent colour       | `--ccb-link`, `--ccb-accent` in the theme                                                                                                       | `Hyperlink` colour                                       |
+   | Alert colours            | `--ccb-alert-<kind>-fg` / `-bg` in the theme                                                                                                    | the per-kind `AlertTitle<Kind>`/`AlertBody<Kind>` styles |
+   | Body/muted/border colour | `--ccb-fg`, `--ccb-fg-muted`, `--ccb-border` in the theme                                                                                       | the matching Word styles                                 |
+   | Heading font             | `show heading: set text(font:)` in `template.typ`                                                                                               | `Heading1/2/3` in `word/styles.xml`                      |
+   | Body font/size           | `font:`/`fontsize:` in `conf()`                                                                                                                 | `Normal` + theme `<a:latin>`                             |
+   | Margins / paper          | `margin:`/`paper:` in `conf()`                                                                                                                  | `<w:pgMar>`/`<w:pgSz>`                                   |
+   | Cover logo               | `sources/export-style/logo.png` (PDF only)                                                                                                      | —                                                        |
+   | Heading numbering        | `sectionnumbering:` in `conf()`                                                                                                                 | the `numId 900` numbering + heading `numPr`              |
+   | Bundled font files       | `sources/export-style/fonts/` (PDF only, via `TYPST_FONT_PATHS`), only fonts whose licence permits redistribution, recorded in `THIRD-PARTY.md` | install the font on the machine that opens the DOCX      |
 
    Apply each format-agnostic change to **both** columns; a PDF-only tweak
    (justification, page numbering) touches only `template.typ`. Warn when a
@@ -64,7 +64,7 @@ document/site", hand off to `export-style-init`.
 
 3. **Edit the theme and/or the Typst template** with the Edit tool. In
    `template.typ`, keep the `alert(...)`, `linkcard(...)`, `attachment(...)`
-   helpers and the `alert-colors` map — the Lua filter calls them by name — and
+   helpers and the `alert-colors` map (the Lua filter calls them by name) and
    keep the `pick("$ccb-…$", "#fallback")` calls, which are how theme colours
    reach the PDF. Do not replace a `pick(...)` with a literal colour; change the
    theme token instead.
@@ -83,7 +83,7 @@ document/site", hand off to `export-style-init`.
    `<w:color w:val="RRGGBB">` (no `#`). Leave the per-kind
    `AlertTitle<Kind>`/`AlertBody<Kind>` pairs, `LinkCard`, `LinkCardTitle`,
    `Attachment`, and `SourceCode` untouched unless the request is specifically
-   about them — the Lua filter references them by name.
+   about them: the Lua filter references them by name.
 
 5. **Regenerate and show**: `npx course export --sample -f pdf` (add `-f docx`
    when the change touched the DOCX). Confirm the change landed, then iterate on
@@ -93,7 +93,7 @@ document/site", hand off to `export-style-init`.
 
 - Write only under `sources/` (and `course.config.yml` when pointing `theme:` at
   a copy there).
-- Do not silently redesign — make the requested change and nothing more.
+- Do not silently redesign: make the requested change and nothing more.
 - If a request cannot be met cleanly by the pipeline, say so and offer the
   nearest achievable alternative rather than a fragile hack.
 

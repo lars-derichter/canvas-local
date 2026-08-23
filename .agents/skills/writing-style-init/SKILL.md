@@ -5,8 +5,8 @@ description: Interview the user and analyse samples of their writing to rewrite 
 
 # Writing Style Init
 
-Adapt [`context/writing-style.md`](../../../context/writing-style.md) — the
-writing-style guide your AI assistant follows when drafting course content — to
+Adapt [`context/writing-style.md`](../../../context/writing-style.md) (the
+writing-style guide your AI assistant follows when drafting course content) to
 the course author's own voice and audience.
 
 ## Steps
@@ -19,10 +19,10 @@ the course author's own voice and audience.
 
 2. **Analyse the samples, then interview only what they did not answer** (ask
    the user, bundling related questions into one round). Dimensions for both:
-   - Language and regional variety (English — UK/US; Dutch —
-     Flemish/Netherlands; …); student age band and CEFR level if the course
-     language is not the students' first language.
-   - Register and formality (first-name basis, je/u, tu/vous) — for both the
+   - Language and regional variety (English: UK/US; Dutch: Flemish/Netherlands;
+     …); student age band and CEFR level if the course language is not the
+     students' first language.
+   - Register and formality (first-name basis, je/u, tu/vous), for both the
      student-facing and the colleague-facing register.
    - Sentence length, rhythm, and tone latitude (jokes, parenthetical asides,
      personal voice I/we).
@@ -33,7 +33,7 @@ the course author's own voice and audience.
      blockquotes; preferred labels per type.
    - Instruction style for exercises and exams: same voice as explanations, or
      strictly neutral.
-   - AI tells the author particularly dislikes — prime with examples from the
+   - AI tells the author particularly dislikes: prime with examples from the
      current `writing-style.md` and from the AI-tells section of whichever
      baseline in [`templates/`](../../../templates/) matches the course
      language.
@@ -45,11 +45,11 @@ the course author's own voice and audience.
    course language already matches what the file holds, copy the right baseline
    from [`templates/`](../../../templates/) over `context/writing-style.md`
    first and adapt from there:
-   - `writing-style-en.md` — English, UK spelling, title-case headings. Already
+   - `writing-style-en.md`: English, UK spelling, title-case headings. Already
      installed as `context/writing-style.md`.
-   - `writing-style-en-us.md` — English, US spelling, title-case headings.
-   - `writing-style-nl-be.md` — Nederlands, Vlaamse variant.
-   - `writing-style-nl.md` — Nederlands, variant Nederland.
+   - `writing-style-en-us.md`: English, US spelling, title-case headings.
+   - `writing-style-nl-be.md`: Nederlands, Vlaamse variant.
+   - `writing-style-nl.md`: Nederlands, variant Nederland.
 
    For a course in a language no baseline covers, start from
    `writing-style-en.md` and write the adapted guide in the course language: the
@@ -59,7 +59,7 @@ the course author's own voice and audience.
    overwritten on upstream updates.
 
 5. **Rewrite `context/writing-style.md`.** Read its current headings first and
-   preserve the document's structure — in particular the `## Audiences` split
+   preserve the document's structure, in particular the `## Audiences` split
    into student-facing and colleague-facing registers, which `/proofread`,
    `/consistency-check`, and `/issue-fix` depend on. Every baseline carries that
    structure, translated where the baseline is not in English, so this holds
