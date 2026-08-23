@@ -347,6 +347,38 @@ The scanner is strict, and it is quiet about it:
 See [User guide](user-guide.md#course-structure) for the layout the scanner
 expects.
 
+## Two Identical Files Can Trade Places With a Deleted One
+
+A curiosity rather than a fault, and worth knowing only because it looks like a
+bug when you meet it.
+
+Renames are detected by content. A path the sync state knows that has no file
+any more, paired with a new file whose bytes hash identically, is read as that
+item having moved, and the row is re-keyed without asking. That is what makes a
+rename in Finder, or one arriving with a merge, cost nothing.
+
+The row of a deleted item stays behind on purpose, so that the Canvas object it
+names can be reported and pruned. Those two facts meet in one narrow case.
+Delete an item, then create another whose file is **byte-identical** to the
+deleted one, and the new file is taken for the old one moved. It adopts the
+Canvas object, which moves to the new item's module, and the deleted item is
+never offered for pruning.
+
+Real content never collides this way, because two pages a person wrote are not
+identical to the byte. `npx course new-item` is the exception: it writes a
+deterministic stub, so two untouched stubs of the same type and title are the
+same file. Delete one you never filled in, create one like it elsewhere, and
+this is what you get.
+
+What you end up with is one Canvas page in the module you wanted, carrying the
+content you eventually write, under the older page's id and URL. Nothing is lost
+and nothing is duplicated; the run says `1 item moved` where you expected
+`1 item created`, and the id is not the one you would have guessed. Writing
+anything into either file before the next run avoids it entirely.
+
+The sync state cannot do better here. A row whose file is gone looks the same
+whether the file was deleted or moved, and nothing records which happened.
+
 ## Push and Pull Are Not a Merge
 
 A run settles an item by choosing a side and writing that copy whole. Nothing
