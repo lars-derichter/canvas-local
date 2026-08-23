@@ -13,7 +13,7 @@ title: Canvas Course Builder
 
 # Colour and site typography, for the preview site, Canvas HTML and PDF
 # exports alike. Built-in themes: github, thomas-more. The value is a name
-# under src/css/themes/, or a path to a CSS file of your own — copy a built-in
+# under src/css/themes/, or a path to a CSS file of your own. Copy a built-in
 # into sources/ and point at it there. See docs/customization.md.
 theme: github
 

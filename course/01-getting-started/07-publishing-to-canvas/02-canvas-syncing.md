@@ -127,7 +127,7 @@ carries on. Untracked counts, and that is the case worth knowing: git holds no
 copy at all of a file it has never seen.
 
 The rule that follows is worth reading twice, because it is the opposite of what
-you might expect. **Committed work is not protected — uncommitted work is.** A
+you might expect. **Committed work is not protected. Uncommitted work is.** A
 change you have committed is safe in git whether or not pull writes over it, so
 pull goes ahead. A change you have not committed exists nowhere else, so pull
 refuses to touch it.
