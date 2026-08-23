@@ -10,7 +10,7 @@ const {
 } = require('./item-utils');
 const { renumberSequential } = require('./renumber');
 const { writeMarkdown } = require('../lib/convert/format-markdown');
-const { recordRenames } = require('./sync-renames');
+const { dropRowsRenumberedOver, recordRenames } = require('./sync-renames');
 
 /**
  * Core merge logic: append source body into target, delete source, renumber.
@@ -54,8 +54,21 @@ async function _mergeFiles(targetPath, sourcePath, targetDir) {
   fs.unlinkSync(sourcePath);
   console.log(`[merge-items] Deleted ${path.basename(sourcePath)}`);
 
-  // Renumber remaining items
+  // Renumber remaining items. A merge closes the gap the source left, so it
+  // can slide a sibling sharing that slug onto the source's own path — the
+  // same collision `delete-item` has, and settled the same way, before
+  // `recordRenames` resolves it the wrong way round.
   const renames = renumberSequential(targetDir, getItems);
+  dropRowsRenumberedOver(
+    [
+      {
+        fromDir: targetDir,
+        deleted: path.basename(sourcePath),
+        renames,
+      },
+    ],
+    { tag: 'merge-items' },
+  );
   recordRenames([{ fromDir: targetDir, renames }]);
   if (renames.length > 0) {
     console.log('[merge-items] Renumbered remaining items:');

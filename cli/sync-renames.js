@@ -1,6 +1,10 @@
 const path = require('path');
 const { COURSE_DIR } = require('./module-utils');
 const {
+  allItems,
+  deleteItem,
+  deleteModule,
+  getModule,
   loadState,
   renameFolders,
   renamePaths,
@@ -71,4 +75,195 @@ function recordRenames(batches, { courseDir = COURSE_DIR, file } = {}) {
   return moved;
 }
 
-module.exports = { recordRenames };
+/**
+ * How a row names the Canvas object behind it, or null when it names none.
+ *
+ * A row with no Canvas id was created locally and never pushed, so dropping it
+ * strands nothing and there is nothing to tell the author about. A text header
+ * has no content object at all — only the module item — which is why the
+ * module item id is a fallback rather than an afterthought.
+ */
+function strandedBy(itemPath, row) {
+  if (!row) return null;
+  const id =
+    row.canvas_id != null
+      ? `Canvas id ${row.canvas_id}`
+      : row.module_item_id != null
+        ? `Canvas module item ${row.module_item_id}`
+        : null;
+  if (id == null) return null;
+  const title = row.title ? ` "${row.title}"` : '';
+  return `${itemPath} — ${row.canvas_type || 'item'}${title} (${id})`;
+}
+
+/**
+ * Drop every row addressed at or under one path — in `state.modules` and in
+ * `state.files` alike — and say what that puts out of reach.
+ *
+ * A module folder and an item are told apart by the state itself rather than by
+ * the shape of the path: only a module has a key in `state.modules`, and an item
+ * path always carries its module folder in front of it, so the two can never be
+ * confused.
+ *
+ * The `state.files` sweep is not confined to the module branch, though it is
+ * only a module that can have rows under it today: `_files/` sits at module
+ * level, and a `_` prefix keeps it out of `getItems`, so no item path is ever a
+ * prefix of one. Sweeping unconditionally costs a loop over a small map and
+ * means a state that has lost a module row while keeping its file rows — hand
+ * edited, half restored from a bad merge — is still cleared rather than left
+ * with a row `renameFolder` would silently overwrite while rebuilding that map.
+ *
+ * This is the one place that takes `state.files` rows away from a live Canvas
+ * file on purpose. `deleteModule` leaves them alone precisely so they outlive
+ * the folder; here the folder name is about to belong to a different module,
+ * whose own binary would otherwise overwrite the row without a word.
+ *
+ * @returns {{dropped: number, stranded: string[]}}
+ */
+function clearRowsAt(state, itemPath) {
+  const stranded = [];
+  const under = `${itemPath}/`;
+  let dropped = 0;
+
+  const module = getModule(state, itemPath);
+  if (module) {
+    const line = strandedByModule(itemPath, module);
+    if (line) stranded.push(line);
+    for (const [p, row] of Object.entries(module.items || {})) {
+      const item = strandedBy(p, row);
+      if (item) stranded.push(item);
+    }
+    deleteModule(state, itemPath);
+    dropped += 1;
+  } else {
+    const doomed = allItems(state)
+      .map((row) => row.itemPath)
+      .filter((p) => p === itemPath || p.startsWith(under));
+    for (const p of doomed) {
+      const row = deleteItem(state, p);
+      if (!row) continue;
+      dropped += 1;
+      const line = strandedBy(p, row);
+      if (line) stranded.push(line);
+    }
+  }
+
+  for (const [p, row] of Object.entries(state.files || {})) {
+    if (!p.startsWith(under)) continue;
+    if (row && row.canvas_file_id != null) {
+      stranded.push(
+        `${p} — embedded file (Canvas file id ${row.canvas_file_id})`,
+      );
+    }
+    delete state.files[p];
+    dropped += 1;
+  }
+
+  return { dropped, stranded };
+}
+
+/** The module's own line, mirroring `strandedBy` for an item. */
+function strandedByModule(folder, entry) {
+  if (entry.canvas_module_id == null) return null;
+  const name = entry.name ? ` "${entry.name}"` : '';
+  return `${folder} — module${name} (Canvas module id ${entry.canvas_module_id})`;
+}
+
+/**
+ * Give up the sync row of a path a command has just deleted, when the renumber
+ * that command ran is about to move another entry onto that exact path.
+ *
+ * Reachable only when two siblings share a slug at different prefixes:
+ * `02-alerts.md` deleted with `03-alerts.md` behind it, or module `01-intro`
+ * deleted with `02-intro` behind it. `renumberSequential` keeps the slug and
+ * only rewrites the number, so the survivor lands on the dead one's name.
+ *
+ * **The state cannot hold both facts.** Its key *is* the local path, and one
+ * path cannot be both "the row of the thing the author deleted, whose Canvas
+ * object is now an orphan" and "the row of the thing that just moved here".
+ * Left alone, the batch resolves that the wrong way round and in silence:
+ * `renamePath` refuses to overwrite the row already sitting at the
+ * destination, `renamePaths` rolls the mover back to the name it came from,
+ * and the two swap identities. The file on disk would then push its content to
+ * the deleted item's Canvas object, and `--prune-canvas` would offer to delete
+ * the live one it actually is. `renameFolders` does the same thing one level
+ * up, with a whole module's ids.
+ *
+ * So the deleted path's row is the one that gives way. That strands its Canvas
+ * object — nothing in this repository points at it afterwards, which is the
+ * harm everything else in this area exists to prevent — but it is strictly the
+ * lesser harm: crossing two items' ids writes to the wrong Canvas object *and*
+ * offers the right one for deletion, and says nothing either way. This says
+ * something, and an author who reads it can finish the job in Canvas by hand.
+ *
+ * **Why here.** The collision takes two facts, and only the command holds
+ * both: which path it has just deleted, and the renames it has just applied to
+ * disk. `renamePaths` and `renameFolders` see a state and nothing else, and
+ * must stay that way — a state function that asked the filesystem whether a
+ * path still has a file would give two different answers for one state, which
+ * is exactly what makes the planner testable today. This module is where those
+ * two facts already meet, and it already owns the load-edit-save discipline
+ * that carrying a rename into the state needs.
+ *
+ * @param {Array<{fromDir: string, deleted: string,
+ *   renames: Array<{from: string, to: string}>}>} batches - `fromDir` is the
+ *   absolute directory the renumber ran in, `deleted` the entry name inside it
+ *   that the command removed, `renames` what the renumber did.
+ * @param {object} [options]
+ * @param {string} [options.tag]       - Command name for the warning printed.
+ * @param {object} [options.state]     - A state already in hand, edited in
+ *   place and left unsaved, for a command that holds one and writes once at the
+ *   end (`cli/delete-module.js`). Without it this loads and saves the way
+ *   `recordRenames` does.
+ * @param {string} [options.courseDir] - Injection point for tests.
+ * @param {string} [options.file]      - Injection point for tests.
+ * @returns {string[]} One line per Canvas object now out of reach, in the order
+ *   the state held them. Empty when nothing collided, and empty when what
+ *   collided had never been pushed.
+ */
+function dropRowsRenumberedOver(
+  batches,
+  { tag = 'sync-state', state, courseDir = COURSE_DIR, file } = {},
+) {
+  const collisions = [];
+  for (const batch of batches || []) {
+    if (!batch || !batch.deleted) continue;
+    const onto = (batch.renames || []).find((r) => r.to === batch.deleted);
+    if (onto) collisions.push({ ...batch, movedFrom: onto.from });
+  }
+  if (collisions.length === 0) return [];
+
+  // A course nobody has pushed has no rows to give up, and inventing a state
+  // file here would claim it had — the same reason `recordRenames` allows null.
+  const held = state || loadState({ allowNull: true, file });
+  if (!held) return [];
+
+  const stranded = [];
+  let dropped = 0;
+  for (const { fromDir, deleted, movedFrom } of collisions) {
+    const itemPath = relativeTo(courseDir, fromDir, deleted);
+    const result = clearRowsAt(held, itemPath);
+    dropped += result.dropped;
+    if (result.dropped === 0) continue;
+    console.warn(
+      `[${tag}] Renumbering moved ${movedFrom} onto ${deleted}, the entry ` +
+        'just deleted, and the sync state holds one row per path — so the ' +
+        'deleted one gave way rather than let the two swap Canvas ids.',
+    );
+    if (result.stranded.length > 0) {
+      console.warn(
+        `[${tag}] These Canvas objects are no longer tracked here and ` +
+          '`--prune-canvas` will not offer them. Delete them in Canvas by hand:',
+      );
+      for (const line of result.stranded) console.warn(`  - ${line}`);
+    }
+    stranded.push(...result.stranded);
+  }
+
+  // Only the loading branch owns the write; a caller that handed its own state
+  // in is saving it itself, and a second save here would beat it to the file.
+  if (dropped > 0 && !state) saveState(held, file);
+  return stranded;
+}
+
+module.exports = { dropRowsRenumberedOver, recordRenames };

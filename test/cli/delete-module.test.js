@@ -281,7 +281,6 @@ function pageRow(courseDir, itemPath, item, content) {
 
 const WELCOME = '01-intro/01-welcome.md';
 const ALERTS = '01-intro/02-alerts.md';
-const LOOPS = '02-basics/01-loops.md';
 const DIAGRAM = '01-intro/_files/diagram.png';
 
 /**
@@ -289,7 +288,7 @@ const DIAGRAM = '01-intro/_files/diagram.png';
  * an embedded binary, and a sync state that agrees with `course/` and with the
  * Canvas course `readRoutes` answers for.
  */
-function syncedProject() {
+function syncedProject({ twinSlug = false } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'delete-module-synced-'));
   made.push(dir);
   const write = (relative, contents) => {
@@ -297,6 +296,11 @@ function syncedProject() {
     fs.mkdirSync(path.dirname(full), { recursive: true });
     fs.writeFileSync(full, contents, 'utf8');
   };
+
+  // With `twinSlug`, the module behind 01-intro shares its slug, so closing the
+  // gap renumbers it straight onto the deleted module's folder name.
+  const second = twinSlug ? '02-intro' : '02-basics';
+  const loops = `${second}/01-loops.md`;
 
   write('package.json', '{ "name": "fixture", "private": true }\n');
   write(
@@ -314,11 +318,11 @@ function syncedProject() {
   );
   write(`course/${DIAGRAM}`, 'not really a png\n');
   write(
-    'course/02-basics/_category_.json',
+    `course/${second}/_category_.json`,
     JSON.stringify({ label: 'Basics', position: 2 }, null, 2) + '\n',
   );
   write(
-    `course/${LOOPS}`,
+    `course/${loops}`,
     '---\ntitle: Loops\ncanvas_type: page\n---\n\nRound and round.\n',
   );
 
@@ -347,13 +351,13 @@ function syncedProject() {
               [ALERTS]: pageRow(courseDir, ALERTS, ALERTS_ITEM, ALERTS_PAGE),
             },
           },
-          '02-basics': {
+          [second]: {
             canvas_module_id: 20,
             name: 'Basics',
             position: 2,
-            item_order: [LOOPS],
+            item_order: [loops],
             items: {
-              [LOOPS]: pageRow(courseDir, LOOPS, LOOPS_ITEM, LOOPS_PAGE),
+              [loops]: pageRow(courseDir, loops, LOOPS_ITEM, LOOPS_PAGE),
             },
           },
         },
@@ -464,5 +468,81 @@ describe('npx course delete-module and the rows it leaves behind', () => {
       'the module the author deleted must not be written back to disk',
     );
     assert.equal(process.exitCode, 0);
+  });
+});
+
+describe('npx course delete-module when the renumber lands on the deleted folder', () => {
+  it('gives the row up rather than let the two modules swap Canvas ids', () => {
+    // Two modules sharing a slug — `01-intro` and `02-intro` — is the one shape
+    // where keeping the row backfires. Closing the gap renumbers `02-intro`
+    // onto `01-intro`, and `state.modules` keys one entry per folder. Left
+    // alone, `renameFolder` refuses to overwrite the entry it finds,
+    // `renameFolders` rolls the mover back to `02-intro`, and the surviving
+    // folder inherits the deleted module's Canvas id while live module 20
+    // becomes a prune candidate.
+    const dir = syncedProject({ twinSlug: true });
+
+    const run = deleteModule(dir, ['--module', '01-intro', '--yes'], '', {
+      courseId: SYNCED_COURSE,
+    });
+
+    assert.equal(run.status, 0, run.stderr);
+    assert.deepEqual(fs.readdirSync(path.join(dir, 'course')).sort(), [
+      '01-intro',
+    ]);
+
+    const after = stateOf(dir);
+    assert.deepEqual(Object.keys(after.modules), ['01-intro']);
+    assert.equal(
+      after.modules['01-intro'].canvas_module_id,
+      20,
+      'the folder belongs to the module that moved onto it, ids and all',
+    );
+    assert.deepEqual(Object.keys(after.modules['01-intro'].items), [
+      '01-intro/01-loops.md',
+    ]);
+    assert.equal(
+      after.modules['01-intro'].items['01-intro/01-loops.md'].canvas_id,
+      503,
+    );
+    // The deleted module's binary goes with its module row, or `renameFolder`
+    // would overwrite it without a word while rebuilding `state.files`.
+    assert.deepEqual(Object.keys(after.files), []);
+  });
+
+  it('names every Canvas object it can no longer reach', () => {
+    const dir = syncedProject({ twinSlug: true });
+
+    const run = deleteModule(dir, ['--module', '01-intro', '--yes'], '', {
+      courseId: SYNCED_COURSE,
+    });
+
+    assert.equal(run.status, 0);
+    assert.match(run.stderr, /Renumbering moved 02-intro onto 01-intro/);
+    assert.match(
+      run.stderr,
+      /01-intro — module "Intro" \(Canvas module id 10\)/,
+    );
+    assert.match(
+      run.stderr,
+      /01-welcome\.md — page "Welcome" \(Canvas id 501\)/,
+    );
+    assert.match(run.stderr, /02-alerts\.md — page "Alerts" \(Canvas id 502\)/);
+    assert.match(
+      run.stderr,
+      /diagram\.png — embedded file \(Canvas file id 555\)/,
+    );
+  });
+
+  it('says nothing when the renumber lands nowhere near it', () => {
+    const dir = syncedProject();
+
+    const run = deleteModule(dir, ['--module', '01-intro', '--yes'], '', {
+      courseId: SYNCED_COURSE,
+    });
+
+    assert.equal(run.status, 0);
+    assert.doesNotMatch(run.stderr, /Delete them in Canvas by hand/);
+    assert.equal(stateOf(dir).modules['01-intro'].canvas_module_id, 10);
   });
 });

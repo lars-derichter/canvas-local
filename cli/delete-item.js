@@ -8,7 +8,7 @@ const {
   selectTargetDir,
 } = require('./item-utils');
 const { renumberSequential } = require('./renumber');
-const { recordRenames } = require('./sync-renames');
+const { dropRowsRenumberedOver, recordRenames } = require('./sync-renames');
 
 /**
  * Core delete: removes the entry and renumbers the remaining siblings.
@@ -38,6 +38,16 @@ function deleteEntry(targetDir, entryName) {
 
   // Renumber remaining items
   const renames = renumberSequential(targetDir, getItems);
+  // Before the renames are carried into the state, not after: the row left
+  // behind sits on the path a sibling sharing its slug is about to take, and
+  // `recordRenames` would resolve that by rolling the mover back and crossing
+  // the two items' Canvas ids in silence.
+  dropRowsRenumberedOver(
+    [{ fromDir: targetDir, deleted: entryName, renames }],
+    {
+      tag: 'delete-item',
+    },
+  );
   recordRenames([{ fromDir: targetDir, renames }]);
   if (renames.length > 0) {
     console.log('[delete-item] Renumbered remaining items:');

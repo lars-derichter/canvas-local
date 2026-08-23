@@ -214,7 +214,7 @@ function syncRow(courseDir, itemPath, item, content) {
  * running the command in this process would merge inside the repository's own
  * course.
  */
-function syncedProject() {
+function syncedProject({ twin = false } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'merge-items-synced-'));
   const write = (relative, contents) => {
     const full = path.join(dir, relative);
@@ -236,7 +236,33 @@ function syncedProject() {
     '---\ntitle: Alerts\ncanvas_type: page\n---\n\nMind this.\n',
   );
 
+  // A sibling sharing the source's slug at the next prefix. Merging closes the
+  // gap, renumbering this one straight onto the source's own path.
+  if (twin) {
+    write(
+      'course/01-intro/03-alerts.md',
+      '---\ntitle: More alerts\ncanvas_type: page\n---\n\nMore.\n',
+    );
+  }
+
   const courseDir = path.join(dir, 'course');
+  const items = {
+    [WELCOME]: syncRow(courseDir, WELCOME, WELCOME_ITEM, WELCOME_PAGE),
+    [ALERTS]: syncRow(courseDir, ALERTS, ALERTS_ITEM, ALERTS_PAGE),
+  };
+  if (twin) {
+    items['01-intro/03-alerts.md'] = {
+      canvas_type: 'page',
+      canvas_id: 604,
+      page_url: 'more-alerts',
+      module_item_id: 96,
+      title: 'More alerts',
+      local_hash: hashLocalFile(path.join(courseDir, '01-intro/03-alerts.md')),
+      canvas_hash: 'canvas-604',
+      canvas_updated_at: '2026-08-20T08:00:00.000Z',
+      synced_at: '2026-08-20T09:00:00.000Z',
+    };
+  }
   write(
     '.canvas-sync.json',
     JSON.stringify(
@@ -250,16 +276,8 @@ function syncedProject() {
             canvas_module_id: 10,
             name: 'Intro',
             position: 1,
-            item_order: [WELCOME, ALERTS],
-            items: {
-              [WELCOME]: syncRow(
-                courseDir,
-                WELCOME,
-                WELCOME_ITEM,
-                WELCOME_PAGE,
-              ),
-              [ALERTS]: syncRow(courseDir, ALERTS, ALERTS_ITEM, ALERTS_PAGE),
-            },
+            item_order: Object.keys(items),
+            items,
           },
         },
         icons: {},
@@ -384,6 +402,67 @@ describe('npx course merge-items and the source row it leaves behind', () => {
       report,
       /item created/,
       'the page merged away must not be written back to disk',
+    );
+  });
+});
+
+describe('npx course merge-items when the renumber lands on the source path', () => {
+  const dirs = [];
+  afterEach(() => {
+    mock.restoreAll();
+    process.exitCode = 0;
+    while (dirs.length) fs.rmSync(dirs.pop(), { recursive: true, force: true });
+  });
+
+  it('gives the source row up rather than let the two pages swap Canvas ids', () => {
+    // A merge closes the gap the source left, so it collides exactly the way
+    // `delete-item` does when two siblings share a slug: `03-alerts.md` lands
+    // on `02-alerts.md`, and the state keys one row per path. Left alone,
+    // `renamePaths` rolls the mover back and the two swap identities.
+    const dir = syncedProject({ twin: true });
+    dirs.push(dir);
+
+    const run = spawnSync(
+      process.execPath,
+      [
+        CLI,
+        'merge-items',
+        '--source',
+        `course/${ALERTS}`,
+        '--target',
+        `course/${WELCOME}`,
+      ],
+      {
+        cwd: dir,
+        input: '',
+        encoding: 'utf8',
+        timeout: 30000,
+        env: {
+          ...process.env,
+          CANVAS_API_URL: CANVAS_URL,
+          CANVAS_COURSE_ID: COURSE_ID,
+        },
+      },
+    );
+
+    assert.equal(run.status, 0, run.stderr);
+    const after = JSON.parse(
+      fs.readFileSync(path.join(dir, '.canvas-sync.json'), 'utf8'),
+    );
+    const items = after.modules['01-intro'].items;
+    assert.deepEqual(Object.keys(items), [WELCOME, ALERTS]);
+    assert.equal(
+      items[ALERTS].canvas_id,
+      604,
+      'the path belongs to the page that moved onto it, ids and all',
+    );
+    assert.match(
+      run.stderr,
+      /Renumbering moved 03-alerts\.md onto 02-alerts\.md/,
+    );
+    assert.match(
+      run.stderr,
+      /01-intro\/02-alerts\.md — page "Alerts" \(Canvas id 502\)/,
     );
   });
 });

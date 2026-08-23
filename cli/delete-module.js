@@ -8,6 +8,7 @@ const {
   printModules,
 } = require('./module-utils');
 const { renumberSequential } = require('./renumber');
+const { dropRowsRenumberedOver } = require('./sync-renames');
 const { loadState, renameFolders, saveState } = require('../lib/sync/state');
 
 /**
@@ -138,6 +139,20 @@ async function deleteModule(options = {}) {
 
   // Renumber remaining modules sequentially to close the gap
   const renames = renumberSequential(COURSE_DIR, getModuleEntries);
+
+  // Before `renameFolders`, not after. Closing the gap slides the next module
+  // into this one's slot, and when the two share a slug it lands on this one's
+  // folder name exactly — where the row just kept is still sitting.
+  // `renameFolder` refuses to overwrite it, `renameFolders` rolls the mover
+  // back, and the surviving folder silently inherits the deleted module's
+  // Canvas id while the live module it really is becomes a prune candidate.
+  // The state is handed in because this command holds it and saves once below.
+  if (syncData) {
+    dropRowsRenumberedOver(
+      [{ fromDir: COURSE_DIR, deleted: sourceModule.folderName, renames }],
+      { tag: 'delete-module', state: syncData },
+    );
+  }
 
   if (renames.length > 0) {
     console.log('[delete-module] Renumbered remaining modules:');

@@ -183,6 +183,7 @@ const WELCOME = '01-intro/01-welcome.md';
 const ALERTS = '01-intro/02-alerts.md';
 // A subsection is a Canvas item too — a text header keyed by the folder path —
 // so the state holds a row for the folder itself as well as for its pages.
+const TWIN = '01-intro/03-alerts.md';
 const DEEP = '01-intro/03-deep';
 const ONE = '01-intro/03-deep/01-one.md';
 const TWO = '01-intro/03-deep/02-two.md';
@@ -198,7 +199,7 @@ const DIAGRAM = '01-intro/_files/diagram.png';
  * running the command in this process would delete out of the repository's own
  * course.
  */
-function project({ subsection = false } = {}) {
+function project({ subsection = false, twin = false } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'delete-item-'));
   made.push(dir);
   const write = (relative, contents) => {
@@ -222,6 +223,14 @@ function project({ subsection = false } = {}) {
       '![Diagram](_files/diagram.png)\n',
   );
   write(`course/${DIAGRAM}`, 'not really a png\n');
+  // A sibling sharing 02-alerts.md's slug at the next prefix. Deleting
+  // 02-alerts.md renumbers this one straight onto the path just vacated.
+  if (twin) {
+    write(
+      'course/01-intro/03-alerts.md',
+      '---\ntitle: More alerts\ncanvas_type: page\n---\n\nMore.\n',
+    );
+  }
   if (subsection) {
     write(
       'course/01-intro/03-deep/_category_.json',
@@ -236,6 +245,19 @@ function project({ subsection = false } = {}) {
     [WELCOME]: pageRow(courseDir, WELCOME, WELCOME_ITEM, WELCOME_PAGE),
     [ALERTS]: pageRow(courseDir, ALERTS, ALERTS_ITEM, ALERTS_PAGE),
   };
+  if (twin) {
+    items[TWIN] = {
+      canvas_type: 'page',
+      canvas_id: 604,
+      page_url: 'more-alerts',
+      module_item_id: 96,
+      title: 'More alerts',
+      local_hash: hashLocalFile(path.join(courseDir, TWIN)),
+      canvas_hash: 'canvas-604',
+      canvas_updated_at: '2026-08-20T08:00:00.000Z',
+      synced_at: '2026-08-20T09:00:00.000Z',
+    };
+  }
   if (subsection) {
     items[DEEP] = {
       canvas_type: 'sub_header',
@@ -427,5 +449,69 @@ describe('npx course delete-item and the row it leaves behind', () => {
       /item created/,
       'writing the path again must edit page 502, not add a second page',
     );
+  });
+});
+
+describe('npx course delete-item when the renumber lands on the deleted path', () => {
+  it('gives the row up rather than let the two pages swap Canvas ids', () => {
+    // Two siblings sharing a slug — `02-alerts.md` and `03-alerts.md` — is the
+    // one shape where keeping the row backfires. Closing the gap moves
+    // `03-alerts.md` onto `02-alerts.md`, and the state keys one row per path.
+    // Left alone, `renamePath` refuses to overwrite the row it finds,
+    // `renamePaths` rolls the mover back to `03-alerts.md`, and the two swap
+    // identities in silence: the file on disk would push its content to page
+    // 502, and `--prune-canvas` would offer to delete page 604, which is the
+    // page it actually is.
+    const dir = project({ twin: true });
+
+    const run = deleteItem(dir, ['--path', `course/${ALERTS}`, '--yes']);
+
+    assert.equal(run.status, 0, run.stderr);
+    assert.deepEqual(
+      fs.readdirSync(path.join(dir, 'course', '01-intro')).sort(),
+      ['01-welcome.md', '02-alerts.md', '_category_.json', '_files'],
+    );
+
+    const items = stateOf(dir).modules['01-intro'].items;
+    assert.deepEqual(Object.keys(items), [WELCOME, ALERTS]);
+    assert.equal(
+      items[ALERTS].canvas_id,
+      604,
+      'the path belongs to the page that moved onto it, ids and all',
+    );
+    assert.equal(items[ALERTS].title, 'More alerts');
+  });
+
+  it('names the Canvas page it can no longer reach', () => {
+    // Dropping the row strands page 502: nothing in the repository points at
+    // it afterwards and `--prune-canvas` will never offer it. That is the
+    // lesser harm than crossing the ids, but only if the author is told, so
+    // they can go and delete it in Canvas themselves.
+    const dir = project({ twin: true });
+
+    const run = deleteItem(dir, ['--path', `course/${ALERTS}`, '--yes']);
+
+    assert.equal(run.status, 0);
+    assert.match(
+      run.stderr,
+      /Renumbering moved 03-alerts\.md onto 02-alerts\.md/,
+    );
+    assert.match(run.stderr, /Delete them in Canvas by hand/);
+    assert.match(
+      run.stderr,
+      /01-intro\/02-alerts\.md — page "Alerts" \(Canvas id 502\)/,
+    );
+  });
+
+  it('says nothing when the renumber lands nowhere near it', () => {
+    // The fence. Every other delete keeps its row, and a command that warned
+    // about stranding on those would be crying wolf on the common path.
+    const dir = project();
+
+    const run = deleteItem(dir, ['--path', `course/${ALERTS}`, '--yes']);
+
+    assert.equal(run.status, 0);
+    assert.doesNotMatch(run.stderr, /Delete them in Canvas by hand/);
+    assert.equal(stateOf(dir).modules['01-intro'].items[ALERTS].canvas_id, 502);
   });
 });

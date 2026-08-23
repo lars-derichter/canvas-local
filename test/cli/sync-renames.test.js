@@ -4,7 +4,10 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { recordRenames } = require('../../cli/sync-renames');
+const {
+  dropRowsRenumberedOver,
+  recordRenames,
+} = require('../../cli/sync-renames');
 
 /**
  * Every renaming command ends in `recordRenames`, handing it the batches it has
@@ -343,5 +346,293 @@ describe('the commands that rename', () => {
       'utf8',
     );
     assert.match(source, /renameFolders\(syncData, renames\)/);
+  });
+});
+
+/**
+ * The one place in this repository that drops a base row while the Canvas
+ * object behind it is still live. It exists because a renumber can slide a
+ * sibling onto the exact path a command has just deleted, and the state keys
+ * one row per path: without this, `renamePaths` refuses the move, rolls the
+ * mover back, and the two swap Canvas ids in silence.
+ */
+describe('dropRowsRenumberedOver', () => {
+  let root;
+  let courseDir;
+  let file;
+  let warned;
+  let realWarn;
+
+  function pageRow(canvasId, title) {
+    return {
+      canvas_type: 'page',
+      canvas_id: canvasId,
+      page_url: `p${canvasId}`,
+      module_item_id: canvasId + 1000,
+      title,
+      local_hash: `local-${canvasId}`,
+      canvas_hash: `canvas-${canvasId}`,
+    };
+  }
+
+  function writeState(modules, files = {}) {
+    const state = {
+      schema_version: 4,
+      canvas_base_url: '',
+      course_id: 0,
+      last_sync: null,
+      modules: {},
+      icons: {},
+      files,
+    };
+    for (const [folder, { id, name, items = {} }] of Object.entries(modules)) {
+      state.modules[folder] = {
+        canvas_module_id: id,
+        name,
+        item_order: Object.keys(items),
+        items,
+      };
+    }
+    fs.writeFileSync(file, JSON.stringify(state, null, 2) + '\n', 'utf8');
+    return state;
+  }
+
+  const readState = () => JSON.parse(fs.readFileSync(file, 'utf8'));
+  const at = (...parts) => path.join(courseDir, ...parts);
+  const opts = () => ({ courseDir, file, tag: 'delete-item' });
+
+  beforeEach(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'drop-rows-'));
+    courseDir = path.join(root, 'course');
+    file = path.join(root, '.canvas-sync.json');
+    fs.mkdirSync(courseDir, { recursive: true });
+    warned = [];
+    realWarn = console.warn;
+    console.warn = (...args) => warned.push(args.join(' '));
+  });
+
+  afterEach(() => {
+    console.warn = realWarn;
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it('leaves everything alone when no rename lands on the deleted entry', () => {
+    // The overwhelmingly common case: the renumber shifts siblings whose slugs
+    // differ, so nothing wants the dead path. A command that dropped a row here
+    // would undo the whole point of keeping it.
+    writeState({
+      '01-mod': {
+        id: 100,
+        items: {
+          '01-mod/01-welcome.md': pageRow(501, 'Welcome'),
+          '01-mod/02-alerts.md': pageRow(502, 'Alerts'),
+        },
+      },
+    });
+    const before = fs.readFileSync(file, 'utf8');
+
+    const stranded = dropRowsRenumberedOver(
+      [
+        {
+          fromDir: at('01-mod'),
+          deleted: '02-alerts.md',
+          renames: [{ from: '03-loops.md', to: '02-loops.md' }],
+        },
+      ],
+      opts(),
+    );
+
+    assert.deepEqual(stranded, []);
+    assert.deepEqual(warned, [], 'and it says nothing, because nothing went');
+    assert.equal(fs.readFileSync(file, 'utf8'), before);
+  });
+
+  it('drops the row a rename is about to land on, and names what it stranded', () => {
+    writeState({
+      '01-mod': {
+        id: 100,
+        items: {
+          '01-mod/02-alerts.md': pageRow(502, 'Alerts'),
+          '01-mod/03-alerts.md': pageRow(604, 'More alerts'),
+        },
+      },
+    });
+
+    const stranded = dropRowsRenumberedOver(
+      [
+        {
+          fromDir: at('01-mod'),
+          deleted: '02-alerts.md',
+          renames: [{ from: '03-alerts.md', to: '02-alerts.md' }],
+        },
+      ],
+      opts(),
+    );
+
+    assert.deepEqual(stranded, [
+      '01-mod/02-alerts.md — page "Alerts" (Canvas id 502)',
+    ]);
+    assert.deepEqual(Object.keys(readState().modules['01-mod'].items), [
+      '01-mod/03-alerts.md',
+    ]);
+    assert.deepEqual(readState().modules['01-mod'].item_order, [
+      '01-mod/03-alerts.md',
+    ]);
+    // Silence is the failure mode here: the row is gone and the Canvas page is
+    // still live, so an author who is not told can never find it again.
+    assert.match(warned.join('\n'), /Delete them in Canvas by hand/);
+    assert.match(warned.join('\n'), /page "Alerts" \(Canvas id 502\)/);
+  });
+
+  it('takes a deleted subsection whole, header row included', () => {
+    writeState({
+      '01-mod': {
+        id: 100,
+        items: {
+          '01-mod/02-deep': {
+            canvas_type: 'sub_header',
+            module_item_id: 93,
+            title: 'Deep',
+          },
+          '01-mod/02-deep/01-one.md': pageRow(601, 'One'),
+        },
+      },
+    });
+
+    const stranded = dropRowsRenumberedOver(
+      [
+        {
+          fromDir: at('01-mod'),
+          deleted: '02-deep',
+          renames: [{ from: '03-deep', to: '02-deep' }],
+        },
+      ],
+      opts(),
+    );
+
+    assert.deepEqual(stranded, [
+      '01-mod/02-deep — sub_header "Deep" (Canvas module item 93)',
+      '01-mod/02-deep/01-one.md — page "One" (Canvas id 601)',
+    ]);
+    assert.deepEqual(Object.keys(readState().modules['01-mod'].items), []);
+  });
+
+  it('takes a module with its items and its embedded-file rows', () => {
+    // `deleteModule` deliberately leaves `state.files` alone. Here they have to
+    // go too: the folder name is about to belong to another module, and
+    // `renameFolder` rebuilds `state.files` as a flat map with no collision
+    // check, so a row left behind would be overwritten without a word.
+    writeState(
+      {
+        '01-intro': {
+          id: 10,
+          name: 'Intro',
+          items: { '01-intro/01-welcome.md': pageRow(501, 'Welcome') },
+        },
+      },
+      {
+        '01-intro/_files/diagram.png': { canvas_file_id: 555 },
+        '02-intro/_files/diagram.png': { canvas_file_id: 777 },
+      },
+    );
+
+    const stranded = dropRowsRenumberedOver(
+      [
+        {
+          fromDir: courseDir,
+          deleted: '01-intro',
+          renames: [{ from: '02-intro', to: '01-intro' }],
+        },
+      ],
+      { ...opts(), tag: 'delete-module' },
+    );
+
+    assert.deepEqual(stranded, [
+      '01-intro — module "Intro" (Canvas module id 10)',
+      '01-intro/01-welcome.md — page "Welcome" (Canvas id 501)',
+      '01-intro/_files/diagram.png — embedded file (Canvas file id 555)',
+    ]);
+    const after = readState();
+    assert.deepEqual(Object.keys(after.modules), []);
+    assert.deepEqual(
+      Object.keys(after.files),
+      ['02-intro/_files/diagram.png'],
+      "the arriving module's own binary must survive to be re-keyed",
+    );
+  });
+
+  it('says nothing about a row that was never pushed, but still clears it', () => {
+    // A row with no Canvas id strands nothing — there is no object out there to
+    // go and delete — so warning about it would be noise. It still has to go, or
+    // the rename it blocks is refused all the same.
+    writeState({
+      '01-mod': {
+        id: 100,
+        items: { '01-mod/02-draft.md': { canvas_type: 'page' } },
+      },
+    });
+
+    const stranded = dropRowsRenumberedOver(
+      [
+        {
+          fromDir: at('01-mod'),
+          deleted: '02-draft.md',
+          renames: [{ from: '03-draft.md', to: '02-draft.md' }],
+        },
+      ],
+      opts(),
+    );
+
+    assert.deepEqual(stranded, []);
+    assert.deepEqual(Object.keys(readState().modules['01-mod'].items), []);
+    assert.doesNotMatch(warned.join('\n'), /Delete them in Canvas/);
+  });
+
+  it('does not invent a sync state for a course nobody has pushed', () => {
+    const stranded = dropRowsRenumberedOver(
+      [
+        {
+          fromDir: at('01-mod'),
+          deleted: '02-alerts.md',
+          renames: [{ from: '03-alerts.md', to: '02-alerts.md' }],
+        },
+      ],
+      opts(),
+    );
+
+    assert.deepEqual(stranded, []);
+    assert.equal(fs.existsSync(file), false);
+  });
+
+  it('edits a handed-in state in place and leaves the writing to its caller', () => {
+    // `cli/delete-module.js` holds the state from before the first question and
+    // saves once at the end. A save here would land under that one and be lost.
+    const state = writeState({
+      '01-intro': {
+        id: 10,
+        name: 'Intro',
+        items: { '01-intro/01-welcome.md': pageRow(501, 'Welcome') },
+      },
+    });
+    const onDisk = fs.readFileSync(file, 'utf8');
+
+    const stranded = dropRowsRenumberedOver(
+      [
+        {
+          fromDir: courseDir,
+          deleted: '01-intro',
+          renames: [{ from: '02-intro', to: '01-intro' }],
+        },
+      ],
+      { ...opts(), state, tag: 'delete-module' },
+    );
+
+    assert.equal(stranded.length, 2);
+    assert.deepEqual(Object.keys(state.modules), [], 'edited in place');
+    assert.equal(
+      fs.readFileSync(file, 'utf8'),
+      onDisk,
+      'and not written: the caller owns the one save',
+    );
   });
 });
