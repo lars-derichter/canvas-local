@@ -491,7 +491,7 @@ style from a Word template.
 ## Advanced Commands
 
 ```bash
-npx course reset-sync-state      # remove canvas_id fields and delete .canvas-sync.json
+npx course reset-sync-state      # delete .canvas-sync.json and clear any leftover canvas_id fields
 npx course reset-canvas          # delete all modules, pages, assignments, and files from Canvas
 ```
 
