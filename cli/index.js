@@ -9,7 +9,7 @@ require('dotenv').config({
 const { Command } = require('commander');
 const pkg = require('../package.json');
 const log = require('./logger');
-const { UnanswerableError } = require('./module-utils');
+const { RefusalError } = require('../lib/errors');
 
 const program = new Command();
 
@@ -350,12 +350,24 @@ program
 // message rather than the message. Awaiting it is what gives a rejection
 // somewhere to land.
 program.parseAsync(process.argv.slice(2), { from: 'user' }).catch((err) => {
-  // A question that reached the end of its input stream is a scripted run this
-  // command cannot serve, not a crash: it earns the one line that says what to
-  // do instead, and the non-zero exit that stops a pipeline reading the silence
-  // as success. Anything else still fails the run with its stack.
-  if (err instanceof UnanswerableError) {
-    log.error(err.message);
+  // A refusal is a decision this tool made and can explain — a question that
+  // reached the end of its input stream, a sync state describing another
+  // Canvas course. It earns the message it was written with and the non-zero
+  // exit that stops a pipeline reading the silence as success, and nothing
+  // else: the stack frames say where the check lives, which is no help to the
+  // person who has to act on it, and printing them makes a deliberate stop read
+  // as a crash.
+  //
+  // Anything else keeps its stack. A TypeError in the planner has no message
+  // worth reading and every frame worth keeping, and swallowing it would turn
+  // the defects this tool still has into silent one-liners. The class at the
+  // throw site is the whole of the distinction — see `lib/errors.js`.
+  //
+  // `--verbose` still shows the stack for both, because the flag exists to
+  // answer "why is it doing that", and a refusal nobody expected is exactly
+  // that question.
+  if (err instanceof RefusalError) {
+    log.error(program.opts().verbose ? err.stack : err.message);
     process.exitCode = 1;
     return;
   }

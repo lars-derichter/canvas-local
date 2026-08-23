@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
 const { PROJECT_ROOT } = require('./project-root');
+const { RefusalError } = require('../lib/errors');
 
 const COURSE_DIR = path.join(PROJECT_ROOT, 'course');
 
@@ -24,8 +25,14 @@ const hints = new WeakMap();
  * instead of an answer. `cli/index.js` catches it, prints the message and sets
  * a non-zero exit code; nothing else should catch it, because reporting success
  * for a run that never got its answers is the defect it exists to stop.
+ *
+ * A `RefusalError` because that is what it is — a run this command cannot serve,
+ * stopped on purpose, with one line saying what to do instead. The class is what
+ * gets it printed as that line rather than under a stack trace, and it is shared
+ * with every other deliberate stop; see `lib/errors.js`. It keeps a name of its
+ * own only because its own tests catch it by type.
  */
-class UnanswerableError extends Error {
+class UnanswerableError extends RefusalError {
   constructor(message) {
     super(message);
     this.name = 'UnanswerableError';
