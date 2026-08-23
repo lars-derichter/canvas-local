@@ -23,34 +23,34 @@ sentence.
 
 ## Steps
 
-### Phase A — Blueprint (Writes Nothing)
+### Phase A: Blueprint (Writes Nothing)
 
-1. **Read the fixed inputs**: `course-context.md` — the Learning goals section
+1. **Read the fixed inputs**: `course-context.md`, the Learning goals section
    (the goals and their reference notation), the Assessment section (evaluation
    moments, weights, question formats, allowed aids, and the course's alignment
    rule), pedagogy, scope boundaries; for a needed section still `TODO`, infer
    the answer from the repo or ask, offering at the end to save it back;
-   `context/writing-style.md` — shared rules plus the student-facing section;
+   `context/writing-style.md` (shared rules plus the student-facing section);
    every lesson plan in scope, in full, tracking per lesson which learning goals
    were actively practised versus only seeded and how much lesson time each goal
    received; existing evaluations under `evaluations/` as worked examples (the
    most recent is the structural template). If none exist, the Phase A proposal
-   doubles as a proposal for the evaluation format — confirm it explicitly.
+   doubles as a proposal for the evaluation format. Confirm it explicitly.
 
 2. **Confirm the destination** in one sentence: the highest-numbered
    academic-year folder under `evaluations/` (e.g. `2526/`) unless the author
    says otherwise, plus a slug mirroring existing siblings (`test1`, `exam`).
 
-3. **Settle the practicalities** before designing questions — from the
-   Assessment section of `course-context.md` first, then the worked example,
-   then the author (bundle open ones in one question round): duration, total
-   points, question formats the course uses, allowed aids (open/closed book,
-   IDE, cheat sheet), and the evaluation's weight in the course grade if the
-   instructions must state it.
+3. **Settle the practicalities** before designing questions, from the Assessment
+   section of `course-context.md` first, then the worked example, then the
+   author (bundle open ones in one question round): duration, total points,
+   question formats the course uses, allowed aids (open/closed book, IDE, cheat
+   sheet), and the evaluation's weight in the course grade if the instructions
+   must state it.
 
 4. **Present the blueprint in chat** with these sections:
    - **One-sentence proposal**: what the evaluation covers, in what form.
-   - **Blueprint matrix**: one row per question — number, short description,
+   - **Blueprint matrix**: one row per question: number, short description,
      learning goal(s) tested (in the course's reference notation), difficulty
      (reproduction / application / transfer, or the course's own scheme),
      points. A per-goal summary axis is fine if the matrix gets wide.
@@ -59,15 +59,15 @@ sentence.
      only at reproduction level while the lessons practised application. Flag
      each; propose a correction or a motivated acceptance.
    - **Pros and cons**, two sub-headings as in `/lesson-design`: _Your
-     suggestions_ — one bullet per author input element, honest; _My
-     suggestions_ — the same for what the skill adds, naming rejected
+     suggestions_: one bullet per author input element, honest; _My
+     suggestions_: the same for what the skill adds, naming rejected
      alternatives and why.
    - **Open questions** the author must decide before Phase B.
 
    Adjust on request and stay in Phase A until the author explicitly approves.
    Stop. Wait for explicit approval before starting Phase B.
 
-### Phase B — Write (Only After Approval)
+### Phase B: Write (Only After Approval)
 
 5. **Write the evaluation** to `evaluations/<year>/<slug>/instructions.md`,
    mirroring the worked example (or the format agreed in Phase A): full question

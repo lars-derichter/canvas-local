@@ -5,8 +5,8 @@ description: Generate a grading rubric for an assignment or evaluation, with cri
 
 # Rubric Build
 
-Build a grading rubric for one assignment — a homework page under `course/` or
-an evaluation under `evaluations/` — aligned with the learning goals it serves,
+Build a grading rubric for one assignment (a homework page under `course/` or an
+evaluation under `evaluations/`), aligned with the learning goals it serves,
 written as a colleague-facing markdown file. Markdown only: pushing rubrics to
 Canvas would need a `lib/canvas/rubrics.js` that does not exist.
 
@@ -20,25 +20,25 @@ not a markdown file under `course/` or `evaluations/`.
 
 ## Steps
 
-### Phase A — Design (Writes Nothing)
+### Phase A: Design (Writes Nothing)
 
 1. **Read the fixed inputs**, in this order:
    - The assignment itself, in full. Its stated requirements are the primary
      source of criteria.
-   - [`context/course-context.md`](../../../context/course-context.md) — the
+   - [`context/course-context.md`](../../../context/course-context.md): the
      learning-goal scheme and its notation. If it is `TODO`, infer goals from
      the lesson plan the assignment belongs to, or ask the author once, and
      offer at the end to save what you learned.
    - The lesson plan(s) in `sources/lessons/` that the assignment belongs to,
      for the goals it practises and the level at which they were taught.
-   - [`context/writing-style.md`](../../../context/writing-style.md) — the
-     rubric is colleague-facing.
+   - [`context/writing-style.md`](../../../context/writing-style.md): the rubric
+     is colleague-facing.
    - Existing rubrics under `evaluations/**/rubric*.md` or `sources/rubrics/`,
      if any, as the structural worked example.
 
 2. **Settle the grading model.** From `$ARGUMENTS`, the worked example, or one
    bundled question round: analytic (criteria × levels, the default) or
-   holistic; number of levels and their labels (default four — the worked
+   holistic; number of levels and their labels (default four: the worked
    example's if there is one, otherwise insufficient / sufficient / good /
    excellent, in the course language); point total and whether points sit per
    criterion or per cell.
@@ -58,7 +58,7 @@ not a markdown file under `course/` or `evaluations/`.
 
 5. Adjust on request. Stop. Wait for explicit approval before starting Phase B.
 
-### Phase B — Write (Only After Approval)
+### Phase B: Write (Only After Approval)
 
 6. **Write the rubric file.** Destination:
    - Assignment under `evaluations/<year>/<slug>/` → `rubric.md` in that same
@@ -74,7 +74,7 @@ not a markdown file under `course/` or `evaluations/`.
 7. **Offer, do not run:**
    - A student-facing summary of the criteria (no level descriptors, just what
      is graded, headed by the course's own phrase for what you are marked on)
-     appended to the assignment page — only on explicit request, since it edits
+     appended to the assignment page, only on explicit request, since it edits
      student-facing material.
    - `/proofread` on the rubric.
 

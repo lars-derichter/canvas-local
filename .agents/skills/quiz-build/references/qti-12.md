@@ -25,10 +25,10 @@ per question. Per item:
   `points_possible`.
 - The question text in `<presentation>` → `<material>` →
   `<mattext texttype="text/html">` (HTML-escaped inside).
-- Choices as `<response_lid>`/`<render_choice>` — single cardinality for
-  multiple choice and true/false, multiple for multiple answers.
-  `<response_str>` with `<render_fib>` for short answer and essay. Numerical
-  answers via a `<response_str>` plus `<varequal>`/range conditions.
+- Choices as `<response_lid>`/`<render_choice>`: single cardinality for multiple
+  choice and true/false, multiple for multiple answers. `<response_str>` with
+  `<render_fib>` for short answer and essay. Numerical answers via a
+  `<response_str>` plus `<varequal>`/range conditions.
 - `<resprocessing>` with an `<outcomes>` `SCORE` decvar (maxvalue 100) and
   `<respcondition>`s that `<setvar>` SCORE to 100 for the correct response. For
   multiple answers, one `<and>` condition requiring all correct choices and

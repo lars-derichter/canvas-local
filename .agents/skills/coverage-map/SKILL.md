@@ -1,6 +1,6 @@
 ---
 name: coverage-map
-description: Cross-reference the course's learning goals against lessons, modules, and evaluations and report alignment gaps — goals never practised, practised but never assessed, assessed but never taught. Structure, links, and numbering are /consistency-check's job. Report-only; offers to save the report as a file but writes nothing by default. Use for "coverage map", "learning-goal coverage", "which goals are never tested", "leerdoelendekking", "dekkingsmatrix", "welke leerdoelen zijn nog niet getest".
+description: Cross-reference the course's learning goals against lessons, modules, and evaluations and report alignment gaps: goals never practised, practised but never assessed, assessed but never taught. Structure, links, and numbering are /consistency-check's job. Report-only; offers to save the report as a file but writes nothing by default. Use for "coverage map", "learning-goal coverage", "which goals are never tested", "leerdoelendekking", "dekkingsmatrix", "welke leerdoelen zijn nog niet getest".
 ---
 
 # Coverage Map
@@ -9,7 +9,7 @@ Cross-reference the course's learning goals with the lesson plans under
 `sources/lessons/`, the student modules under `course/`, and the assessment
 material under `evaluations/`, following the learning-goal scheme defined in
 [`context/course-context.md`](../../../context/course-context.md). Report which
-goals are taught, practised, and assessed — and where the gaps are.
+goals are taught, practised, and assessed, and where the gaps are.
 
 ## Input
 
@@ -27,7 +27,7 @@ the whole course.
    evaluation carries. Follow any framework document they point to.
    - If Learning goals is `TODO`, infer the scheme from the lesson plans under
      `sources/lessons/` (a consistent goal notation across plans counts as a
-     scheme). If that fails, ask the author once — and at the end offer to save
+     scheme). If that fails, ask the author once, and at the end offer to save
      the answer into `course-context.md`.
    - If the course turns out to have no explicit learning-goal scheme at all,
      say so, offer `/course-context-init` to help define one, and stop. Do not
@@ -47,7 +47,7 @@ the whole course.
 
 4. **Read the assessment side.** Everything under `evaluations/`. Per question
    or task, record which goal(s) it assesses, using the material's own goal
-   references where present and careful inference where not — flag inferred
+   references where present and careful inference where not. Flag inferred
    mappings as such. Note roughly how much weight (points, question count) each
    goal carries.
 
@@ -64,12 +64,12 @@ the whole course.
      - Goals practised but never assessed.
      - Goals assessed but never taught.
      - Goals whose assessment weight is out of proportion to their teaching time
-       (heavy on the exam, thin in the lessons — or the reverse). State both
+       (heavy on the exam, thin in the lessons, or the reverse). State both
        numbers.
    - One-line totals: goals covered end-to-end versus goals with gaps.
 
    If every goal is taught, practised, and assessed in reasonable proportion,
-   say the course is aligned and stop — do not invent findings.
+   say the course is aligned and stop. Do not invent findings.
 
 7. **Offer, do not do**: save the report as a dated markdown file under
    `sources/reports/` (e.g. `sources/reports/coverage-map-YYYY-MM-DD.md`). Only
