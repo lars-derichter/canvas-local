@@ -309,8 +309,8 @@ column, assignments and graded discussions; a **New Quiz** is the gap, because
 prune lists one as the ordinary assignment it is. Take a course export first.
 
 All of the above is about Canvas. The tool can also destroy local work: `pull`
-overwrites whole files, and `pull --force` overwrites them even when it cannot
-tell your writing from Canvas's output. See
+overwrites whole files, `pull --prune-local` deletes the ones Canvas no longer
+has, and `pull --force` does either over a file that holds uncommitted work. See
 [Push and pull are not a merge](#push-and-pull-are-not-a-merge).
 
 ## The Folder Structure Is a Contract
@@ -341,33 +341,58 @@ expects.
 
 ## Push and Pull Are Not a Merge
 
-The two directions are not symmetric, and neither one reconciles concurrent
-edits.
+A run settles an item by choosing a side and writing that copy whole. Nothing
+here blends two versions of one page, and nothing can: `.canvas-sync.json` holds
+a fingerprint of each side rather than its text, so there is no stored ancestor
+to merge against even in principle.
 
 - **Pull overwrites whole files.** It regenerates the markdown from the Canvas
-  HTML. It does not merge your changes with the Canvas version.
-- **Conflict detection is a timestamp, not a comparison.** Pull skips a file
-  whose modification time is later than the last sync. It does not look at the
-  content. That has two consequences worth knowing: a fresh `git clone` sets
-  every file's timestamp to checkout time, so pull will skip everything as
-  "locally modified"; and push updates the last-sync timestamp too, so a file
-  you have just pushed counts as unmodified and a later pull will overwrite it
-  with the round-tripped Canvas version. With no sync state at all — right after
-  `reset-sync-state`, or on a clone that has never synced — there is no
-  timestamp to compare against, so pull skips every file that already exists
-  locally and writes only the ones it is adding.
+  object rather than merging your changes into it, and push is the mirror image:
+  it sends the whole page, assignment or discussion. Whichever side loses an
+  item loses its version of that item entirely.
+- **What changed is decided by content, not by a timestamp.** Each side is
+  compared against the fingerprint the last sync recorded for it, which is what
+  separates "changed here" from "changed there" and both from "changed on both
+  sides". Neither fingerprint reads a modification time, so a fresh `git clone`
+  is no longer mistaken for an entirely edited course. Exactly one decision
+  still reads a timestamp: the `newest` tiebreak, reached only for an item whose
+  two fingerprints have both moved. Push and pull never reach it, because
+  pinning a direction has already answered that question. See
+  [The reconcile engine](architecture.md#the-reconcile-engine).
+- **A file holding uncommitted work is never overwritten and never deleted.** A
+  single `git status` covers the whole run, and any file it reports as modified
+  or untracked is left exactly as it is, named in the report with the reason it
+  was left. Where git cannot answer at all, outside a checkout or wherever `git`
+  will not run, every file on disk reads as dirty and a pull writes nothing.
+  `pull --force` is the one lever that switches the guard off, for overwrites
+  and deletes alike, and it asks before it does. Commit before you reach for it:
+  git is the undo this tool is built around.
+- **With no sync state, pull adopts rather than skips.** Right after a
+  [`reset-sync-state`](advanced-commands.md), or on a clone that has never
+  synced, no fingerprint is recorded for anything. Pull pairs each local file
+  with the Canvas object of the same type and title, writes Canvas's version
+  into the file it matched, and ties the two together from then on. That is how
+  the tool takes over a course it did not create, and it is also why a first
+  pull onto a tree you have already written is a rewrite of it. The git guard
+  above is what stands between those two outcomes.
 - **The round trip is lossy.** Canvas HTML becomes markdown through a converter.
   Raw HTML, anything the Canvas rich-content editor added, and formatting
   nuances are normalised away.
-- **Pull restructures your working tree.** It renames module folders, subfolders
-  and files to match Canvas's names and positions. Local naming and numbering
-  that differ from Canvas do not survive.
-- **Pull never deletes.** An item deleted in Canvas leaves the local file
-  behind, and the next push re-creates it in Canvas.
+- **Pull does not rename your files.** A Canvas title lands in the file's
+  frontmatter as `title:` and a Canvas module name lands in the folder's
+  `_category_.json`, while the filename stays as you wrote it, because that path
+  is the key of the item's row. The numeric prefix is the one exception, because
+  it _is_ the local order: a module reordered in Canvas has the files in that
+  folder renumbered to match.
+- **A plain pull deletes nothing.** `pull --prune-local` does, and only ever an
+  item the sync state already tracked whose Canvas object is gone. A file the
+  tool has never seen has no row, so it is never a candidate, and a module
+  folder is left alone while it still holds local changes that need a decision
+  first.
 
-The workflow the tool is built for is one-directional: write locally, push to
-Canvas. Pull is for importing an existing course once, or for recovering edits a
-colleague made in the web editor — not for a routine round trip.
+`npx course status` is the command for "what would this do": it reads both
+sides, writes to neither, and names who would win each item. Every writing
+command takes `--dry-run` for the same question under one pinned policy.
 
 ## Which Fields Reach Canvas
 

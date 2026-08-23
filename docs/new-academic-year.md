@@ -145,10 +145,10 @@ assignments.
 > [!WARNING]
 >
 > Never run `npx course pull` on the new course to "check" the result. Pull
-> overwrites local files with what Canvas holds and renames folders and files to
-> match Canvas's names and numbering. On a tree that already holds your course,
-> that is a rewrite, not a check. `status` answers the same question and writes
-> nothing. See
+> overwrites local files with what Canvas holds, and what Canvas holds is your
+> own markup after a round trip through the HTML converter. On a tree that
+> already holds your course, that is a rewrite, not a check. `status` answers
+> the same question and writes nothing. See
 > [Push and pull are not a merge](limitations.md#push-and-pull-are-not-a-merge).
 
 ## What a Rollover Does to Each Type
