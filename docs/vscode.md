@@ -175,6 +175,13 @@ list for editing and reveals an **Export via TOC** action once it is ready.
 See [export styling](export-styling.md) for customising fonts, colours, and
 margins.
 
+### Preview and the Tree
+
+| Command              | Description                                             |
+| -------------------- | ------------------------------------------------------- |
+| Course: Preview      | Start the Docusaurus dev server and open the course     |
+| Course: Refresh Tree | Rebuild the sidebar tree by hand, when a watcher missed |
+
 ## How It Works
 
 - Long-running commands run in a single shared **Canvas Course Builder**
