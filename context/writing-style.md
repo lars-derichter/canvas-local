@@ -27,12 +27,15 @@ file you are editing.
 The lowest-numbered lesson plan under `sources/lessons/` is the worked example
 for the colleague-facing register.
 
-Everything else in the repository belongs to the tooling project, not to your
-course: `README.md`, `AGENTS.md`, and the guides in `docs/`. They follow the
-colleague-facing register plus the rules in
+`AGENTS.md` and the guides in `docs/` belong to the tooling project rather than
+to your course. They follow the colleague-facing register plus the rules in
 [Contributing](../docs/contributing.md#documentation-style), and they are not
-yours to restyle: an upstream update overwrites them. Change your course's voice
-here; leave those alone.
+yours to restyle: an upstream update overwrites `docs/` outright, and
+`AGENTS.md` is protected from one, so an edit there is yours to carry forever.
+Change your course's voice here; leave those alone.
+
+`README.md` changes hands. It is the tooling project's until `npx course setup`
+replaces it with your course's own, and yours after that.
 
 The rest of this guide splits into **shared rules** (apply to both),
 **student-facing**, and **colleague-facing**.

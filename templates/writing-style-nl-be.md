@@ -30,12 +30,15 @@ voor het bestand dat je onder handen hebt.
 Het laagst genummerde lesplan in `sources/lessons/` is het uitgewerkte voorbeeld
 voor het collegagerichte register.
 
-Al de rest in de repository hoort bij het toolingproject, niet bij je cursus:
-`README.md`, `AGENTS.md` en de gidsen in `docs/`. Die volgen het collegagerichte
-register plus de regels in
+`AGENTS.md` en de gidsen in `docs/` horen bij het toolingproject, niet bij je
+cursus. Die volgen het collegagerichte register plus de regels in
 [Contributing](../docs/contributing.md#documentation-style), en het is niet aan
-jou om ze te herschrijven: een upstream-update overschrijft ze toch. Pas hier de
-stem van je cursus aan; laat die bestanden met rust.
+jou om ze te herschrijven: een upstream-update overschrijft `docs/` volledig, en
+`AGENTS.md` is daartegen beschermd, dus een aanpassing daar sleep je voorgoed
+mee. Pas hier de stem van je cursus aan; laat die bestanden met rust.
+
+`README.md` wisselt van eigenaar. Tot `npx course setup` het vervangt door dat
+van je cursus is het van het toolingproject, en daarna van jou.
 
 De rest van deze gids valt uiteen in **gedeelde regels** (voor allebei),
 **studentgericht** en **collegagericht**.
