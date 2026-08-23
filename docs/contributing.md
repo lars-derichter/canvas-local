@@ -216,4 +216,5 @@ untouched.
 ## Understanding the Codebase
 
 See [Architecture](architecture.md) for a technical overview of the three-layer
-design, sync state format, push/pull algorithms, and link resolution.
+design, the sync state format, the reconcile engine the four sync commands share
+(there is no separate push or pull algorithm), and link resolution.
