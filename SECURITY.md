@@ -65,6 +65,41 @@ you can edit, and for an admin it means considerably more.
 - Give the token an expiry date when you create one, and prefer an account with
   no more access than the courses you actually sync.
 
+## Markdown in `course/` Is Executable
+
+The frontmatter parser this project uses, gray-matter, ships with its JavaScript
+engine enabled. A file whose frontmatter block opens with `---js` rather than
+`---` has that block **executed** when the file is parsed, with whatever
+permissions the person who typed the command has.
+
+There is one frontmatter parser here and every path that reads a course file
+goes through it, so nothing has to be pushed and nothing has to reach Canvas.
+`npx course search` is enough. So is `validate`.
+
+Two details, both verified rather than reasoned about:
+
+- The executed block does not have to yield usable frontmatter. A block whose
+  side effect is the whole point parses to an empty object and runs anyway, so
+  such a file does not need to look plausible to work.
+- It is the parse that runs it, not any later step. Reading the file is the
+  whole of the exposure.
+
+This is accepted rather than fixed. Everything under `course/` is written by
+whoever owns the repository, and anyone who can write a file there can already
+edit an npm script, add a git hook, or simply run the CLI. Turning the engine
+off would raise no wall that is not already down, and it would break nobody's
+course either way, since nothing in this project needs the feature.
+
+What follows from it is a habit rather than a setting. Treat a course tree the
+way you treat a repository you are about to install dependencies in:
+
+- Read the frontmatter of course material you did not write before running any
+  `npx course` command over it: a pull request against a public course
+  repository, a folder a colleague sent you, a course that came from somewhere
+  else.
+- Nothing here needs a `---js` block, so finding one is reason enough to delete
+  it.
+
 ## If You Created a Course From This Template
 
 This file is the upstream project's policy, and it arrived in your repository
