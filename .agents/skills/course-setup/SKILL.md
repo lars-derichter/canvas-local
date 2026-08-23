@@ -44,6 +44,12 @@ confirmed and change only what the author asks for.
      what each prescribes rather than making them guess.
    - Theme and export style, from what `src/css/themes/` and `export-styles/`
      actually contain.
+   - Whether to replace the course home page (`course/index.md`) with the
+     language-matched template. Upstream that file is the project's own landing
+     page — this repo publishes its `course/` as the project site — so a course
+     that keeps it markets the tooling to its own students. Under `--yes` the
+     command leaves the file alone unless `--course-home copy` says otherwise,
+     so the answer only counts once it reaches the invocation in step 3.
    - Whether to remove `course/01-getting-started/`. Say what it is — a
      walkthrough of the project and a worked example of every content type — and
      that it publishes to students on the first `npx course push` if it stays.
@@ -65,8 +71,9 @@ confirmed and change only what the author asks for.
    ```bash
    npx course setup --yes --language <lang> --title <title> --tagline <text> \
      --theme <name> --export-style <name> \
-     --readme <copy|keep> --course-context <copy|keep> \
-     --writing-style <variant|keep> --tutorial <keep|remove>
+     --readme <copy|keep> --course-home <copy|keep> \
+     --course-context <copy|keep> --writing-style <variant|keep> \
+     --tutorial <keep|remove>
    ```
 
    `--tagline` is the only way to set the descriptor under `--yes`; leave the
