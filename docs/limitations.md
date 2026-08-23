@@ -247,9 +247,12 @@ The asymmetry runs the wrong way round from what you would expect:
   the grades go with it.
 
 Removing the bigger thing is the safer move. What deleting a module folder costs
-you instead is orphans: assignments and pages no module links to any more, which
-the tool then forgets — the sync-state entry for the module goes with the module
-— and which you clean up in Canvas by hand.
+you instead is orphans: assignments and pages no module links to any more. The
+tool does not forget them. The sync state keeps its row for the module and for
+every item that was in it, so each is named under `Orphaned on Canvas` on every
+run until you deal with it, and a prune can reach the module. What a prune
+removes is the module, not the pages behind it, so the unlinked content is still
+yours to clear out in Canvas.
 
 ### Fields That Move Grades Already Given
 

@@ -226,6 +226,10 @@ question that reaches the end of its input without an answer ends the run with
 an error and a non-zero exit rather than hanging, so a script has to pass the
 flags.
 
+None of them touches Canvas. A module or an item you delete here, or a source
+file you merge away, stays on Canvas until a prune removes it, and every run
+names it under `Orphaned on Canvas` until one does.
+
 ### Managing Items
 
 ```bash
