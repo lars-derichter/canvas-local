@@ -201,8 +201,10 @@ the module item and never the object behind it.
   runs the same finder ahead of time through the sessionless-launch endpoint,
   and reports `resolves`, `no-match`, or `unknown`. A failed probe is never read
   as a match or as a miss.
-- `external_url` is a plain link, matched on the URL for the same reason: a
-  module item's id is reissued on every push.
+- `external_url` is a plain link. It exists only as a module item, with no
+  Canvas object behind it, so its module item id is its whole identity — and
+  that id survives a push now, because the item list is reconciled rather than
+  rebuilt.
 
 Pull writes both kinds. For authored content it converts the Canvas HTML body;
 for a reference it writes frontmatter only, with no API fetch at all.
