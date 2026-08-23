@@ -114,6 +114,39 @@ into markdown. Replies stay in Canvas and never appear here.
 > replies and grades included, without the submission check it gives
 > assignments.
 
+## Clearing a Date
+
+The five date fields above (`due_at`, `lock_at` and `unlock_at` on an
+assignment, `delayed_post_at` and `lock_at` on a discussion) are the only fields
+where deleting the value and never having written one mean different things.
+
+Empty the key and the date is cleared on Canvas:
+
+```yaml
+due_at:
+```
+
+Leave the key out altogether and Canvas keeps whatever date it has. That is the
+safe reading for a course whose frontmatter has never mentioned a date, and it
+has to be the reading, because nothing else can hold the distinction: a sync row
+stores a hash of the whole file rather than the values in it, so the engine can
+see that a file changed but never that the change was a date going away. The
+frontmatter is the only place the difference can be written down.
+
+All three spellings of empty clear the date, because a YAML author does not
+think of them as three things:
+
+```yaml
+due_at:
+due_at: null
+due_at: ''
+```
+
+The emptied key does not survive a pull, and does not need to. Canvas answers
+with no date, so nothing is written back, and what is left is a file with no
+`due_at` and an assignment with no due date. The two sides agree, which is what
+the emptied key was asking for.
+
 ## Quiz
 
 ```yaml
