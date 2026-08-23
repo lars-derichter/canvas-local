@@ -71,10 +71,15 @@ This converts all your markdown to HTML and uploads it to Canvas. Each module
 becomes a Canvas module, and each file becomes the appropriate item type (page,
 assignment, external link, or file upload).
 
-After the first push, `canvas_id` is written back into each file’s frontmatter
-so the CLI knows which Canvas object to update on subsequent pushes.
+Your markdown files carry no Canvas ids. The link between a file and the Canvas
+object it became lives in `.canvas-sync.json`, in the root of your project, and
+each row is keyed by the file’s path under `course/`.
 
-> [!WARNING]
+That file belongs in git like any other. A push or a pull changes it, so you
+normally have two things to commit afterwards: the content you wrote, and the
+sync state that records where it landed.
+
+> [!NOTE]
 >
 > Every push rebuilds the item list of the modules it manages. Your pages and
 > assignments survive, but anything you added to one of those modules by hand in
