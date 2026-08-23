@@ -8,12 +8,17 @@ canvas_type: page
 Publishing is the one part of this tool that can lose work, so it gets its own
 page before the page that shows you how.
 
-## Canvas Has No Undo
+## Treat Every Delete as Final
 
-Delete a page in the Canvas web editor and it sits in the course bin for a
-while. Delete it through the API, which is what this tool uses, and it is gone.
-There is no bin, no confirmation dialog you can walk back, and no version
-history on the Canvas side.
+This tool talks to Canvas through its API, and nothing here undoes a delete. No
+command puts a deleted page or assignment back, and your repository cannot help:
+git holds every version of what you wrote, and nothing at all of what only ever
+existed in Canvas.
+
+Canvas itself is a little less absolute. It has an `/undelete` endpoint that
+sometimes brings a deleted assignment back, though the student submissions
+frequently do not come with it, so even a recovery that works can be partial.
+Treat that as a lifeline, not a plan.
 
 That is fine when the course is empty and yours. It matters when the course
 already has content, especially content someone else put there.
