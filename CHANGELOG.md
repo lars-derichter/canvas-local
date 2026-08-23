@@ -2,6 +2,185 @@
 
 ## Unreleased
 
+- **`npx course sync` reconciles both directions in one run.** Push regenerated
+  and pull imported, and neither looked at what the other side had done since,
+  so the two were never a round trip. Sync compares three things instead of two:
+  what is in `course/`, what is in the Canvas course, and what
+  `.canvas-sync.json` recorded at the end of the last run. That third one is
+  what makes "changed here", "changed there", "changed on both sides" and
+  "deleted here" four different questions with four different answers, so an
+  item only you touched is pushed, an item only Canvas touched is pulled, and
+  only a genuine collision has to be settled at all — by the newest change, or
+  by whatever `--conflict local|canvas|ask` says. Deletion is not part of that:
+  an item that has vanished from one side is reported as an orphan and left
+  alone until a prune flag asks otherwise. See
+  [The reconcile engine](docs/architecture.md#the-reconcile-engine).
+- **Change is detected by content, not by timestamps.** Each side is hashed and
+  compared against its own stored hash from the last run, and the two hashes are
+  never compared with each other — Canvas rewrites markup it is handed, so a
+  page can be byte-different on the two sides and unchanged on both. Neither
+  hash reads a modification time, and that is what the old system got wrong:
+  pull refused any file whose mtime was later than `last_sync`, and status
+  called a fresh `git clone` — which stamps every file it checks out with the
+  checkout time — an entirely modified course. Exactly one decision still reads
+  a timestamp, the `newest` tiebreak, and only an item whose two hashes have
+  both moved reaches it; push and pull never do, because pinning a direction has
+  already answered that question.
+- **`push`, `pull` and `status` are the same engine with one choice pinned.**
+  Push writes only to Canvas and lets the local copy win; pull writes only to
+  `course/` and lets Canvas win; status writes to neither and previews what a
+  `sync` would do. There is no separate push algorithm and no separate pull
+  algorithm any more, so the four agree with each other by construction rather
+  than by four implementations happening to match, and every one of them ends
+  with the same report: what was applied, what a pinned direction would not let
+  it apply, what is orphaned on each side, which collisions were settled and
+  how, which items were skipped and why, and what needs a person. `-m` scopes
+  any of the four to named module folders, and the three that write take
+  `--dry-run`. See
+  [One engine, four commands](docs/user-guide.md#one-engine-four-commands).
+- **Flags and commands that are gone, or that now mean something else.** Worth
+  reading before you run a script that has been working. `npx course diff` is
+  removed; `status` answers what it answered, against the live course rather
+  than against a guess made from the local side. `status --remote` goes with it,
+  and so does the offline comparison the flag opted out of — status reads Canvas
+  on every run and errors when it cannot. `push --drop-canvas-only` is gone
+  because nothing needs it any more. `push --prune` is now
+  `push --prune-canvas`; the old spelling is still registered, but only so it
+  can error with a pointer rather than with commander's bare "unknown option".
+  `--prune` on `sync` means **both** directions, which is a different and larger
+  thing than what it used to mean on push. And `pull --force` guards something
+  else now: it overrides the git guard described further down rather than a
+  comparison of file timestamps, so a script that has always passed `-f` is
+  overriding a different protection than the one it was written against.
+- **The sync state is committed to git, and it is the only record of what an
+  item is.** Which Canvas object a file had become used to be recorded in three
+  places at once: `.canvas-sync.json`, which was gitignored, a `canvas_id` in
+  the markdown frontmatter, and a `customProps.canvas_module_id` in each
+  folder's `_category_.json`. Three copies of one fact drift apart, so the first
+  is now the only one. It is committed rather than ignored, it is keyed by each
+  item's path under `course/`, and a push or a pull therefore leaves a change
+  there to commit beside the content that caused it — which is also what gives a
+  colleague who clones the repository a course that already knows what it is.
+  Keyed by path it is legible on purpose: open it, recognise your own course in
+  it, repair a row by hand. The schema is version 4, and a file written by any
+  other version is refused rather than guessed at, because v3 keyed items the
+  other way round and misreading the mapping would push a duplicate of
+  everything. There is no migration: `reset-sync-state`, then `push`. Read
+  [The sync state moved to schema v4](docs/updating-your-project.md#the-sync-state-moved-to-schema-v4-one-off)
+  first — that push is the part to watch. A `canvas_id` an older version left in
+  your frontmatter is inert from now on, ignored by every command, stripped by
+  the next pull, and swept out of the tree by `reset-sync-state`.
+- **A Canvas object that is already there is claimed rather than copied a second
+  time.** Under `push` or `pull`, an item that has no row yet is paired with the
+  Canvas object of the same type and title in the same module, and the two are
+  tied together from then on. That is how this tool takes over a course it did
+  not create, and it is the general form of the trick push used to do for
+  quizzes alone: every type is eligible, text headers included. Types have to
+  match exactly — a local page does not adopt a Canvas assignment of the same
+  name, because that is a conversion and this tool cannot do one — and a title
+  carried by two items on either side says nothing about which claims which, so
+  nothing is adopted for it and the report names them. `sync` and `status` adopt
+  nothing on purpose: with no direction pinned there is nothing to say which of
+  two copies is the real one, so they refuse a module whose two sides hold items
+  with nothing linking them, per module and never for the whole course.
+  [Adopting an item you made by hand in Canvas](docs/frontmatter.md#adopting-an-item-you-made-by-hand-in-canvas)
+  covers the row to write when the match cannot be made.
+- **A rename is recognised as a rename.** The path is an item's address, so
+  renaming or renumbering a file used to read as a delete and a create — which
+  offers to delete the Canvas object and to build a second copy of it beside
+  itself. The renaming commands re-key the row as they go, so the common case
+  never needs detecting at all. One made by hand in Finder, or arriving with a
+  merge, is matched the way git matches: identical content wherever it landed is
+  re-keyed silently, while a file whose name changed but which stayed in its
+  folder under the same title is a rename plus an edit, which is a guess rather
+  than a fact, so it is reported and confirmed instead. Ambiguity is refused
+  rather than resolved, because handing one item another's Canvas ids is worse
+  than the delete and create it falls back to. A `title:` line is written into a
+  file that declares none the first time a run creates or adopts its Canvas
+  object, which is what lets the filename be an address rather than a display
+  name.
+- **A module reordered in Canvas renumbers your files instead of being
+  reverted.** Ordering is reconciled three ways like everything else, so a drag
+  in the Canvas module list is a change like any other rather than something the
+  next push silently undoes. The renumbering goes through temporary names,
+  because a reorder routinely swaps two files into each other's slots, and it
+  moves one depth at a time so that a text header's children travel with the
+  folder. If a write throws partway it puts back what it had already moved, and
+  a run killed outright leaves names a later run recognises and sweeps back
+  before it scans — a parked file is invisible to the scanner, which would
+  otherwise read it as an item deleted locally and offer its Canvas object to
+  the next prune.
+- **Nothing overwrites work git cannot give back.** Git is the undo for this
+  whole system, so a write onto a file holding uncommitted changes destroys the
+  only copy of them. One `git status` covers the whole run, and every write into
+  `course/` is refused for a path it reports as modified or untracked — the item
+  itself, a `_category_.json`, a binary being downloaded into `_files/`.
+  Untracked counts, and it is the case that matters most: git holds no copy at
+  all of a file it has never seen. The item is reported as skipped with the
+  remedy, and a run with a skip in it exits non-zero. Where git cannot answer,
+  outside a checkout or wherever it will not run, every file on disk reads as
+  dirty and a pull writes nothing. `pull --force` is the one lever that switches
+  the guard off, for overwrites and deletes alike; it asks first, and it counts
+  what git named rather than what the scanner saw, so a tree whose only
+  uncommitted work is an image under `_files/` is no longer overridden without a
+  question.
+- **Deleting is opt-in, on both sides, and says what it costs.** An item the
+  sync state knows that has since vanished from one side is an orphan, and an
+  orphan is reported rather than acted on. `--prune-canvas` deletes on Canvas,
+  `--prune-local` deletes in `course/`, `sync --prune` does both, and each lists
+  what it would take by name before it asks. Only something the sync state
+  already tracked is ever a candidate, so a page a colleague added by hand is
+  never one. Where a doomed assignment or graded discussion holds student work,
+  the confirmation question says so in the sentence you answer rather than in a
+  paragraph above it. One delete needs no flag, and exactly one: the Canvas file
+  a renamed binary orphaned, which nothing else would ever clear out, and which
+  push checks three ways before it goes.
+- **A question nothing can answer stops the run instead of hanging it.** Every
+  prompt used to wait forever on a closed input stream, so a command run from a
+  script, from an editor task or by an assistant stopped dead with the event
+  loop drained — after which the process exited 0, as though it had done what it
+  was asked. The two shapes are now separate. A destructive confirmation
+  cancels, because not deleting is a safe answer to it. Every other question has
+  no safe answer to fall back on — a run that cannot say which module to create
+  must not invent one — so it ends the run with an error naming the command, the
+  question and the flags that would have answered it, and exits 1. Three more
+  runs exit non-zero rather than reading as clean: a declined first-push
+  warning, a declined `pull --force` confirmation, and `status` over a course a
+  `sync` would refuse rather than work through.
+- **`--help` names the flags that have to be paired.** Eight commands enter
+  their non-interactive path only when two flags are present — `move-item` wants
+  `--position` beside `--path`, `rename-module` wants `--name` beside
+  `--module`, and so on — while the help advertised the first as enough. A
+  script that passed only it used to get a prompt, and now that an unanswerable
+  prompt is a failed run rather than a hang, that is a run that stops.
+- **Everything the tool writes under `course/` comes out Prettier-formatted.**
+  Pull used to hand back markdown in whatever shape the converter produced, so
+  the first `npm run format` after a pull rewrote half the course and buried the
+  actual change. Worse, rewrapping a file moved its hash off the row the pull
+  had just recorded, so the next run read it as changed locally and pushed it
+  back — byte-identical HTML on Canvas, and a phantom change in every report
+  until somebody formatted. "Format your code" and "sync your course" fought.
+  Every write now runs through Prettier against the project's own resolved
+  config and records the hash of the bytes it actually wrote. That is the sync
+  engine, and `new-item`, `split-item`, `merge-items`, `rename-item`,
+  `reset-sync-state` and `build-glossary` as well — that last one had been
+  reporting its glossary pages stale on every `--check` for exactly this reason,
+  because the page on disk is Prettier-canonical and its render was not.
+  `prettier` moves from a development dependency to a runtime one, loaded
+  lazily. One write is carved out: the `title:` line a run splices into a file
+  that declares none touches nothing else in the file, because the rest of it is
+  yours and the run had otherwise only read it. And `.prettierignore` can no
+  longer keep Prettier out of `course/`; it still works for `evaluations/` and
+  `sources/`, which the tool never writes to.
+- **Markdown survives a push and a pull.** Turndown escaped `_`, `*`, backticks
+  and brackets globally, so every pulled file came back peppered with
+  backslashes — `snake_case` returned as `snake\_case` — and strikethrough,
+  task-list checkboxes and empty list items were dropped outright. An underscore
+  inside a word is now left alone, the emphasis delimiter is chosen per node
+  rather than once for the whole document, and the three dropped constructs come
+  back. What the tests pin is not that the markdown returns identical, which it
+  will not and need not: it is that the HTML a second push would send equals the
+  HTML the first one sent.
 - **Discussions, quizzes and external tools sync.** Every type of item a Canvas
   module can hold now crosses in both directions, but not all of them the same
   way. A discussion is content like a page: the markdown body is the message,
@@ -89,15 +268,14 @@
   file are not stopped at all, and `reset-canvas` is one of them: it deletes
   everything in the course `.env` names, and a mismatch is exactly the situation
   in which `.env` may not be naming the course you think it is.
-- **`pull` no longer overwrites files it cannot judge.** With no
-  `.canvas-sync.json` to compare timestamps against — right after
-  `reset-sync-state`, or on a clone that has never synced — every local file
-  counted as unmodified, so the guard meant to protect your writing never fired
-  and the first pull behaved exactly like `--force`, with no prompt and no
-  warning. "Cannot tell" is now its own answer: such a file is skipped, with the
-  reason printed, and only `--force` overrides it. Pull also prints the backup
-  hint before it writes, and asks first when `--force` meets a `course/` tree
-  that already holds markdown with no sync state to judge it by.
+- **`delete-module` reads the sync state before it deletes the folder.** Both
+  refusals on that read — a state describing another Canvas course, and one
+  written by a schema this version cannot read — exist to stop the command
+  editing a state file that is not this course's. It ran the read after
+  `fs.rmSync`, so the folder was already gone by the time the refusal arrived,
+  which is the guard's promise exactly inverted. It now runs first, above the
+  confirmation too, so nobody answers "yes, delete it" to a run that then
+  refuses.
 - **Deleting an assignment now says that it deletes the grades too.**
   `push --prune-canvas` and `reset-canvas` both call `DELETE` on the assignment
   object, which takes its gradebook column and every submission on it, and the
