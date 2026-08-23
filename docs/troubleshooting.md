@@ -191,13 +191,14 @@ holds. Nothing about a missing sync state makes push refuse the module. See
 ### ".canvas-sync.json describes course N"
 
 `.env` names one Canvas course and the sync state was built against another, so
-`sync`, `push`, `pull`, `status` and `delete-module` stop until the two agree.
-The item commands stop too, along with `move-module` and `rename-module`, at the
-point where each records its change in the sync file. The ids in that file only
-mean something in the course they came from, and one of them is not scoped to a
-course at all: a Canvas file id is global, so `push --prune-canvas` — or
-renaming the binary behind a file item, which deletes the Canvas file it
-replaces — would delete a file belonging to the other course.
+every command that acts on the ids in that file stops until the two agree:
+`sync`, `push`, `pull`, `status`, `delete-module`, the item commands,
+`move-module` and `rename-module`. Each of them refuses before it does anything,
+so a run that stopped changed nothing. The ids in that file only mean something
+in the course they came from, and one of them is not scoped to a course at all:
+a Canvas file id is global, so `push --prune-canvas` — or renaming the binary
+behind a file item, which deletes the Canvas file it replaces — would delete a
+file belonging to the other course.
 
 Two ways out, and which one is right depends on what you meant:
 
