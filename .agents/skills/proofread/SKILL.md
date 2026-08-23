@@ -77,8 +77,8 @@ extensions, stop and explain.
 6. **Report in three severity buckets**, each finding as
    `line | quoted text | diagnosis | proposed replacement`, diagnoses of one
    short sentence:
-   - **Must fix**. Hard writing-style.md violations: em-dashes, the wrong
-     heading case, a forbidden address form, register mismatch.
+   - **Must fix**: hard `writing-style.md` violations (em-dashes, the wrong
+     heading case, a forbidden address form, register mismatch).
    - **Strongly suggest**: spelling, grammar, translated-sounding phrasing, AI
      tells, tricolons, scattered bold.
    - **Consider**: sentence length, rhythm, trailing summaries.

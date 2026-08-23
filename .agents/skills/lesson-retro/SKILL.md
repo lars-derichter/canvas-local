@@ -73,7 +73,7 @@ plausibly recent, propose it in the same breath.
    - **`context/course-context.md`**: insights that hold beyond this lesson
      (e.g. "prediction exercises take twice the planned time with this group").
      Name the section it belongs in.
-   - **Student material under `course/`**: content errors and friction: a fix
+   - **Student material under `course/`**: content errors and friction, as a fix
      list with file paths. Fixing them is a separate job; offer to do it after
      the retro edits land, or leave the list for later.
    - **Writing-style corrections**: do not fold these in here; point the author
