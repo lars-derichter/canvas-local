@@ -1,8 +1,7 @@
 # Security Policy
 
-This policy covers the **Canvas Course Builder tooling** — the CLI, the
-libraries under `lib/`, the Docusaurus site, and the VS Code extension — as
-published at
+This policy covers the **Canvas Course Builder tooling** (the CLI, the libraries
+under `lib/`, the Docusaurus site, and the VS Code extension) as published at
 [lars-derichter/canvas-course-builder](https://github.com/lars-derichter/canvas-course-builder).
 
 It does not cover the course material in a repository built from this template,
@@ -29,7 +28,7 @@ Please report privately, not in a public issue:
 
 A useful report includes the version or commit you are on, what an attacker
 could do, and the smallest set of steps that shows the problem. Include the
-platform if it matters. Leave out any real credentials — see below.
+platform if it matters. Leave out any real credentials. See below.
 
 If GitHub's private reporting is unavailable to you, open a public issue saying
 only that you have a security report and asking for a private channel. Do not
@@ -46,7 +45,7 @@ would rather not be. There is no bug bounty.
 ## Handling Your Canvas API Token
 
 The most sensitive thing this project touches is your own Canvas API token. It
-acts with your full Canvas permissions — for a lecturer that means every course
+acts with your full Canvas permissions: for a lecturer that means every course
 you can edit, and for an admin it means considerably more.
 
 - The token lives in `.env`, which is gitignored and is the only file in this
@@ -104,6 +103,6 @@ way you treat a repository you are about to install dependencies in:
 
 This file is the upstream project's policy, and it arrived in your repository
 because GitHub copies the whole template. It stays accurate for the tooling, so
-keeping it costs nothing — but if you would rather your own repository did not
+keeping it costs nothing, but if you would rather your own repository did not
 advertise a security policy pointing elsewhere, see
 [Files that belong to the tooling project](docs/customization.md#files-that-belong-to-the-tooling-project).

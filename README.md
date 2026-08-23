@@ -75,7 +75,7 @@ The short version, if you have done this sort of thing before:
 1. Click **Use this template** on GitHub and create your course repository.
 2. Clone it, install Node.js 24+, run `npm install`, and preview the built-in
    getting-started course with `npm start`.
-3. Make it your course with `npx course setup` — it asks for the language, the
+3. Make it your course with `npx course setup`: it asks for the language, the
    name and the look, and puts the matching templates in place (see
    [customization](docs/customization.md)).
 4. Back up the Canvas course ([how](docs/backups.md)), connect it with
