@@ -34,64 +34,109 @@ site locale and the remark plugin labels.
 
 ## Sync State
 
-`.canvas-sync.json` tracks the mapping between local files and Canvas resources:
+`.canvas-sync.json` is where a local file's Canvas identity lives. It is
+committed rather than gitignored, and since schema v4 no markdown file carries a
+`canvas_id` at all, so a push or a pull leaves a change here to commit alongside
+the content that caused it.
 
 ```json
 {
-  "schema_version": 3,
-  "canvas_base_url": "https://school.instructure.com/api/v1",
+  "schema_version": 4,
+  "canvas_base_url": "https://school.instructure.com",
   "course_id": 12345,
+  "last_sync": "2026-08-19T10:00:00.000Z",
   "modules": {
-    "67890": {
-      "folder": "01-introduction",
+    "01-introduction": {
+      "canvas_module_id": 67890,
+      "name": "Introduction",
+      "position": 1,
+      "item_order": [
+        "01-introduction/01-welcome.md",
+        "01-introduction/02-link.md"
+      ],
       "items": {
-        "page:1234": {
-          "path": "01-introduction/01-welcome.md",
-          "canvas_id": 1234,
+        "01-introduction/01-welcome.md": {
           "canvas_type": "page",
-          "page_url": "welcome"
+          "canvas_id": 1234,
+          "page_url": "welcome",
+          "module_item_id": 5678,
+          "title": "Welcome",
+          "indent": 0,
+          "local_hash": "sha256...",
+          "canvas_hash": "sha256...",
+          "canvas_updated_at": "2026-08-19T09:59:00.000Z",
+          "synced_at": "2026-08-19T10:00:00.000Z"
         },
-        "external_url:https://example.com": {
-          "path": "01-introduction/02-link.md",
-          "canvas_id": 555,
+        "01-introduction/02-link.md": {
           "canvas_type": "external_url",
-          "external_url": "https://example.com"
+          "canvas_id": 555,
+          "module_item_id": 555,
+          "external_url": "https://example.com",
+          "title": "Example",
+          "indent": 0,
+          "local_hash": "sha256...",
+          "canvas_hash": "sha256...",
+          "canvas_updated_at": null,
+          "synced_at": "2026-08-19T10:00:00.000Z"
         }
       }
     }
   },
-  "icons": { "note": 111, "tip": 112 },
+  "icons": {
+    "note": {
+      "canvas_file_id": 111,
+      "preview_url": "https://school.instructure.com/courses/12345/files/111/preview",
+      "theme": "sha256..."
+    }
+  },
   "files": {
     "01-introduction/_files/diagram.png": {
       "canvas_file_id": 222,
       "canvas_url": "/courses/12345/files/222/preview",
       "sha256": "9f2c..."
     }
-  },
-  "last_sync": "2026-03-15T10:00:00.000Z"
+  }
 }
 ```
 
 Key properties:
 
-- **modules** — keyed by `canvas_module_id`; the local folder name is a value.
-  The id is also mirrored into the folder's `_category_.json` under
-  `customProps.canvas_module_id`, so renaming or renumbering a module folder
-  never breaks the association.
-- **items** — keyed by the stable Canvas identity (`<canvas_type>:<canvas_id>`;
-  external URLs key on the URL itself because their module-item id changes on
-  every push). The local relative path is a value, refreshed on every push from
-  the `canvas_id` in each file's frontmatter. Renaming, renumbering, or moving
-  files locally therefore cannot orphan a sync entry.
-- **icons** — alert SVG icon file IDs on Canvas.
+- **canvas_base_url** — the Canvas host, with no `/api/v1` suffix and no
+  trailing slash. `normaliseBaseUrl` in `lib/sync/state.js` puts both this value
+  and the one in `.env` into that shape, so the two can differ by punctuation
+  and still agree.
+- **modules** — keyed by the local folder name; the Canvas module id is a value
+  under it. `item_order` is the order the module's items were in at the last
+  sync, and it is the base leg of the three-way ordering comparison, so a
+  renamed item keeps its slot instead of moving to the end, where it would read
+  as a reorder nobody made.
+- **items** — keyed by the item's path under `course/`, with forward slashes on
+  every platform and always beginning with its module's folder name. Path as
+  key, Canvas ids as values: the exact inverse of v3, which keyed every item by
+  its Canvas identity. Keying on the path is what makes a committed file legible
+  to the person who owns it — you can open it, recognise your own course in it,
+  and repair a row by hand. A key written with the `course/` prefix matches
+  nothing and fails silently. Renames do not orphan a row: every command that
+  renames re-keys as it goes, and one made by hand is picked up by
+  `lib/sync/rename-detect.js`.
+- **local_hash / canvas_hash** — what each side looked like at the last sync.
+  They are never compared to each other, only each against its own stored value,
+  which is how the engine tells "changed here" from "changed there".
+- **icons** — one entry per alert type: the Canvas file id, the preview URL the
+  HTML converter embeds, and a fingerprint of the theme the SVG was painted in,
+  so a theme change re-uploads the icons and an unchanged theme does not.
 - **files** — embedded file (images, PDFs) Canvas URLs and IDs, plus a SHA-256
   content hash used to re-upload files when their content changes.
-- **last_sync** — timestamp of last push or pull. Used to detect locally
-  modified files.
-- **schema_version** — the loader reads version 3 only. A file written by any
+- **last_sync** — stamped at the end of a run that wrote something. Nothing
+  reads it, and no decision depends on it. The only timestamps a decision reads
+  are the file's mtime and Canvas's `updated_at`, and only to break a tie when
+  both sides of an item changed.
+- **schema_version** — the loader reads version 4 only. A file written by any
   other version is refused with an error rather than guessed at, because
-  misreading the mapping would create duplicates on Canvas; rebuild it with
-  [`reset-sync-state`](advanced-commands.md).
+  misreading the mapping would create duplicates on Canvas. There is
+  deliberately no migration from v3, since the two schemas key items
+  differently; rebuild with [`reset-sync-state`](advanced-commands.md) and push
+  again.
 
 ### Prune Semantics
 
