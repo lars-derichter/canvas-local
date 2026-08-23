@@ -103,8 +103,10 @@ to `essay_question`, and let the author choose.
 - **Language.** Write everything in the language `context/writing-style.md`
   states the course uses; `course.config.yml`'s `language` key only picks the
   generated labels. Reply in chat in the language the author writes in.
-- QTI only. No Canvas API calls; `lib/canvas/` has no quizzes module and the
-  sync state does not track quizzes.
+- QTI only, and no Canvas API calls from here: Canvas has no API for a QTI
+  import, so the package goes in by hand. Sync does track quizzes, but only as a
+  reference — which quiz sits where in a module, never its questions
+  ([Limitations](../../../docs/limitations.md#quiz-questions-never-sync)).
 - Every non-essay question needs a correct answer on record before Phase B.
   Never guess a correct answer; ask.
 - Generated code, ids, and filenames: lowercase, hyphenated, ASCII.
