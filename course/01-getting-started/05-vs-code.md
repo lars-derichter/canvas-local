@@ -89,11 +89,13 @@ Right-click any module or item in the sidebar to see context actions:
   because subsections are never nested)
 - **Merge items**: first right-click an item and choose **Merge: Set as
   Source**, then right-click the target item and choose **Merge with Source**
-- **Split Item at Cursor**: split the file you have open into two files at the
-  cursor position
 - **Export to PDF/DOCX...**: export the selected item or items (multi-select
   combines them into one document), or a whole module via **Export Module to
   PDF/DOCX...**
+
+**Split Item at Cursor** is not on this menu. It works on the file open in the
+editor and the position of your cursor, neither of which a right-click on the
+tree tells it, so it lives in the command palette only.
 
 Names, positions, and confirmations are collected through normal VS Code
 dialogs, and the command runs quietly in the background: no terminal pops up.
@@ -116,57 +118,72 @@ had run the CLI commands yourself.
 
 ## Title Bar Buttons
 
-At the top of the sidebar sit a **Search** button (find a word or phrase across
-your course files), a **Preview** button (starts the Docusaurus dev server if it
-is not already running and opens the course in your browser), and a **Refresh**
-button for the tree. The dropdown menu next to them gives quick access to sync
-and export commands:
+Four buttons sit at the top of the sidebar: **New Module** (create a module and
+pick its position), **Search** (find a word or phrase across your course files),
+**Preview** (starts the Docusaurus dev server if it is not already running and
+opens the course in your browser), and **Refresh** for the tree. The dropdown
+menu next to them gives quick access to sync and export commands:
 
+- **Preview**: the same command as the button
+- **Sync with Canvas**: sync both ways in one run
 - **Push to Canvas**: push all modules
 - **Pull from Canvas**: pull content from Canvas
 - **Status**: see what a sync would do, without changing anything
 - **Validate**: check your content for errors before pushing
 - **Export**: export the full course, only flagged items, or a curated selection
   via a table of contents
+- **Export via TOC**: appears once you have generated a table of contents and
+  edited it down to what you want
 
 ## Command Palette
 
 Open the command palette with **Cmd+Shift+P** (macOS) or **Ctrl+Shift+P**
-(Windows/Linux) and type **“Course:”** to see all available commands:
+(Windows/Linux) and type **“Course:”** to see the whole list:
 
-| Command                          | What it does                                         |
-| -------------------------------- | ---------------------------------------------------- |
-| Course: Init (Canvas Setup)      | Configure Canvas API credentials                     |
-| Course: Push to Canvas           | Push all modules                                     |
-| Course: Push to Canvas (Dry Run) | Preview push without making changes                  |
-| Course: Push Module to Canvas... | Push a single module                                 |
-| Course: Pull from Canvas         | Pull content from Canvas                             |
-| Course: Status                   | Show what a sync would do, without writing anything  |
-| Course: Validate                 | Check content for errors                             |
-| Course: Search...                | Find a word or phrase across files                   |
-| Course: New Module               | Create a new module                                  |
-| Course: Move Module              | Reorder a module                                     |
-| Course: Rename Module            | Rename a module                                      |
-| Course: Delete Module            | Delete a module                                      |
-| Course: New Item                 | Create a new item                                    |
-| Course: Move Item                | Reorder an item                                      |
-| Course: Move Item to Module      | Move an item to another module                       |
-| Course: Rename Item              | Rename an item                                       |
-| Course: Delete Item              | Delete an item                                       |
-| Course: Merge Items              | Combine two items into one                           |
-| Course: Split Item at Cursor     | Split the active file at the cursor                  |
-| Course: Export to PDF/DOCX...    | Export the course, flagged items, or a TOC selection |
-| Course: Export via TOC...        | Render the curated `exports/toc.md`                  |
-| Course: Preview                  | Start the dev server and open the course             |
+| Command                            | What it does                                         |
+| ---------------------------------- | ---------------------------------------------------- |
+| Course: Setup (First-Run Wizard)   | Name, language, look, templates, Canvas              |
+| Course: Init (Canvas Setup)        | Configure Canvas API credentials                     |
+| Course: Sync with Canvas           | Sync both ways in one run                            |
+| Course: Sync with Canvas (Dry Run) | Preview a sync without writing anything              |
+| Course: Push to Canvas             | Push all modules                                     |
+| Course: Push to Canvas (Dry Run)   | Preview push without making changes                  |
+| Course: Push Module to Canvas...   | Push a single module                                 |
+| Course: Pull from Canvas           | Pull content from Canvas                             |
+| Course: Status                     | Show what a sync would do, without writing anything  |
+| Course: Validate                   | Check content for errors                             |
+| Course: Search...                  | Find a word or phrase across files                   |
+| Course: New Module                 | Create a new module                                  |
+| Course: Move Module                | Reorder a module                                     |
+| Course: Rename Module              | Rename a module                                      |
+| Course: Delete Module              | Delete a module                                      |
+| Course: New Item                   | Create a new item                                    |
+| Course: Move Item                  | Reorder an item                                      |
+| Course: Move Item to Module        | Move an item to another module                       |
+| Course: Rename Item                | Rename an item                                       |
+| Course: Delete Item                | Delete an item                                       |
+| Course: Merge Items                | Combine two items into one                           |
+| Course: Split Item at Cursor       | Split the active file at the cursor                  |
+| Course: Export to PDF/DOCX...      | Export the course, flagged items, or a TOC selection |
+| Course: Export via TOC...          | Render the curated `exports/toc.md`                  |
+| Course: Preview                    | Start the dev server and open the course             |
+| Course: Refresh Tree               | Rebuild the sidebar tree by hand                     |
+
+A handful of commands are registered without the **Course:** prefix, so that
+filter hides them: **Push Module** and **Open in Canvas** from the hover
+buttons, **Export to PDF/DOCX...** and **Export Module to PDF/DOCX...** from the
+right-click menu, and the two halves of the merge. Type part of the name instead
+and the palette finds them.
 
 ## How It Works
 
 Everything the extension does goes through the same `npx course` CLI you use in
 the terminal, so renumbering and Canvas sync state behave exactly the same
-either way. Sync commands (push, pull, status, validate) run in a shared
-**Canvas Course Builder** terminal so you can follow their output; management
-commands (new, rename, move, delete, merge, split) run silently in the
-background and report back with a notification.
+either way. The long-running ones (setup, init, sync, push, pull, status,
+validate, and the two dry runs) run in a shared **Canvas Course Builder**
+terminal so you can follow their output; management commands (new, rename, move,
+delete, merge, split) run silently in the background and report back with a
+notification.
 
 > [!TIP]
 >
