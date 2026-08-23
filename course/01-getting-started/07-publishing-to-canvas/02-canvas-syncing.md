@@ -117,11 +117,24 @@ This downloads your Canvas course and converts it into local markdown files.
 Useful for importing an existing Canvas course or syncing changes made directly
 on Canvas.
 
-### Conflict Detection
+### What Pull Will Not Overwrite
 
-Pull checks whether you have modified any local files since the last sync. If it
-finds changes, it skips those files to avoid overwriting your work. To force
-overwrite:
+Pull asks git. Any file `git status` reports as modified or untracked is left
+exactly as it is, listed at the end with the reason, and the rest of the run
+carries on. Untracked counts, and that is the case worth knowing: git holds no
+copy at all of a file it has never seen.
+
+The rule that follows is worth reading twice, because it is the opposite of what
+you might expect. **Committed work is not protected — uncommitted work is.** A
+change you have committed is safe in git whether or not pull writes over it, so
+pull goes ahead. A change you have not committed exists nowhere else, so pull
+refuses to touch it.
+
+So commit before you pull. Not to protect the file from pull, but because that
+is what makes the change recoverable at all.
+
+If Canvas really does hold the version you want, `--force` switches the guard
+off. It asks first, naming how many files it is about to write over:
 
 ```bash
 npx course pull --force
