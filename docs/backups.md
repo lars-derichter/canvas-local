@@ -1,10 +1,13 @@
 # Backing up a Canvas Course
 
-Canvas has no undo. Delete a page in the web interface and it goes to the course
-bin for a while; delete a module through the API and it is gone. Canvas Course
-Builder talks to the API, so before you point it at a course that already holds
-content — a course you taught last year, a course a colleague handed over, any
-course with student work in it — take a backup.
+Nothing in Canvas Course Builder undoes a delete, and your repository cannot
+help: git holds every version of what you wrote and nothing at all of what only
+ever existed in Canvas. Canvas itself has an `/undelete` endpoint that sometimes
+brings a deleted assignment back, though the submissions frequently do not come
+with it, which makes it a lifeline rather than a plan. So before you point this
+tool at a course that already holds content — a course you taught last year, a
+course a colleague handed over, any course with student work in it — take a
+backup.
 
 This takes a few minutes once. It is the difference between a bad afternoon and
 a bad semester.
