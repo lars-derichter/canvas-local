@@ -5,9 +5,10 @@ canvas_type: page
 
 # Canvas Syncing
 
-Once your content is ready, you can push it to Canvas or pull existing Canvas
-content into your local project. The CLI handles all the API communication,
-content conversion, and state tracking for you.
+Once your content is ready, you can push it to Canvas, pull existing Canvas
+content into your local project, or do both in one run with `npx course sync`.
+The CLI handles all the API communication, content conversion, and state
+tracking for you.
 
 ## Initial Setup
 
@@ -76,9 +77,9 @@ Your markdown files carry no Canvas ids. The link between a file and the Canvas
 object it became lives in `.canvas-sync.json`, in the root of your project, and
 each row is keyed by the file’s path under `course/`.
 
-That file belongs in git like any other. A push or a pull changes it, so you
-normally have two things to commit afterwards: the content you wrote, and the
-sync state that records where it landed.
+That file belongs in git like any other. A push, a pull or a sync changes it, so
+you normally have two things to commit afterwards: the content you wrote, and
+the sync state that records where it landed.
 
 > [!NOTE]
 >
@@ -139,6 +140,69 @@ off. It asks first, naming how many files it is about to write over:
 ```bash
 npx course pull --force
 ```
+
+## Syncing Both Ways
+
+Push and pull each pin a direction. `npx course sync` is the same run with
+nothing pinned: it reads both sides, works out what changed where since the last
+sync, and writes each item in whichever direction it actually moved.
+
+```bash
+npx course sync
+```
+
+| What changed since the last sync | What sync does                                    |
+| -------------------------------- | ------------------------------------------------- |
+| Only your file                   | writes it to Canvas                               |
+| Only the Canvas copy             | writes it into your file                          |
+| Both, on the same item           | the newest change wins, and the report says which |
+| Neither                          | nothing                                           |
+
+Running a push and then a pull does not get you there. Where both sides changed
+the same item, push hands it to your file and leaves Canvas matching, so the
+Canvas edit is gone before the pull ever looks at it. Sync sees that item as a
+conflict, settles it on its own terms, and names it in the report.
+
+Deleting is not something sync does on its own, any more than push or pull do,
+bar the one small exception [Before You Publish](./01-before-you-publish.md)
+names. It takes a flag: `--prune-canvas` removes the Canvas items whose local
+file you deleted, `--prune-local` removes the local files Canvas no longer has,
+and `--prune` does both. Each of them lists what it is about to remove and asks
+first. The rest of the flags will look familiar:
+
+```bash
+npx course sync --dry-run              # report the run instead of making it
+npx course sync -m 01-getting-started  # only these modules; repeatable
+npx course sync --conflict local       # your file wins every disputed item
+```
+
+### The Questions Sync Asks
+
+A content conflict is settled without asking: the newest change wins, and the
+report names the item with both timestamps. Two things sync will not decide on
+its own, because it has nothing to decide them with:
+
+- **A module both sides reordered.** An order carries no timestamp, so “newest”
+  means nothing here. Sync prints both orders and asks which one wins.
+- **A file that disappeared while a new one turned up** in the same folder, with
+  the same title. Sync asks whether that is the same item renamed. Say no and
+  they count as two unrelated items: the new file is created on Canvas, and the
+  old Canvas object sits there until you prune it.
+
+Add `--conflict ask` if you want the content question put to you as well.
+
+### Your First Run Should Be a Push
+
+Sync leans on `.canvas-sync.json` to tell a changed item from a new one. Before
+your first push that file links nothing, so a module holding items on both sides
+looks brand new on both sides, and syncing it would drop a second copy of
+everything into Canvas. Sync refuses that module and points you at push or pull
+instead.
+
+Pinning a direction is the answer it is asking for. Push and pull pair each of
+your files with the Canvas object of the same type and title, and tie the two
+together from then on. That is how the tool takes over a course it did not
+create, and after that first run sync has what it needs.
 
 ## Global Flags
 
