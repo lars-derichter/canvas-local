@@ -78,8 +78,11 @@ course/
 ```
 
 - Filenames are lowercase, hyphenated, prefixed with 00-99 for ordering
-- Files and folders prefixed with `_` are internal and excluded from Canvas
-  syncing (e.g. `_files/`, `_category_.json`)
+- Files and folders prefixed with `_` are internal: the scanner never reads one
+  as a module item. Sync and pull still write two of them, so they are not a
+  private corner of the tree: the Canvas module name goes into
+  `_category_.json`, and binaries embedded in a Canvas page are downloaded into
+  `_files/`
 - Canvas item type is set via `canvas_type` in frontmatter (default: `page`)
 - Assignment frontmatter supports: `points_possible`, `submission_types`,
   `due_at`

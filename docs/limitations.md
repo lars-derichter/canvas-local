@@ -330,9 +330,14 @@ The scanner is strict, and it is quiet about it:
   The module-management commands are stricter than push: an unprefixed module
   folder is invisible to `new-item`, `move-module`, `rename-module`,
   `delete-module` and the VS Code sidebar, while push still syncs it.
-- **A leading underscore means invisible.** `_files/`, `_category_.json` and
-  anything else you prefix with `_` is excluded from sync. Handy as a drafting
-  mechanism; easy to trip over if you did not mean it.
+- **A leading underscore hides a path from the scanner, not from sync.**
+  `_files/`, `_category_.json` and anything else you prefix with `_` is never
+  read as a module item. Handy as a drafting mechanism; easy to trip over if you
+  did not mean it. It is not a private corner of the tree, though: sync and pull
+  write the Canvas module name into `_category_.json`, and download the binaries
+  a Canvas page embeds into `_files/`. Both writes stop at a file git reports as
+  holding uncommitted work, which is why a pull sometimes refuses to touch a
+  `_category_.json` it would otherwise have relabelled.
 - **Canvas item indent is 0 or 1.** Canvas supports five levels; this tool uses
   two.
 

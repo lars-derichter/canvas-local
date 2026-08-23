@@ -90,13 +90,17 @@ anchor (`_files/example.html#top`) is left as navigation.
 
 ## Underscore Prefix Convention
 
-Files and folders whose names start with `_` (underscore) are treated as
-internal and are excluded from Canvas syncing. Docusaurus also skips them by
-convention. Examples:
+Files and folders whose names start with `_` (underscore) are internal: the
+course scanner never reads one as a module item, and Docusaurus skips them by
+convention. That keeps them out of Canvas as items; it does not keep sync out of
+them, because two of them are where a local write puts things. Examples:
 
-- `_files/` — embedded assets (images, PDFs)
-- `_category_.json` — Docusaurus sidebar configuration
-- `_draft-notes.md` — any file you want to keep local-only
+- `_files/` — embedded assets (images, PDFs), and where sync and pull download
+  the binaries a Canvas page embeds
+- `_category_.json` — Docusaurus sidebar configuration, and where sync and pull
+  write the Canvas module name
+- `_draft-notes.md` — any file you want to keep local-only, which nothing here
+  writes to
 
 ## Custom Alerts
 
