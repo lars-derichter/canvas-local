@@ -28,19 +28,64 @@ Your API token is invalid or expired. Generate a new token in Canvas under
 Your token lacks permissions for the target course. Verify you have a Teacher or
 Admin role in the Canvas course.
 
+## Running the Commands
+
+### "no module named" and "Module not found"
+
+What `--module` (`-m`) takes is the folder name under `course/`, numeric prefix
+included, not the title Canvas shows. Three messages come back for the same
+typo, because three sets of commands answer the question differently:
+
+```text
+[status] Error: no module named 01-introduction — nothing under course/ and nothing in the Canvas course answers to it.
+[push] Error: no module folder named 01-introduction under course/.
+[new-item] Error: Module not found: 01-introduction
+```
+
+`sync`, `pull` and `status` read both sides, so they accept a module that exists
+only in Canvas and only refuse a name neither side answers to. Push writes from
+the tree alone, so a folder is all it will take. The item and module commands
+never read Canvas either. All of them exit non-zero rather than reporting a
+clean course. Run `ls course/` for the names.
+
+### "got no answer — the input stream ended before one arrived"
+
+An interactive command asked a question and the input stream ended before an
+answer arrived: a pipe that ran dry, `< /dev/null`, a CI step, an editor task
+with no terminal, or an AI assistant driving the CLI. The message names the
+question, the command and the flags that answer for you.
+
+```text
+[new-item] Error: "Item type (page/assignment/url/subsection/file)" got no answer — the input stream ended before one arrived. Run `npx course new-item` in a terminal, or pass --module and --type to answer from flags.
+```
+
+Run it in a terminal, or pass the flags it names. The run exits non-zero rather
+than reporting a success it never had. A destructive question behaves the other
+way round on purpose: `reset-canvas`, a prune and `pull --force` all read
+silence as "no" and cancel.
+
 ## Push Issues
 
 ### A Stale Id on the Sync Row (404 on Update)
 
-If a page or assignment was deleted directly in Canvas, the id
-`.canvas-sync.json` holds for that file goes stale. Push detects this
-automatically via a 404 response on the update, creates the resource again, and
-records the new id on the same row. No manual action needed.
+If a page, assignment or discussion was deleted directly in Canvas, the id
+`.canvas-sync.json` holds for that file goes stale. The update comes back 404,
+so the run creates the object again, records the new id on the same row, and
+says so as it goes:
 
-### "Module not found in course/ directory"
+```text
+  [sync] Page 4711 is gone from Canvas; creating it again.
+```
 
-Check the `--module` flag value matches a folder name in `course/` (e.g.
-`--module 01-introduction`, not the display name).
+The label is `Page`, `Assignment` or `Discussion`, and the number is the id that
+went stale. No manual action needed.
+
+A module is the exception, and the only one. There is no 404 recovery on a
+module update, so a module deleted in Canvas while `.canvas-sync.json` still
+names it fails that action and the run reports the error. Take that module's
+entry out of `.canvas-sync.json` and the next push creates the module and its
+items again. Back the course up first: see
+[Backing up a Canvas course](backups.md).
 
 ### Unresolved Internal Links
 
@@ -99,6 +144,22 @@ pull does to a file it does write, see
 - Announcements, rubrics, outcomes and the syllabus page are not module items,
   so pull does not see them at all.
 - Empty pages on Canvas produce empty markdown files — this is normal.
+
+### Two Canvas Modules That Derive One Folder Name
+
+A module's folder name is its position and its name together, so two Canvas
+modules that agree on both derive the same folder. Only one of them can have it,
+and nothing local can settle which:
+
+```text
+Skipped
+  - 02-loops (folder-taken): Canvas module "Loops" would be pulled into 02-loops/, and another module already has that folder — a module's folder name is its name and its position, so two modules that agree on both derive the same one. Rename or renumber one of them in Canvas, then run again.
+```
+
+Rename or renumber one of the two in Canvas, then run again. Until you do,
+`sync` and `pull` leave that module alone, and `status` reports it and exits 1
+even though it wrote nothing: a preview that exits 0 on a course a real sync
+refuses is answering a different question than the one it advertises.
 
 ## Sync State
 
