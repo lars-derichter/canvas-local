@@ -18,8 +18,8 @@ Create a git commit following the project's commit message conventions.
      artifacts that should not reach git history or the remote. (Matching on the
      repository name alone is not enough: forks and template copies may keep the
      name, and their `course/` content is real course material.)
-   - Otherwise → **production mode**: stage everything (including `canvas_id`
-     and other `course/` changes) normally.
+   - Otherwise → **production mode**: stage everything, `course/` changes
+     included, normally.
 3. Stage by name (`git add <file>...`), never `git add -A` or `git add .`.
 4. Commit with the message in a HEREDOC, ending in the co-author trailer your
    harness specifies for the current assistant, if it defines one — never a
