@@ -15,7 +15,7 @@ preview site, a Canvas page or an export, say where to look.
 
 ## Checklist
 
-- [ ] One fix or feature — anything unrelated went into its own pull request
+- [ ] One fix or feature: anything unrelated went into its own pull request
 - [ ] `npm test` passes
 - [ ] `npm run build` succeeds
 - [ ] `npm run lint` reports nothing
