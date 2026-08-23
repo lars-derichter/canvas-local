@@ -30,7 +30,9 @@ On Windows, skills need one git setting before they are found; see
 - **Writing course content**: describe what a page or assignment should cover
   and let the assistant draft the markdown.
 - **Creating modules and items**: ask the assistant to run the CLI commands for
-  you, filling in names and positions interactively.
+  you, passing names and positions as flags. An assistant runs them on a pipe,
+  where an unanswered prompt stops the command with an error instead of waiting;
+  `npx course <command> --help` names the flags each one needs.
 - **Restructuring courses**: move, rename, merge, or split items across modules
   in bulk.
 - **Generating markdown from notes**: paste rough notes and have them turned
