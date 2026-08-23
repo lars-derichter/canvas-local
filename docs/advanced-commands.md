@@ -42,9 +42,13 @@ next `push` will create everything fresh on Canvas.
 **Note:** The command asks for confirmation, and touches nothing on Canvas. The
 Canvas course keeps all its content — which is the trap: push after this on a
 course that still holds the old content and you get a duplicate of everything.
-It also removes the timestamp `pull` compares against, so the next pull can no
-longer tell your own writing from Canvas's output and skips every file that
-already exists locally.
+What it leaves behind is a course in which every module reads as unlinked, and
+where both sides of one still hold items, `sync` and `status` refuse that module
+rather than duplicate it. `push` and `pull` do not refuse: each pins a
+direction, which is the answer the refusal is asking for, and from there
+adoption pairs a local file with the Canvas object of the same type and title.
+See
+[Push reconciles a module's item list](limitations.md#push-reconciles-a-modules-item-list).
 
 ## reset-canvas
 
