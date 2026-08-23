@@ -122,6 +122,34 @@ describe('pageStrategy', () => {
 });
 
 describe('assignmentStrategy', () => {
+  afterEach(() => {
+    mock.restoreAll();
+  });
+
+  it('puts the cleared date on the wire as a null', () => {
+    // The end of the path, and the only assertion that proves the clear is a
+    // clear: `buildOpts` deciding to send `null` is worth nothing if the
+    // request built from it leaves `due_at` out again. Canvas keeps every field
+    // it is not sent, so an omitted key and a null key are opposite
+    // instructions.
+    const calls = mockCanvas([
+      { method: 'PUT', path: '/api/v1/courses/42/assignments/7', body: {} },
+    ]);
+
+    const opts = assignmentStrategy.buildOpts('Essay', '<p>Write.</p>', {
+      due_at: null,
+    });
+    return assignmentStrategy.update(42, 7, opts).then(() => {
+      assert.equal(calls.length, 1);
+      assert.equal(calls[0].method, 'PUT');
+      assert.ok(
+        'due_at' in calls[0].body.assignment,
+        'an omitted key tells Canvas to keep the date it has',
+      );
+      assert.equal(calls[0].body.assignment.due_at, null);
+    });
+  });
+
   it('builds options with name and description', () => {
     const opts = assignmentStrategy.buildOpts(
       'My Assignment',
@@ -164,6 +192,48 @@ describe('assignmentStrategy', () => {
     assert.equal(opts.unlockAt, undefined);
     assert.equal(opts.lockAt, undefined);
     assert.equal(opts.published, undefined);
+
+    // Absent rather than present-and-empty, and the difference is the whole
+    // feature below: a key the frontmatter never carried must not reach the
+    // request at all, or every course that has never mentioned a date would
+    // have its dates cleared on the next push.
+    assert.deepEqual(Object.keys(opts).sort(), ['description', 'name']);
+  });
+
+  it('sends an emptied date as an explicit null', () => {
+    // There was no way to clear a date from the markdown. The old gate was
+    // truthiness, so emptying `due_at:` read exactly like never having written
+    // it: the key was left out, Canvas kept the date it had, and the file
+    // disagreed with the course from then on.
+    const opts = assignmentStrategy.buildOpts('Title', '<p>Body</p>', {
+      due_at: null,
+      unlock_at: null,
+      lock_at: null,
+    });
+
+    assert.equal(opts.dueAt, null);
+    assert.equal(opts.unlockAt, null);
+    assert.equal(opts.lockAt, null);
+  });
+
+  it('reads every spelling of an emptied date the same way', () => {
+    // `due_at:` parses as null, `due_at: ""` as an empty string, and a YAML
+    // author does not think of those as two things.
+    const bare = assignmentStrategy.buildOpts('Title', '', { due_at: null });
+    const quoted = assignmentStrategy.buildOpts('Title', '', { due_at: '' });
+
+    assert.equal(bare.dueAt, null);
+    assert.equal(quoted.dueAt, null);
+  });
+
+  it('passes a real date through untouched', () => {
+    // An unquoted ISO timestamp parses as a Date, and JSON.stringify renders
+    // one in the shape Canvas wants. Normalising it here would be a second
+    // answer to a question the serialiser already answers.
+    const due = new Date('2026-06-01T23:59:00Z');
+    const opts = assignmentStrategy.buildOpts('Title', '', { due_at: due });
+
+    assert.equal(opts.dueAt, due);
   });
 
   it('builds an Assignment module item', () => {
@@ -241,6 +311,17 @@ describe('discussionStrategy', () => {
     assert.equal(opts.delayedPostAt, undefined);
     assert.equal(opts.lockAt, undefined);
     assert.equal(opts.published, undefined);
+    assert.deepEqual(Object.keys(opts).sort(), ['message', 'title']);
+  });
+
+  it('sends an emptied date as an explicit null', () => {
+    const opts = discussionStrategy.buildOpts('Title', '<p>Body</p>', {
+      delayed_post_at: null,
+      lock_at: '',
+    });
+
+    assert.equal(opts.delayedPostAt, null);
+    assert.equal(opts.lockAt, null);
   });
 
   it('builds a Discussion module item', () => {
