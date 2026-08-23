@@ -81,18 +81,17 @@ sync state that records where it landed.
 
 > [!NOTE]
 >
-> Every push rebuilds the item list of the modules it manages. Your pages and
-> assignments survive, but anything you added to one of those modules by hand in
-> Canvas (a quiz, a discussion, an external tool) drops out of the module. See
-> [Before You Publish](./01-before-you-publish.md).
+> Push does not rebuild a module from scratch. An item you added in Canvas by
+> hand is matched to a local file of the same type and title, and left where it
+> is when nothing matches. See [Before You Publish](./01-before-you-publish.md).
 
 ### Useful Flags
 
-| Flag                          | What it does                                                                                          |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `--dry-run`                   | Preview what would happen without making any changes on Canvas                                        |
-| `--module 01-getting-started` | Push only a single module instead of the entire course                                                |
-| `--prune`                     | Delete Canvas modules and individual items that no longer exist locally. It lists them and asks first |
+| Flag                          | What it does                                                                               |
+| ----------------------------- | ------------------------------------------------------------------------------------------ |
+| `--dry-run`                   | Preview what would happen without making any changes on Canvas                             |
+| `--module 01-getting-started` | Push only a single module instead of the entire course                                     |
+| `--prune-canvas`              | Delete Canvas items and modules whose local file you deleted. It lists them and asks first |
 
 ### Example Workflow
 
@@ -104,7 +103,7 @@ npx course push --dry-run
 npx course push --module 01-getting-started
 
 # Push everything and clean up deleted items on Canvas
-npx course push --prune
+npx course push --prune-canvas
 ```
 
 ## Pulling From Canvas
