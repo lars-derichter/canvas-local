@@ -43,7 +43,8 @@ git --version
 ```
 
 If you see a version number (e.g. `git version 2.43.0`), Git is already
-installed and you can skip to [Creating your project](#creating-your-project).
+installed and you can skip ahead to
+[Template repositories](#template-repositories).
 
 ### Windows
 
