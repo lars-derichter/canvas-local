@@ -90,8 +90,9 @@ students have submitted to.
 
 - **`npx course push --dry-run` first.** It reports what would happen and
   changes nothing. Read it. Then run the real push.
-- **`npx course validate` when something feels off.** It catches missing
-  frontmatter, broken internal links, and invalid assignment settings while they
-  are still cheap to fix.
+- **`npx course validate` when something feels off.** It catches broken internal
+  links, images and downloads that are not where a page says they are,
+  frontmatter that will not parse, and items missing a field their type needs,
+  while all of that is still cheap to fix.
 
 With that out of the way, on to [Canvas Syncing](./02-canvas-syncing.md).

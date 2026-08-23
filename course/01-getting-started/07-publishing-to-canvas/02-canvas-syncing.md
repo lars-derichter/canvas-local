@@ -57,9 +57,10 @@ You can also check your content for common errors before pushing:
 npx course validate
 ```
 
-This catches issues like missing frontmatter fields, broken internal links, or
-invalid assignment settings. That is much easier to fix locally than after
-pushing to Canvas.
+This catches broken internal links, images and downloads that are not where a
+page says they are, frontmatter that will not parse, and items missing a field
+their type needs. That is much easier to fix locally than after pushing to
+Canvas.
 
 ## Pushing to Canvas
 
