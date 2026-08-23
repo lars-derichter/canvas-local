@@ -192,13 +192,15 @@ holds. Nothing about a missing sync state makes push refuse the module. See
 
 `.env` names one Canvas course and the sync state was built against another, so
 every command that acts on the ids in that file stops until the two agree:
-`sync`, `push`, `pull`, `status`, `delete-module`, the item commands,
-`move-module` and `rename-module`. Each of them refuses before it does anything,
-so a run that stopped changed nothing. The ids in that file only mean something
-in the course they came from, and one of them is not scoped to a course at all:
-a Canvas file id is global, so `push --prune-canvas` — or renaming the binary
-behind a file item, which deletes the Canvas file it replaces — would delete a
-file belonging to the other course.
+`sync`, `push`, `pull`, `status`, the item commands and all four module
+commands. `new-module` is the one that surprises people: inserting a module at
+an occupied position renumbers every module above it, and each of those folder
+names is a key. Each of them refuses before it does anything, so a run that
+stopped changed nothing. The ids in that file only mean something in the course
+they came from, and one of them is not scoped to a course at all: a Canvas file
+id is global, so `push --prune-canvas` — or renaming the binary behind a file
+item, which deletes the Canvas file it replaces — would delete a file belonging
+to the other course.
 
 Two ways out, and which one is right depends on what you meant:
 
@@ -225,11 +227,11 @@ different course.
 Do not read the refusal as a guard on everything. Two commands read the
 mismatched file and carry on, and neither writes to Canvas: `init`, which
 repairs it, and `export`, which only wants the ids to footnote cross-links. A
-command that never opens the file is not stopped at all: `setup`, `new-module`,
-`validate`, `search`, `build-glossary`, `export-toc`, `reset-sync-state` and
-`reset-canvas`. That last one is the one to watch. It deletes everything in the
-course `.env` names, and a mismatch is the situation in which `.env` may not be
-naming the course you think it is.
+command that never opens the file is not stopped at all: `setup`, `validate`,
+`search`, `build-glossary`, `export-toc`, `reset-sync-state` and `reset-canvas`.
+That last one is the one to watch. It deletes everything in the course `.env`
+names, and a mismatch is the situation in which `.env` may not be naming the
+course you think it is.
 
 ### Starting Fresh, or Switching Canvas Courses
 

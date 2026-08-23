@@ -35,13 +35,14 @@ next `push` will create everything fresh on Canvas.
   sync state records which course it describes, and `sync`, `push`, `pull`,
   `status` and `delete-module` refuse to run against a different one, because
   the ids in it mean nothing there and a Canvas file id is not even scoped to a
-  course. The item commands hit the same refusal, along with `move-module` and
-  `rename-module`, and every one of them refuses before it acts, so a run that
+  course. The item commands hit the same refusal, along with the other three
+  module commands, `new-module` among them because inserting a module renumbers
+  the ones above it, and every one of them refuses before it acts, so a run that
   stopped changed nothing. Two commands read the mismatched file and carry on,
   and neither writes to Canvas: `init`, which repairs it, and `export`. The rest
-  never open it and are not affected: `setup`, `new-module`, `validate`,
-  `search`, `build-glossary`, `export-toc`, `reset-canvas` and this command.
-  Either this command or `npx course init` clears it.
+  never open it and are not affected: `setup`, `validate`, `search`,
+  `build-glossary`, `export-toc`, `reset-canvas` and this command. Either this
+  command or `npx course init` clears it.
 - Preparing the repo for sharing (strip instance-specific IDs).
 - Testing the full sync flow from scratch.
 

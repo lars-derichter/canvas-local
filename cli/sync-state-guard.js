@@ -66,9 +66,13 @@ const NEVER_OPENS = 'never-opens';
  * than a silent hole: a new command that touches the sync state is protected on
  * the day it is written.
  *
- * The same split is documented for authors in `docs/troubleshooting.md` under
- * ".canvas-sync.json describes course N" and in `docs/advanced-commands.md`
- * under `reset-sync-state`. The three lists have to say the same thing.
+ * The same split is documented for authors in three places:
+ * `docs/troubleshooting.md` under ".canvas-sync.json describes course N",
+ * `docs/advanced-commands.md` under `reset-sync-state`, and
+ * `docs/new-academic-year.md`, where the window between editing `.env` and
+ * resetting the state is the whole point of the step. All four lists have to
+ * say the same thing, and nothing checks that they do — the test below is a
+ * hand-kept mirror of them, not a reader of them.
  */
 const COMMAND_SYNC_STATE_POLICY = {
   // Reconcile against Canvas: the ids are the whole of what they act on.
