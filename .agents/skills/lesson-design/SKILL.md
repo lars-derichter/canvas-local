@@ -13,7 +13,7 @@ Design a new lesson plan together with the author and write it to
 ## Input
 
 `$ARGUMENTS` may combine a lesson number (`lesson 4`, `les 4`, `4`), a path to a
-notes file, and free text with intent — or the author simply asks for "the next
+notes file, and free text with intent, or the author simply asks for "the next
 logical lesson". Three modes, combinable:
 
 - **Notes**: the author's bullets are hard constraints, not suggestions to round
@@ -28,17 +28,17 @@ logical lesson". Three modes, combinable:
 
 ## Steps
 
-### Phase A — Design (Writes Nothing)
+### Phase A: Design (Writes Nothing)
 
-1. **Read the fixed inputs**: `course-context.md` — pedagogy, learning-goal
-   scheme, lesson-plan conventions, scope boundaries; follow the documents it
+1. **Read the fixed inputs**: `course-context.md` (pedagogy, learning-goal
+   scheme, lesson-plan conventions, scope boundaries); follow the documents it
    points to, and for a needed section still `TODO`, infer the answer from the
    repo or ask, offering at the end to save it back; `context/writing-style.md`
-   — shared rules plus the colleague-facing section; all existing files in
+   (shared rules plus the colleague-facing section); all existing files in
    `sources/lessons/` in full, tracking which learning goals are actively
    practised versus only seeded and the running context (project, storyline,
-   case) at each point; the structural template — the lesson plan named in
-   `course-context.md`, else the lowest-numbered existing lesson. If the folder
+   case) at each point; the structural template (the lesson plan named in
+   `course-context.md`, else the lowest-numbered existing lesson). If the folder
    is empty, propose a structure (goals, preparation, timed blocks, deliberate
    exclusions, notes-to-self), confirm it, and note it as a candidate for
    `course-context.md`.
@@ -50,25 +50,25 @@ logical lesson". Three modes, combinable:
    - **One-sentence proposal**, in the voice of the template's opening line.
    - **Learning goals (proposal)**: 3–5 bullets tied to the course's
      learning-goal scheme in its reference notation. Say how each lesson goal
-     concretises the course goal it serves — the goals are what the rest of the
+     concretises the course goal it serves. The goals are what the rest of the
      design answers to. If the course has no scheme, write plain goals and say
      so in one line, offering `/course-context-init` to define one; propose,
      never insist, and never block the design on it.
-   - **Place in the course**: two sentences — the concrete moment in the running
-     context, and what students bring from earlier lessons.
+   - **Place in the course**: two sentences (the concrete moment in the running
+     context, and what students bring from earlier lessons).
    - **Block structure in broad strokes**: blocks with activity and time budget;
      no full timing yet.
    - **Deliberate exclusions**: two or three, motivated from the course context.
-   - **Pros and cons**, two sub-headings: _Your suggestions_ — one bullet per
+   - **Pros and cons**, two sub-headings: _Your suggestions_: one bullet per
      author input element, what it gains and what it costs, no reflexive
-     nodding; _My suggestions_ — the same for what the skill adds or deviates,
+     nodding; _My suggestions_: the same for what the skill adds or deviates,
      naming rejected alternatives and why.
    - **Open questions** the author must decide before a full draft.
 
    Adjust on request and stay in Phase A until the author explicitly approves.
    Stop. Wait for explicit approval before starting Phase B.
 
-### Phase B — Draft (Only After Approval)
+### Phase B: Draft (Only After Approval)
 
 4. **Draft and write the lesson plan** with the template lesson's structure,
    section order, heading levels, and separators. Typical elements (the template
@@ -79,16 +79,16 @@ logical lesson". Three modes, combinable:
    already have); **Timed blocks** adding up to the course's lesson length,
    breaks included, with code or material samples where they carry the
    explanation, not as decoration; **Deliberate exclusions**, each motivated in
-   one sentence; **Notes to self** — only tips not already elsewhere (timing
+   one sentence; **Notes to self**: only tips not already elsewhere (timing
    pitfalls, reserve activities, anticipated questions). Where the lesson
    introduces a future student-facing reference page (card, cheat sheet), name
    it in the block prose the way existing lessons do, so `/lesson-module-build`
    can pick it up. Apply the colleague-facing checklist of
-   `context/writing-style.md` to the whole draft — no student-facing conventions
-   (page-title emoji, student callouts) unless `writing-style.md` says otherwise
-   — then write the file in one `Write`.
+   `context/writing-style.md` to the whole draft: no student-facing conventions
+   (page-title emoji, student callouts) unless `writing-style.md` says
+   otherwise. Then write the file in one `Write`.
 
-5. **Update the glossary — only if the course has one** (Glossary section of
+5. **Update the glossary, only if the course has one** (Glossary section of
    `course-context.md`). Add the technical terms a student meets for the first
    time in this lesson to the canonical glossary file, per that file's own
    conventions: skip what is already a lemma or a synonym under another lemma;
@@ -110,10 +110,10 @@ logical lesson". Three modes, combinable:
 - Mirror the template lesson plan's conventions, not `course/`'s.
 - Do not invent learning goals or activities that follow from neither the
   author's input nor the course context; your own initiative belongs under _Pros
-  and cons — my suggestions_.
+  and cons: my suggestions_.
 - If the author raises a topic listed under the scope boundaries in
-  `course-context.md`, flag it and propose an alternative — never silently
-  comply or silently drop it.
+  `course-context.md`, flag it and propose an alternative. Never silently comply
+  or silently drop it.
 - One lesson per call. Never change existing lessons; the only written artefacts
   are the new `lesson-NN.md` and, when applicable, new glossary entries.
 - No commits, no pushes, no staging.

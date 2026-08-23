@@ -7,7 +7,7 @@ description: Generate a concise class version (one-page teaching reminder) of a 
 
 Turn a full lesson design under `sources/lessons/` into a class version under
 `sources/lesson-plans/`: one page (think A5) with learning goals, content, and
-timeline in telegram style — a teaching reminder for in the classroom, nothing
+timeline in telegram style: a teaching reminder for in the classroom, nothing
 more. It writes without an approval phase: the class version is a low-stakes
 derivation of an already-approved lesson plan.
 
@@ -28,7 +28,7 @@ not a `.md` under `sources/lessons/`.
    `sources/lesson-plans/lesson-plan-NN.md`. If it already exists, show its
    contents and ask whether to overwrite, merge, or stop.
 
-2. **Read**: the source lesson in full; `course-context.md` — the Class versions
+2. **Read**: the source lesson in full; `course-context.md`, the Class versions
    section (grouping labels) and the Learning goals section (the goal-reference
    notation); if Class versions is still `TODO`, use the defaults below and
    offer at the end to record the choices made;
@@ -37,7 +37,7 @@ not a `.md` under `sources/lessons/`.
 
 3. **Check the source's learning goals.** The source must state lesson-specific
    goals in the course's notation. If they are missing, stop and tell the author
-   to first bring the source in line with the course's lesson-plan format — do
+   to first bring the source in line with the course's lesson-plan format. Do
    not repair it here.
 
 4. **Draft the class version.** Fixed structure (the worked example wins where
@@ -52,7 +52,7 @@ not a `.md` under `sources/lessons/`.
    - **Content**: the lesson's concepts as a compact list, using the inventory
      groups from `course-context.md` if it defines them (omit empty groups).
    - **Timeline**: chronological bullets, each starting
-     `**HH:MM–HH:MM (N min) — Activity name.**`, then short fragments — no
+     `**HH:MM–HH:MM (N min) — Activity name.**`, then short fragments: no
      rationale, no "why". Breaks get one sentence. Concrete decisions stay: key
      examples, commands, links to homework scaffolds, the exit-ticket question.
    - **Optional, only if the source has them**: reserve activities (one line),
@@ -60,8 +60,8 @@ not a `.md` under `sources/lessons/`.
 
    Leave out: pedagogical rationale, deliberate-exclusion considerations,
    notes-to-self, class management (unless the author explicitly asks), and long
-   code blocks — replace those with a short inline reference to the example's
-   key tokens.
+   code blocks. Replace those with a short inline reference to the example's key
+   tokens.
 
 5. **Fit the page**: aim for ~30–40 rendered lines (one A5 page must remain
    plausible). Too long? Tighten the timeline first; goals and content are
