@@ -136,8 +136,13 @@ everything.
 
 ## Resilience and Conflict Detection
 
-- **Retry logic**: API calls automatically retry on 429 (rate limit) and 5xx
-  errors with exponential backoff (up to 3 attempts).
+- **Retry logic**: a call that comes back 429 (rate limit) or 5xx is retried up
+  to 3 times on top of the first attempt, with exponential backoff, so a failing
+  request is made 4 times before it gives up. The log counts them:
+  `(attempt 2/4)`. A network error is retried the same way with one exception, a
+  `POST`, because a dropped connection leaves it unknown whether Canvas
+  processed the request and a duplicate page or assignment is worse than a clean
+  failure.
 - **Error recovery**: If a single module or item fails during push/pull, the
   remaining items continue and a summary of errors is shown at the end.
 - **Conflict detection**: what changed is decided by content, not by a
@@ -157,8 +162,7 @@ everything.
   which outside a checkout is every file in the tree. A non-interactive run
   answers no and cancels. See
   [Skipped with "(git-dirty)"](troubleshooting.md#git-dirty-under-skipped).
-- **Stale ID recovery**: If a module, page, or assignment was deleted on Canvas
-  but still has a stored ID locally, push detects the 404 and automatically
-  creates a new resource.
-- **Progress counters**: Push and pull show progress like `Module 2/5`,
-  `Item 3/12`.
+- **Stale ID recovery**: a 404 on updating a page, assignment or discussion
+  means the object was deleted in Canvas, so it is created again and the new id
+  recorded. A module is not: a 404 there fails the action, and the run reports
+  it.
