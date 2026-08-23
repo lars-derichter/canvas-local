@@ -10,6 +10,7 @@ const { Command } = require('commander');
 const pkg = require('../package.json');
 const log = require('./logger');
 const { RefusalError } = require('../lib/errors');
+const { guardCourseMatch } = require('./sync-state-guard');
 
 const program = new Command();
 
@@ -22,6 +23,16 @@ program
   .hook('preAction', () => {
     const opts = program.opts();
     log.configure({ verbose: opts.verbose, quiet: opts.quiet });
+  })
+  // Second, and before any command's action: refuse a sync state that describes
+  // another Canvas course. Here rather than in each command because the nine
+  // that used to reach the check through `recordRenames` reached it after they
+  // had already written to disk, and one of them only sometimes. One hook is
+  // also one place to read: `cli/sync-state-guard.js` says which commands are
+  // exempt and why. Registered after the logging hook so `--verbose` is already
+  // configured if this one throws.
+  .hook('preAction', (_program, actionCommand) => {
+    guardCourseMatch(actionCommand.name());
   });
 
 program

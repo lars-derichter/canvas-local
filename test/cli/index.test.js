@@ -3,6 +3,8 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
 
+const { COMMAND_SYNC_STATE_POLICY } = require('../../cli/sync-state-guard');
+
 const CLI_DIR = path.join(__dirname, '..', '..', 'cli');
 const INDEX = path.join(CLI_DIR, 'index.js');
 const EXTENSION = path.join(
@@ -75,6 +77,18 @@ describe('the CLI command table', () => {
   it('registers each command name once', () => {
     const names = registeredCommands();
     assert.deepEqual([...new Set(names)], names);
+  });
+
+  it('says of every command whether the sync state has to match', () => {
+    // The one thing that keeps `COMMAND_SYNC_STATE_POLICY` from rotting into a
+    // list somebody forgot. A command missing from it is guarded anyway, so
+    // ignoring this failure costs a spurious refusal rather than a silent hole
+    // — but the classification is a decision, and this is where it gets made.
+    // A name left in the table after its command went away is the other half:
+    // it reads as a promise the CLI no longer keeps.
+    const registered = registeredCommands().sort();
+    const classified = Object.keys(COMMAND_SYNC_STATE_POLICY).sort();
+    assert.deepEqual(classified, registered);
   });
 });
 
