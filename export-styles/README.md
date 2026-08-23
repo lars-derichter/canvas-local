@@ -2,7 +2,7 @@
 
 An export style decides how `npx course export` lays out a PDF or a Word
 document: typography, margins, the cover, and the fonts it ships. Colour is not
-part of a style — that comes from the theme in
+part of a style: that comes from the theme in
 [`src/css/themes/`](../src/css/themes/), which the site, Canvas and the PDF all
 read. See [docs/export-styling.md](../docs/export-styling.md) for the pipeline
 and [docs/customization.md](../docs/customization.md) for making it yours.
@@ -27,7 +27,7 @@ overrides it.
 | `thomas-more` | A worked example of full institutional branding: Century Gothic headings where the machine has that font, Nunito bundled as the fallback, orange and navy, and the Thomas More logo. Pair it with `theme: thomas-more`. |
 
 The Thomas More logo belongs to its owner, and the bundled Nunito ships under
-the SIL Open Font License — see [THIRD-PARTY.md](../THIRD-PARTY.md).
+the SIL Open Font License. See [THIRD-PARTY.md](../THIRD-PARTY.md).
 
 ## What a Style Folder Holds
 
@@ -38,8 +38,8 @@ the SIL Open Font License — see [THIRD-PARTY.md](../THIRD-PARTY.md).
 | `logo.png`       | Cover logo in the PDF. The filename is fixed.                                                          | no       |
 | `fonts/`         | Fonts to embed in PDF exports, via `TYPST_FONT_PATHS`. Only fonts whose licence allows redistribution. | no       |
 
-The three files at the root of this folder — `filter.lua`, `defaults.yml` and
-`sample.md` — drive the pandoc pipeline rather than the look, so every style
+The three files at the root of this folder (`filter.lua`, `defaults.yml` and
+`sample.md`) drive the pandoc pipeline rather than the look, so every style
 shares one copy of each.
 
 ## Adding Your Own
@@ -56,7 +56,7 @@ Then edit `sources/my-style/template.typ` and `reference.docx`, or let
 CSS file, and `/export-style-update` make plain-language tweaks.
 
 To change one file of a shipped style without forking the rest, drop it in
-`sources/export-style/` — that path wins per file over whatever style is
+`sources/export-style/`: that path wins per file over whatever style is
 selected.
 
 Do not edit the folders here: they are shipped defaults and an upstream update

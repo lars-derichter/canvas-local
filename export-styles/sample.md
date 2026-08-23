@@ -6,7 +6,7 @@ date: "2026-08-10"
 lang: en
 toc: true
 # The sample is language-independent, so the labels are pinned here. Real
-# exports get this block generated from course.config.yml — it doubles as a
+# exports get this block generated from course.config.yml: it doubles as a
 # live example of what the exporter emits.
 labels:
   note: "Note"
