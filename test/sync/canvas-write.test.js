@@ -19,6 +19,7 @@ const {
   pushQuiz,
   refuseQuizBackedDelete,
 } = require('../../lib/sync/canvas-write');
+const { CanvasApiError } = require('../../lib/canvas/client');
 const { serializeFrontmatter } = require('../../lib/convert/frontmatter');
 
 describe('buildFileResolver', () => {
@@ -878,9 +879,27 @@ describe('refuseQuizBackedDelete', () => {
   it('lets a 404 through: the assignment is already gone', async () => {
     assert.equal(
       await refuseQuizBackedDelete(42, item, async () => {
-        throw new Error('Canvas API GET failed with status 404');
+        throw new CanvasApiError({
+          method: 'GET',
+          path: '/api/v1/courses/42/assignments/500',
+          status: 404,
+          body: '{"errors":[{"message":"The specified resource does not exist."}]}',
+        });
       }),
       null,
     );
+  });
+
+  it('does not read "404" in a message as the assignment being gone', async () => {
+    // A network error can put "404" in the message without Canvas having said
+    // anything at all — a port number is enough. Only a typed 404 answer means
+    // the assignment is absent; everything else keeps the refusal, so nothing
+    // is deleted on a guess.
+    const refusal = await refuseQuizBackedDelete(42, item, async () => {
+      throw new Error('connect ECONNREFUSED 127.0.0.1:40404');
+    });
+
+    assert.match(refusal.lines[0], /could not check whether assignment 500/);
+    assert.match(refusal.error, /ECONNREFUSED/);
   });
 });

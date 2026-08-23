@@ -3295,6 +3295,63 @@ describe('applyPlan, per action type', () => {
     );
   });
 
+  it('does not read "404" in an error message as the item being gone', async () => {
+    silence();
+    // The already-gone check used to string-match the message, and the message
+    // ends with the request path and the response body — so refusing to delete
+    // a page whose very slug contains "404" was swallowed as "already gone",
+    // the row dropped, and a delete reported that never happened. Only a typed
+    // 404 answer means the object is absent; any other refusal must surface
+    // and keep the row.
+    const state = emptyState();
+    state.modules['01-intro'] = {
+      canvas_module_id: 10,
+      item_order: ['01-intro/01-errors.md'],
+      items: {
+        '01-intro/01-errors.md': {
+          canvas_type: 'page',
+          canvas_id: 'fixing-404-errors',
+          page_url: 'fixing-404-errors',
+          module_item_id: 93,
+        },
+      },
+    };
+    mockCanvas([
+      {
+        method: 'DELETE',
+        path: '/pages/fixing-404-errors',
+        body: { message: 'unauthorized' },
+        status: 403,
+      },
+    ]);
+
+    const outcome = await run(
+      {
+        actions: [
+          {
+            type: 'delete-canvas-item',
+            folder: '01-intro',
+            canvasModuleId: 10,
+            itemPath: '01-intro/01-errors.md',
+            moduleItemId: 93,
+            canvasType: 'page',
+            pageUrl: 'fixing-404-errors',
+          },
+        ],
+      },
+      { state, courseDir: tempCourse() },
+    );
+
+    assert.equal(outcome.errors.length, 1);
+    assert.match(outcome.errors[0].error, /status 403/);
+    // The row survives, so the next run tries again instead of forgetting the
+    // page ever existed.
+    assert.notEqual(
+      state.modules['01-intro'].items['01-intro/01-errors.md'],
+      undefined,
+    );
+  });
+
   it('moves an item to another module without changing its id', async () => {
     silence();
     const state = emptyState();
@@ -3460,6 +3517,83 @@ describe('applyPlan, per action type', () => {
 
     // The base is what the two sides last agreed on, and this run reached no
     // new agreement, so it stays exactly as it was.
+    assert.deepEqual(state.modules['01-intro'].item_order, [
+      '01-intro/01-a.md',
+      '01-intro/02-b.md',
+      '01-intro/03-c.md',
+    ]);
+  });
+
+  it('carries on when Canvas already deleted an item mid-reorder', async () => {
+    silence();
+    // A stale module item id answers the position PUT with a 404: somebody
+    // deleted the item behind this run's back. That is the missing-id case
+    // above met one request later, and it gets the same treatment — the
+    // surviving items still get their positions, the base order stays — where
+    // it used to abort the loop and strand every item after the dead one.
+    const warnings = [];
+    const state = emptyState();
+    state.modules['01-intro'] = {
+      canvas_module_id: 7,
+      item_order: ['01-intro/01-a.md', '01-intro/02-b.md', '01-intro/03-c.md'],
+      items: {
+        '01-intro/01-a.md': { canvas_type: 'page', module_item_id: 11 },
+        '01-intro/02-b.md': { canvas_type: 'page', module_item_id: 12 },
+        '01-intro/03-c.md': { canvas_type: 'page', module_item_id: 13 },
+      },
+    };
+    const calls = mockCanvas([
+      { method: 'PUT', path: '/modules/7/items/13', body: { id: 13 } },
+      {
+        method: 'PUT',
+        path: '/modules/7/items/12',
+        body: {
+          errors: [{ message: 'The specified resource does not exist.' }],
+        },
+        status: 404,
+      },
+      { method: 'PUT', path: '/modules/7/items/11', body: { id: 11 } },
+    ]);
+
+    const outcome = await run(
+      {
+        actions: [
+          {
+            type: 'reorder-canvas-module',
+            folder: '01-intro',
+            canvasModuleId: 7,
+            order: [
+              { itemPath: '01-intro/03-c.md', position: 1 },
+              { itemPath: '01-intro/02-b.md', position: 2 },
+              { itemPath: '01-intro/01-a.md', position: 3 },
+            ],
+          },
+        ],
+      },
+      {
+        state,
+        courseDir: tempCourse(),
+        log: {
+          info: () => {},
+          warn: (line) => warnings.push(line),
+          verbose: () => {},
+          error: () => {},
+        },
+      },
+    );
+
+    // Every position was attempted, the dead item's included, and the action
+    // did not fail: the items after the dead one were still placed.
+    assert.deepEqual(outcome.errors, []);
+    assert.deepEqual(
+      calls.map((call) => call.url.split('/').pop()),
+      ['13', '12', '11'],
+    );
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /01-intro\/02-b\.md to position 2/);
+    assert.match(warnings[0], /module item 12 is gone from Canvas/);
+
+    // No new agreement was reached, so the base stays exactly as it was.
     assert.deepEqual(state.modules['01-intro'].item_order, [
       '01-intro/01-a.md',
       '01-intro/02-b.md',
