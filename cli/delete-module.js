@@ -8,12 +8,7 @@ const {
   printModules,
 } = require('./module-utils');
 const { renumberSequential } = require('./renumber');
-const {
-  deleteModule: deleteModuleFromState,
-  loadState,
-  renameFolders,
-  saveState,
-} = require('../lib/sync/state');
+const { loadState, renameFolders, saveState } = require('../lib/sync/state');
 
 /**
  * Get module entries in the format expected by renumberSequential.
@@ -118,21 +113,28 @@ async function deleteModule(options = {}) {
   fs.rmSync(folderPath, { recursive: true });
   console.log(`[delete-module] Deleted ${sourceModule.folderName}/`);
 
-  // Remove the module from sync state. The folder name is the key, so the
-  // module the author just deleted is exactly the row that goes.
-  if (syncData) {
-    deleteModuleFromState(syncData, sourceModule.folderName);
-    // Dropping a module deliberately leaves its embedded-file rows behind —
-    // removal is not relocation — so this command, which has just destroyed
-    // the folder those files lived in, clears them itself.
-    if (syncData.files) {
-      for (const filePath of Object.keys(syncData.files)) {
-        if (filePath.startsWith(sourceModule.folderName + '/')) {
-          delete syncData.files[filePath];
-        }
-      }
-    }
-  }
+  // The module's rows stay, and deleting them here is exactly the bug. A base
+  // row is the only thing that separates "the author deleted this" from "this
+  // tool has never seen it". Without one, `planModuleMetadata` pairs the live
+  // Canvas module with no folder and no base and emits `create-local-module`:
+  // the next sync writes the folder, its pages and its `_category_.json`
+  // straight back, and the author deletes the module again. Without one there
+  // is also nothing for `--prune-canvas` to offer, because a prune candidate
+  // *is* a base row — `push --prune-canvas` reported `nothing to remove from
+  // Canvas` for a module it should have been offering to delete.
+  //
+  // Kept, `planModuleOrphan` reports the module under `Orphaned on Canvas`,
+  // `--prune-canvas` reaches it, and the row cleans itself up: once the Canvas
+  // module is gone too, the planner emits `drop-base-module`.
+  //
+  // The `state.files` rows for binaries this folder embedded stay for the same
+  // reason and a sharper one. A Canvas file id is global rather than
+  // course-scoped, and these rows are the last thing in this repository that
+  // holds the one behind each embedded binary; dropping them stranded the file
+  // on Canvas for good, unreachable to `planEmbeddedFileOrphans` — which reads
+  // `state.files` — and to `--prune-canvas`, which only ever considered items.
+  // `deleteModule` in `lib/sync/state.js` leaves them alone for that reason,
+  // and this command used to undo it.
 
   // Renumber remaining modules sequentially to close the gap
   const renames = renumberSequential(COURSE_DIR, getModuleEntries);
