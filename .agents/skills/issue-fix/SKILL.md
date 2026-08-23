@@ -41,7 +41,7 @@ entries. Empty means every entry under `## Open`.
    - **Same defect elsewhere.** Grep `course/` and `evaluations/` for the same
      wrong text or pattern; list the extra hits.
    - **Style rule.** Does the fix encode a durable writing preference that
-     `context/writing-style.md` does not have yet? Mark the group for an
+     `context/writing-style.md` does not have yet? Mark the group for a
      `/writing-style-update` offer (never edit `writing-style.md` here) and grep
      for other pages that would violate the would-be rule.
    - **Glossary.** Does the fix change or rename a term? Check the canonical

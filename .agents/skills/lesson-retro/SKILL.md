@@ -86,9 +86,9 @@ plausibly recent, propose it in the same breath.
    section's existing style, timing changes touch only the numbers and a short
    reason. Never rewrite blocks wholesale.
 
-7. **Report.** What changed where, what was deliberately left as a fix list, and
-   (if the author corrected the same kind of thing twice across retros) suggest
-   the pattern belongs in `course-context.md`, and point at
+7. **Report.** Say what changed where, and what was deliberately left as a fix
+   list. If the author corrected the same kind of thing twice across retros,
+   suggest the pattern belongs in `course-context.md` and point at
    `/course-context-update` for folding it in.
 
 ## Rules
