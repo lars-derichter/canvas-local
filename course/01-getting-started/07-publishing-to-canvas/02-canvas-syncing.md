@@ -70,8 +70,9 @@ npx course push
 ```
 
 This converts all your markdown to HTML and uploads it to Canvas. Each module
-becomes a Canvas module, and each file becomes the appropriate item type (page,
-assignment, external link, or file upload).
+becomes a Canvas module, and each file becomes whichever of the seven item types
+its frontmatter names: see
+[Content Types](../04-organising-your-course/02-content-types.md).
 
 Your markdown files carry no Canvas ids. The link between a file and the Canvas
 object it became lives in `.canvas-sync.json`, in the root of your project, and
