@@ -22,8 +22,9 @@ publishing target.
   direction pinned, and `status` shows what a sync would do without doing it.
 - **PDF and DOCX export.** Hand out a styled course text or a single chapter,
   with your institution's branding.
-- **A VS Code extension.** Every command in the sidebar and command palette, so
-  daily work needs no terminal.
+- **A VS Code extension.** The sidebar and command palette cover everything but
+  the two destructive commands and the glossary builder, so daily work needs no
+  terminal.
 - **AI-assisted authoring.** Bundled skills help design lessons, build student
   modules, generate Canvas quizzes, proofread, and check course consistency,
   with any AI coding agent that reads `AGENTS.md`.
