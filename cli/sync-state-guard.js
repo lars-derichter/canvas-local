@@ -7,8 +7,9 @@ const { loadState } = require('../lib/sync/state');
  * `assertStateMatchesEnv` in `lib/sync/state.js` is the refusal itself and says
  * why it exists. This is only the question of *when* it fires. Five commands
  * load the state up front and hit it there; the rest used to reach it through
- * `recordRenames` or `removeFromSyncState`, which run at the end of the work
- * rather than the start, so the refusal arrived after the damage:
+ * `recordRenames` or `removeFromSyncState` (since removed), which run at the
+ * end of the work rather than the start, so the refusal arrived after the
+ * damage:
  *
  * - `merge-items` had already written the source's body into the target and
  *   still had the source on disk, leaving two copies of one item and no undo

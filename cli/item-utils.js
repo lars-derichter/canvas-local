@@ -7,13 +7,6 @@ const {
   pad,
   printModules,
 } = require('./module-utils');
-const {
-  allItems,
-  deleteItem,
-  loadState,
-  saveState,
-  toPosixPath,
-} = require('../lib/sync/state');
 
 const SKIP_FILES = new Set(['_category_.json']);
 
@@ -164,50 +157,10 @@ async function selectTargetDir(rl, modulePath) {
   process.exit(1);
 }
 
-/**
- * Remove the sync-state row for an item that is about to be deleted.
- *
- * Must still be called BEFORE the file is removed, but no longer because the
- * frontmatter holds the identity: a directory is recognised by asking the
- * filesystem what it is, and every row underneath it goes. A single file needs
- * nothing from disk at all — its path under `course/` is the key.
- *
- * The module is not named either. A path is unique across the whole state, so
- * the row is found wherever it lives, which is also what makes this correct for
- * a file the author had already moved to another module by hand.
- *
- * @param {string} absItemPath - Absolute path of the file or directory.
- * @returns {string|null} The relative path removed, or null when nothing matched.
- */
-function removeFromSyncState(absItemPath) {
-  const state = loadState({ allowNull: true });
-  if (!state || !state.modules) return null;
-
-  const relativePath = toPosixPath(path.relative(COURSE_DIR, absItemPath));
-
-  const isDirectory =
-    fs.existsSync(absItemPath) && fs.statSync(absItemPath).isDirectory();
-  const doomed = isDirectory
-    ? allItems(state)
-        .map((row) => row.itemPath)
-        .filter((itemPath) => itemPath.startsWith(relativePath + '/'))
-    : [relativePath];
-
-  let removed = 0;
-  for (const itemPath of doomed) {
-    if (deleteItem(state, itemPath)) removed++;
-  }
-
-  if (removed === 0) return null;
-  saveState(state);
-  return relativePath;
-}
-
 module.exports = {
   getItems,
   printItems,
   detectModule,
   selectModule,
   selectTargetDir,
-  removeFromSyncState,
 };
