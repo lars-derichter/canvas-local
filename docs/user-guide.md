@@ -350,6 +350,13 @@ offline mode: what a sync would do is not answerable from the local side alone,
 so a missing `CANVAS_COURSE_ID` or a course it cannot read ends the run with an
 error that says as much.
 
+Writing nothing does not make it always exit 0. A course mid-edit exits 0
+whatever is waiting in it. A course a `sync` would refuse rather than work
+through exits 1: a module both sides hold with nothing linking them, or two
+Canvas modules deriving one folder name. So does a run that could not report at
+all, from a missing course id to a `-m` naming no module. A script can read a
+non-zero `status` as a course that needs a person before anything is synced.
+
 #### Who Wins When Both Sides Moved
 
 Neither `--conflict` nor `--order` comes up unless both sides moved. An item
@@ -420,7 +427,8 @@ in a script.
   push to a Canvas course that already holds content is one. `pull --force`
   while the git guard is holding at least one file is the other, which includes
   every run outside a git checkout, where the guard covers the whole tree.
-  Neither writes anything when nothing answers.
+  Neither writes anything when nothing answers, and both exit 1 rather than
+  report the run they did not make as a success.
 
 `sync -y` behaves the same way in a terminal: it confirms the prune and skips
 the conflict and ordering questions rather than putting them to you.
