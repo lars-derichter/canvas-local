@@ -10,18 +10,27 @@
   file says which Canvas object belongs at that position and holds nothing else,
   because a quiz's questions and submissions are not things this project could
   rebuild. Push never creates, updates or deletes either one. Which quiz an item
-  means is resolved from `canvas_id` while the course still lists it and by
-  title otherwise, writing the id it found back to the file, so the manual QTI
-  import that a new academic year needs has to happen once and push picks it up
-  from there. Two quizzes sharing a title is ambiguous and skipped rather than
-  guessed.
-- **`push` refuses to rebuild a module holding items it did not put there.** It
-  compares what Canvas holds in a module against what `course/` accounts for,
-  and when anything is unaccounted for it names those items with their Canvas
-  links, leaves the module exactly as it is, carries on with the other modules
-  and ends with a non-zero exit status. The claim in the README that a push
+  means is resolved from the id on its row in `.canvas-sync.json` while the
+  course still lists it, then from a quiz item already sitting in that module
+  under the same title, and failing both from a quiz anywhere in the course
+  whose title matches exactly; the id it lands on is recorded on the row, so the
+  manual QTI import that a new academic year needs has to happen once and push
+  picks it up from there. Two quizzes sharing a title is an error rather than a
+  guess. It names every id it found, and the way out is to delete the stale quiz
+  in Canvas, or to place the one you mean in the module by hand, where push
+  claims it by title without ever running the course-wide search.
+- **`push` no longer drops the items in a module it did not put there.** It used
+  to clear each module and build the item list again, so a quiz you placed by
+  hand, a discussion, an LTI link or a page that is not in your repository
+  vanished from the module on the next push. The claim in the README that a push
   silently drops hand-added items was accurate, and this is the fix for it
-  rather than a note about it.
+  rather than a note about it. The fix arrived twice. First as a refusal: push
+  named the unaccounted-for items with their Canvas links, left the module
+  exactly as it was and exited non-zero. Then the reconcile engine replaced that
+  with something better for a run that has picked a direction — push adopts what
+  it can pair and leaves the rest where it is, so the module survives without
+  the run stopping. The refusal itself lives on in `sync` and `status`, which
+  pin no direction and so cannot pair anything.
 - **An external tool is checked before it is created.** Canvas resolves an LTI
   module item by its launch URL, and when no installed tool claims that URL it
   substitutes a placeholder with id 0, returns 200 and hands back an item that
@@ -65,14 +74,21 @@
   course. One id is not scoped, though. Canvas file ids are global, so
   `DELETE /api/v1/files/:id` reaches a file in whichever course owns it, and
   both `push --prune-canvas` and a renamed binary in `_files/` call it — a
-  delete landing in a course the run was never pointed at. Every command that
-  reads sync state now refuses while the two disagree, names both courses, and
-  gives the two ways out; the check also covers `CANVAS_API_URL`, where a
-  matching course id on a different instance is a different course. A file that
-  claims no course contradicts nothing and is stamped from the environment
-  instead. `init` is the exception that still reads such a file, because it is
-  the repair: it drops the old course's module, file and icon ids rather than
-  filing them under the new course id, which is what it used to do.
+  delete landing in a course the run was never pointed at. `sync`, `push`,
+  `pull`, `status` and `delete-module` now refuse while the two disagree, name
+  both courses, and give the two ways out, and the item commands stop at the
+  point where each records its change, along with `move-module` and
+  `rename-module`. The check also covers `CANVAS_API_URL`, where a matching
+  course id on a different instance is a different course. A file that claims no
+  course contradicts nothing and is stamped from the environment instead. Two
+  commands read such a file and carry on, and neither writes to Canvas: `init`,
+  because it is the repair — it drops the old course's module, file and icon ids
+  rather than filing them under the new course id, which is what it used to do —
+  and `export`, which reads the ids only to footnote cross-links. Do not read
+  the refusal as a guard on everything, though. The commands that never open the
+  file are not stopped at all, and `reset-canvas` is one of them: it deletes
+  everything in the course `.env` names, and a mismatch is exactly the situation
+  in which `.env` may not be naming the course you think it is.
 - **`pull` no longer overwrites files it cannot judge.** With no
   `.canvas-sync.json` to compare timestamps against — right after
   `reset-sync-state`, or on a clone that has never synced — every local file
@@ -144,13 +160,16 @@
   first. Three statements that were simply wrong are corrected: pull does not
   preserve extra frontmatter (now it does, see below), `reset-sync-state` does
   prompt, and `lock_at`/`unlock_at` never reached Canvas (now they do).
-- **A plain `push` rebuilds the item list of every module it manages, and that
-  is now written down.** The pages and assignments survive, but the module item
-  ids change on every push, so a direct link to one goes stale. Also new: `push`
-  warns and asks before its first push to a Canvas course that already holds
-  content, `reset-canvas` lists what the course contains before asking rather
-  than prompting blind and gained a `--dry-run`, and the `--prune-canvas` prompt
-  points at the backup guide.
+- **`push` asks before its first push into a Canvas course that already holds
+  content.** It counts the modules, pages, assignments and files that are
+  already there, names the count, and asks; declining ends the run without
+  writing. `reset-canvas` gained the same shape — it lists what the course
+  contains before asking, rather than prompting blind, and it takes a
+  `--dry-run` — and the `--prune-canvas` prompt points at
+  [`docs/backups.md`](docs/backups.md). This entry used to record something else
+  besides: that a plain push cleared and rebuilt the item list of every module
+  it manages, churning the module item ids with it. The reconcile engine
+  overtook that before the release; see the entries at the top of this section.
 - **Assignment `lock_at` and `unlock_at` are pushed.** Both were documented in
   three places and written back by `pull`, but neither string appeared in the
   push path, so the dates round-tripped locally and never reached Canvas.
