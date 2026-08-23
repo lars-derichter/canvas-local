@@ -153,6 +153,36 @@
   `--module`, and so on — while the help advertised the first as enough. A
   script that passed only it used to get a prompt, and now that an unanswerable
   prompt is a failed run rather than a hang, that is a run that stops.
+- **A sync state describing another Canvas course stops the command before it
+  acts.** Five commands loaded the sync state up front and refused there. Nine
+  others reached the same check only through the code that records a rename or
+  drops a row, which runs after the work rather than before it, so the refusal
+  landed on top of the damage: `merge-items` had already written the source body
+  into the target and still had the source on disk, and `move-item` had already
+  renumbered every file in the module. It was not even consistent. A `move-item`
+  that happened to shift no file never reached the check at all and reported
+  success. One hook now asks the question before any command's action. A
+  `move-item` that renumbers nothing therefore refuses where it used to succeed,
+  which is the point: whether the sync state describes this course cannot depend
+  on how many files a command happens to touch. `init` and `export` still read a
+  mismatched state on purpose, and the local content tools, `reset-sync-state`
+  among them, never open it and are not stopped.
+- **A refusal reads as a refusal rather than as a crash.** The course-mismatch
+  message is three paragraphs of what happened and which of the two ways out
+  applies, and it arrived under a Node unhandled-rejection dump, where the
+  sentence telling you to run `reset-sync-state` sat between a source excerpt
+  and twelve frames of commander. Every deliberate stop now prints as its
+  message and exits 1. Anything the tool did not mean keeps its stack, because a
+  `TypeError` in the planner is a bug report and a bug report is its frames.
+  `--verbose` still reaches the stack for both.
+- **An emptied date in the frontmatter clears it on Canvas.** `due_at`,
+  `lock_at`, `unlock_at`, `delayed_post_at`: writing the key with nothing after
+  it now sends an explicit null, where before it was indistinguishable from
+  never having written the key, so Canvas kept the old date forever and the
+  markdown quietly disagreed with the course from then on. Leaving the key out
+  still means "keep what you have", which is what makes this safe for a course
+  whose frontmatter has never mentioned a date. See
+  [Clearing a date](docs/frontmatter.md#clearing-a-date).
 - **Everything the tool writes under `course/` comes out Prettier-formatted.**
   Pull used to hand back markdown in whatever shape the converter produced, so
   the first `npm run format` after a pull rewrote half the course and buried the
