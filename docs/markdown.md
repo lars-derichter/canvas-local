@@ -54,7 +54,11 @@ These references work across all three layers:
   rewritten to Canvas file URLs. Files in `_files/` are NOT added as module
   items — they only appear inline.
 - **Pull from Canvas** — Canvas file URLs are downloaded to `_files/` and
-  converted back to relative paths.
+  converted back to relative paths. A download onto a path git reports as
+  modified or untracked is refused instead, and refused whole: no sync-state row
+  is written and the URL in the page is left as it is, so the page still renders
+  Canvas's copy rather than pointing at a local file that was never fetched. See
+  [`(git-dirty)` under Skipped](troubleshooting.md#git-dirty-under-skipped).
 
 ### Linking to `.html` Files
 
