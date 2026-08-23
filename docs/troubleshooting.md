@@ -205,11 +205,13 @@ Two ways out, and which one is right depends on what you meant:
   This is the usual case: a `CANVAS_COURSE_ID=` you edited to try something, a
   one-off override that wrote the sync file, or, now that the sync file is
   committed, a clone or a branch that arrived already describing another course.
-- **You did mean to switch.** Run `npx course reset-sync-state`, then push. The
-  new course gets everything fresh, so check that it does not already hold a
-  copy — push cannot recognise content it has no ids for, and you would end up
-  with two of each. If the new course was seeded with Canvas's own Course Copy,
-  its ids are new too, so the reset is required either way.
+- **You did mean to switch.** Run `npx course reset-sync-state`, then push.
+  Check first whether the new course already holds a copy. Push adopts by type
+  and exact title, so anything that matches is claimed rather than copied, but
+  anything that does not — a title that differs between the two sides, an item
+  whose type changed — is created alongside what is already there. If the new
+  course was seeded with Canvas's own Course Copy, its ids are new too, so the
+  reset is required either way.
 
 `npx course init` also settles it, and settling it is what it is for: point it
 at the new course and it drops the old course's mappings rather than filing them
