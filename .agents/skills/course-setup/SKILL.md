@@ -63,11 +63,14 @@ confirmed and change only what the author asks for.
    tries to prompt:
 
    ```bash
-   npx course setup --yes --language <lang> --title <title> \
+   npx course setup --yes --language <lang> --title <title> --tagline <text> \
      --theme <name> --export-style <name> \
      --readme <copy|keep> --course-context <copy|keep> \
      --writing-style <variant|keep> --tutorial <keep|remove>
    ```
+
+   `--tagline` is the only way to set the descriptor under `--yes`; leave the
+   flag out and whatever `course.config.yml` already holds stands.
 
    Report what it wrote and what it left alone. If it refused a destination, do
    not work around it by writing the file yourself — tell the author and ask.
