@@ -195,6 +195,11 @@ because sync needs one canonical form of every file under `course/`. A page
 whose bytes disagreed with Prettier's would read as changed on the next run and
 be pushed straight back, unaltered.
 
+One write is deliberately outside that: the `title:` line a run splices into a
+file that declares none (see [Canvas Sync](#canvas-sync) below). The rest of
+that file is yours and the run had otherwise only read it, so formatting it
+would put changes you never made into your working tree.
+
 So `.prettierignore` cannot keep Prettier out of `course/`. It still works for
 the folders the tool never writes to:
 

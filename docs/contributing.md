@@ -159,6 +159,13 @@ config, which is why `prettier` is a runtime dependency and not a development
 one: sync fingerprints files by their contents, so it needs a single canonical
 form of each. Changing an option above changes what a pull writes.
 
+One write is carved out of that. `writeTitleIfAbsent` in `lib/sync/apply.js`
+splices a `title:` line into a file that declares none, through
+`insertFrontmatterKey`, and formats nothing: the rest of the file is the
+author's and the run had otherwise only read it, so reformatting it would put
+changes they never made into their working tree. It costs nothing against
+`prettier --check`, because the option above leaves frontmatter alone.
+
 `.editorconfig` covers the file types Prettier cannot parse —
 `update-from-upstream.sh`, `export-styles/filter.lua`, the Typst templates.
 
