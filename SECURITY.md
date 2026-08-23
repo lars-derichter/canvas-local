@@ -49,9 +49,13 @@ The most sensitive thing this project touches is your own Canvas API token. It
 acts with your full Canvas permissions — for a lecturer that means every course
 you can edit, and for an admin it means considerably more.
 
-- The token lives in `.env`, which is gitignored. So is `.canvas-sync.json`,
-  which records Canvas IDs for your course. Neither belongs in a commit. See
+- The token lives in `.env`, which is gitignored and is the only file in this
+  project holding a credential. It does not belong in a commit. See
   [Canvas setup](docs/canvas-setup.md).
+- `.canvas-sync.json` is committed on purpose and carries no credential: Canvas
+  ids, your instance URL, the course id. None of that is secret, but it does
+  name your institution and which course you are working on, which is worth
+  knowing before you make a course repository public.
 - Never paste a token into an issue, a pull request, a screenshot, or a log
   excerpt. `--verbose` output can contain request details, so read it before you
   share it.
