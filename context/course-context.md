@@ -13,7 +13,7 @@
 > you for the rest) or edit it by hand; a section left on `TODO` counts as
 > unanswered, and a skill that needs it will ask and offer to save the answer
 > here; `/course-context-update` folds a working session's decisions in
-> afterwards. Write it in whichever language you and your assistant work in —
+> afterwards. Write it in whichever language you and your assistant work in.
 > Dutch courses can copy
 > [`templates/course-context-nl.md`](../templates/course-context-nl.md) over
 > this file first. Keep the file in `protected_files` in
@@ -37,7 +37,7 @@ TODO
 of the course. List them here, or point to the document that holds them, and
 state which programme or curriculum competencies each one concretises. Also
 give the numbering scheme and the exact notation lesson plans, modules and
-evaluations use to reference a goal (e.g. `LG3`) — /coverage-map,
+evaluations use to reference a goal (e.g. `LG3`): /coverage-map,
 /evaluation-design and /rubric-build match on that notation. A lesson's own
 goals are concretisations of these, not a parallel list; say here how a lesson
 goal points back at the course goal it serves. -->
@@ -50,7 +50,7 @@ TODO
 (exam, test, portfolio, project), when it falls, its weight in the final grade,
 the question formats the course uses, the aids students may bring (open or
 closed book, IDE, cheat sheet), and which goals it covers. State the alignment
-rule the course holds itself to — for example that every goal is assessed at
+rule the course holds itself to, for example that every goal is assessed at
 least once, and that no goal is assessed above the level at which it was
 practised. Evaluation material lives in `evaluations/<year>/`; name the most
 recent one as the worked example. -->

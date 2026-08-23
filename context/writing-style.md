@@ -31,8 +31,8 @@ Everything else in the repository belongs to the tooling project, not to your
 course: `README.md`, `AGENTS.md`, and the guides in `docs/`. They follow the
 colleague-facing register plus the rules in
 [Contributing](../docs/contributing.md#documentation-style), and they are not
-yours to restyle — an upstream update overwrites them. Change your course's
-voice here; leave those alone.
+yours to restyle: an upstream update overwrites them. Change your course's voice
+here; leave those alone.
 
 The rest of this guide splits into **shared rules** (apply to both),
 **student-facing**, and **colleague-facing**.

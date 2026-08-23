@@ -19,8 +19,8 @@ sidebar_position: 0
     - waar wat te vinden is: de modules, het rooster, de software die ze nodig
       hebben
 
-  Deze pagina wordt niet naar Canvas gesynchroniseerd — alleen modulemappen
-  gaan die kant op — dus je mag ze gebruiken voor wat iemand op de site ook
+  Deze pagina wordt niet naar Canvas gesynchroniseerd (alleen modulemappen
+  gaan die kant op), dus je mag ze gebruiken voor wat iemand op de site ook
   maar helpt.
 -->
 

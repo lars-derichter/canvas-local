@@ -40,7 +40,7 @@ TODO
 kan. Zet ze hier, of verwijs naar het document dat ze bevat, en vermeld welke
 competenties van de opleiding of het curriculum elk doel concretiseert. Geef ook
 de nummering en de exacte notatie waarmee lesplannen, modules en evaluaties naar
-een doel verwijzen (bv. `LD3`) — /coverage-map, /evaluation-design en
+een doel verwijzen (bv. `LD3`): /coverage-map, /evaluation-design en
 /rubric-build zoeken op die notatie. De leerdoelen van een les zijn
 concretiseringen van deze doelen, geen aparte lijst; beschrijf hier hoe een
 lesdoel terugverwijst naar het cursusdoel dat het dient. -->
@@ -53,7 +53,7 @@ TODO
 portfolio, project), wanneer het valt, het gewicht in het eindcijfer, de
 vraagvormen die de cursus gebruikt, de hulpmiddelen die studenten mogen
 gebruiken (open of gesloten boek, IDE, spiekbriefje) en welke doelen het dekt.
-Vermeld ook de alignmentregel die de cursus zichzelf oplegt — bijvoorbeeld dat
+Vermeld ook de alignmentregel die de cursus zichzelf oplegt, bijvoorbeeld dat
 elk doel minstens één keer geëvalueerd wordt, en dat geen enkel doel geëvalueerd
 wordt op een hoger niveau dan waarop het ingeoefend is. Evaluatiemateriaal staat
 in `evaluations/<jaar>/`; noem het recentste als uitgewerkt voorbeeld. -->

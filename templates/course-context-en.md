@@ -3,8 +3,8 @@
 > [!TIP]
 >
 > This is the course-context template, in English, and it ships installed as
-> `context/course-context.md` — take this copy only to start that file over.
-> Copy it over `context/course-context.md` and delete this tip. The document
+> `context/course-context.md`. Take this copy only to start that file over. Copy
+> it over `context/course-context.md` and delete this tip. The document
 > describes _your course_: its learning goals, assessment, pedagogy and
 > conventions, so the lesson skills (`/lesson-design`, `/lesson-summarize`,
 > `/lesson-module-build`) work from your material instead of guessing. It is the
@@ -17,7 +17,7 @@
 > `TODO` counts as unanswered, and a skill that needs it will ask and offer to
 > save the answer here; `/course-context-update` folds a working session's
 > decisions in afterwards. Write it in whichever language you and your assistant
-> work in — Dutch-language courses want
+> work in. Dutch-language courses want
 > [`course-context-nl.md`](course-context-nl.md) instead. Keep
 > `context/course-context.md` in `protected_files` in
 > `update-from-upstream.conf`, so
@@ -41,7 +41,7 @@ TODO
 of the course. List them here, or point to the document that holds them, and
 state which programme or curriculum competencies each one concretises. Also
 give the numbering scheme and the exact notation lesson plans, modules and
-evaluations use to reference a goal (e.g. `LG3`) — /coverage-map,
+evaluations use to reference a goal (e.g. `LG3`): /coverage-map,
 /evaluation-design and /rubric-build match on that notation. A lesson's own
 goals are concretisations of these, not a parallel list; say here how a lesson
 goal points back at the course goal it serves. -->
@@ -54,7 +54,7 @@ TODO
 (exam, test, portfolio, project), when it falls, its weight in the final grade,
 the question formats the course uses, the aids students may bring (open or
 closed book, IDE, cheat sheet), and which goals it covers. State the alignment
-rule the course holds itself to — for example that every goal is assessed at
+rule the course holds itself to, for example that every goal is assessed at
 least once, and that no goal is assessed above the level at which it was
 practised. Evaluation material lives in `evaluations/<year>/`; name the most
 recent one as the worked example. -->

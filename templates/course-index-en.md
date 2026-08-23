@@ -18,7 +18,7 @@ sidebar_position: 0
     - how it is assessed
     - where to find things: the modules, the schedule, the software to install
 
-  The page is not synced to Canvas — only module folders are — so it is yours
+  The page is not synced to Canvas (only module folders are), so it is yours
   to use for whatever helps someone landing on the site.
 -->
 
