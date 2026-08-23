@@ -58,6 +58,7 @@ dist/
 # save leaves behind is not.
 .canvas-sync.json.tmp
 exports/
+tmp/
 
 ### AI assistants ###
 .claude/worktrees/
