@@ -213,116 +213,157 @@ while every other key in the local file is preserved verbatim. `quiz_ref` is the
 clearest case: Canvas has never heard of the QTI package, so the key belongs to
 the author and has to survive every pull.
 
-## Push Algorithm
+## The Reconcile Engine
 
-```
-1. Scan course/ directory (course-scanner.js)
-2. Ensure alert icons are uploaded (icons.js)
-3. Build link map from sync state (link-resolver.js)
-4. For each module:
-   a. Read what Canvas holds in the module, and skip the module when any
-      of it has no local counterpart
-   b. Create or update the Canvas module
-   c. Clear existing module items (prevents duplicates on re-push;
-      module items are links — deleting them keeps the content)
-   d. Upload embedded files from _files/ directories
-   e. For each item, by canvas_type:
-      - page / assignment / discussion (authored content):
-        · Convert markdown to HTML (markdown-to-html.js)
-        · Resolve internal .md links to Canvas URLs
-        · Resolve file references to Canvas file URLs
-        · Create or update the Canvas object, then add the module item
-        · Write canvas_id back to frontmatter
-        · Track items with unresolved links
-      - file: upload the binary, then add the module item
-      - external_url: add the module item (the link is the whole item)
-      - external_tool: probe sessionless_launch for the launch URL,
-        warn when no installed tool claims it, add the item either way
-      - quiz (reference only, never created or updated):
-        · Resolve the quiz from canvas_id, else by exact title match
-        · Write the id found back to frontmatter
-        · Skip with the QTI import procedure when nothing matches,
-          or with an ambiguity warning when two quizzes share the title
-   f. Save sync state after each module
-5. Second pass: re-push items with unresolved links
-   (now resolvable because referenced pages exist)
-6. Prune: delete Canvas modules and items removed locally (if --prune-canvas)
-7. Update last_sync timestamp
-```
+`sync`, `push`, `pull` and `status` are one engine with a policy each. There is
+no separate push algorithm and no separate pull algorithm. The engine lives in
+`lib/sync/` and runs in three stages:
 
-The two-pass approach handles circular or forward references. On the first pass,
-links to not-yet-created pages are left unresolved. After all pages exist, a
-second pass updates their HTML with correct links.
+1. **Gather** (`gather.js`). `gatherLocal` scans `course/` through
+   `lib/convert/course-scanner.js` and fingerprints what it finds.
+   `gatherCanvas` reads the course's modules and items and fingerprints those,
+   fetching a body only where a fingerprint genuinely needs one. `gitDirtyPaths`
+   runs one `git status` for the whole run. Every file read and every Canvas
+   request a sync makes happens here, which is what puts the request budget of a
+   run in one place rather than letting it emerge from a call graph.
+2. **Plan** (`plan.js`). One pure function of four arguments: base, local,
+   canvas and policy. No `fs`, no `fetch`, no clock, no randomness. It hands
+   back the actions in execution order, plus one section per row of the report:
+   conflicts, adoptions, orphans, decisions, refusals, pending questions, and
+   the writes the policy withheld.
+3. **Apply** (`apply.js`). Executes the actions, recording a fresh fingerprint
+   for both sides after every write. `canvas-write.js` and `local-write.js` hold
+   the per-type writes for each side.
 
-### The Canvas-Only Guard
+`cli/sync.js`, `cli/push.js`, `cli/pull.js` and `cli/status.js` set a policy,
+ask the questions the planner parked, and print the report. They decide nothing
+else, which is why the four commands agree with each other by construction
+instead of by four implementations happening to match.
 
-Step 4a is what keeps the rebuild from eating content. It reuses the identity
-claims prune works from (`collectLocalClaims`, `isItemClaimed`), which are
-type-scoped: an `assignment:12` claim never answers for a `Quiz` item on id 12.
-Claims are gathered over the whole course, so an item moved to another module —
-even one outside a `--module` filter — is still local. Four types need more than
-an id comparison:
+| Command  | Writes Canvas | Writes `course/` | Both sides changed    | Adopts |
+| -------- | ------------- | ---------------- | --------------------- | ------ |
+| `sync`   | yes           | yes              | newest (`--conflict`) | no     |
+| `push`   | yes           | no               | local wins            | local  |
+| `pull`   | no            | yes              | Canvas wins           | Canvas |
+| `status` | no            | no               | newest wins           | no     |
 
-- **Pages.** A module item names its page by slug, while the local file holds
-  the numeric `page_id`, so the slug is resolved through the course's page list
-  (`buildPageUrlToPageId` in `cli/sync-utils.js`, shared with pull's rename
-  detection). One request answers it for the whole run; a run with no pages to
-  resolve makes none. When the lookup fails, the module is refused rather than
-  guessed at.
-- **External URLs and LTI links.** These exist only as a module item, whose id
-  Canvas reissues on every push, so the launch URL is the identity. The stored
-  id is still tried: Canvas never reuses one, so a match can only be the first
-  push's own item.
-- **Files.** A raw binary carries no frontmatter, so its claim comes from the
-  sync entry push wrote for it, counted only while the local path still exists.
-- **Text headers.** Regenerated from the folder structure on every push, so they
-  are skipped entirely — otherwise every module with a subfolder would refuse
-  forever.
+A write the policy forbids is never emitted as an action, but it is always
+recorded in `withheld`, so a push can say "Canvas changed here and I left it
+alone" rather than losing the fact. `status` is not a separate code path: it is
+the same plan with both write flags off, which leaves the action list empty and
+every report section full.
 
-A refusal records an error like any other push failure: the run continues with
-the remaining modules and ends with a non-zero exit status.
+### Three Inputs, Not Two
 
-## Pull Algorithm
+The third input is the one that does the work: the sync state as the last run
+left it. Comparing the working tree against Canvas can only say that the two
+differ. Comparing each of them against the state at the last sync says which one
+moved, and "changed here", "changed there", "changed on both sides" and "deleted
+here" are four different questions with four different answers.
 
-```
-1. Fetch modules and items from Canvas API
-2. Build reverse link map (Canvas URLs -> relative paths)
-3. Build reverse file map (Canvas file URLs -> local paths)
-4. For each module:
-   a. Detect module folder renames (position/name changed on Canvas)
-      - Match by canvas_module_id in sync state
-      - Rename old folder, migrate sync state keys
-   b. Create local folder if it doesn't exist
-   c. Phase 1 — Compute target state:
-      - Walk Canvas items to assign local positions
-        (separate counters for module-level and subfolder items)
-      - Determine target filenames/folders for each item
-        (every module item type: pages, assignments, discussions,
-         quizzes, external URLs, external tools, files)
-      - File items preserve their original extension
-   d. Phase 2 — Reconcile existing files:
-      - Clean up leftover temp files from previous failed runs
-      - Match Canvas items to existing local files via sync state
-        (page_url for pages, content_id for assignments/files,
-         external_url for links, canvas_id as fallback)
-      - Rename files/folders whose positions changed
-        (two-pass via temp names to avoid collisions,
-         with try/catch recovery on failure)
-      - Update sync state keys to reflect new paths
-   e. Phase 3 — Write content:
-      - Skip existing files that may hold local work
-        (mtime > last_sync, or no last_sync to compare against)
-      - Pages/assignments/discussions: fetch HTML (body, description,
-        message), convert to markdown, resolve Canvas URLs back to
-        relative paths, download embedded files to _files/
-      - External URLs, external tools, quizzes: write frontmatter-only
-        markdown, with no API fetch at all (nothing to fetch: a link
-        carries its own URL, a quiz's questions are not ours to hold)
-      - File items: download binary file from Canvas
-      - SubHeaders: create subfolder with _category_.json
-   f. Save sync state after each module
-5. Update last_sync timestamp
-```
+An item with no base row at all is a fifth case: new on the side it is on. That
+can be true of a whole module on both sides at once, after a
+[`reset-sync-state`](advanced-commands.md) or on a first run against a course
+that already holds a copy, and reconciling it would create a second copy of
+everything and duplicate the module. `detectCollisions` refuses that module
+instead, per module and never for the whole course, so a module that is
+genuinely new on one side does not trip it. A pinned direction is the answer the
+refusal asks for, so `push` and `pull` never reach it.
+
+### Two Fingerprints, Never Compared to Each Other
+
+`fingerprint.js` gives every synced item a `local_hash` and a `canvas_hash`, and
+each side is compared only against its own stored value. The two are computed
+from different things (a file's bytes on one side, a canonical JSON of Canvas
+fields on the other), so comparing them to each other is meaningless and always
+will be. Canvas rewrites markup it is handed, which is why `canvas_hash` is
+taken from the response to a write and never from what was sent: hash the
+request and every later run reports a remote change nobody made.
+
+Neither hash reads an mtime, so both survive a `git clone`, which stamps every
+file it checks out with the checkout time. That is what the old system got
+wrong. Push overwrote Canvas unconditionally, pull refused any file whose mtime
+was later than `last_sync`, and status called a fresh clone an entirely modified
+course.
+
+One decision still reads an mtime, and only one: the `newest` tiebreak, reached
+only for an item where both hashes moved. A Canvas `updated_at` that is missing
+or unparseable gives it to local, and so does a tie, because of the two possible
+mistakes pushing over a remote edit is the one git can undo.
+
+### Adoption, Not Duplication
+
+Under a pinned direction, `planAdoptions` pairs the items neither side has a
+base row for by type and title, so a Canvas object already sitting in the module
+is claimed by the local file that matches it rather than copied beside it. Types
+have to match exactly. A local page does not adopt a Canvas assignment of the
+same name: that is a conversion, and this tool cannot do one. A title carried by
+two items on either side is ambiguous, so nothing is adopted for it and the
+report names them. Everything else in the module is left exactly where it is: a
+quiz you placed by hand, a page that is not in your repository, an LTI link. See
+[Push reconciles a module's item list](limitations.md#push-reconciles-a-modules-item-list)
+for what that means item by item.
+
+Text headers are ordinary items here. They carry a `sub_header` fingerprint over
+their title and indent (`subHeaderHash` in `gather.js`), so one added in Canvas
+is adopted or left alone by the same rules as anything else, and they are no
+longer regenerated from your subfolder names.
+
+### Asking Without Blocking
+
+The planner never prompts and never touches the network, and `--conflict ask` is
+not an exception to that. A conflict it may not settle on its own lands in
+`pending.conflicts` and produces no action; the command asks the author and then
+calls `plan()` a second time with the answer in `policy.resolved`. The same goes
+for a contested order, keyed by module folder, and for a probable rename, keyed
+by the path it came from.
+
+Re-planning is free, because nothing is fetched again. It also means the answer
+is applied to the same course it was asked about, rather than to a state that
+moved on while the terminal waited.
+
+### What a Run Writes Into Your Tree
+
+Pull writes files, and it no longer renames them. A Canvas title lands in the
+file's frontmatter as `title:`, a Canvas module name lands in the folder's
+`_category_.json`, and the filename stays as you left it. The one thing that
+still moves is the numeric prefix, which _is_ the local order: a Canvas-side
+reorder is a `reorder-local-module`, and it renames through temporary names one
+depth at a time, because a reorder routinely moves two files into each other's
+slots. `plan.js` has seven local action types in total: create, update and
+delete for an item, the same three for a module, and that reorder. No local move
+and no local rename among them.
+
+Push writes to Canvas, and the only thing it ever puts into a file is a `title:`
+line, spliced in as text on an item it created or adopted that declares none. No
+file is given a `canvas_id`, ever: identity lives in `.canvas-sync.json`, and
+because `canvas_id` counts as a Canvas-owned frontmatter key, a stale one left
+behind by an older version is dropped on the next pull.
+
+Push still makes a second pass for links. An item whose markdown links to a page
+this run had not created yet is pushed with that link unresolved, and
+`resolvePendingLinks` rewrites it once everything exists — re-recording the
+fingerprint, because a row describing the unresolved version would have every
+later sync see a Canvas-side change nobody made.
+
+### Refusals
+
+A refusal is not a failure of the tool; it is the tool declining to destroy
+something. Three of them matter:
+
+- **Uncommitted local work.** `guardDirty` refuses any write into the working
+  tree over a file `git status` reports as modified or untracked, because git is
+  the only copy of what is in it. Where git cannot answer at all (outside a
+  checkout, or wherever `git` will not run) every file already on disk reads as
+  dirty and a pull writes nothing. `pull --force` is the one lever that switches
+  the guard off, for overwrites and deletes alike, and it asks first whenever
+  there is a guarded file for it to override.
+- **A module that cannot be reconciled.** `detectCollisions`, above.
+- **An item that cannot be placed.** A `quiz` whose title matches no quiz in the
+  course throws, and so does one whose title matches two. Neither is skipped.
+
+A refusal costs that item or that module and nothing else. The run carries on
+with the rest, lists what it refused and why, and exits non-zero.
 
 ## Link Resolution
 
