@@ -183,6 +183,23 @@
   still means "keep what you have", which is what makes this safe for a course
   whose frontmatter has never mentioned a date. See
   [Clearing a date](docs/frontmatter.md#clearing-a-date).
+- **Deleting something locally no longer makes its Canvas object unreachable,
+  and no longer brings it back.** `delete-module`, `delete-item` and
+  `merge-items` each removed the sync row for what they deleted, and that row is
+  the only thing separating "the author deleted this" from "this tool has never
+  seen it". Without it a `sync` read the live Canvas object as new and wrote the
+  module or the item straight back into `course/`, undoing the delete, while
+  `--prune-canvas` reported nothing to remove, because a prune candidate _is_ a
+  base row. `delete-module` also cleared the `state.files` rows for anything the
+  module embedded, and a Canvas file id is global rather than course-scoped, so
+  those files were stranded on the instance for good. The rows now stay: what
+  you deleted is named under `Orphaned on Canvas` until a prune removes it, and
+  when the Canvas object goes too the planner drops the row itself. One case
+  cannot be kept, and it says so out loud. Where the renumber that follows a
+  delete slides a sibling onto the deleted entry's exact name — two items or two
+  modules sharing a slug at different prefixes — one path cannot hold both rows,
+  so the deleted one gives way and the run names every Canvas object that puts
+  out of reach.
 - **Inserting a module keeps the modules it pushes down attached to Canvas.**
   `npx course new-module` at an occupied position renumbers every module above
   it, and it renamed those folders without telling the sync state. The items
