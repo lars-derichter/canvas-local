@@ -69,8 +69,10 @@ folder.
 ## VS Code Extension
 
 `.vscode/extensions/course-manager/` contains a local VS Code extension that
-exposes all CLI commands in the command palette. Install with
-`npm run vscode:install`. See [`docs/vscode.md`](docs/vscode.md).
+exposes the CLI in the command palette, minus three commands: the two
+destructive ones (`reset-canvas` and `reset-sync-state`) and `build-glossary`.
+Those stay in the terminal. Install with `npm run vscode:install`. See
+[`docs/vscode.md`](docs/vscode.md).
 
 ## Architecture
 
@@ -165,10 +167,10 @@ sync, though. A local write puts the Canvas module name into `_category_.json`
 (`writeCategoryFile`) and downloads embedded binaries into `_files/`
 (`downloadReferencedFiles`), both in `lib/sync/local-write.js`.
 
-See [`docs/architecture.md`](docs/architecture.md) for sync algorithms, state
-schema, resilience behaviour, content types, alerts, link resolution, and
-embedded files. Frontmatter fields are documented in
-[`docs/frontmatter.md`](docs/frontmatter.md).
+See [`docs/architecture.md`](docs/architecture.md) for the reconcile engine the
+four sync commands share, state schema, resilience behaviour, content types,
+alerts, link resolution, and embedded files. Frontmatter fields are documented
+in [`docs/frontmatter.md`](docs/frontmatter.md).
 
 ## Skills and Agent Conventions
 
