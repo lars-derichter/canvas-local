@@ -280,7 +280,7 @@ that content already holds student work:
 - **`push --prune-canvas`** flags each doomed assignment in its listing
   (`<-- HAS STUDENT SUBMISSIONS: deletes the gradebook column and every grade in it`),
   counts them in a warning, and names them in the question itself:
-  `Delete these from Canvas, including the student submissions and grades? (y/N)`.
+  `[push] Delete these from Canvas, including the student submissions and grades? (y/N)`.
 - **A graded discussion is checked the same way.** Canvas puts an assignment
   behind the topic and the grades live on that assignment, not on the topic, so
   prune fetches the topic, resolves the assignment behind it and flags the item:

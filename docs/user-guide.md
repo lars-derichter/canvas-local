@@ -368,9 +368,9 @@ only one side reordered keeps that side's order.
 
 A value neither flag recognises is an error rather than a fallback.
 `npx course sync --conflict newst` prints
-`--conflict newst is not one of newest, local, canvas, ask` and exits without
-reading Canvas, because a typo silently degrading to "skip everything" would
-look like a clean run.
+`[sync] Error: --conflict newst is not one of newest, local, canvas, ask.` and
+exits without reading Canvas, because a typo silently degrading to "skip
+everything" would look like a clean run.
 
 #### Deleting What the Other Side No Longer Has
 
