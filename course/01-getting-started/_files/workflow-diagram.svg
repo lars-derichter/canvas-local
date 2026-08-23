@@ -51,19 +51,19 @@
 
   <!-- Legend items -->
   <rect x="60" y="350" width="14" height="14" rx="3" fill="#00283c"/>
-  <text x="80" y="362" font-size="12" fill="#00283c">.md (page) — wiki pages</text>
+  <text x="80" y="362" font-size="12" fill="#00283c">.md (page): wiki pages</text>
 
   <rect x="260" y="350" width="14" height="14" rx="3" fill="#fa6432"/>
-  <text x="280" y="362" font-size="12" fill="#00283c">.md (assignment) — graded work</text>
+  <text x="280" y="362" font-size="12" fill="#00283c">.md (assignment): graded work</text>
 
   <rect x="500" y="350" width="14" height="14" rx="3" fill="#64c8c8"/>
-  <text x="520" y="362" font-size="12" fill="#00283c">.md (url) — external links</text>
+  <text x="520" y="362" font-size="12" fill="#00283c">.md (url): external links</text>
 
   <rect x="60" y="380" width="14" height="14" rx="3" fill="#967dc8"/>
-  <text x="80" y="392" font-size="12" fill="#00283c">images, PDFs, etc. — file uploads</text>
+  <text x="80" y="392" font-size="12" fill="#00283c">images, PDFs, etc.: file uploads</text>
 
   <rect x="260" y="380" width="14" height="14" rx="3" fill="#ffc87d"/>
-  <text x="280" y="392" font-size="12" fill="#00283c">subfolder/ — section headers</text>
+  <text x="280" y="392" font-size="12" fill="#00283c">subfolder/: section headers</text>
 
   <!-- Arrow marker -->
   <defs>
