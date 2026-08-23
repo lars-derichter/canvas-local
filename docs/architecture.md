@@ -399,7 +399,6 @@ URLs, fragment-only links, and non-`.md` links pass through unchanged.
 - Uses `turndown` with atx headings and fenced code blocks
 - Custom rules convert alert divs back to GFM alert syntax
 - Custom rules resolve Canvas internal links and file URLs
-- Strips `&nbsp;` spacer paragraphs after alerts
 
 ## Docusaurus Content Filtering
 
@@ -438,13 +437,20 @@ relative link).
 
 ## Error Recovery
 
-- **Retry**: API calls retry 3 times on 429 (rate limit) and 5xx with
-  exponential backoff.
+- **Retry**: a call that comes back 429 (rate limit) or 5xx is retried up to 3
+  times on top of the first attempt, with exponential backoff, so a failing
+  request is made 4 times before it gives up. A network error is retried the
+  same way with one exception: a `POST` is not, because a dropped connection
+  leaves it unknown whether Canvas processed the request and a duplicate page or
+  assignment is worse than a clean failure.
 - **Rate limiting**: pauses 1 second when `x-rate-limit-remaining` drops
   below 50.
-- **Stale IDs**: 404 responses on update trigger automatic re-creation of the
-  resource.
-- **Incremental save**: sync state is saved after each module, so a crash
-  mid-push doesn't lose all progress.
+- **Stale IDs**: a 404 on updating a page, assignment or discussion means the
+  object was deleted in Canvas, so it is created again. A module is not: a 404
+  there fails the action, and the run reports it.
+- **Saving the state**: the sync state is written once the alert icons are
+  uploaded, again after any action that failed, and again at the end of the run,
+  so a run that dies partway through leaves a state describing what did land
+  rather than one describing neither side.
 - **Atomic writes**: sync file uses write-to-tmp-then-rename to prevent
   corruption.
