@@ -1,7 +1,7 @@
 # Contributing
 
-Found a bug? Have an idea for an improvement? Contributions are welcome —
-whether that's a bug report, a feature suggestion, or a pull request with a fix.
+Found a bug? Have an idea for an improvement? Contributions are welcome, whether
+that's a bug report, a feature suggestion, or a pull request with a fix.
 Everyone taking part is expected to follow the
 [code of conduct](../CODE_OF_CONDUCT.md).
 
@@ -12,20 +12,20 @@ If something isn't working as expected, open an issue on GitHub:
 1. Go to the **Issues** tab on
    [the original Canvas Course Builder project page.](https://github.com/lars-derichter/canvas-course-builder)
 2. Click **New issue**.
-3. Pick the form that fits — bug report, idea, or documentation problem — and
-   fill it in. The forms ask for exactly what's listed below, so you don't have
-   to remember it. "Open a blank issue" is still there for anything that fits
-   none of them.
+3. Pick the form that fits (bug report, idea, or documentation problem) and fill
+   it in. The forms ask for exactly what's listed below, so you don't have to
+   remember it. "Open a blank issue" is still there for anything that fits none
+   of them.
 
 A good issue report includes:
 
-- **A descriptive title** — e.g. "Push fails when module folder contains spaces"
+- **A descriptive title**: e.g. "Push fails when module folder contains spaces"
   rather than "push broken"
 - **What you expected** vs **what actually happened**
-- **Steps to reproduce** the problem — what commands did you run, in what order?
-- **Error messages or screenshots** — copy the full error output from the
+- **Steps to reproduce** the problem: what commands did you run, in what order?
+- **Error messages or screenshots**: copy the full error output from the
   terminal if possible
-- **Your environment** — operating system and Node.js version (`node --version`)
+- **Your environment**: operating system and Node.js version (`node --version`)
   if relevant
 
 > [!TIP]
@@ -38,25 +38,25 @@ A good issue report includes:
 > One exception: if what you found is a security vulnerability, don't open a
 > public issue. Report it privately as described in the
 > [security policy](../SECURITY.md). The same page explains how to handle your
-> Canvas API token — never paste it into an issue or a log excerpt.
+> Canvas API token: never paste it into an issue or a log excerpt.
 
 ## Suggesting Improvements
 
 Have an idea for a new feature or a better workflow? Open an issue the same way,
 but describe:
 
-- **What you'd like** — the feature or change you have in mind
-- **Why it would help** — the use case or problem it solves
-- **How you use Canvas Course Builder today** — this helps prioritise what
+- **What you'd like**: the feature or change you have in mind
+- **Why it would help**: the use case or problem it solves
+- **How you use Canvas Course Builder today**: this helps prioritise what
   matters most
 
-Check the [ideas list](roadmap.md) first — your idea may already be there.
+Check the [ideas list](roadmap.md) first: your idea may already be there.
 
 ## Contributing With a Pull Request
 
 If you'd like to contribute a fix or improvement yourself, follow these steps:
 
-1. **Fork** the original Canvas Course Builder project — on the project page,
+1. **Fork** the original Canvas Course Builder project. On the project page,
    click the **Fork** button in the top-right corner to create a copy under your
    account.
 
@@ -75,8 +75,8 @@ If you'd like to contribute a fix or improvement yourself, follow these steps:
    git commit -m "Fix push failing when module folder contains spaces"
    ```
 
-4. **Test your changes** before submitting — see [Tests](tests.md) for details
-   on the test setup and how to write new tests:
+4. **Test your changes** before submitting (see [Tests](tests.md) for details on
+   the test setup and how to write new tests):
 
    ```bash
    npm start        # check the Docusaurus preview
@@ -92,18 +92,18 @@ If you'd like to contribute a fix or improvement yourself, follow these steps:
    git push -u origin fix-push-spaces
    ```
 
-6. **Open a pull request** — go to your fork on GitHub, and you'll see a banner
+6. **Open a pull request**. Go to your fork on GitHub, and you'll see a banner
    offering to create a pull request. Click **Compare & pull request**. The
    description comes prefilled with a short template; write over the prompts and
    tick the checklist.
 
 ### What Makes a Good Pull Request
 
-- **Keep it focused** — one fix or feature per pull request. Smaller changes are
+- **Keep it focused**: one fix or feature per pull request. Smaller changes are
   easier to review and merge.
-- **Write a clear title and description** — explain what the change does and
-  why. If there's a related issue, mention it (e.g. "Fixes #12").
-- **Test your changes** — make sure `npm run build`, `npm test` and
+- **Write a clear title and description**: explain what the change does and why.
+  If there's a related issue, mention it (e.g. "Fixes #12").
+- **Test your changes**: make sure `npm run build`, `npm test` and
   `npm run lint` pass before submitting, and that `npm run format` leaves
   nothing to change. CI checks the last two.
 
@@ -120,10 +120,10 @@ your contribution is released under the same licence.
 
 Skills follow a shared template, described in
 [Writing your own skills](writing-skills.md). A skill that would help other
-courses is welcome as a pull request; keep it course-agnostic — course facts
-come from `course-context.md` at runtime, never hardcoded — and
-language-agnostic: write the skill in English, take the language it writes _in_
-from `writing-style.md` at runtime, and lead trigger phrases and examples with
+courses is welcome as a pull request; keep it course-agnostic (course facts come
+from `course-context.md` at runtime, never hardcoded) and language-agnostic:
+write the skill in English, take the language it writes _in_ from
+`writing-style.md` at runtime, and lead trigger phrases and examples with
 English before any second language.
 
 If your change renames or removes a skill folder or a docs file, add the old
@@ -137,7 +137,7 @@ Prettier owns formatting and ESLint reports defects, so neither needs to come up
 in review. Run `npm run format` before you commit; `npm run lint` and
 `npm run format:check` both run in CI.
 
-The Prettier config is deliberately small — the defaults already matched the
+The Prettier config is deliberately small. The defaults already matched the
 codebase, so only three options are set:
 
 - `proseWrap: always` wraps prose at 80 characters, the rule the next section
@@ -166,7 +166,7 @@ author's and the run had otherwise only read it, so reformatting it would put
 changes they never made into their working tree. It costs nothing against
 `prettier --check`, because the option above leaves frontmatter alone.
 
-`.editorconfig` covers the file types Prettier cannot parse —
+`.editorconfig` covers the file types Prettier cannot parse:
 `update-from-upstream.sh`, `export-styles/filter.lua`, the Typst templates.
 
 One repo-wide reformat is recorded in `.git-blame-ignore-revs`. GitHub skips it
@@ -183,8 +183,8 @@ case from [`context/writing-style.md`](../context/writing-style.md): Chicago
 title case, capitalising the first and last word plus every major word, and
 lowercasing articles, coordinating conjunctions, and prepositions of three
 letters or fewer. That covers headings you write, not the labels the tooling
-generates — alert titles, link and file cards, and the glossary heading come
-from `lib/config/labels.js` and are sentence case by design.
+generates: alert titles, link and file cards, and the glossary heading come from
+`lib/config/labels.js` and are sentence case by design.
 
 The project's own docs (`docs/`, the README, and `AGENTS.md`) add UK spelling
 (customise, colour), lines wrapped at 80 characters, and the

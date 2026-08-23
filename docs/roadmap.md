@@ -6,7 +6,7 @@ would help you, there are two good routes:
 
 - Build it and open a pull request; see [Contributing](contributing.md).
 - Ask your AI assistant to build the skill for your own course. See
-  [Writing your own skills](writing-skills.md) — most of the skill ideas below
+  [Writing your own skills](writing-skills.md). Most of the skill ideas below
   are within reach of a single AI-assisted session.
 
 ## Skill Ideas
@@ -106,7 +106,7 @@ with `migration_type=qti_converter`, and `settings[insert_into_module_id]` and
 `settings[overwrite_quizzes]` addresses the duplicate-on-reimport problem that
 the [`/quiz-build`](ai-assistants.md) skill warns about. The cost is real: it
 needs a `progress_url` polling loop, and nothing in `lib/canvas/` polls anything
-today — `sleep()` in `lib/canvas/client.js` is not even exported — plus the
+today (`sleep()` in `lib/canvas/client.js` is not even exported), plus the
 `pre_attachment` upload handshake, and the migration does not hand back the new
 quiz id.
 
@@ -117,7 +117,7 @@ takes questions nothing in this repository could rebuild. A prune deletes one
 just as thoroughly and says nothing: an item tracked as
 `canvas_type: assignment` that Canvas holds as a New Quiz is listed as an
 ordinary assignment, under `push --prune-canvas` and `sync --prune-canvas`
-alike. The guard is not what is missing — `refuseQuizBackedDelete` in
+alike. The guard is not what is missing: `refuseQuizBackedDelete` in
 `lib/sync/canvas-write.js` deliberately lets a New Quiz through, and rightly,
 because it really is an assignment and this project manages it as one. The
 sentence is what is missing.

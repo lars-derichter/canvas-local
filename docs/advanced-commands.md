@@ -1,7 +1,7 @@
 # Advanced Commands
 
 Commands for managing sync state and Canvas content. These commands modify state
-destructively — only use them if you know what you are doing.
+destructively. Only use them if you know what you are doing.
 
 > [!WARNING]
 >
@@ -23,10 +23,10 @@ Removes all instance-specific sync artifacts from the local codebase:
    in a markdown file's frontmatter and the `customProps.canvas_module_id` in a
    folder's `_category_.json`. Neither is written any more, and a leftover one
    is a second answer to a question the sync state now owns alone. `canvas_type`
-   is left alone — that is your declaration of what a file should become, not a
+   is left alone: that is your declaration of what a file should become, not a
    record of what Canvas did.
 
-After running this command the project is back to a "never pushed" state — the
+After running this command the project is back to a "never pushed" state: the
 next `push` will create everything fresh on Canvas.
 
 **When to use:**
@@ -77,7 +77,7 @@ content this tool created:
 Deleting an assignment deletes its gradebook column and the student submissions
 on it. Canvas's `/undelete` sometimes brings an assignment back, but the
 submissions frequently do not come with it, so grades are lost for good. Export
-the gradebook first — see [Backing up a Canvas course](backups.md). For which
+the gradebook first. See [Backing up a Canvas course](backups.md). For which
 deletions cost grades and which cost only content, see
 [Destructive operations and student work](limitations.md#destructive-operations-and-student-work).
 
@@ -87,8 +87,8 @@ that linked them do not.
 Quizzes survive because the command skips them, not because it cannot reach
 them. A graded Classic Quiz is two objects in Canvas: the quiz that holds the
 questions, and an assignment that holds its column in the gradebook. That second
-object is returned by the assignments API like any other assignment — flagged
-`is_quiz_assignment: true`, carrying the quiz's id in `quiz_id` — and a `DELETE`
+object is returned by the assignments API like any other assignment (flagged
+`is_quiz_assignment: true`, carrying the quiz's id in `quiz_id`) and a `DELETE`
 on it deletes the quiz, its questions and every submission on it. `reset-canvas`
 leaves those assignments where they are, names them in its output, and keeps
 them out of the count of assignments it is about to delete. A practice quiz has
@@ -100,7 +100,7 @@ assignment, one that launches an LTI tool, with no separate quiz object behind
 it for the guard to protect. Because the line above it promises that quizzes are
 left alone, the command says which kind is which and names every New Quiz it is
 about to delete. Deleting one takes its questions and every submission on it,
-and nothing in this project could rebuild the questions — a New Quiz has no
+and nothing in this project could rebuild the questions. A New Quiz has no
 markdown source here the way an assignment body does.
 
 The command lists what the course holds, names the assignments that students
@@ -127,7 +127,7 @@ because the third is the quiz.
 
 The submission check costs no extra request: Canvas puts
 `has_submitted_submissions` on the assignments the command already listed. When
-Canvas does not answer it — an older instance, a trimmed response — the
+Canvas does not answer it (an older instance, a trimmed response), the
 assignment is reported as `submission status unknown` and the warning says the
 status could not be determined. It is never reported as safe.
 

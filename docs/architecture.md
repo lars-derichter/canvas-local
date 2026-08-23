@@ -12,15 +12,15 @@ course/  (markdown)
    +--> Canvas API (push/pull)
 ```
 
-1. **Markdown source** — `course/` contains numbered folders (modules) with
+1. **Markdown source**: `course/` contains numbered folders (modules) with
    numbered markdown files (items). Frontmatter defines the Canvas type and
    metadata.
 
-2. **Docusaurus** — serves the same `course/` directory as a static site. No
-   transformation needed — relative links and images work natively.
+2. **Docusaurus**: serves the same `course/` directory as a static site. No
+   transformation needed: relative links and images work natively.
 
-3. **Canvas sync** — the CLI converts markdown to HTML (push) or HTML to
-   markdown (pull) and communicates with the Canvas REST API.
+3. **Canvas sync**: the CLI converts markdown to HTML (push) or HTML to markdown
+   (pull) and communicates with the Canvas REST API.
 
 All three layers read `course.config.yml` at the project root through
 `lib/config/course-config.js`: it resolves the course title and tagline, and the
@@ -101,37 +101,37 @@ the content that caused it.
 
 Key properties:
 
-- **canvas_base_url** — the Canvas host, with no `/api/v1` suffix and no
-  trailing slash. `normaliseBaseUrl` in `lib/sync/state.js` puts both this value
-  and the one in `.env` into that shape, so the two can differ by punctuation
-  and still agree.
-- **modules** — keyed by the local folder name; the Canvas module id is a value
+- **canvas_base_url**: the Canvas host, with no `/api/v1` suffix and no trailing
+  slash. `normaliseBaseUrl` in `lib/sync/state.js` puts both this value and the
+  one in `.env` into that shape, so the two can differ by punctuation and still
+  agree.
+- **modules**: keyed by the local folder name; the Canvas module id is a value
   under it. `item_order` is the order the module's items were in at the last
   sync, and it is the base leg of the three-way ordering comparison, so a
   renamed item keeps its slot instead of moving to the end, where it would read
   as a reorder nobody made.
-- **items** — keyed by the item's path under `course/`, with forward slashes on
+- **items**: keyed by the item's path under `course/`, with forward slashes on
   every platform and always beginning with its module's folder name. Path as
   key, Canvas ids as values: the exact inverse of v3, which keyed every item by
   its Canvas identity. Keying on the path is what makes a committed file legible
-  to the person who owns it — you can open it, recognise your own course in it,
+  to the person who owns it: you can open it, recognise your own course in it,
   and repair a row by hand. A key written with the `course/` prefix matches
   nothing and fails silently. Renames do not orphan a row: every command that
   renames re-keys as it goes, and one made by hand is picked up by
   `lib/sync/rename-detect.js`.
-- **local_hash / canvas_hash** — what each side looked like at the last sync.
+- **local_hash / canvas_hash**: what each side looked like at the last sync.
   They are never compared to each other, only each against its own stored value,
   which is how the engine tells "changed here" from "changed there".
-- **icons** — one entry per alert type: the Canvas file id, the preview URL the
+- **icons**, one entry per alert type: the Canvas file id, the preview URL the
   HTML converter embeds, and a fingerprint of the theme the SVG was painted in,
   so a theme change re-uploads the icons and an unchanged theme does not.
-- **files** — embedded file (images, PDFs) Canvas URLs and IDs, plus a SHA-256
+- **files**: embedded file (images, PDFs) Canvas URLs and IDs, plus a SHA-256
   content hash used to re-upload files when their content changes.
-- **last_sync** — stamped at the end of a run that wrote something. Nothing
-  reads it, and no decision depends on it. The only timestamps a decision reads
-  are the file's mtime and Canvas's `updated_at`, and only to break a tie when
-  both sides of an item changed.
-- **schema_version** — the loader reads version 4 only. A file written by any
+- **last_sync**: stamped at the end of a run that wrote something. Nothing reads
+  it, and no decision depends on it. The only timestamps a decision reads are
+  the file's mtime and Canvas's `updated_at`, and only to break a tie when both
+  sides of an item changed.
+- **schema_version**: the loader reads version 4 only. A file written by any
   other version is refused with an error rather than guessed at, because
   misreading the mapping would create duplicates on Canvas. There is
   deliberately no migration from v3, since the two schemas key items
@@ -176,8 +176,8 @@ under. `VALID_CANVAS_TYPES` in `cli/validate.js` is the authoritative set.
 **Authored content**: `page`, `assignment`, `discussion`, `file`. The local file
 is the source of truth. Push creates or updates the Canvas object and overwrites
 what it held; prune deletes the object. The three markdown types share one code
-path — `writeContent` in `lib/sync/apply.js` — parameterised by a strategy
-object (`pageStrategy`, `assignmentStrategy`, `discussionStrategy` in
+path, `writeContent` in `lib/sync/apply.js`, parameterised by a strategy object
+(`pageStrategy`, `assignmentStrategy`, `discussionStrategy` in
 `lib/sync/canvas-write.js`), which supplies the create and update calls, the
 fields to send, and how to read the id and the slug back out of the response.
 
@@ -202,8 +202,8 @@ the module item and never the object behind it.
   and reports `resolves`, `no-match`, or `unknown`. A failed probe is never read
   as a match or as a miss.
 - `external_url` is a plain link. It exists only as a module item, with no
-  Canvas object behind it, so its module item id is its whole identity — and
-  that id survives a push now, because the item list is reconciled rather than
+  Canvas object behind it, so its module item id is its whole identity, and that
+  id survives a push now, because the item list is reconciled rather than
   rebuilt.
 
 Pull writes both kinds. For authored content it converts the Canvas HTML body;
@@ -344,7 +344,7 @@ behind by an older version is dropped on the next pull.
 
 Push still makes a second pass for links. An item whose markdown links to a page
 this run had not created yet is pushed with that link unresolved, and
-`resolvePendingLinks` rewrites it once everything exists — re-recording the
+`resolvePendingLinks` rewrites it once everything exists, re-recording the
 fingerprint, because a row describing the unresolved version would have every
 later sync see a Canvas-side change nobody made.
 
@@ -407,14 +407,14 @@ URLs, fragment-only links, and non-`.md` links pass through unchanged.
 Not all Canvas content types map naturally to Docusaurus pages. Two mechanisms
 handle the mismatches:
 
-**External URL items** — Markdown files with `canvas_type: external_url` have no
+**External URL items**: Markdown files with `canvas_type: external_url` have no
 meaningful body content (they just point to an external URL). The
 `remark-external-url` plugin (`src/plugins/remark-external-url.js`) intercepts
 these during rendering and replaces the entire document body with a styled link
 card showing the URL. The page still appears in the autogenerated sidebar, but
-visitors see only the link — not the raw frontmatter or an empty page.
+visitors see only the link, not the raw frontmatter or an empty page.
 
-**File items** — Files synced from Canvas as binary items (`.svg`, `.pdf`, etc.)
+**File items**: Files synced from Canvas as binary items (`.svg`, `.pdf`, etc.)
 are stored as markdown wrappers with `canvas_type: file` frontmatter and a
 `file_ref` field pointing to the actual binary in `_files/`. The
 `remark-file-item` plugin (`src/plugins/remark-file-item.js`) intercepts these
@@ -422,15 +422,15 @@ during rendering and replaces the document body with a styled file card showing
 a download link. This way file items appear in the Docusaurus sidebar at the
 correct position, matching the Canvas module structure.
 
-**Inline `.html` links** — Docusaurus's built-in `transformLinks` remark plugin
+**Inline `.html` links**: Docusaurus's built-in `transformLinks` remark plugin
 deliberately skips relative links ending in `.md`, `.mdx`, or `.html`, assuming
 they are page references rather than assets. For `.md`/`.mdx` that is correct,
 but it leaves inline `.html` links (e.g. `[starter](_files/starter.html)` on a
 normal page) broken. The `remark-html-links` plugin
 (`src/plugins/remark-html-links.js`) runs before the default plugins and
-rewrites such links — relative, to an existing local `.html`/`.htm` file — into
-an `<a href={require(...)}>` anchor. Webpack then bundles the file. By default
-the anchor gets `target="_blank"`, so the browser renders the file in a new tab;
+rewrites such links (relative, to an existing local `.html`/`.htm` file) into an
+`<a href={require(...)}>` anchor. Webpack then bundles the file. By default the
+anchor gets `target="_blank"`, so the browser renders the file in a new tab;
 with `download: true` in the page's frontmatter it gets a `download` attribute
 instead and the browser saves the file under its original name. External,
 absolute, `@site/`, anchor-only (`.html#…`), and non-existent targets are left
