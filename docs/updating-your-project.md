@@ -226,6 +226,66 @@ generates.
 > rename it before updating. Upstream now ships a file at that path, and the
 > conflict prompt is your only chance to keep yours.
 
+### The Sync State Moved to Schema v4 (One-Off)
+
+Which Canvas object each file is used to be recorded in three places at once: a
+`canvas_id` in the markdown frontmatter, a `customProps.canvas_module_id` in
+each `_category_.json`, and `.canvas-sync.json`. They drifted apart, so the
+first two are gone and `.canvas-sync.json` is the only record left. It is keyed
+by each file's path under `course/`, it carries `schema_version: 4`, and it is
+committed rather than gitignored, because a source of truth belongs in git.
+
+An existing project meets three things after this update:
+
+- **Every command that opens the sync state stops.** A v3 file is not upgraded
+  in place, it is refused:
+
+  ```text
+  .canvas-sync.json has schema_version 3, but this version only reads 4. Run `npx course reset-sync-state` and push again to rebuild it.
+  ```
+
+- **The old keys are still in your tree, and nothing reads them.** `course/` is
+  protected, so the update leaves every `canvas_id` and `canvas_module_id`
+  exactly where it was. They are inert, not harmful, but they are a second
+  answer to a question that now has one.
+- **`git status` shows `.canvas-sync.json` as untracked.** Only
+  `.canvas-sync.json.tmp` is ignored now. Commit the file once it is rebuilt,
+  and commit it alongside the content of every push and pull from then on.
+
+Do what the message says. Back the Canvas course up first
+([Backups](backups.md)), then:
+
+```bash
+npx course reset-sync-state
+npx course push
+```
+
+`reset-sync-state` never opens the state file, so the refusal above does not
+stop it. It asks for confirmation, deletes `.canvas-sync.json`, and strips the
+leftover `canvas_id` and `canvas_module_id` keys on its way through. It touches
+nothing on Canvas: see
+[Advanced commands](advanced-commands.md#reset-sync-state).
+
+The push that follows is the part to watch, because your Canvas course still
+holds everything the old state described and the new state describes nothing.
+Push pins the local copy as the winner, pairs each module with the Canvas module
+of the same name, and pairs each item with the Canvas object of the same type
+and title, claiming what is already there instead of copying it. What it cannot
+pair, it creates. So a page you renamed on one side only, an item whose type you
+changed, or two items in a module sharing one title all end up as a second copy
+on Canvas. Read the report before you assume the course came through clean, and
+run `npx course push --dry-run` first if you would rather see the plan than the
+result. See
+[Push reconciles a module's item list](limitations.md#push-reconciles-a-modules-item-list)
+for what that pairing does item by item.
+
+> [!WARNING]
+>
+> Use `push`, not `sync`, for this first run. With nothing in the state linking
+> the two sides, `sync` cannot tell which copy is newer and refuses every module
+> that holds items on both sides. Push answers that question by pinning a
+> direction, which is exactly what the refusal asks for.
+
 ## Resolving Conflicts
 
 A conflict only happens when a file outside your protected paths was changed
