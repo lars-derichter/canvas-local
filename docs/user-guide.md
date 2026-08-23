@@ -214,7 +214,12 @@ npx course rename-module  # rename a module
 npx course delete-module  # delete a module and renumber remaining
 ```
 
-All commands are interactive and handle renumbering automatically.
+These commands and the item commands below handle renumbering automatically.
+They ask for what they need, and each also takes flags that answer the questions
+instead; `npx course <command> --help` names the ones that command needs. A
+question that reaches the end of its input without an answer ends the run with
+an error and a non-zero exit rather than hanging, so a script has to pass the
+flags.
 
 ### Managing Items
 
