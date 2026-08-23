@@ -2,7 +2,7 @@
 
 Canvas Course Builder includes a set of [AI-assistant](ai-assistants.md) skills
 that take a lesson from rough idea to published Canvas module. Using them is
-optional — you can keep writing modules by hand — but together they form a
+optional (you can keep writing modules by hand), but together they form a
 complete authoring flow.
 
 ## Where to Start
@@ -22,7 +22,7 @@ what they read and hand in                (the module under course/)
 
 This is [backward design](#further-reading): decide the destination and the
 evidence first, and the teaching follows from both. Its companion idea is
-constructive alignment — that goals, assessment and teaching activities should
+constructive alignment: that goals, assessment and teaching activities should
 point at the same thing, and at the same level. A goal phrased as "apply" is not
 served by an exam that only asks students to reproduce.
 
@@ -62,10 +62,10 @@ lesson-plan-NN.md                     (student-facing module)
 The workflow produces material for two audiences, defined in
 [writing-style.md](../context/writing-style.md):
 
-- **Colleague-facing** — the lesson plan and class version under `sources/`.
+- **Colleague-facing**: the lesson plan and class version under `sources/`.
   Written for you and fellow teachers; never served by Docusaurus or synced to
   Canvas.
-- **Student-facing** — the module under `course/`; served by Docusaurus and
+- **Student-facing**: the module under `course/`; served by Docusaurus and
   pushed to Canvas.
 
 ## Course Context
@@ -73,8 +73,8 @@ The workflow produces material for two audiences, defined in
 All lesson skills read [course-context.md](../context/course-context.md) first:
 your course's learning goals, assessment, pedagogy, lesson-plan template, module
 page roles, code-download conventions, glossary, and scope boundaries. Its
-sections follow backward design — goals, then the evidence for them, then the
-teaching that gets students there — so a lesson design starts from the goals it
+sections follow backward design (goals, then the evidence for them, then the
+teaching that gets students there), so a lesson design starts from the goals it
 serves rather than from the topic list. Run `/course-context-init` once to fill
 it in; the skills ask about (and offer to record) anything it doesn't cover yet,
 and `/course-context-update` folds a working session's decisions in afterwards.
@@ -82,18 +82,18 @@ The richer that file, the less the skills need to ask.
 
 ## Steps
 
-1. **Design** — `/lesson-design` turns notes, a "next logical lesson" request,
-   or a Q&A conversation into a full lesson plan at
-   `sources/lessons/lesson-NN.md`. It always proposes a design first — with pros
-   and cons of your ideas and its own — and writes only after you approve.
-2. **Class version** (optional) — `/lesson-summarize` distills the plan into a
+1. **Design**: `/lesson-design` turns notes, a "next logical lesson" request, or
+   a Q&A conversation into a full lesson plan at `sources/lessons/lesson-NN.md`.
+   It always proposes a design first (with pros and cons of your ideas and its
+   own) and writes only after you approve.
+2. **Class version** (optional): `/lesson-summarize` distills the plan into a
    one-page teaching reminder at `sources/lesson-plans/lesson-plan-NN.md`.
-3. **Build** — `/lesson-module-build` converts the plan into a student module
+3. **Build**: `/lesson-module-build` converts the plan into a student module
    under `course/`: overview, content pages, reference cards (if your course
    uses them), summary, glossary page, homework assignment, downloadable code
    archives, and placeholder images with TODO notes. Again design-first,
    write-after-approval.
-4. **Check and publish** — `/proofread` the new pages, preview with `npm start`,
+4. **Check and publish**: `/proofread` the new pages, preview with `npm start`,
    then `npx course push`.
 
 See [ai-assistants.md](ai-assistants.md) for what each skill does in detail.
@@ -139,7 +139,7 @@ _generated_, never hand-written:
   `module_pattern` applied to the folder name (by default the module's numeric
   prefix).
 - `npx course build-glossary --check` verifies the pages are up to date without
-  writing — useful before a push.
+  writing, useful before a push.
 - Regeneration is safe on an already-synced page. Which Canvas page it is lives
   in `.canvas-sync.json`, keyed by the file's path, so rewriting the body cannot
   break the link; and the page's existing frontmatter is carried over rather
@@ -152,32 +152,32 @@ them) or build a module; the pages then follow from one command.
 
 The second link in the chain, and the one it is easiest to leave until it is too
 late to change anything. The same design-first pattern applies: the first three
-skills form a pipeline — `/evaluation-design` produces the approved blueprint,
+skills form a pipeline (`/evaluation-design` produces the approved blueprint,
 `/quiz-build` turns approved questions into a Canvas-import zip, and
-`/rubric-build` adds the grading criteria — but each also works on its own:
+`/rubric-build` adds the grading criteria), but each also works on its own:
 
-- `/evaluation-design` — draft an exam or test, starting from a blueprint matrix
+- `/evaluation-design`: draft an exam or test, starting from a blueprint matrix
   (learning goals × questions × difficulty) that flags over- and under-tested
   goals. It refuses to test what no lesson in scope actually practised.
-- `/rubric-build` — a grading rubric for an assignment, every criterion traced
-  to the assignment text or a learning goal.
-- `/quiz-build` — a QTI package Canvas imports as a quiz, from a question list
-  or straight from your lessons. The questions are import-only, by hand: what
-  syncs is a reference file holding the quiz's place in a module. See
+- `/rubric-build`: a grading rubric for an assignment, every criterion traced to
+  the assignment text or a learning goal.
+- `/quiz-build`: a QTI package Canvas imports as a quiz, from a question list or
+  straight from your lessons. The questions are import-only, by hand: what syncs
+  is a reference file holding the quiz's place in a module. See
   [Limitations](limitations.md#quiz-questions-never-sync).
-- `/coverage-map` — the whole-course picture: which goals are taught, practised,
+- `/coverage-map`, the whole-course picture: which goals are taught, practised,
   and assessed, and where the gaps are. This is the alignment check; run it
   before you write an exam, not after.
 
 Written in full, before the lessons, the blueprint is what a course design
 starts from. Written after, it is a report on what you happened to teach. The
-skills work either way and it is your call — but that is the difference the
-first section of this page is pointing at.
+skills work either way and it is your call, but that is the difference the first
+section of this page is pointing at.
 
 ## After Teaching: The Retro
 
-`/lesson-retro` closes the loop. Right after a lesson, it interviews you — one
-question at a time — about timing, comprehension, what worked, and material
+`/lesson-retro` closes the loop. Right after a lesson, it interviews you (one
+question at a time) about timing, comprehension, what worked, and material
 friction, then folds timing corrections and notes-to-self back into the lesson
 plan and course-wide insights into `course-context.md`. Next year's version of
 the lesson starts better than this year's. Content fixes for the student pages
@@ -188,18 +188,18 @@ picks them up later.
 
 Two report-only sweeps complement the single-file `/proofread`:
 
-- `/consistency-check` — dead links, terms used before their introducing lesson,
+- `/consistency-check`: dead links, terms used before their introducing lesson,
   glossary drift, numbering and frontmatter problems across all modules.
-- `/image-todos` — every placeholder image and image-TODO block still waiting
-  for real artwork.
+- `/image-todos`: every placeholder image and image-TODO block still waiting for
+  real artwork.
 
 For the findings you stumble on yourself while reviewing, `/issue-report` is the
 retail counterpart of those wholesale sweeps: it logs one error or wanted change
 into `sources/issues.md` with at most one question, so you stay in your
-reviewing flow. Later, `/issue-fix` triages the whole queue — checking whether
+reviewing flow. Later, `/issue-fix` triages the whole queue (checking whether
 each fix has wider implications, from the same defect on other pages to a style
-rule that belongs in `writing-style.md` — and applies the fixes after you
-approve its plan.
+rule that belongs in `writing-style.md`) and applies the fixes after you approve
+its plan.
 
 ## Adopting the Workflow Mid-Course
 

@@ -16,12 +16,12 @@ Use standard relative markdown links to reference other course pages:
 
 These links work across all three layers:
 
-- **Docusaurus** — resolved natively as relative links.
-- **Push to Canvas** — automatically converted to Canvas internal URLs (e.g.
+- **Docusaurus**: resolved natively as relative links.
+- **Push to Canvas**: automatically converted to Canvas internal URLs (e.g.
   `/courses/ID/pages/alerts`). On the first push, pages are created first, then
   any items with forward references are updated in a second pass so all links
   resolve in one go.
-- **Pull from Canvas** — Canvas internal URLs are converted back to relative
+- **Pull from Canvas**: Canvas internal URLs are converted back to relative
   markdown paths.
 
 Only `.md` links are transformed. External URLs, fragment-only links
@@ -49,11 +49,11 @@ Reference them with standard markdown syntax:
 
 These references work across all three layers:
 
-- **Docusaurus** — relative paths work natively.
-- **Push to Canvas** — files are uploaded to Canvas file storage and paths are
+- **Docusaurus**: relative paths work natively.
+- **Push to Canvas**: files are uploaded to Canvas file storage and paths are
   rewritten to Canvas file URLs. Files in `_files/` are NOT added as module
-  items — they only appear inline.
-- **Pull from Canvas** — Canvas file URLs are downloaded to `_files/` and
+  items. They only appear inline.
+- **Pull from Canvas**: Canvas file URLs are downloaded to `_files/` and
   converted back to relative paths. A download onto a path git reports as
   modified or untracked is refused instead, and refused whole: no sync-state row
   is written and the URL in the page is left as it is, so the page still renders
@@ -72,8 +72,8 @@ existing local `.html` file opens that file in a new browser tab.
 Open the starter: [starter.html](_files/starter.html)
 ```
 
-To force a download instead — the file saves under its original name rather than
-rendering — set `download: true` in the page's frontmatter. The flag applies to
+To force a download instead (the file saves under its original name rather than
+rendering), set `download: true` in the page's frontmatter. The flag applies to
 every `.html` link on that page:
 
 ```md
@@ -85,7 +85,7 @@ download: true
 Download the starter: [starter.html](_files/starter.html)
 ```
 
-You write a normal relative link — no special syntax — and it works in the
+You write a normal relative link (no special syntax) and it works in the
 Docusaurus preview and on Canvas (uploaded file) alike. The `download` flag only
 affects the preview; on Canvas the link always points to the Canvas file page.
 Only `.html` and `.htm` are affected; `.md`/`.mdx` stay page links, and other
@@ -99,11 +99,11 @@ course scanner never reads one as a module item, and Docusaurus skips them by
 convention. That keeps them out of Canvas as items; it does not keep sync out of
 them, because two of them are where a local write puts things. Examples:
 
-- `_files/` — embedded assets (images, PDFs), and where sync and pull download
+- `_files/`: embedded assets (images, PDFs), and where sync and pull download
   the binaries a Canvas page embeds
-- `_category_.json` — Docusaurus sidebar configuration, and where sync and pull
+- `_category_.json`: Docusaurus sidebar configuration, and where sync and pull
   write the Canvas module name
-- `_draft-notes.md` — any file you want to keep local-only, which nothing here
+- `_draft-notes.md`: any file you want to keep local-only, which nothing here
   writes to
 
 ## Custom Alerts

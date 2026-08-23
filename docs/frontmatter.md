@@ -173,7 +173,7 @@ Two things about this file are load-bearing:
   and matching this file's title exactly, then records the id it found in
   `.canvas-sync.json`. Every push after that goes straight to that id and never
   reads the quiz list again, so a rename in Canvas breaks nothing once the row
-  exists — and breaks the match before it. A title that matches no quiz, and a
+  exists, and breaks the match before it. A title that matches no quiz, and a
   title two quizzes share, are both refusals rather than guesses: the item is
   not placed, the reason is reported, the rest of the run carries on, and the
   run ends non-zero. See [Limitations](limitations.md#quiz-questions-never-sync)
@@ -269,7 +269,7 @@ flag like any other item.
 Non-markdown files dropped directly into a module folder also work: the scanner
 detects them as file items automatically, with the filename as title. They carry
 no frontmatter, so they cannot use the `export` flag; to include one in an
-export, list it by path or add it to a TOC file — see
+export, list it by path or add it to a TOC file. See
 [Exporting to PDF or DOCX](user-guide.md#exporting-to-pdf-or-docx).
 
 ## Adopting an Item You Made by Hand in Canvas
@@ -309,7 +309,7 @@ row in that file is the whole of what adoption does. Give the local file the
 
 4. **Push.** The row names the object without claiming anything about its state,
    so push reads the file as changed and Canvas as unchanged, writes the file up
-   over the Canvas object, and fills in the rest of the row itself — the module
+   over the Canvas object, and fills in the rest of the row itself: the module
    item id, the fingerprints, the slot in `item_order`.
 
 | What Canvas shows | `canvas_type`   | `canvas_id` holds                                |
@@ -326,7 +326,7 @@ row in that file is the whole of what adoption does. Give the local file the
 >
 > This works on a Canvas object that is already an item in the module. Push
 > reads a course through its modules, so an object sitting outside every one of
-> them — a discussion a Course Copy left behind, say — is invisible to it, and a
+> them (a discussion a Course Copy left behind, say) is invisible to it, and a
 > row naming that object reads as an object that was deleted: push writes
 > nothing and reports the file as having lost its Canvas copy. Put the item in
 > the module in Canvas first, and adopt it after that. A quiz in that state
@@ -343,10 +343,10 @@ reference.
 ## Notes
 
 - Fields not recognised by Canvas are silently ignored during push. Only the
-  fields listed above reach Canvas — see
+  fields listed above reach Canvas. See
   [Limitations](limitations.md#which-fields-reach-canvas) for what that leaves
   out.
 - Pull takes the fields above from Canvas, including clearing one that Canvas no
-  longer has, and carries over every other key you added — `export`, `lesson`,
+  longer has, and carries over every other key you added: `export`, `lesson`,
   anything of your own. `quiz_ref` is one of those: Canvas has never heard of
   the QTI package, so a pull leaves the path exactly as you wrote it.
