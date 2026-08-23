@@ -15,14 +15,14 @@ to tell there was one.
 
 `$ARGUMENTS` may hold a path, a target language, the text itself, or nothing.
 Text pasted with the call is the source. Empty: use the file open in the IDE
-when the request plausibly concerns it, otherwise ask what to translate — that
+when the request plausibly concerns it, otherwise ask what to translate. That
 intake question is free.
 
 ## Steps
 
 1. **Identify the source.** In order: an explicit path in `$ARGUMENTS`; text
    pasted with the call; the file open in the IDE; ask. Read a file in full
-   before translating any of it — register, terminology, and the audience are
+   before translating any of it: register, terminology, and the audience are
    properties of the whole document.
 
 2. **Determine the source language**, inferred from the text, with the regional
@@ -34,7 +34,7 @@ intake question is free.
    the source is not in the course language, propose the course language and
    confirm. When the source already is in the course language, ask. The course
    language is the one
-   [`context/writing-style.md`](../../../context/writing-style.md) states —
+   [`context/writing-style.md`](../../../context/writing-style.md) states.
    `course.config.yml`'s `language` key only picks generated labels and cannot
    express a variety. Ask about the variety (Flemish against Netherlands Dutch,
    UK against US English) only when it is unsettled and the text is long enough
@@ -49,7 +49,7 @@ intake question is free.
      colleague-facing rules, with the reading level following the source.
    - Target is not the course language: the source's own register and reading
      level, in ordinary current usage of the target language. Do not carry over
-     the course guide's language-specific rules — its spelling variety, its
+     the course guide's language-specific rules: its spelling variety, its
      heading-case rule, its list of AI tells all describe another language.
    - Register genuinely unclear: use the colleague-facing one.
 
@@ -71,8 +71,8 @@ intake question is free.
    headings, link text, alt text, table cells, captions, and code comments where
    the comment-language rule in
    [`context/course-context.md`](../../../context/course-context.md) calls for
-   it. Terms the course deliberately keeps in another language stay as they are
-   — the course glossary and writing-style.md's terminology rule decide, and
+   it. Terms the course deliberately keeps in another language stay as they are.
+   The course glossary and writing-style.md's terminology rule decide, and
    neither permits inventing a house translation for a term a student meets in
    the tooling.
 
@@ -86,14 +86,14 @@ intake question is free.
    every fact, number, name, condition, qualification, negation, and hedge in
    the source is present in the translation, and nothing is present that the
    source did not carry. Repair what drifted. Then read the translation on its
-   own, as if it were an original, for translated feel and AI tells — literal
+   own, as if it were an original, for translated feel and AI tells: literal
    idioms, calqued collocations, the source language's sentence rhythm,
    decorative tricolons, bold scattered through prose, a closing summary the
    source never had. The target language's tells govern; when the target is the
    course language, writing-style.md lists them.
 
 10. **Deliver.** A fragment goes to chat. For a file, propose a destination and
-    ask before writing anything — the default suggestion is the source's own
+    ask before writing anything: the default suggestion is the source's own
     folder with a language suffix (`03-methods.md` → `03-methods.nl.md`). When
     the source is under `course/` or `evaluations/`, say in that same question
     that a copy there becomes a separate page to the course scanner and to
