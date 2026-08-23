@@ -131,7 +131,7 @@ program
   .description('Move a course module to a different position')
   .option(
     '-m, --module <folder>',
-    'Module folder name (skips the interactive prompt)',
+    'Module folder name (with --position, skips the interactive prompts)',
   )
   .option('-p, --position <number>', 'New position')
   .action(require('./move-module'));
@@ -141,7 +141,7 @@ program
   .description('Rename a course module')
   .option(
     '-m, --module <folder>',
-    'Module folder name (skips the interactive prompt)',
+    'Module folder name (with --name, skips the interactive prompts)',
   )
   .option('-n, --name <name>', 'New module name')
   .action(require('./rename-module'));
@@ -166,7 +166,7 @@ program
   )
   .option(
     '-m, --module <folder>',
-    'Module folder name (skips the interactive prompts)',
+    'Module folder name (with --type, skips the interactive prompts)',
   )
   .option(
     '-s, --subsection <folder>',
@@ -176,7 +176,7 @@ program
     '-t, --type <type>',
     'Item type: page, assignment, url, subsection, file',
   )
-  .option('-n, --name <name>', 'Item name')
+  .option('-n, --name <name>', 'Item name (required unless --type is file)')
   .option('-p, --position <number>', 'Position (default: after the last item)')
   .option('--url <url>', 'External URL (for type url)')
   .option('--points <number>', 'Points possible (for type assignment)')
@@ -186,14 +186,20 @@ program
 program
   .command('move-item')
   .description('Move an item to a new position within its module')
-  .option('--path <path>', 'Path to the item (skips the interactive prompts)')
+  .option(
+    '--path <path>',
+    'Path to the item (with --position, skips the interactive prompts)',
+  )
   .option('-p, --position <number>', 'New position')
   .action(require('./move-item'));
 
 program
   .command('movetomodule-item')
   .description('Move an item to a different module')
-  .option('--path <path>', 'Path to the item (skips the interactive prompts)')
+  .option(
+    '--path <path>',
+    'Path to the item (with --to-module, skips the interactive prompts)',
+  )
   .option('--to-module <folder>', 'Destination module folder name')
   .option('--to-subsection <folder>', 'Destination subsection folder name')
   .option(
@@ -205,7 +211,10 @@ program
 program
   .command('rename-item')
   .description('Rename an item in a module')
-  .option('--path <path>', 'Path to the item (skips the interactive prompts)')
+  .option(
+    '--path <path>',
+    'Path to the item (with --name, skips the interactive prompts)',
+  )
   .option('-n, --name <name>', 'New item name')
   .action(require('./rename-item'));
 
@@ -222,16 +231,25 @@ program
 program
   .command('merge-items')
   .description('Merge two items in a module into one')
-  .option('-s, --source <path>', 'Path to source file (appended, then deleted)')
+  .option(
+    '-s, --source <path>',
+    'Source file, appended then deleted (with --target, skips the interactive prompts)',
+  )
   .option('-t, --target <path>', 'Path to target file (keeps frontmatter)')
   .action(require('./merge-items'));
 
 program
   .command('split-item')
   .description('Split an item at a given line into two files')
-  .option('-f, --file <path>', 'Path to the file to split')
+  .option(
+    '-f, --file <path>',
+    'Path to the file to split (with --line, skips the interactive prompts)',
+  )
   .option('-l, --line <number>', 'Line number to split at')
-  .option('--title <name>', 'Title for the new second file')
+  .option(
+    '--title <name>',
+    'Title for the new second file (only read with --file and --line)',
+  )
   .action(require('./split-item'));
 
 program
