@@ -15,19 +15,31 @@ npm test
 Tests live in `test/` and mirror the layout of the source directories they
 cover: `test/canvas/` for `lib/canvas/`, `test/cli/` for `cli/`, `test/config/`
 for `lib/config/`, `test/convert/` for `lib/convert/`, `test/export/` for
-`lib/export/`, `test/plugins/` for `src/plugins/`, and `test/vscode/` for the
-bundled VS Code extension. Each file is named after what it covers, e.g.
-`test/convert/course-scanner.test.js` or `test/cli/push-helpers.test.js`.
+`lib/export/`, `test/sync/` for `lib/sync/`, `test/plugins/` for `src/plugins/`,
+and `test/vscode/` for the bundled VS Code extension. Each file is named after
+what it covers, e.g. `test/convert/course-scanner.test.js` or
+`test/cli/push-helpers.test.js`.
+
+Two directories break that pattern. `test/helpers/` holds no tests: it is the
+shared `canvas-mock.js`, which stands in for the Canvas API over `fetch`, and
+`prettier-config.js`, which gives a temporary course tree the same Prettier
+settings the repo has, so a write in a test formats the way it does in
+production. And `test/source-hygiene.test.js` sits at the root because it covers
+the whole source tree rather than one directory.
 
 Coverage spans the config layer (`lib/config/`), the conversion layer
-(`lib/convert/`), the export layer (`lib/export/`), the Canvas HTTP client and
-helpers (`lib/canvas/`), CLI command helpers (`cli/`), the Docusaurus remark
-plugins (`src/plugins/`), and the local VS Code extension
-(`.vscode/extensions/course-manager/`). Tests that exercise filesystem behaviour
-(`course-scanner`, `merge-items`, `split-item`, `renumber`, `pull-helpers`)
-create a temporary directory with fixture files and clean it up afterwards. The
-export tests stay CI-safe by never spawning pandoc or Typst — `preflight` takes
-an injectable exec, and the rest operate on strings.
+(`lib/convert/`), the export layer (`lib/export/`), the reconcile engine
+(`lib/sync/`), the Canvas HTTP client and helpers (`lib/canvas/`), CLI command
+helpers (`cli/`), the Docusaurus remark plugins (`src/plugins/`), and the local
+VS Code extension (`.vscode/extensions/course-manager/`). `test/sync/` is the
+largest of these, with one file per stage of the engine: `gather`,
+`fingerprint`, `plan`, `apply-plan`, `canvas-write`, `local-write`,
+`rename-detect` and `state`, plus `apply-embedded-files` and `apply-file-items`
+for the two write paths that need a filesystem. Tests that exercise filesystem
+behaviour (`course-scanner`, `merge-items`, `split-item`, `renumber`,
+`pull-command`) create a temporary directory with fixture files and clean it up
+afterwards. The export tests stay CI-safe by never spawning pandoc or Typst —
+`preflight` takes an injectable exec, and the rest operate on strings.
 
 ## Manual End-to-End Checks
 
