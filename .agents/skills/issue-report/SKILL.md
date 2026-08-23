@@ -1,6 +1,6 @@
 ---
 name: issue-report
-description: Quickly log an error or wanted change in course material into the issue queue at sources/issues.md — locates the file, quotes the passage to confirm, asks at most one clarifying question, and never diagnoses or fixes anything (that is /issue-fix). Use for "report issue", "log this for later", "found a mistake on page X", "issue melden", "noteer deze fout", "dit wil ik nog aanpassen".
+description: Quickly log an error or wanted change in course material into the issue queue at sources/issues.md: locates the file, quotes the passage to confirm, asks at most one clarifying question, and never diagnoses or fixes anything (that is /issue-fix). Use for "report issue", "log this for later", "found a mistake on page X", "issue melden", "noteer deze fout", "dit wil ik nog aanpassen".
 ---
 
 # Issue Report
@@ -13,13 +13,13 @@ way.
 
 ## Input
 
-`$ARGUMENTS` is free-form: a description of the problem, plus any locator — a
+`$ARGUMENTS` is free-form: a description of the problem, plus any locator: a
 repo path, a page title as rendered on the Docusaurus site or in Canvas, a
 module or lesson number, or a quoted snippet of the offending text. The author
 is usually reading the rendered site, not the raw file: rendered titles come
 from frontmatter `title:` or the first heading, and numeric prefixes are
-stripped (`03-methods` renders as "Methods"). Empty means ask what to report —
-that intake question does not count against the question budget below.
+stripped (`03-methods` renders as "Methods"). Empty means ask what to report.
+That intake question does not count against the question budget below.
 
 ## Steps
 
@@ -32,14 +32,13 @@ that intake question does not count against the question budget below.
 
 2. **Pin the passage.** Find the disputed text in the located file and quote it
    exactly as it stands there, not as the author paraphrased it. The verbatim
-   quote is the anchor `/issue-fix` will use — line numbers drift, quotes do
-   not.
+   quote is the anchor `/issue-fix` will use: line numbers drift, quotes do not.
 
-3. **Ask at most one clarifying question** — only when the file or the passage
+3. **Ask at most one clarifying question**, only when the file or the passage
    stays ambiguous (several candidate files, no match for the quoted text,
    several matches). Present the candidates as options; if both file and passage
    are open, combine them in that one question. Still unresolved after the
-   answer: log anyway with the best guess and a `location unverified` marker —
+   answer: log anyway with the best guess and a `location unverified` marker:
    `/issue-fix` sorts it out.
 
 4. **Classify lightly** from the author's wording, never by asking: `[error]`
@@ -52,7 +51,7 @@ that intake question does not count against the question budget below.
    - An open entry for the same file and passage: say so and offer to extend
      that entry with a dated note instead of adding a second bullet.
    - A resolved entry that matches: check the current file text. If it is
-     already correct, the author is probably looking at a stale rendering — say
+     already correct, the author is probably looking at a stale rendering: say
      so, mention that `npx course push` republishes to Canvas (do not run it),
      and log nothing. If the defect is genuinely back, log a new entry with a
      "regression of <date>" note.
@@ -75,7 +74,7 @@ that intake question does not count against the question budget below.
 7. **Stop.** Never fix, never start diagnosing, never open the affected file for
    editing. Close with one sentence: `/issue-fix` works the queue. For a
    `[style]` entry, add one more: `/writing-style-update` can make the
-   preference a durable rule in `context/writing-style.md` — the logged entry
+   preference a durable rule in `context/writing-style.md`: the logged entry
    covers only this one instance.
 
 ## Rules

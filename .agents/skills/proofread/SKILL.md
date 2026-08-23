@@ -13,7 +13,7 @@ Report findings grouped by severity; never auto-fix without confirmation.
 ## Input
 
 `$ARGUMENTS` may hold a path. If empty, use the file open in the IDE when it is
-visible in the context; otherwise ask. Only proceed for `.md` files — for other
+visible in the context; otherwise ask. Only proceed for `.md` files. For other
 extensions, stop and explain.
 
 ## Steps
@@ -27,16 +27,16 @@ extensions, stop and explain.
    example for the colleague-facing register.
 
 2. **Read `context/writing-style.md` in full.** Apply the shared rules plus the
-   section matching the register. writing-style.md is the authoritative ruleset
-   — do not invent rules it does not contain, and do not assume a language it
-   does not state. Note what it says about heading case, address form, and
-   regional variety before running any check below; those differ per guide, and
-   the shipped baselines disagree with each other on all three.
+   section matching the register. writing-style.md is the authoritative ruleset:
+   do not invent rules it does not contain, and do not assume a language it does
+   not state. Note what it says about heading case, address form, and regional
+   variety before running any check below; those differ per guide, and the
+   shipped baselines disagree with each other on all three.
 
 3. **Mechanical checks** with `grep -n` on the file; discard hits inside code
    blocks, inline code, URLs, frontmatter, and HTML comments (they are not the
    document's prose). Check at least:
-   - Em-dashes (`—`) — always a violation unless the dash itself is the quoted
+   - Em-dashes (`—`): always a violation unless the dash itself is the quoted
      subject.
    - Every literal phrase writing-style.md lists under its AI-tells section,
      plus any regional or vocabulary blacklist it carries (the English baselines
@@ -77,14 +77,14 @@ extensions, stop and explain.
 6. **Report in three severity buckets**, each finding as
    `line | quoted text | diagnosis | proposed replacement`, diagnoses of one
    short sentence:
-   - **Must fix** — hard writing-style.md violations: em-dashes, the wrong
+   - **Must fix**. Hard writing-style.md violations: em-dashes, the wrong
      heading case, a forbidden address form, register mismatch.
-   - **Strongly suggest** — spelling, grammar, translated-sounding phrasing, AI
+   - **Strongly suggest**: spelling, grammar, translated-sounding phrasing, AI
      tells, tricolons, scattered bold.
-   - **Consider** — sentence length, rhythm, trailing summaries.
+   - **Consider**: sentence length, rhythm, trailing summaries.
 
    Name empty buckets explicitly; if all three are empty, say the document is
-   clean and stop — do not invent findings.
+   clean and stop. Do not invent findings.
 
 7. **Offer to apply fixes**: all "must fix", a named selection, or none (the
    default). When applying, use minimal edits, one concern per edit, then re-run

@@ -1,6 +1,6 @@
 ---
 name: image-todos
-description: List all outstanding image work across the course — the transparent placeholder PNGs and image-TODO comment blocks that /lesson-module-build leaves behind. Pure report, writes nothing. Use for "image todos", "placeholder images", "which images do I still have to make", "openstaande afbeeldingen", "welke afbeeldingen moet ik nog maken", "beeldwerk oplijsten".
+description: List all outstanding image work across the course: the transparent placeholder PNGs and image-TODO comment blocks that /lesson-module-build leaves behind. Pure report, writes nothing. Use for "image todos", "placeholder images", "which images do I still have to make", "openstaande afbeeldingen", "welke afbeeldingen moet ik nog maken", "beeldwerk oplijsten".
 ---
 
 # Image Todos
@@ -50,7 +50,7 @@ all of `course/`.
    - Placeholder PNG with no TODO describing it.
    - Placeholder PNG embedded by no page.
    - TODO naming an image file that does not exist in `_files/`.
-   - Embedded image reference whose file is missing — this overlaps with the
+   - Embedded image reference whose file is missing: this overlaps with the
      dead-link check in `/consistency-check`; note that overlap in one line
      rather than duplicating the analysis.
 
@@ -63,7 +63,7 @@ all of `course/`.
    placeholders counted separately if any).
 
    If there are no placeholders and no image TODOs, say the course is
-   image-clean and stop — do not invent findings.
+   image-clean and stop. Do not invent findings.
 
 ## Rules
 
