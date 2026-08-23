@@ -2,7 +2,7 @@
 
 Your course content lives as markdown and is served locally by Docusaurus with
 `npm start`. You can also publish it as a public website on **GitHub Pages** for
-free. This gives your students a stable URL to read the materials — handy as a
+free. This gives your students a stable URL to read the materials, handy as a
 fallback when Canvas is unavailable.
 
 The website only contains your `course/` folder. The `evaluations/` and

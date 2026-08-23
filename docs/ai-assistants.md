@@ -74,8 +74,8 @@ Where `writing-style.md` captures _how you write_,
 [course-context.md](../context/course-context.md) captures _what your course
 is_: subject, learning goals, assessment, pedagogy, lesson-plan conventions,
 module structure, code and download rules, glossary, and scope boundaries. Its
-sections run in backward-design order — what students should be able to do, how
-you will know they can, then how they get there — so the alignment between
+sections run in backward-design order (what students should be able to do, how
+you will know they can, then how they get there), so the alignment between
 goals, assessment and teaching is written down once instead of re-derived per
 skill. The lesson skills read it before generating anything.
 
@@ -245,7 +245,7 @@ project whitelist.
 
   Colour is the one thing these skills do not own outright: it comes from the
   theme in `src/css/themes/`, shared with the preview site and Canvas. A colour
-  change edits the theme, and `reference.docx` alongside it — Word styles cannot
+  change edits the theme, and `reference.docx` alongside it: Word styles cannot
   read the theme. See [Customization](customization.md#branding).
 
 ### Project
@@ -253,8 +253,8 @@ project whitelist.
 - **/course-setup** turns a fresh copy of the template into your course. It
   reads what the repo already settles, asks you the rest in one round, and
   proposes every answer for approval before touching anything. Then it runs
-  `npx course setup` — which writes `course.config.yml` and installs the
-  language-matched templates — and writes the README prose the command cannot
+  `npx course setup` (which writes `course.config.yml` and installs the
+  language-matched templates) and writes the README prose the command cannot
   generate, before handing off to `/course-context-init` and
   `/writing-style-init`. It never connects Canvas for you: `npx course init`
   asks for credentials you type yourself.
@@ -264,15 +264,15 @@ project whitelist.
   writes the doc after per-section confirmation. Re-running is expected;
   existing content is treated as confirmed.
 - **/course-context-update** reviews the current conversation for course-design
-  decisions you settled — a learning-goal notation, an assessment rule, a scope
-  boundary, a module convention — and folds them into
+  decisions you settled (a learning-goal notation, an assessment rule, a scope
+  boundary, a module convention) and folds them into
   [course-context.md](../context/course-context.md) as durable facts. It reads
   the document's headings at runtime, so it fills a section still on `TODO` or
   replaces a fact the conversation overtook, and never reorders the sections.
   Writing-style corrections it notices go to `/writing-style-update` instead.
 - **/commit** makes committing safer and more consistent: it reviews the
   changes, stages the appropriate files, and creates a commit following the
-  project conventions — imperative, present tense, verb-first summaries (`Add`,
+  project conventions: imperative, present tense, verb-first summaries (`Add`,
   `Fix`, `Update`), no `feat:`/`fix:` prefixes.
 
 ## Writing Your Own Skills
@@ -281,4 +281,4 @@ The bundled skills don't cover everything, and they don't have to: a skill is a
 plain markdown file, and your assistant can write one for you. See
 [Writing your own skills](writing-skills.md) for the file layout, the shared
 template, and the naming conventions, and the [ideas list](roadmap.md) for
-candidates — most are within reach of a single AI-assisted session.
+candidates. Most are within reach of a single AI-assisted session.

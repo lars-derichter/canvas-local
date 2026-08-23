@@ -20,11 +20,11 @@ icon on the left). It shows a tree view of all modules and items in the
 
 ### Tree Structure
 
-- **Modules** — shown as folders, labelled from `_category_.json` or derived
-  from the folder name. The numeric prefix is shown as a description.
-- **Subheaders** — subfolders within a module, shown as collapsible groups.
-- **Items** — course pages, assignments, discussions, quizzes, external URLs,
-  LTI links, and files. Pages, assignments, external URLs and files each have a
+- **Modules**: shown as folders, labelled from `_category_.json` or derived from
+  the folder name. The numeric prefix is shown as a description.
+- **Subheaders**: subfolders within a module, shown as collapsible groups.
+- **Items**: course pages, assignments, discussions, quizzes, external URLs, LTI
+  links, and files. Pages, assignments, external URLs and files each have a
   distinct icon; the newer types fall back to the page icon for now. Labels come
   from the frontmatter `title` (the same name Canvas and Docusaurus show); the
   filename is shown in the tooltip. Clicking an item opens the file in the
@@ -53,21 +53,21 @@ write yourself: see [Frontmatter](frontmatter.md).
 ### Context Menu
 
 Right-click a module or item to access management commands. The command acts on
-the element you clicked — names, positions, and confirmation are collected
+the element you clicked. Names, positions, and confirmation are collected
 through native VS Code dialogs, and the operation runs the CLI in the background
 (no terminal pops up):
 
-- **New Item / New Module** — create items or modules
-- **Rename / Move** — rename or reorder items and modules (rename pre-fills the
+- **New Item / New Module**: create items or modules
+- **Rename / Move**: rename or reorder items and modules (rename pre-fills the
   current title)
-- **Move Item to Module** — move an item to a different module (or one of its
+- **Move Item to Module**: move an item to a different module (or one of its
   subsections). Subsections themselves can also be moved, but always to a module
-  root — they cannot be nested inside another subsection.
-- **Delete** — delete an item or module, after a modal confirmation
-- **Merge: Set as Source / Merge with Source** — two-step merge: right-click the
+  root: they cannot be nested inside another subsection.
+- **Delete**: delete an item or module, after a modal confirmation
+- **Merge: Set as Source / Merge with Source**, two-step merge: right-click the
   source item first, then right-click the target item to merge them
-- **Export to PDF/DOCX** — export the item (or module). Select several items
-  first — Ctrl/Cmd-click or Shift-click in the tree — to export them together as
+- **Export to PDF/DOCX**: export the item (or module). Select several items
+  first (Ctrl/Cmd-click or Shift-click in the tree) to export them together as
   one combined document. You then pick PDF or Word.
 
 The same commands also work from the command palette; you then pick the module
@@ -80,16 +80,16 @@ state behave exactly like the terminal commands. Full output is available in the
 
 Drag tree items to reorder them:
 
-- **Modules** — drag a module onto another module to change its position. All
+- **Modules**: drag a module onto another module to change its position. All
   modules are renumbered sequentially.
-- **Items** — drag an item within the same module to reorder, or drag it onto a
+- **Items**: drag an item within the same module to reorder, or drag it onto a
   different module or subheader to move it there. Both source and target
   directories are renumbered automatically.
-- **Subsections** — drag a subheader onto another module to move it there, or
+- **Subsections**: drag a subheader onto another module to move it there, or
   onto a sibling subheader / top-level item to reorder it within the module
   root. Subsections are never nested, so dropping one onto an item that lives
   inside a subsection is ignored.
-- **External files** — drag files from Finder or Explorer onto a module,
+- **External files**: drag files from Finder or Explorer onto a module,
   subheader, or item to add them as file items at that location.
 
 Drops are translated into the corresponding CLI commands (`move-module`,
@@ -167,7 +167,7 @@ list for editing and reveals an **Export via TOC** action once it is ready.
 
 | Command                       | Description                                              |
 | ----------------------------- | -------------------------------------------------------- |
-| Export to PDF/DOCX...         | Export the selected item(s) — multi-select combines them |
+| Export to PDF/DOCX...         | Export the selected item(s): multi-select combines them  |
 | Export Module to PDF/DOCX...  | Export a whole module                                    |
 | Course: Export to PDF/DOCX... | Export the full course, only flagged items, or via a TOC |
 | Course: Export via TOC...     | Render the curated `exports/toc.md` after editing it     |

@@ -2,7 +2,7 @@
 
 The bundled [skills](ai-assistants.md) don't cover everything, and they don't
 have to: a skill is a plain markdown file, and your AI assistant can write one
-for you. This page is the reference for doing that — the file layout, the shared
+for you. This page is the reference for doing that: the file layout, the shared
 template, and the naming rules that keep skills predictable for both the reader
 and the model.
 
@@ -68,14 +68,14 @@ predictable for both the reader and the model:
   binaries there and copy them into the repo (cloud-synced folders can reject
   direct writes).
 - **Naming**: `<object>-<verb>`, object first, so skills about the same thing
-  share a prefix and sort together — `/lesson` finds the whole authoring
+  share a prefix and sort together: `/lesson` finds the whole authoring
   pipeline, `/issue` the whole queue. The object comes first because it is what
   you reliably know; which verb an author picked is what you would have to
   guess, and prefix matching only keys on the first segment. The verb comes
   last, from a small vocabulary: `design` for gated interactive authoring,
   `build` for generation from an approved source, `init` for building a
-  configuration from ground truth — the repo, an interview, a reference document
-  — and `update` for changing a configuration already in place, whether from a
+  configuration from ground truth (the repo, an interview, a reference document)
+  and `update` for changing a configuration already in place, whether from a
   direct instruction (`/export-style-update`) or from decisions you settled
   during the session (`/writing-style-update`). An `init` skill is not one-shot:
   re-running it after the course changes is expected. `setup` is the one verb
