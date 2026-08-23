@@ -5,8 +5,8 @@ help: git holds every version of what you wrote and nothing at all of what only
 ever existed in Canvas. Canvas itself has an `/undelete` endpoint that sometimes
 brings a deleted assignment back, though the submissions frequently do not come
 with it, which makes it a lifeline rather than a plan. So before you point this
-tool at a course that already holds content — a course you taught last year, a
-course a colleague handed over, any course with student work in it — take a
+tool at a course that already holds content (a course you taught last year, a
+course a colleague handed over, any course with student work in it), take a
 backup.
 
 This takes a few minutes once. It is the difference between a bad afternoon and
@@ -33,8 +33,8 @@ single `.imscc` file you download and keep.
 1. Open the course in Canvas and click **Settings** in the course navigation.
 2. In the right-hand sidebar, click **Export Course Content**.
 3. Choose **Course** as the export type and click **Create Export**.
-4. Wait for the export to finish — Canvas emails you when it is ready for a
-   large course — then click the link to download the `.imscc` file.
+4. Wait for the export to finish (Canvas emails you when it is ready for a large
+   course), then click the link to download the `.imscc` file.
 5. Store it somewhere that is not your laptop's Downloads folder.
 
 To restore it, create or open a course, go to **Settings > Import Course
@@ -52,8 +52,8 @@ you have to import before you can look at it.
 
 1. Open the course, click **Settings**, then **Copy this Course** in the
    right-hand sidebar.
-2. Give the copy a name that says what it is —
-   `Backup of Web development 2025-26, before sync` — and set the dates.
+2. Give the copy a name that says what it is
+   (`Backup of Web development 2025-26, before sync`) and set the dates.
 3. Click **Create Course**.
 
 Whether you can do this depends on your Canvas permissions. If the button is not
@@ -67,8 +67,8 @@ push does.
 
 1. Get an empty sandbox course, and put its course ID in `.env` with
    `npx course init` (see [Canvas setup](canvas-setup.md)).
-2. Push, look at the result, fix, push again. Break whatever you like — nobody
-   is enrolled.
+2. Push, look at the result, fix, push again. Break whatever you like. Nobody is
+   enrolled.
 3. When the course looks right, copy it into the real course: open the real
    course, **Settings > Import Course Content > Copy a Canvas Course**, and pick
    the sandbox.
@@ -100,19 +100,19 @@ your markdown. Only a Canvas export or a course copy protects the course.
 The routes above protect different things, and the command you are about to run
 decides which one you need.
 
-| Command                                      | What it can destroy                                                                                                                            | What protects you                               |
-| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| `push`                                       | the Canvas copy of anything a local file tracks, overwritten with what the file says                                                           | a course export or a course copy                |
-| `sync`                                       | the Canvas copy and the local copy of anything the sync state tracks, each replaced by whichever side changed it last                          | a course export or a course copy, plus a commit |
-| `push --prune-canvas`, `sync --prune-canvas` | the Canvas modules, pages, assignments, discussions and files you deleted locally — and, with each assignment or graded discussion, its grades | a course export **and** the gradebook           |
-| `pull --prune-local`, `sync --prune-local`   | the local files and folders Canvas no longer holds                                                                                             | git: a commit                                   |
-| `sync --prune`                               | both prune rows above, in one run                                                                                                              | a course export, the gradebook **and** a commit |
-| `reset-canvas`                               | every module, page, assignment and file in the course, including content this tool never created, and every grade                              | a course export **and** the gradebook           |
-| `pull --force`                               | your local markdown, overwritten with the Canvas version, uncommitted work included; with `--prune-local`, deleted rather than overwritten     | git: a commit, not a Canvas backup              |
+| Command                                      | What it can destroy                                                                                                                           | What protects you                               |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `push`                                       | the Canvas copy of anything a local file tracks, overwritten with what the file says                                                          | a course export or a course copy                |
+| `sync`                                       | the Canvas copy and the local copy of anything the sync state tracks, each replaced by whichever side changed it last                         | a course export or a course copy, plus a commit |
+| `push --prune-canvas`, `sync --prune-canvas` | the Canvas modules, pages, assignments, discussions and files you deleted locally, and (with each assignment or graded discussion) its grades | a course export **and** the gradebook           |
+| `pull --prune-local`, `sync --prune-local`   | the local files and folders Canvas no longer holds                                                                                            | git: a commit                                   |
+| `sync --prune`                               | both prune rows above, in one run                                                                                                             | a course export, the gradebook **and** a commit |
+| `reset-canvas`                               | every module, page, assignment and file in the course, including content this tool never created, and every grade                             | a course export **and** the gradebook           |
+| `pull --force`                               | your local markdown, overwritten with the Canvas version, uncommitted work included; with `--prune-local`, deleted rather than overwritten    | git: a commit, not a Canvas backup              |
 
 The assignment row is the one that bites. A course export carries assignments
 but not submissions or grades, so an export taken before a prune restores the
-assignment as an empty shell — the column comes back without the work in it.
+assignment as an empty shell: the column comes back without the work in it.
 Grades live in one backup only, **Grades > Export**, and that CSV is a record
 rather than a restore: the files students uploaded are not in it, and a deleted
 assignment comes back as a new column you would paste the scores into by hand.
@@ -134,7 +134,7 @@ export is still the only thing that brings a quiz back.
 A **New** Quiz is not one of those. Canvas builds it as an assignment that
 launches an LTI tool, with no separate quiz object behind it, so the guard above
 has nothing to catch and this project manages it as the assignment it is.
-`reset-canvas` deletes it — with its questions and every submission on it — and
+`reset-canvas` deletes it (with its questions and every submission on it) and
 names it in the summary so a count of assignments cannot hide it.
 `--prune-canvas` deletes it too, and lists it as an ordinary assignment. Nothing
 in this repo can rebuild a New Quiz's questions; a course export is the only

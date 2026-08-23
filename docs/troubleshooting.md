@@ -101,7 +101,7 @@ pass can't run without creating real pages.
 
 - Verify the file exists at the path shown in the error.
 - Check that the file isn't too large (Canvas has per-file limits).
-- Ensure the MIME type is supported — see `lib/canvas/files.js` for the full
+- Ensure the MIME type is supported. See `lib/canvas/files.js` for the full
   list.
 
 ## Pull Issues
@@ -143,7 +143,7 @@ pull does to a file it does write, see
   [Limitations](limitations.md#which-canvas-types-sync-and-how-much-of-them).
 - Announcements, rubrics, outcomes and the syllabus page are not module items,
   so pull does not see them at all.
-- Empty pages on Canvas produce empty markdown files — this is normal.
+- Empty pages on Canvas produce empty markdown files. This is normal.
 
 ### Two Canvas Modules That Derive One Folder Name
 
@@ -198,8 +198,8 @@ an occupied position renumbers every module above it, and each of those folder
 names is a key. Each of them refuses before it does anything, so a run that
 stopped changed nothing. The ids in that file only mean something in the course
 they came from, and one of them is not scoped to a course at all: a Canvas file
-id is global, so `push --prune-canvas` — or renaming the binary behind a file
-item, which deletes the Canvas file it replaces — would delete a file belonging
+id is global, so `push --prune-canvas` (or renaming the binary behind a file
+item, which deletes the Canvas file it replaces) would delete a file belonging
 to the other course.
 
 Two ways out, and which one is right depends on what you meant:
@@ -211,8 +211,8 @@ Two ways out, and which one is right depends on what you meant:
 - **You did mean to switch.** Run `npx course reset-sync-state`, then push.
   Check first whether the new course already holds a copy. Push adopts by type
   and exact title, so anything that matches is claimed rather than copied, but
-  anything that does not — a title that differs between the two sides, an item
-  whose type changed — is created alongside what is already there. If the new
+  anything that does not (a title that differs between the two sides, an item
+  whose type changed) is created alongside what is already there. If the new
   course was seeded with Canvas's own Course Copy, its ids are new too, so the
   reset is required either way.
 

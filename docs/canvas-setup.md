@@ -35,7 +35,7 @@ behalf. To create one:
    later.
 6. Optionally set an **Expiry date**. If left blank the token will not expire.
 7. Click **Generate Token**.
-8. **Copy the token immediately** — it will only be shown once. If you lose it,
+8. **Copy the token immediately.** It will only be shown once. If you lose it,
    you will need to generate a new one.
 
 > [!WARNING]
@@ -67,8 +67,8 @@ For more information, see the Canvas documentation:
 
 Once you have all three values, either:
 
-- Run `npx course init` for an interactive setup — `npx course setup` offers
-  this as its last question, so you may have done it already, or
+- Run `npx course init` for an interactive setup (`npx course setup` offers this
+  as its last question, so you may have done it already), or
 - Copy `.env.example` to `.env` and fill in the values manually:
   ```
   CANVAS_API_URL=https://school.instructure.com

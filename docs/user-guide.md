@@ -31,7 +31,7 @@ with the project, so there is nothing else to install.
 > [!WARNING]
 >
 > If you plan to store evaluation materials (exams, tests) in the `evaluations/`
-> folder, make sure your project is **private** — otherwise students can find
+> folder, make sure your project is **private**. Otherwise students can find
 > your materials on GitHub. See
 > [Keeping your project private](git-and-github.md#keeping-your-project-private)
 > for how to change this setting.
@@ -98,8 +98,8 @@ course/
   (e.g. `file_ref: _files/report.pdf`). The binary is uploaded to Canvas as a
   module item. In Docusaurus, a styled file card with a download link is shown
 - Images and files in `_files/` can also be referenced from markdown content
-  (`![Alt](_files/image.png)`) — these are embedded in page content, not added
-  as separate module items
+  (`![Alt](_files/image.png)`): these are embedded in page content, not added as
+  separate module items
 
 ### Evaluations (Private)
 
@@ -141,7 +141,7 @@ labels: # optional per-label overrides on top of the set
 ```
 
 Without a `title`, the site and a full-course export fall back to the generic
-label for the course language ("Course", "Cursus"). Set it — it is the one place
+label for the course language ("Course", "Cursus"). Set it. It is the one place
 that names the course, and unlike `docusaurus.config.js` it survives an upstream
 update.
 
@@ -158,7 +158,7 @@ listed in `protected_files`, so upstream updates never overwrite your choice.
 
 ## Markdown Files
 
-Markdown is a simple way to format text using plain characters — for example,
+Markdown is a simple way to format text using plain characters: for example,
 `**bold**` for **bold** and `# Heading` for a heading. Your course materials are
 written as markdown files, which are just regular text files that end in `.md`.
 
@@ -169,7 +169,7 @@ and the [frontmatter guide](frontmatter.md) for the metadata fields.
 
 `npm run format` runs Prettier over your markdown. It rewraps prose at 80
 characters and normalises list markers, emphasis, table alignment and
-frontmatter. Nothing about the rendered page changes — this is source formatting
+frontmatter. Nothing about the rendered page changes: this is source formatting
 only, and your fenced code blocks are left exactly as you wrote them.
 
 It is worth running, for three reasons:
@@ -185,7 +185,7 @@ It is worth running, for three reasons:
   same fix reports the entire paragraph as changed and you cannot see what you
   actually altered.
 - **It catches markdown that renders wrong silently.** A missing blank line
-  before a list, a misaligned table, stray trailing whitespace — Prettier
+  before a list, a misaligned table, stray trailing whitespace: Prettier
   normalises all of it, so a page behaves the same in the preview and after
   `npx course push`.
 
@@ -277,7 +277,7 @@ npm start          # start Docusaurus dev server
 npm run build      # production build
 ```
 
-You can also publish the preview as a free public website on GitHub Pages — a
+You can also publish the preview as a free public website on GitHub Pages, a
 handy fallback when Canvas is unavailable. See the [hosting guide](hosting.md).
 
 ### Canvas Sync
@@ -318,8 +318,8 @@ named module folders; on `sync`, `pull` and `status` it is repeatable
 
 #### One Engine, Four Commands
 
-Each of the four reads both sides, compares them against `.canvas-sync.json` —
-what was true at the last sync — and works out what changed where. They differ
+Each of the four reads both sides, compares them against `.canvas-sync.json`
+(what was true at the last sync) and works out what changed where. They differ
 in what they may then do about it.
 
 | Command  | Writes to            | When both sides changed one item           |
@@ -373,7 +373,7 @@ only one side reordered keeps that side's order.
   reports no usable timestamp: of the two possible mistakes, writing over Canvas
   is the one git can undo. `ask` stops at each item and asks.
 - **`--order local|canvas|ask`** (default `ask`) settles a module both sides
-  reordered. There is no `newest` here — an order has no timestamp to compare —
+  reordered. There is no `newest` here (an order has no timestamp to compare)
   and only `sync` takes the flag. `push`, `pull` and `status` leave such a
   module in whatever order each side has it and name it in the report.
 
@@ -412,7 +412,7 @@ export brings those back.
 
 #### Running Without a Terminal
 
-A scripted run — CI, a cron job, a command with its input redirected — cannot
+A scripted run (CI, a cron job, a command with its input redirected) cannot
 answer a question. What each flag does then is worth knowing before you put one
 in a script.
 
@@ -460,7 +460,7 @@ materials to a new Canvas course at the start of a new academic year.
 
 ## Exporting to PDF or DOCX
 
-Turn course materials into printable PDFs or editable Word documents — handy for
+Turn course materials into printable PDFs or editable Word documents, handy for
 exams, handouts, and offline review. This needs pandoc (and Typst for PDF); see
 the [optional install step](#getting-started) above.
 
@@ -478,7 +478,7 @@ contents, and a page break between chapters. Output lands in `exports/`
 references (files) in the combined document.
 
 A whole-course export takes its title, and its filename, from `title` in
-`course.config.yml` — `exports/programming-fundamentals.pdf`. A module export is
+`course.config.yml`: `exports/programming-fundamentals.pdf`. A module export is
 titled after the module. `--title "Something else"` overrides both.
 
 For a curated selection, use the two-step **table of contents** flow: generate a

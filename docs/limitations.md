@@ -54,7 +54,7 @@ How push decides which quiz an item means:
 1. The id on the item's row in `.canvas-sync.json`, when it has one. Push goes
    straight to it and never reads the quiz list at all.
 2. Otherwise a quiz item already sitting in that module under the same title,
-   which push claims for the file the way it claims any other object — see
+   which push claims for the file the way it claims any other object. See
    [Push reconciles a module's item list](#push-reconciles-a-modules-item-list).
 3. Otherwise a quiz anywhere in the course whose **title** matches the item's
    title exactly. Push places the item and records the id it found on the row,
@@ -65,7 +65,7 @@ errors rather than skips: the action fails with its reason, the rest of the run
 carries on, and the run exits non-zero.
 
 - **No quiz by that title.** The error is the QTI import procedure, naming the
-  `.zip` in `quiz_ref` — or, when the file names no `quiz_ref` either, saying
+  `.zip` in `quiz_ref`, or, when the file names no `quiz_ref` either, saying
   there is no package to import and asking you to create the quiz under that
   title.
 - **Two quizzes by that title.** The error names every id it found. A second
@@ -78,7 +78,7 @@ Two edges are worth knowing:
 - **`--dry-run` cannot tell you any of this.** Which quiz an item means is
   resolved while the item is written, and a dry run writes nothing, so it never
   reads the quiz list. A quiz item with no row is reported as one push would
-  create — including when the quiz is not in the course and a real push would
+  create, including when the quiz is not in the course and a real push would
   refuse it.
 - **Pull refuses a quiz item that names no quiz.** A Canvas module item whose
   `content_id` is empty, which is what a deleted quiz leaves behind, would
@@ -206,8 +206,8 @@ of object they delete, and only one of those kinds takes student work with it.
   the submissions frequently do not come with it, so the grades are gone for
   good.
 - **`reset-canvas` does that to every assignment in the course**, alongside
-  every module, page and file — except the assignments that are really quizzes,
-  below. See [Advanced commands](advanced-commands.md#reset-canvas).
+  every module, page and file (except the assignments that are really quizzes,
+  below). See [Advanced commands](advanced-commands.md#reset-canvas).
 - **Some assignments are quizzes.** A graded Classic Quiz is two objects: the
   quiz that holds the questions, and an assignment that holds its gradebook
   column. Canvas returns that assignment from the assignments API like any other
@@ -216,22 +216,22 @@ of object they delete, and only one of those kinds takes student work with it.
   does that any more: `reset-canvas` skips those assignments and names them, and
   `push --prune-canvas` refuses to delete one, reports it as an error, and
   leaves it tracked. If a local file claimed `canvas_type: assignment` for an id
-  that Canvas holds as a quiz, that mismatch is yours to settle — delete the
-  quiz in Canvas if that is what you meant. A practice quiz has no gradebook
-  column and never appears among the assignments, so it is never at risk.
+  that Canvas holds as a quiz, that mismatch is yours to settle: delete the quiz
+  in Canvas if that is what you meant. A practice quiz has no gradebook column
+  and never appears among the assignments, so it is never at risk.
 - **A New Quiz is not covered by any of that**, and cannot be: it is genuinely
   an assignment that launches an LTI tool (`is_quiz_lti_assignment: true`, no
   `quiz_id`, no separate quiz object), so this project manages it as the
   assignment it is and both commands delete it like one. That deletes the quiz,
   its questions and every submission on it, and nothing in this repo could
-  rebuild the questions — a New Quiz has no markdown source here the way an
+  rebuild the questions. A New Quiz has no markdown source here the way an
   assignment body does. `reset-canvas` names each one it is about to delete, so
   a count of "n assignments" cannot hide it. `push --prune-canvas` does not: it
   lists the item as an ordinary assignment, which is the one place where the
   warning is thinner than the loss.
 
 Pages and files carry no grades, so pruning one costs you the content and
-nothing else — recoverable from git, or from a course export.
+nothing else, recoverable from git, or from a course export.
 
 ### Deleting a Module Folder Is Safer Than Deleting an Assignment File
 
@@ -260,13 +260,13 @@ Push sends the whole assignment on every update, and three of the fields it
 sends act on work students have already handed in. Canvas applies each one
 silently: its web editor warns about them, its API does not.
 
-- **`points_possible`** — Canvas does not rescale the grades already given. The
+- **`points_possible`**: Canvas does not rescale the grades already given. The
   raw scores stay as they are, so every percentage in that gradebook column
   moves.
-- **`due_at`** — Canvas recomputes late status against the new date, so an
+- **`due_at`**: Canvas recomputes late status against the new date, so an
   automatic late policy re-applies or drops its deductions on submissions that
   are already graded.
-- **`submission_types`** — Canvas accepts this change only while the assignment
+- **`submission_types`**: Canvas accepts this change only while the assignment
   has no submissions. Once there are any it ignores the change, reports the push
   as a success, and keeps the value it holds. Frontmatter and Canvas disagree
   from then on, and nothing but the warning says so.
@@ -299,12 +299,12 @@ that content already holds student work:
   plus any New Quiz among them.
   [Advanced commands](advanced-commands.md#reset-canvas) shows the full output.
 - **`push`** prints one warning per changed field for each of the three fields
-  above, including under `--dry-run` — the only mode where the warning arrives
+  above, including under `--dry-run`, the only mode where the warning arrives
   before the change rather than with it.
 
 Two limits on all of that. A check that fails is reported as unknown, never as
-safe — `SUBMISSION STATUS UNKNOWN`, or "could not determine whether 1 item being
-deleted has student submissions" — and silence from a failed check is not a
+safe (`SUBMISSION STATUS UNKNOWN`, or "could not determine whether 1 item being
+deleted has student submissions"), and silence from a failed check is not a
 clean bill of health, so treat an unknown as a yes. A topic that says it is
 graded but whose assignment Canvas does not list counts as unknown for the same
 reason. And the grade checks cover the two types that can carry a gradebook
@@ -321,7 +321,7 @@ has, and `pull --force` does either over a file that holds uncommitted work. See
 The scanner is strict, and it is quiet about it:
 
 - **Only top-level directories under `course/` are modules.** Loose markdown at
-  the root of `course/` is ignored — including `course/index.md`, which is why
+  the root of `course/` is ignored, including `course/index.md`, which is why
   that file appears on the preview site but never in Canvas.
 - **One level of nesting, and one only.** A subfolder inside a module becomes a
   text header. A folder inside _that_ is **silently dropped**, along with
@@ -427,7 +427,7 @@ See [Frontmatter reference](frontmatter.md) for the fields each type accepts.
 ## Not a Collaboration Tool
 
 The tool assumes one person owns the markdown. Two colleagues can absolutely
-work in one repository — that is what git is for — but there is no locking, and
+work in one repository (that is what git is for), but there is no locking, and
 if you both push to the same Canvas course, the last push wins. Sort out who
 owns which module the way you would sort out who owns which file.
 

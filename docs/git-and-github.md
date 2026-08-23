@@ -3,8 +3,8 @@
 What git and GitHub are, why this project uses them, and the handful of commands
 you need. No prior experience required.
 
-This is the background reading. For the steps in order — install, create the
-project, clone it, publish a module — follow
+This is the background reading. For the steps in order (install, create the
+project, clone it, publish a module), follow
 [Your first course, step by step](first-course.md), which installs git along the
 way.
 
@@ -29,7 +29,7 @@ If you already have a GitHub account, skip ahead to
    username.
 3. Verify your email address when prompted.
 
-That's it — you're ready to use GitHub.
+That's it. You're ready to use GitHub.
 
 ## Installing Git
 
@@ -50,7 +50,7 @@ installed and you can skip ahead to
 
 Download and run the installer from
 [git-scm.com/downloads](https://git-scm.com/downloads). The default settings
-work fine — just click through the installer.
+work fine. Just click through the installer.
 
 After installing, open a new **Command Prompt** or **PowerShell** window and
 verify with `git --version`.
@@ -92,7 +92,7 @@ sudo dnf install git
 
 ## Template Repositories
 
-Canvas Course Builder is a **template repository** — you create your own
+Canvas Course Builder is a **template repository**: you create your own
 independent copy from it. Your project won't affect the original, and you can
 create as many copies as you need, one per course. Later you can still pull in
 improvements to the tooling without touching your content; see
@@ -104,7 +104,7 @@ making that copy.
 ## Keeping Your Project Private
 
 If you plan to store evaluation materials (exams, tests) in the `evaluations/`
-folder, make sure your project is **private** — otherwise students can find your
+folder, make sure your project is **private**. Otherwise students can find your
 materials on GitHub.
 
 You can change your project's visibility in GitHub under **Settings > General >
@@ -123,7 +123,7 @@ your course materials (without exposing `evaluations/`). See the
 As you work on your course materials, use these three commands to save your
 changes:
 
-1. **Stage your changes** — tell Git which files to include in the next save
+1. **Stage your changes.** Tell Git which files to include in the next save
    point:
 
    ```bash
@@ -133,14 +133,13 @@ changes:
    The `.` means "all changed files". You can also add specific files:
    `git add course/01-intro/01-welcome.md`
 
-2. **Commit** — create a save point with a short description of what you
-   changed:
+2. **Commit.** Create a save point with a short description of what you changed:
 
    ```bash
    git commit -m "Add welcome page to intro module"
    ```
 
-3. **Push** — upload your commit to GitHub so it's backed up online:
+3. **Push.** Upload your commit to GitHub so it's backed up online:
 
    ```bash
    git push

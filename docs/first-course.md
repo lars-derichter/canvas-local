@@ -16,11 +16,11 @@ is the honest list of what it will not do.
 
 Three programs, all free, all standard:
 
-- **[VS Code](https://code.visualstudio.com/)** — the editor you will write in.
-- **[Node.js](https://nodejs.org/)** — the engine the tool runs on. You will
+- **[VS Code](https://code.visualstudio.com/)**: the editor you will write in.
+- **[Node.js](https://nodejs.org/)**: the engine the tool runs on. You will
   never use it directly.
-- **[Git](https://git-scm.com/downloads)** — keeps the history of your course
-  and syncs it with GitHub.
+- **[Git](https://git-scm.com/downloads)**: keeps the history of your course and
+  syncs it with GitHub.
 
 And one account: **[GitHub](https://github.com/signup)**, where your course
 lives online.
@@ -34,7 +34,7 @@ On Windows, one checkbox in the installer is worth ticking: **Add to PATH**. It
 is on by default. On macOS, drag the app to your Applications folder, then open
 VS Code and do this once:
 
-1. Press **Cmd+Shift+P** to open the command palette — a search box for
+1. Press **Cmd+Shift+P** to open the command palette, a search box for
    everything VS Code can do. You will use it a lot.
 2. Type `shell command` and choose **Shell Command: Install 'code' command in
    PATH**.
@@ -63,7 +63,7 @@ xcode-select --install
 **Linux:** `sudo apt install git` on Ubuntu or Debian, `sudo dnf install git` on
 Fedora.
 
-Then tell git who you are — this name appears in your course history:
+Then tell git who you are. This name appears in your course history:
 
 ```bash
 git config --global user.name "Your Name"
@@ -119,7 +119,7 @@ before continuing.
 1. On your project's GitHub page, click the green **Code** button and copy the
    HTTPS URL.
 2. Open VS Code. From the **File** menu choose **Open Folder**, and pick (or
-   create) a folder where you keep your work — `Documents`, for example.
+   create) a folder where you keep your work: `Documents`, for example.
 3. Open the terminal with
    **Ctrl+`** and run this, pasting your own URL after `git clone`:
 
@@ -148,7 +148,7 @@ npm start
 ```
 
 Your browser opens at `localhost:3000` showing the built-in **Getting Started**
-module. Leave it running — it updates as you write.
+module. Leave it running. It updates as you write.
 
 > [!NOTE]
 >
@@ -174,7 +174,7 @@ Answer, and it writes the configuration for you.
 
 > [!TIP]
 >
-> `npx` runs a tool that came with the project — nothing extra to install. Every
+> `npx` runs a tool that came with the project: nothing extra to install. Every
 > command in this project starts with `npx course`, and `npx course --help`
 > lists them all.
 
@@ -203,7 +203,7 @@ If this step fails with a message about `code` not being found, go back to step
 
 ## 10. Back up the Canvas Course
 
-Before you connect Canvas, read [Backing up a Canvas course](backups.md) — it
+Before you connect Canvas, read [Backing up a Canvas course](backups.md). It
 takes five minutes and it is the one step in this guide you cannot undo by
 retrying.
 
@@ -262,19 +262,19 @@ git push
 ```
 
 `add` selects the changes, `commit` records them with a message, and `push`
-uploads them to GitHub. Do this at the end of every writing session — small,
+uploads them to GitHub. Do this at the end of every writing session. Small,
 frequent commits are far easier to undo than one big one.
 
 [Git and GitHub](git-and-github.md) explains what is actually happening here.
 
 ## Where to Go Next
 
-- **[User guide](user-guide.md)** — the course structure, every command, and the
+- **[User guide](user-guide.md)**: the course structure, every command, and the
   export to PDF or Word.
-- **[Markdown guide](markdown.md)** — the formatting syntax, links, images, and
+- **[Markdown guide](markdown.md)**: the formatting syntax, links, images, and
   the coloured alert boxes.
-- **[Lesson workflow](lesson-workflow.md)** — designing a course with an AI
+- **[Lesson workflow](lesson-workflow.md)**: designing a course with an AI
   assistant, starting from what students should be able to do.
-- **[Limitations](limitations.md)** — what the tool will not do, and what to do
+- **[Limitations](limitations.md)**: what the tool will not do, and what to do
   instead.
-- **[Hosting](hosting.md)** — publish the preview as a free public website.
+- **[Hosting](hosting.md)**: publish the preview as a free public website.
