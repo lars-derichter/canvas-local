@@ -7,7 +7,6 @@ const {
   printItems,
   selectModule,
   selectTargetDir,
-  removeFromSyncState,
 } = require('./item-utils');
 const { renumberSequential } = require('./renumber');
 const { writeMarkdown } = require('../lib/convert/format-markdown');
@@ -43,11 +42,13 @@ async function _mergeFiles(targetPath, sourcePath, targetDir) {
   await writeMarkdown(targetPath, result);
   console.log(`[merge-items] Merged content into ${path.basename(targetPath)}`);
 
-  // The source file is about to go, and so is the row keyed by its path.
-  const removed = removeFromSyncState(sourcePath);
-  if (removed) {
-    console.log(`[merge-items] Removed ${removed} from sync state.`);
-  }
+  // The source file goes; the row keyed by its path stays. A merge leaves the
+  // Canvas page behind it untouched and live, and that row is the only record
+  // that it is the author's to delete: without one the planner pairs the page
+  // with no local file and no base, and writes it back into `course/` as a new
+  // item — undoing the merge on the next sync — while `--prune-canvas`, whose
+  // candidates are base rows, has nothing to offer. Kept, the page is reported
+  // under `Orphaned on Canvas` and a prune can remove it.
 
   // Delete source file
   fs.unlinkSync(sourcePath);
