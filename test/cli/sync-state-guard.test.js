@@ -163,6 +163,32 @@ describe('the course-mismatch guard, before anything is written', () => {
     );
   });
 
+  it('stops new-module before it renumbers the modules above it', () => {
+    // The command that reaches the sync state without looking like it does.
+    // Inserting at an occupied position shifts every module above it up one,
+    // and each of those folders is a key in the sync state. Unguarded, the
+    // renumber ran, `recordRenames` refused on the way out, and the module the
+    // author asked for was never created: a course renumbered for an insert
+    // that did not happen. The same half-done state the two above describe.
+    const dir = project();
+
+    const result = run(dir, [
+      'new-module',
+      '--name',
+      'Kickoff',
+      '--position',
+      '1',
+    ]);
+
+    assert.notEqual(result.status, 0, 'a refused run must not report success');
+    assert.match(result.stderr, /describes course 45083/);
+    assert.deepEqual(
+      fs.readdirSync(path.join(dir, 'course')),
+      ['01-intro'],
+      'the renumber has to be the thing that did not happen',
+    );
+  });
+
   it('refuses a run that would have renamed nothing, too', () => {
     // The intermittency this replaced. `recordRenames` returns before it loads
     // the state when a batch is empty, so moving an item to the position it is
@@ -315,7 +341,6 @@ describe('the command-to-policy table', () => {
     assert.deepEqual(named(NEVER_OPENS), [
       'build-glossary',
       'export-toc',
-      'new-module',
       'reset-canvas',
       'reset-sync-state',
       'search',
@@ -330,6 +355,7 @@ describe('the command-to-policy table', () => {
       'move-module',
       'movetomodule-item',
       'new-item',
+      'new-module',
       'pull',
       'push',
       'rename-item',

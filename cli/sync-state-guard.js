@@ -78,6 +78,10 @@ const COMMAND_SYNC_STATE_POLICY = {
   status: GUARD,
 
   // Move or delete something the sync state has a row for, and record it.
+  // `new-module` is in this group despite creating one: inserting at an
+  // occupied position renumbers every module above it, and each of those
+  // folders is a key.
+  'new-module': GUARD,
   'delete-module': GUARD,
   'move-module': GUARD,
   'rename-module': GUARD,
@@ -93,11 +97,6 @@ const COMMAND_SYNC_STATE_POLICY = {
   export: READS_ANY_COURSE,
 
   setup: NEVER_OPENS,
-  // `new-module` renumbers the modules it shifts, but `renumberModulesUp` never
-  // reaches `recordRenames`, so the renames go unrecorded and the sync state is
-  // genuinely never opened. Recording them — which it should — moves this to
-  // GUARD.
-  'new-module': NEVER_OPENS,
   validate: NEVER_OPENS,
   search: NEVER_OPENS,
   'build-glossary': NEVER_OPENS,

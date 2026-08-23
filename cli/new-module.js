@@ -10,10 +10,31 @@ const {
   createRL,
   printModules,
 } = require('./module-utils');
+const { recordRenames } = require('./sync-renames');
 
 /**
  * Renumber modules at or above the given position by incrementing their prefix by 1.
  * Returns an array of { from, to } describing what was renamed.
+ *
+ * Records what it renamed, rather than handing the list back for the caller to
+ * record the way `cli/renumber.js` does. Those helpers are composed by ten
+ * commands that batch renames across two directories and record once at the
+ * end; this one belongs to this command alone, so renaming and recording is a
+ * single operation and cannot be half-used.
+ *
+ * Recording is not bookkeeping here. The sync state keys a module by its folder
+ * name, and every item and embedded file inside it by a path that begins with
+ * that name, so a folder renumbered without re-keying leaves rows addressing a
+ * folder that is not there any more. Content survives it — hash-based rename
+ * detection re-keys the items — but nothing detects a module: the shifted
+ * folders read as new modules to create on Canvas, the pages are moved out of
+ * the live Canvas modules they were in and into the new ones, and those live
+ * modules are left orphaned for `--prune-canvas` to delete along with any
+ * embedded file whose row moved with none of them.
+ *
+ * `COURSE_DIR` as `fromDir` is what picks `renameFolders` over `renamePaths`: a
+ * module folder has a key of its own, and it has to move together with
+ * everything filed under it.
  */
 function renumberModulesUp(modules, fromPosition) {
   const toRenumber = modules
@@ -25,6 +46,8 @@ function renumberModulesUp(modules, fromPosition) {
     const result = renameModule(mod.folderName, mod.prefix + 1);
     if (result) renamed.push(result);
   }
+
+  recordRenames([{ fromDir: COURSE_DIR, renames: renamed }]);
 
   return renamed;
 }
