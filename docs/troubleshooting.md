@@ -61,29 +61,33 @@ pass can't run without creating real pages.
 
 ## Pull Issues
 
-### "SKIPPED (locally modified since last sync)"
+### "(git-dirty)" Under Skipped
 
-Pull skips files whose modification time is later than the last sync, rather
-than overwriting them. Use `--force` to overwrite anyway, or push your local
-changes first.
+A local file git reports as modified or untracked is never overwritten and never
+deleted. The write is refused, the rest of the run carries on, and the report
+names the file with the reason and the remedy:
 
-A fresh `git clone` sets every file's timestamp to checkout time, so pull skips
-everything on a newly cloned project. That is the check working as designed, not
-a fault. See
+```text
+Skipped
+  - 01-intro/02-variables.md (git-dirty): 01-intro/02-variables.md has uncommitted changes; writing the Canvas version over it would be the only copy of them gone. Commit or stash the file, then run sync again.
+```
+
+Commit or stash the file and run again. Untracked counts as dirty, and that is
+the case worth knowing about: git holds no copy of a file it has never seen, so
+overwriting one loses more than overwriting a modified file, not less.
+
+Only a command that writes into `course/` reaches the guard, which means `sync`
+and `pull`. A push writes to Canvas alone and lists the local side under "Left
+alone" instead, and `status` writes to neither side. Where git cannot answer at
+all, outside a checkout or wherever `git` will not run, every file counts as
+dirty and a pull writes nothing. A run with a skip in it exits non-zero.
+
+`npx course pull --force` is the one lever that switches the guard off, for
+overwrites and deletes alike. It asks before it does, naming how many files it
+is about to write over, and a run with nobody to answer cancels. Back the course
+up before you answer: see [Backing up a Canvas course](backups.md). For what a
+pull does to a file it does write, see
 [Push and pull are not a merge](limitations.md#push-and-pull-are-not-a-merge).
-
-### "SKIPPED (no sync state, cannot tell if it was modified)"
-
-There is no `.canvas-sync.json` to compare timestamps against — you ran
-`reset-sync-state`, or the project has never synced — so pull cannot tell your
-own writing from Canvas's output. It writes the files it is adding and leaves
-every file that already exists alone.
-
-Push first if the local version is the one you want to keep. If Canvas holds the
-truth and the local files are expendable, `npx course pull --force` overwrites
-them; it asks for confirmation first, because in this state it overwrites
-everything rather than only what changed. Back the course up before answering:
-see [Backing up a Canvas course](backups.md).
 
 ### Missing Content After Pull
 
