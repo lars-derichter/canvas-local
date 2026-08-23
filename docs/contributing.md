@@ -145,7 +145,12 @@ codebase, so only three options are set:
 - `embeddedLanguageFormatting: off` keeps Prettier out of fenced code blocks. In
   this repo those blocks are instructional content: a deliberately indented YAML
   example in [Frontmatter](frontmatter.md), or a course code sample showing a
-  particular style, has to render exactly as written.
+  particular style, has to render exactly as written. It switches off YAML
+  frontmatter formatting too, which is what lets the CLI splice a line into a
+  file's frontmatter without reformatting it and still pass `prettier --check`.
+  Under `auto`, Prettier normalises key spacing and the whitespace inside an
+  inline list, and moves a value onto its own line when that line also carries a
+  comment.
 - YAML keeps double quotes; everything else uses single.
 
 `.prettierrc.json` is read at runtime as well as by `npm run format`. The CLI
