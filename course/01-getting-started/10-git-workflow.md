@@ -121,6 +121,56 @@ pull changes that were pushed from elsewhere:
 - Or use the command palette (**Cmd+Shift+P** / **Ctrl+Shift+P**) and search for
   **Git: Pull**
 
+## The Canvas Sync File
+
+Your project holds one file you did not write: `.canvas-sync.json`, in the
+project root. Canvas Course Builder creates it when you connect the project to a
+Canvas course, and updates it on every push, pull and sync after that. It
+records which Canvas page, assignment or discussion each of your markdown files
+became, and nothing else in your project does.
+
+Commit it. It is in the project on purpose and it is not ignored, so `git add .`
+picks it up along with your markdown, and so does the **+** next to **Changes**
+in the Source Control panel. What you must not do is add it to `.gitignore` to
+get it out of the way.
+
+A push, a pull or a sync leaves you two things to save: the content you wrote,
+and the sync state that records where it landed. Commit them together, so the
+record and the thing it records never drift apart in your history.
+
+It matters as soon as there is a second copy of your project: a clone on another
+laptop, a colleague’s checkout, or a fresh one you make after losing the
+original. That copy needs to know which Canvas objects the course already owns.
+With the file committed it does, and a push from it updates them. Without it,
+the copy falls back on matching titles, and anything whose title no longer
+matches is created a second time instead of updated.
+
+### If Git Reports a Conflict in It
+
+Push from two checkouts, or from a laptop and a desktop, and git can end up with
+two versions of the file and no way to choose. Do not merge the JSON by hand.
+Keep one side whole, mark the conflict resolved, and finish the merge:
+
+```bash
+# take one side of the file; either will do
+git checkout --ours -- .canvas-sync.json
+git add .canvas-sync.json
+```
+
+Then run `npx course push`. Which side you kept barely matters: push compares
+your files against Canvas, claims each object back by its type and title, and
+writes the rows again.
+
+> [!WARNING]
+>
+> Never commit the file with the conflict markers still in it. It stops being
+> readable, and nothing warns you: the tool reads it as empty and behaves as
+> though the course had never been synced. Most items are claimed back by title
+> anyway, but anything whose title has changed since is created a second time on
+> Canvas. The troubleshooting guide (`docs/troubleshooting.md` in your project
+> folder, also readable on GitHub) covers the repair under “Corrupted
+> .canvas-sync.json”.
+
 ## Viewing History and Getting Things Back
 
 One of the biggest benefits of Git is that nothing is ever truly lost. Every
