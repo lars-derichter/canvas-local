@@ -32,10 +32,17 @@ next `push` will create everything fresh on Canvas.
 **When to use:**
 
 - Switching to a different Canvas instance or course. This is not optional: the
-  sync state records which course it describes, and every command refuses to run
-  against a different one, because the ids in it mean nothing there and a Canvas
-  file id is not even scoped to a course. Either this command or
-  `npx course init` clears it.
+  sync state records which course it describes, and `sync`, `push`, `pull`,
+  `status` and `delete-module` refuse to run against a different one, because
+  the ids in it mean nothing there and a Canvas file id is not even scoped to a
+  course. The item commands hit the same refusal, along with `move-module` and
+  `rename-module`, at the point where each records its change, so check
+  `git status` before assuming a run that stopped did nothing. Two commands read
+  the mismatched file and carry on, and neither writes to Canvas: `init`, which
+  repairs it, and `export`. The rest never open it and are not affected:
+  `setup`, `new-module`, `validate`, `search`, `build-glossary`, `export-toc`,
+  `reset-canvas` and this command. Either this command or `npx course init`
+  clears it.
 - Preparing the repo for sharing (strip instance-specific IDs).
 - Testing the full sync flow from scratch.
 

@@ -76,8 +76,10 @@ push does.
 The cost of this route is that the Canvas ids differ between the two courses, so
 your `.canvas-sync.json` describes the sandbox, not the real course. Run
 `npx course reset-sync-state` when you switch. Forgetting is no longer silent:
-every command refuses to run while `.env` and the sync state name different
-courses, and says which is which.
+`sync`, `push`, `pull` and `status` all refuse to run while `.env` and the sync
+state name different courses, and say which is which. Do not read that as a
+guard on everything, though. `reset-canvas` never opens the sync file, so it
+deletes whatever course `.env` names, mismatch or not.
 
 ## What Git Backs up, and What It Does Not
 

@@ -178,10 +178,12 @@ longer matches the one in Canvas is created a second time instead of updated.
 
 There is one more thing to know about a copy that travels. The sync file names
 the Canvas course it was built against, and so does `.env`. If the two disagree,
-every command that reads the sync file stops and names both courses rather than
-pushing one course's ids at the other. A clone is the easy way to arrange that:
-point its `.env` at a course of your own and the sync file still describes the
-original. Troubleshooting covers
+`sync`, `push`, `pull` and `status` stop and name both courses rather than
+pushing one course's ids at the other, and so do the commands that edit modules
+and items. Not every command that reads the file stops: `npx course init` reads
+it in order to repair it, and `npx course export` reads it and does not mind. A
+clone is the easy way to arrange that: point its `.env` at a course of your own
+and the sync file still describes the original. Troubleshooting covers
 [which of the two to change](troubleshooting.md#canvas-syncjson-describes-course-n).
 
 ## Next Steps

@@ -191,8 +191,10 @@ holds. Nothing about a missing sync state makes push refuse the module. See
 ### ".canvas-sync.json describes course N"
 
 `.env` names one Canvas course and the sync state was built against another, so
-every command stops until the two agree. The ids in that file only mean
-something in the course they came from, and one of them is not scoped to a
+`sync`, `push`, `pull`, `status` and `delete-module` stop until the two agree.
+The item commands stop too, along with `move-module` and `rename-module`, at the
+point where each records its change in the sync file. The ids in that file only
+mean something in the course they came from, and one of them is not scoped to a
 course at all: a Canvas file id is global, so `push --prune-canvas` — or
 renaming the binary behind a file item, which deletes the Canvas file it
 replaces — would delete a file belonging to the other course.
@@ -209,13 +211,22 @@ Two ways out, and which one is right depends on what you meant:
   with two of each. If the new course was seeded with Canvas's own Course Copy,
   its ids are new too, so the reset is required either way.
 
-`npx course init` also settles it, and it is the one command that reads the
-mismatched file: point it at the new course and it drops the old course's
-mappings rather than filing them under the new course id.
+`npx course init` also settles it, and settling it is what it is for: point it
+at the new course and it drops the old course's mappings rather than filing them
+under the new course id.
 
 The same error names a base URL instead of a course when `CANVAS_API_URL` moved
 to a different Canvas instance, where even a matching course id means a
 different course.
+
+Do not read the refusal as a guard on everything. Two commands read the
+mismatched file and carry on, and neither writes to Canvas: `init`, which
+repairs it, and `export`, which only wants the ids to footnote cross-links. A
+command that never opens the file is not stopped at all: `setup`, `new-module`,
+`validate`, `search`, `build-glossary`, `export-toc`, `reset-sync-state` and
+`reset-canvas`. That last one is the one to watch. It deletes everything in the
+course `.env` names, and a mismatch is the situation in which `.env` may not be
+naming the course you think it is.
 
 ### Starting Fresh, or Switching Canvas Courses
 

@@ -40,17 +40,19 @@ npx course init
 > changes.
 
 From here until step 5, `.env` names the new course while `.canvas-sync.json`
-still describes last year's, so any command that reads sync state — `status`,
-`pull`, the item commands — refuses to run and names both courses. That is the
-guard against pushing last year's ids at this year's course, not a problem with
-your setup; step 5 clears it. `reset-canvas`, `validate` and `reset-sync-state`
-itself read no sync state and work throughout. Running `npx course init` at this
-step instead of editing `.env` by hand lifts the refusal straight away, because
-init rewrites the sync state too and leaves last year's module ids behind rather
-than filing them under the new course — but it does not touch the `canvas_id`
-and `canvas_module_id` fields older versions of this tool wrote into `course/`.
-Clearing those is all step 5 has left to do, and a course authored on this
-version carries none.
+still describes last year's, so `sync`, `push`, `pull`, `status`,
+`delete-module` and the item commands refuse to run and name both courses. That
+is the guard against pushing last year's ids at this year's course, not a
+problem with your setup; step 5 clears it. The commands that read no sync state
+work throughout, step 3 below among them: `reset-canvas`, `reset-sync-state`
+itself, `setup`, `new-module`, `validate`, `search`, `build-glossary` and
+`export-toc`. `export` does read it, and carries on anyway. Running
+`npx course init` at this step instead of editing `.env` by hand lifts the
+refusal straight away, because init rewrites the sync state too and leaves last
+year's module ids behind rather than filing them under the new course — but it
+does not touch the `canvas_id` and `canvas_module_id` fields older versions of
+this tool wrote into `course/`. Clearing those is all step 5 has left to do, and
+a course authored on this version carries none.
 
 ## 3. Clean the Remote Course (If Needed)
 
