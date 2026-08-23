@@ -64,9 +64,14 @@ still verified.
 5. **Structure.**
    - Duplicate numeric prefixes within one module or within `course/` itself;
      gaps in the sequence (report gaps as "consider" — they may be deliberate).
-   - Frontmatter problems per `docs/frontmatter.md`: unknown `canvas_type`
-     values, `external_url` items without `external_url`, assignment pages
-     missing the fields the worked examples carry.
+   - Frontmatter problems: run `npx course validate`, which checks these
+     mechanically — unknown `canvas_type` values, an `external_url` or
+     `external_tool` item with no URL, a `file` or `quiz` item whose `file_ref`
+     or `quiz_ref` names nothing on disk. Every error it reports is a finding.
+     It also reports broken links and missing referenced files; those belong to
+     step 3, which covers raw HTML as well. What no command checks stays a
+     judgement call against `docs/frontmatter.md`: assignment pages missing the
+     fields the worked examples carry.
    - `_category_.json` whose `position` does not match the folder's numeric
      prefix, or module folders missing `_category_.json` where the other modules
      have one.
