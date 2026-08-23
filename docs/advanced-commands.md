@@ -140,19 +140,23 @@ everything.
   errors with exponential backoff (up to 3 attempts).
 - **Error recovery**: If a single module or item fails during push/pull, the
   remaining items continue and a summary of errors is shown at the end.
-- **Conflict detection**: `pull` writes a file only when the write is provably
-  safe — the file does not exist yet, or it is older than the last sync and is
-  therefore Canvas's own output coming back. Everything else is skipped with the
-  reason printed: a file touched since the last sync, and a file that cannot be
-  judged at all because there is no sync state to compare it against (right
-  after `reset-sync-state`, or on a clone that has never synced). "Cannot tell"
-  is not "unmodified". It compares timestamps, not content, which has
-  consequences worth knowing — see
+- **Conflict detection**: what changed is decided by content, not by a
+  timestamp. Each side is compared against the fingerprint the last sync
+  recorded for it, which is what separates "changed here" from "changed there"
+  and both from "changed on both sides". Neither fingerprint reads a
+  modification time, so a fresh `git clone` is not mistaken for an entirely
+  edited course. One decision still reads a timestamp, the `newest` tiebreak,
+  and only an item whose two fingerprints have both moved reaches it; `push` and
+  `pull` never do, because pinning a direction has already answered that
+  question. See
   [Push and pull are not a merge](limitations.md#push-and-pull-are-not-a-merge).
-- **Forced overwrite**: `pull --force` writes regardless, and asks first on the
-  one combination that can wipe hand-written markdown in a single run —
-  `--force` on a `course/` tree that already holds markdown, with no sync state
-  to judge it by. A non-interactive run answers no and cancels.
+- **Forced overwrite**: a file git reports as modified or untracked is never
+  written over and never deleted. `pull --force` switches that guard off, for
+  overwrites and deletes alike. It asks first whenever it would override at
+  least one such file under `course/`, and whenever git could not answer at all,
+  which outside a checkout is every file in the tree. A non-interactive run
+  answers no and cancels. See
+  [Skipped with "(git-dirty)"](troubleshooting.md#git-dirty-under-skipped).
 - **Stale ID recovery**: If a module, page, or assignment was deleted on Canvas
   but still has a stored ID locally, push detects the 404 and automatically
   creates a new resource.
