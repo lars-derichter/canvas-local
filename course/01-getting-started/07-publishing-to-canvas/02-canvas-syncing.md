@@ -32,11 +32,22 @@ explains where to find these values.
 Before pushing, it is a good idea to check what has changed:
 
 ```bash
-npx course diff
+npx course status
 ```
 
-This shows you exactly what changed locally since the last sync (new files,
-modified content, and deleted items), so there are no surprises.
+Status reads your files and your Canvas course, compares each of them against
+the last sync, and prints what a sync would do: what changed here, what changed
+there, and what changed on both sides. It writes nothing to either side.
+
+Because it reads the live Canvas course, status needs your credentials and a
+working connection. There is no offline version of it, because “what would a
+sync do” cannot be answered from your own files alone.
+
+Add `-m` to limit it to the modules you are working on:
+
+```bash
+npx course status -m 01-getting-started
+```
 
 ## Validating Your Content
 
@@ -109,19 +120,6 @@ overwrite:
 
 ```bash
 npx course pull --force
-```
-
-## Checking Status
-
-```bash
-npx course status
-```
-
-Compares your local files against the last known sync state. Add `--remote` to
-also fetch the current state from Canvas and compare:
-
-```bash
-npx course status --remote
 ```
 
 ## Global Flags

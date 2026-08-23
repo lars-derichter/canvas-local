@@ -124,8 +124,7 @@ and export commands:
 
 - **Push to Canvas**: push all modules
 - **Pull from Canvas**: pull content from Canvas
-- **Status**: compare your local files against Canvas
-- **Diff**: see what changed locally since the last sync
+- **Status**: see what a sync would do, without changing anything
 - **Validate**: check your content for errors before pushing
 - **Export**: export the full course, only flagged items, or a curated selection
   via a table of contents
@@ -135,37 +134,36 @@ and export commands:
 Open the command palette with **Cmd+Shift+P** (macOS) or **Ctrl+Shift+P**
 (Windows/Linux) and type **“Course:”** to see all available commands:
 
-| Command                                | What it does                                         |
-| -------------------------------------- | ---------------------------------------------------- |
-| Course: Init (Canvas Setup)            | Configure Canvas API credentials                     |
-| Course: Push to Canvas                 | Push all modules                                     |
-| Course: Push to Canvas (Dry Run)       | Preview push without making changes                  |
-| Course: Push Module to Canvas...       | Push a single module                                 |
-| Course: Pull from Canvas               | Pull content from Canvas                             |
-| Course: Status                         | Compare local vs sync state                          |
-| Course: Diff (Changes Since Last Sync) | Show changes since last sync                         |
-| Course: Validate                       | Check content for errors                             |
-| Course: Search...                      | Find a word or phrase across files                   |
-| Course: New Module                     | Create a new module                                  |
-| Course: Move Module                    | Reorder a module                                     |
-| Course: Rename Module                  | Rename a module                                      |
-| Course: Delete Module                  | Delete a module                                      |
-| Course: New Item                       | Create a new item                                    |
-| Course: Move Item                      | Reorder an item                                      |
-| Course: Move Item to Module            | Move an item to another module                       |
-| Course: Rename Item                    | Rename an item                                       |
-| Course: Delete Item                    | Delete an item                                       |
-| Course: Merge Items                    | Combine two items into one                           |
-| Course: Split Item at Cursor           | Split the active file at the cursor                  |
-| Course: Export to PDF/DOCX...          | Export the course, flagged items, or a TOC selection |
-| Course: Export via TOC...              | Render the curated `exports/toc.md`                  |
-| Course: Preview                        | Start the dev server and open the course             |
+| Command                          | What it does                                         |
+| -------------------------------- | ---------------------------------------------------- |
+| Course: Init (Canvas Setup)      | Configure Canvas API credentials                     |
+| Course: Push to Canvas           | Push all modules                                     |
+| Course: Push to Canvas (Dry Run) | Preview push without making changes                  |
+| Course: Push Module to Canvas... | Push a single module                                 |
+| Course: Pull from Canvas         | Pull content from Canvas                             |
+| Course: Status                   | Show what a sync would do, without writing anything  |
+| Course: Validate                 | Check content for errors                             |
+| Course: Search...                | Find a word or phrase across files                   |
+| Course: New Module               | Create a new module                                  |
+| Course: Move Module              | Reorder a module                                     |
+| Course: Rename Module            | Rename a module                                      |
+| Course: Delete Module            | Delete a module                                      |
+| Course: New Item                 | Create a new item                                    |
+| Course: Move Item                | Reorder an item                                      |
+| Course: Move Item to Module      | Move an item to another module                       |
+| Course: Rename Item              | Rename an item                                       |
+| Course: Delete Item              | Delete an item                                       |
+| Course: Merge Items              | Combine two items into one                           |
+| Course: Split Item at Cursor     | Split the active file at the cursor                  |
+| Course: Export to PDF/DOCX...    | Export the course, flagged items, or a TOC selection |
+| Course: Export via TOC...        | Render the curated `exports/toc.md`                  |
+| Course: Preview                  | Start the dev server and open the course             |
 
 ## How It Works
 
 Everything the extension does goes through the same `npx course` CLI you use in
 the terminal, so renumbering and Canvas sync state behave exactly the same
-either way. Sync commands (push, pull, status, diff, validate) run in a shared
+either way. Sync commands (push, pull, status, validate) run in a shared
 **Canvas Course Builder** terminal so you can follow their output; management
 commands (new, rename, move, delete, merge, split) run silently in the
 background and report back with a notification.
