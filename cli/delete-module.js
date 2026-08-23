@@ -39,6 +39,19 @@ function getModuleEntries(dirPath) {
 }
 
 async function deleteModule(options = {}) {
+  // First, before a question is asked and long before a folder is removed.
+  // `loadState` refuses a sync state that describes another Canvas course, and
+  // one written by another schema; both refusals exist to stop this command
+  // editing a state file that is not this course's. Loading it after the
+  // deletion inverted that promise — the folder was already gone by the time
+  // the refusal arrived — and loading it after the confirmation would still
+  // make the author answer "yes, delete it" to a run that then refuses.
+  //
+  // Read once and kept: nothing between here and `saveState` writes the file.
+  // `renumberSequential` and `module-utils` touch the filesystem and never the
+  // sync state, so the object read here is the one that gets written.
+  const syncData = loadState({ allowNull: true });
+
   let sourceModule;
 
   if (options.module) {
@@ -107,7 +120,6 @@ async function deleteModule(options = {}) {
 
   // Remove the module from sync state. The folder name is the key, so the
   // module the author just deleted is exactly the row that goes.
-  const syncData = loadState({ allowNull: true });
   if (syncData) {
     deleteModuleFromState(syncData, sourceModule.folderName);
     // Dropping a module deliberately leaves its embedded-file rows behind —
