@@ -140,21 +140,33 @@ Key properties:
 
 ### Prune Semantics
 
-`push --prune-canvas` deletes a Canvas resource only when no local file _claims_
-its identity: a markdown file claims `canvas_id` (and `external_url`) via its
-frontmatter, a module folder claims its id via `_category_.json`. Identity
-claims are collected over the whole course, so items moved to another module —
-even one outside a `--module` filter — are never mistaken for deletions.
+`push --prune-canvas` deletes a Canvas resource only when the sync state already
+tracked it and the local file it was tracked under is gone. Prune candidates are
+base rows the planner paired with a Canvas item that has no local counterpart,
+which is why something push has never seen is never one: a page, a quiz or an
+LTI link added by hand in Canvas is adopted or left where it is, never deleted.
+Frontmatter has no say in it, because no markdown file carries an identity to
+claim with.
 
-Before it asks for confirmation, prune checks whether the assignments on its
-list already hold student submissions, because deleting an assignment takes its
-gradebook column and every grade in it. The doomed items come from sync state,
-so all prune has is Canvas ids: it reads `has_submitted_submissions` off a
-single `listAssignments` call for the course rather than fetching each
-assignment, and skips the call entirely when no assignment is being deleted. An
-assignment with submissions is flagged in the listing and named in the
-confirmation question; a lookup that fails is reported as "could not determine",
-never as "no submissions".
+An item that moved to another module is a move rather than a deletion. Rename
+detection runs over the whole course before the `--module` filter narrows
+anything, so a row follows its file even into a module this run was not asked to
+touch.
+
+Before it asks for confirmation, prune checks whether the items on its list
+already hold student submissions, because deleting an assignment or a graded
+discussion takes its gradebook column and every grade in it. The plan's delete
+actions carry Canvas ids and nothing about student work, so
+`cli/prune-warning.js` reads `has_submitted_submissions` off a single
+`listAssignments` call for the course rather than fetching each assignment. A
+discussion needs one step more: its own id is a DiscussionTopic id, which that
+list is not keyed by, so each doomed topic is fetched to find out whether it is
+graded and, if it is, which assignment holds its grades. The fetch also yields
+the reply count, which goes in the listing because deleting a topic deletes
+every reply in it whether it is graded or not. No assignment and no graded
+discussion on the list means no lookups at all. An item with submissions is
+flagged in the listing and named in the confirmation question; a lookup that
+fails is reported as "could not determine", never as "no submissions".
 
 ## Content Types
 
@@ -164,21 +176,24 @@ under. `VALID_CANVAS_TYPES` in `cli/validate.js` is the authoritative set.
 **Authored content**: `page`, `assignment`, `discussion`, `file`. The local file
 is the source of truth. Push creates or updates the Canvas object and overwrites
 what it held; prune deletes the object. The three markdown types share one code
-path (`pushContentItem`) parameterised by a strategy object (`pageStrategy`,
-`assignmentStrategy`, `discussionStrategy` in `cli/push.js`), which supplies the
-create and update calls, the fields to send, and how to read the id back out of
-the response.
+path — `writeContent` in `lib/sync/apply.js` — parameterised by a strategy
+object (`pageStrategy`, `assignmentStrategy`, `discussionStrategy` in
+`lib/sync/canvas-write.js`), which supplies the create and update calls, the
+fields to send, and how to read the id and the slug back out of the response.
 
 **References**: `quiz`, `external_tool`, and `external_url`. The file records
 which Canvas object belongs at this position; the object itself is out of scope.
 Push creates the module item and nothing else. Prune and `reset-canvas` remove
 the module item and never the object behind it.
 
-- `quiz` resolves through `canvas_id` first, falling back to an exact title
-  match against `listQuizzes` and writing the found id back to frontmatter. A
-  quiz that matches nothing is skipped with the QTI import procedure printed;
-  two quizzes under one title are skipped as ambiguous. `lib/canvas/quizzes.js`
-  deliberately exposes a read call only, so no code path can write to a quiz.
+- `quiz` resolves through the id on its sync-state row while the course still
+  lists that quiz, and by an exact title match against `listQuizzes` otherwise.
+  The id it finds is recorded on the row, never written into the file. A quiz
+  that matches nothing throws with the QTI import procedure in the message, and
+  two quizzes under one title throw as ambiguous. Neither is skipped: a skip
+  counted as an applied action, so the run reported an item it had not created
+  and still exited zero. `lib/canvas/quizzes.js` deliberately exposes a read
+  call only, so no code path can write to a quiz.
 - `external_tool` is identified by its launch URL, not by `content_id`. Canvas
   resolves the tool through `Lti::ToolFinder.from_url` on every launch, and
   substitutes a dummy tool with `id = 0` when nothing matches, saving the item
