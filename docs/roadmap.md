@@ -110,24 +110,6 @@ today — `sleep()` in `lib/canvas/client.js` is not even exported — plus the
 `pre_attachment` upload handshake, and the migration does not hand back the new
 quiz id.
 
-### Clearing a Date
-
-`assignmentStrategy.buildOpts` in `lib/sync/canvas-write.js` adds `due_at`,
-`unlock_at` and `lock_at` to the update only when the frontmatter value is
-truthy, so deleting one of those keys omits it from the request and Canvas keeps
-the old date forever. `discussionStrategy.buildOpts` repeats the pattern for
-`delayed_post_at` and `lock_at`. Both strategies now sit in the reconcile
-engine, so this is every command that writes to Canvas rather than push alone.
-There is currently no way to clear a date from the markdown side, and the local
-file quietly disagrees with Canvas from then on. The neighbouring scalars in
-both strategies guard on `!= null` — `points_possible`, `published`,
-`require_initial_post` — and behave correctly; the dates are the outliers.
-
-The fix is to send an explicit `null`, but it needs a decision first:
-frontmatter that never carried the key is not the same as frontmatter that just
-lost it, and clearing a due date is itself a late-policy event on an assignment
-that already has submissions.
-
 ### Flagging a New Quiz in a Prune
 
 `reset-canvas` names every New Quiz it is about to delete, because that deletion
