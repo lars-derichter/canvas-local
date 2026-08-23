@@ -60,24 +60,32 @@ patterns.
 
 ### Relinking Existing Canvas Objects
 
-An `npx course relink` command would adopt Canvas objects that already exist:
-match them against local files, record their ids in `.canvas-sync.json` and in
-frontmatter, and rewrite no file bodies at all. Push does a narrow version of
-this already, for one type: a quiz item resolves by title when its id is stale,
-and the id it finds is written back. Nothing does it for a page, an assignment
-or a discussion, and adopting one of those is a hand-edit of `canvas_id` per
-file (see
+An `npx course relink` command would pair local files with the Canvas objects
+that already exist and record the links, rewriting no file bodies at all. `push`
+and `pull` now do most of that on their own: an item with no row in
+`.canvas-sync.json` is paired with the Canvas object of the same type and title
+in the same module, for every type, and the pair goes into the sync state
+(`planAdoptions` in `lib/sync/plan.js`). Three gaps are what a command would be
+for. Adoption matches within one module, so an object sitting in no module at
+all is invisible to it. It matches on an exact title, so a page renamed on one
+side only is created a second time rather than claimed. And it refuses an
+ambiguous pair rather than asking, which leaves a hand-edited row in
+`.canvas-sync.json` as the only way through (see
 [Frontmatter](frontmatter.md#adopting-an-item-you-made-by-hand-in-canvas)).
+Adoption also happens inside a run that is already writing; a command would let
+you see the pairs and settle them before anything is sent.
 
 The rollover in [New academic year](new-academic-year.md) wipes the new Canvas
 course and rebuilds it from local markdown, which carries pages, assignments,
 discussions and files but not a quiz's questions and not an LTI installation.
 Canvas's own Course Copy carries both, and it is the only way to carry a
 course-level LTI 1.1 installation across at all, because the Canvas API never
-returns `shared_secret`. But Course Copy followed by `push` duplicates
-everything, and followed by `pull` overwrites the local markdown. `relink` is
-the missing third option that would make Course Copy a first-class rollover
-path.
+returns `shared_secret`. Course Copy followed by `push` is no longer the
+duplicate-everything trap it was, since adoption claims what it can pair, but
+the discussions the copy leaves behind are exactly what adoption cannot reach:
+`reset-canvas` spares them and no module item points at them. Course Copy
+followed by `pull` still overwrites the local markdown. `relink` is the missing
+third option that would make Course Copy a first-class rollover path.
 
 ### More Item Types for `new-item`
 
@@ -104,15 +112,16 @@ quiz id.
 
 ### Clearing a Date
 
-`assignmentStrategy.buildOpts` in `cli/push.js` adds `due_at`, `unlock_at` and
-`lock_at` to the update only when the frontmatter value is truthy, so deleting
-one of those keys omits it from the request and Canvas keeps the old date
-forever. `discussionStrategy.buildOpts` repeats the pattern for
-`delayed_post_at` and `lock_at`. There is currently no way to clear a date from
-the markdown side, and the local file quietly disagrees with Canvas from then
-on. The neighbouring scalars in both strategies guard on `!= null` —
-`points_possible`, `published`, `require_initial_post` — and behave correctly;
-the dates are the outliers.
+`assignmentStrategy.buildOpts` in `lib/sync/canvas-write.js` adds `due_at`,
+`unlock_at` and `lock_at` to the update only when the frontmatter value is
+truthy, so deleting one of those keys omits it from the request and Canvas keeps
+the old date forever. `discussionStrategy.buildOpts` repeats the pattern for
+`delayed_post_at` and `lock_at`. Both strategies now sit in the reconcile
+engine, so this is every command that writes to Canvas rather than push alone.
+There is currently no way to clear a date from the markdown side, and the local
+file quietly disagrees with Canvas from then on. The neighbouring scalars in
+both strategies guard on `!= null` — `points_possible`, `published`,
+`require_initial_post` — and behave correctly; the dates are the outliers.
 
 The fix is to send an explicit `null`, but it needs a decision first:
 frontmatter that never carried the key is not the same as frontmatter that just
@@ -122,16 +131,18 @@ that already has submissions.
 ### Flagging a New Quiz in a Prune
 
 `reset-canvas` names every New Quiz it is about to delete, because that deletion
-takes questions nothing in this repository could rebuild. `push --prune-canvas`
-deletes one just as thoroughly and says nothing: an item tracked as
+takes questions nothing in this repository could rebuild. A prune deletes one
+just as thoroughly and says nothing: an item tracked as
 `canvas_type: assignment` that Canvas holds as a New Quiz is listed as an
-ordinary assignment. The guard is not what is missing — `refuseQuizBackedDelete`
-deliberately lets a New Quiz through, and rightly, because it really is an
-assignment and this project manages it as one. The sentence is what is missing.
+ordinary assignment, under `push --prune-canvas` and `sync --prune-canvas`
+alike. The guard is not what is missing — `refuseQuizBackedDelete` in
+`lib/sync/canvas-write.js` deliberately lets a New Quiz through, and rightly,
+because it really is an assignment and this project manages it as one. The
+sentence is what is missing.
 
 `getSubmissionStates` in `lib/canvas/assignments.js` already fetches whole
 Assignment objects, so `is_quiz_lti_assignment` is there for nothing; the map it
-returns keeps only a boolean per id, so `annotateSubmissions` in `cli/push.js`
-would need that map to carry the object, or a second map beside it.
-`isNewQuizAssignment` and the wording in `newQuizNotice` are already there to
-reuse.
+returns keeps only a boolean per id, so `annotateSubmissions` in
+`cli/prune-warning.js` would need that map to carry the object, or a second map
+beside it. `isNewQuizAssignment` and the wording in `newQuizNotice` are already
+there to reuse.
