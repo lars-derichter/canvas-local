@@ -14,13 +14,9 @@ const { parseToc, validateTocPaths } = require('../lib/export/toc');
 const { loadCourseConfig } = require('../lib/config/course-config');
 const { loadTheme, themeVariables } = require('../lib/config/theme');
 const { getLabels, slugify } = require('../lib/config/labels');
+const { toPosixPath } = require('../lib/sync/state');
 
 const EXPORTS_DIR = path.join(PROJECT_ROOT, 'exports');
-
-/** Normalize a path to forward slashes for stable comparisons and anchors. */
-function toPosix(p) {
-  return p.replace(/\\/g, '/');
-}
 
 /**
  * Parse repeatable `--var key=value` flags into an object. Used as a commander
@@ -79,7 +75,7 @@ function buildLinkContext({ file, env } = {}) {
   const linkMap = new Map();
   for (const { itemPath, entry } of allItems(state)) {
     if (entry.canvas_id == null) continue;
-    linkMap.set(toPosix(itemPath), {
+    linkMap.set(toPosixPath(itemPath), {
       canvasType: entry.canvas_type,
       canvasId: entry.canvas_id,
     });
@@ -110,7 +106,7 @@ function indexCourse() {
   for (const mod of modules) {
     for (const node of flattenItems(mod.items)) {
       if (node.type !== 'item') continue;
-      byPath.set(toPosix(node.relativePath), {
+      byPath.set(toPosixPath(node.relativePath), {
         item: node,
         moduleFolder: mod.folderName,
         moduleName: mod.moduleName,
@@ -147,7 +143,7 @@ function collectIncludedPaths(groups) {
         node.canvasType !== 'file' &&
         node.canvasType !== 'external_url'
       ) {
-        set.add(toPosix(node.relativePath));
+        set.add(toPosixPath(node.relativePath));
       }
     }
   }
@@ -166,7 +162,7 @@ function resolvePositional(p, byPath) {
   } catch {
     throw new Error(`Path not found: ${p}`);
   }
-  const rel = toPosix(path.relative(COURSE_DIR, abs));
+  const rel = toPosixPath(path.relative(COURSE_DIR, abs));
   if (rel.startsWith('..') || path.isAbsolute(rel)) {
     throw new Error(`Path is outside course/: ${p}`);
   }

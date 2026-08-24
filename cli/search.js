@@ -5,11 +5,7 @@ const log = require('./logger');
 const { PROJECT_ROOT } = require('./project-root');
 const { COURSE_DIR } = require('./module-utils');
 const { scanCourse, flattenItems } = require('../lib/convert/course-scanner');
-
-/** Normalize a path to forward slashes for stable display. */
-function toPosix(p) {
-  return p.replace(/\\/g, '/');
-}
+const { toPosixPath } = require('../lib/sync/state');
 
 /**
  * Find the lines of `text` that contain `keyword`.
@@ -139,7 +135,7 @@ function collectFiles(options) {
       if (!node.relativePath.endsWith('.md')) continue;
       files.push({
         absPath: path.join(COURSE_DIR, node.relativePath),
-        displayPath: 'course/' + toPosix(node.relativePath),
+        displayPath: 'course/' + toPosixPath(node.relativePath),
         location: `${mod.moduleName} > ${node.title}`,
       });
     }
@@ -155,7 +151,7 @@ function collectFiles(options) {
     for (const absPath of walkDir(dir)) {
       files.push({
         absPath,
-        displayPath: toPosix(path.relative(PROJECT_ROOT, absPath)),
+        displayPath: toPosixPath(path.relative(PROJECT_ROOT, absPath)),
         location: null,
       });
     }
