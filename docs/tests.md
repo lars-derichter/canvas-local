@@ -59,6 +59,87 @@ so they are verified by hand rather than in the automated suite:
 - The `/export-style-init` and `/export-style-update` skills: derive or tweak a
   style and confirm the regenerated sample reflects it.
 
+## Manual Sync End-to-End Checklist
+
+> [!WARNING]
+>
+> Every step here writes to a real Canvas course, and several of them delete
+> content Canvas cannot bring back. Use a disposable course with no students in
+> it, and read [Backing up a Canvas course](backups.md) before you start.
+
+The checks above are one command each. This one is a sequence: it walks the
+reconcile engine end to end against a live Canvas instance, and each step leaves
+the course in the state the next one assumes. Point `.env` at the disposable
+course, and run it from a scratch clone so its `.canvas-sync.json` never lands
+in the real tree.
+
+"Clean" below means the run planned no actions and exited 0. It does not mean
+`.canvas-sync.json` came out byte-identical: `sync`, `push` and `pull` stamp
+`last_sync` even on a run with nothing to do, and only `status` writes nothing
+at all.
+
+1. **Empty both sides.** `npx course reset-canvas --dry-run`, then
+   `npx course reset-canvas`, then `npx course reset-sync-state`. The dry run
+   counts what it would delete (so many modules, pages, assignments and files)
+   and deletes nothing; the only content it names one by one is the quiz-backed
+   assignments it is skipping, the New Quizzes it is not, and any assignment
+   carrying submissions or whose submission state Canvas would not say. The real
+   run empties the course and exits 0; a declined confirmation, or an input
+   stream that ends without answering, deletes nothing and exits 1, while a
+   piped `y` confirms like a typed one. `reset-canvas` leaves
+   `.canvas-sync.json` alone, which is why the third command is not optional.
+2. **First push.** `npx course push`. Every module and item is created, and
+   `.canvas-sync.json` comes back with a row per item. No first-push
+   confirmation appears: that question only fires on a course that already holds
+   content.
+3. **The no-op quartet.** `npx course push`, then `status`, `sync` and `pull`.
+   All four clean, nothing written on either side, `git status` quiet under
+   `course/`. This is the round-trip drift check: what Canvas's own editor
+   rewrites on the way in has to be absorbed by the fingerprint rather than
+   reported as a change.
+4. **Exact rename.** Rename one item's file by hand, leaving its bytes
+   untouched, then `npx course sync`. One `rekey-base`, no Canvas write, the
+   module item id unchanged.
+5. **Probable rename.** Rename a second item's file _and_ edit its body, keeping
+   its `title:`, then `npx course sync`. Non-interactively the pair is reported
+   and parked: nothing deleted, nothing created, exit 0. Answering `y` in a
+   terminal re-keys the row and pushes the edit in the same run.
+6. **Conflict, once per policy.** Edit one page here and the same page in
+   Canvas, sync, then make the pair of edits again before each following run.
+   - `--conflict newest`: both timestamps are printed and the newer side wins.
+   - `--conflict local` and `--conflict canvas`: the named side wins, unasked.
+   - `--conflict ask -y`: the item is skipped, the report names the remedy, and
+     the run exits 1.
+7. **Embedded files.** Starting from a page that embeds `_files/x.png`:
+   - **Add**: `npx course push` uploads the binary and repoints the reference at
+     the Canvas file.
+   - **Edit**: change the binary's bytes in place. The push runs off the binary
+     alone, with no edit to the page, and the run after it is clean. Whether
+     Canvas keeps the file id or hands back a new one is Canvas's business:
+     nothing here bets on either, so do not fail the step on the id.
+   - **Share**: add a file item whose binary is byte-identical to the embedded
+     one and goes up under the same name, which is what Canvas deduplicates on,
+     so both state rows end up carrying one file id. Delete the file item and
+     run `npx course --verbose push --prune-canvas`: the module item goes, the
+     Canvas file stays, and the verbose log names the row still holding it (the
+     ordinary report does not). Drop the page's reference too, and the next
+     whole-course prune sweeps the file and removes its row.
+8. **Kill recovery.** Add six new pages, then
+   `node cli/index.js sync & sleep 8; kill -9 $!` (kill node itself, not an
+   `npx` wrapper). Rerun `npx course sync`: it duplicates at most the one action
+   that was in flight when the kill landed. Every action that completed was
+   saved as it landed, so its Canvas object is recognised instead of created a
+   second time, while `last_sync` still reads as the previous completed run left
+   it, because no run since has finished.
+9. **Reset the state, then adopt.** `npx course reset-sync-state`, then
+   `npx course status`, then `npx course push`. `status` (like `sync`) refuses
+   each module holding items on both sides and exits 1. `push` pins a direction
+   instead: it adopts every item by type and title, compared trimmed and
+   case-folded rather than byte for byte, and the Canvas page and assignment
+   counts come out unchanged. A duplicate here is an adoption bug.
+10. **Restore.** Put the disposable course back to whatever it is meant to hold,
+    and confirm the real repository is untouched.
+
 ## Writing New Tests
 
 - Create a `*.test.js` file in the matching `test/` subdirectory.
