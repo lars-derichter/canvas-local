@@ -11,6 +11,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const log = require('../../cli/logger');
 const {
   scanCourse,
   extractPosition,
@@ -286,7 +287,10 @@ describe('scanCourse nesting warnings', () => {
 
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'course-nesting-'));
-    warnMock = mock.method(console, 'warn', () => {});
+    // The logger, not console: what this pins is that the warning goes through
+    // the sink `--quiet` and `--verbose` control. A console mock would pass
+    // either way.
+    warnMock = mock.method(log, 'warn', () => {});
   });
 
   afterEach(() => {

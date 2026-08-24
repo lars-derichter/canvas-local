@@ -4,6 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
+const log = require('../../cli/logger');
 const {
   dropRowsRenumberedOver,
   recordRenames,
@@ -407,12 +408,15 @@ describe('dropRowsRenumberedOver', () => {
     file = path.join(root, '.canvas-sync.json');
     fs.mkdirSync(courseDir, { recursive: true });
     warned = [];
-    realWarn = console.warn;
-    console.warn = (...args) => warned.push(args.join(' '));
+    // The logger, not console: what this pins is that the warning goes through
+    // the sink `--quiet` and `--verbose` control. A console swap would pass
+    // either way.
+    realWarn = log.warn;
+    log.warn = (...args) => warned.push(args.join(' '));
   });
 
   afterEach(() => {
-    console.warn = realWarn;
+    log.warn = realWarn;
     fs.rmSync(root, { recursive: true, force: true });
   });
 

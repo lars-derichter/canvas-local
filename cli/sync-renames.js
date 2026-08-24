@@ -1,4 +1,5 @@
 const path = require('path');
+const log = require('./logger');
 const { COURSE_DIR } = require('./module-utils');
 const {
   allItems,
@@ -245,17 +246,17 @@ function dropRowsRenumberedOver(
     const result = clearRowsAt(held, itemPath);
     dropped += result.dropped;
     if (result.dropped === 0) continue;
-    console.warn(
+    log.warn(
       `[${tag}] Renumbering moved ${movedFrom} onto ${deleted}, the entry ` +
         'just deleted, and the sync state holds one row per path — so the ' +
         'deleted one gave way rather than let the two swap Canvas ids.',
     );
     if (result.stranded.length > 0) {
-      console.warn(
+      log.warn(
         `[${tag}] These Canvas objects are no longer tracked here and ` +
           '`--prune-canvas` will not offer them. Delete them in Canvas by hand:',
       );
-      for (const line of result.stranded) console.warn(`  - ${line}`);
+      for (const line of result.stranded) log.warn(`  - ${line}`);
     }
     stranded.push(...result.stranded);
   }

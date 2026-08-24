@@ -4,6 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
+const log = require('../../cli/logger');
 const {
   ALERT_KINDS,
   DEFAULT_THEME,
@@ -75,7 +76,10 @@ describe('loadTheme', () => {
       path.join(tmpDir, THEMES_SUBDIR, `${DEFAULT_THEME}.css`),
       MINIMAL_THEME,
     );
-    warnMock = mock.method(console, 'warn', () => {});
+    // The logger, not console: what this pins is that the warning goes through
+    // the sink `--quiet` and `--verbose` control. A console mock would pass
+    // either way.
+    warnMock = mock.method(log, 'warn', () => {});
     _clearCache();
     clearConfigCache();
   });

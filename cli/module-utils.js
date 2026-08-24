@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
+const log = require('./logger');
 const { PROJECT_ROOT } = require('./project-root');
 const { RefusalError } = require('../lib/errors');
 
@@ -207,6 +208,10 @@ function toSlug(name) {
  * Safely read and parse a JSON file. Returns the parsed object, or
  * a fallback value if the file is missing or contains invalid JSON.
  *
+ * The unparseable-file warning goes through the logger rather than straight to
+ * console: `lib/sync/local-write.js` reads `_category_.json` through here, so
+ * this fires mid-pull and has to obey `--quiet` like the rest of a sync run.
+ *
  * @param {string} filePath - Path to the JSON file.
  * @param {*} [fallback={}] - Value to return on failure.
  * @returns {*} Parsed JSON or the fallback value.
@@ -216,7 +221,7 @@ function safeReadJSON(filePath, fallback = {}) {
     return JSON.parse(fs.readFileSync(filePath, 'utf8'));
   } catch (err) {
     if (err.code !== 'ENOENT') {
-      console.warn(
+      log.warn(
         `[warn] Failed to parse ${path.basename(filePath)}: ${err.message}`,
       );
     }

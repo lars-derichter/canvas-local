@@ -4,6 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
+const log = require('../../cli/logger');
 const {
   CONFIG_FILENAME,
   loadCourseConfig,
@@ -16,7 +17,10 @@ describe('loadCourseConfig', () => {
 
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'course-config-test-'));
-    warnMock = mock.method(console, 'warn', () => {});
+    // The logger, not console: what this pins is that the warning goes through
+    // the sink `--quiet` and `--verbose` control. A console mock would pass
+    // either way.
+    warnMock = mock.method(log, 'warn', () => {});
     _clearCache();
   });
 
