@@ -1,6 +1,7 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
+const { REFERENCE_TYPES } = require('../../lib/sync/fingerprint');
 const { ACTION_RANK, plan } = require('../../lib/sync/plan');
 
 // ---------------------------------------------------------------------------
@@ -462,8 +463,9 @@ describe('plan: conflict resolution', () => {
       result.conflicts[0].reason,
       'newest: Canvas gave no usable timestamp, so it cannot prove it is newer',
       'a page has an `updated_at` and this one arrived without it, so the ' +
-        'reason names Canvas. The module rename below is the other case — ' +
-        'nothing to supply — and the two must not drift into one wording',
+        'reason names Canvas. The reference types below and the module rename ' +
+        'further down are the other case — nothing was asked for, or there is ' +
+        'nothing to ask — and none of them may drift into this wording',
     );
   });
 
@@ -474,6 +476,91 @@ describe('plan: conflict resolution', () => {
     });
 
     assert.equal(result.conflicts[0].winner, 'local');
+  });
+
+  /**
+   * The same both-sides conflict over an item of one given type, shaped the way
+   * `gather` really hands one over: a reference type carries no
+   * `canvasUpdatedAt` at all, because its `REFERENCE_TYPES` branch returns the
+   * module item and asks Canvas nothing further.
+   */
+  const typed = (canvasType) => ({
+    base: {
+      modules: {
+        [FOLDER]: bMod([PATH], {
+          rows: { [PATH]: { canvas_type: canvasType } },
+        }),
+      },
+    },
+    local: {
+      modules: [
+        lMod(FOLDER, [PATH], {
+          items: { [PATH]: { canvasType, localHash: 'edited' } },
+        }),
+      ],
+    },
+    canvas: {
+      modules: [
+        cMod([PATH], {
+          items: {
+            [PATH]: { canvasType, canvasHash: 'edited', canvasUpdatedAt: null },
+          },
+        }),
+      ],
+    },
+    policy: { conflict: 'newest' },
+  });
+
+  it('newest: an untimed type says which timestamp is missing and why', () => {
+    // Local wins for all four, as it always did. What changes is the sentence:
+    // "Canvas gave no usable timestamp" claims Canvas failed to supply
+    // something, and none of these four ever had one to supply. Two shapes,
+    // deliberately worded apart by what is untimed — a header and a link are
+    // the whole object, while a quiz and an LTI tool sync as the module item
+    // pointing at one. Neither shape may imply a fetch that would settle the
+    // conflict: a Classic Quiz carries no timestamps at all, and an LTI tool's
+    // time the installation rather than the item fields compared here.
+    const expected = {
+      sub_header:
+        'newest: Canvas keeps no timestamp on a text header, so it cannot ' +
+        'prove it is newer',
+      external_url:
+        'newest: Canvas keeps no timestamp on an external URL, so it cannot ' +
+        'prove it is newer',
+      quiz:
+        'newest: a quiz syncs as its place in the module, and Canvas keeps no ' +
+        'timestamp on that, so it cannot prove it is newer',
+      external_tool:
+        'newest: an LTI tool syncs as its place in the module, and Canvas ' +
+        'keeps no timestamp on that, so it cannot prove it is newer',
+    };
+
+    for (const [canvasType, reason] of Object.entries(expected)) {
+      const result = plan(typed(canvasType));
+
+      assert.deepEqual(types(result), ['update-canvas-item'], canvasType);
+      assert.equal(result.conflicts.length, 1, canvasType);
+      assert.equal(result.conflicts[0].winner, 'local', canvasType);
+      assert.equal(result.conflicts[0].applied, true, canvasType);
+      assert.equal(result.conflicts[0].reason, reason, canvasType);
+    }
+  });
+
+  it('every reference type has a reason of its own, not the Canvas one', () => {
+    // The coverage guard, walked over `REFERENCE_TYPES` rather than over a
+    // list repeated here: a fifth type added to that set reaches this same
+    // untimed branch, and without a sentence of its own it would silently fall
+    // back to blaming Canvas for a timestamp nothing ever requested.
+    for (const canvasType of REFERENCE_TYPES) {
+      const result = plan(typed(canvasType));
+
+      assert.equal(result.conflicts.length, 1, canvasType);
+      assert.notEqual(
+        result.conflicts[0].reason,
+        'newest: Canvas gave no usable timestamp, so it cannot prove it is newer',
+        `${canvasType} has no reason of its own in UNTIMED_ITEM_REASONS`,
+      );
+    }
   });
 
   it('local: pins the local side whatever the timestamps say', () => {
