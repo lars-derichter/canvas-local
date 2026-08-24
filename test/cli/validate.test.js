@@ -248,6 +248,104 @@ describe('validateModules — raw HTML file references', () => {
     const { errors } = run();
     assert.deepEqual(errors, []);
   });
+
+  it('warns about the embed tags, not just img and a', () => {
+    writePage(
+      '<video src="_files/clip.mp4" controls></video>\n\n' +
+        '<audio src="_files/track.mp3"></audio>\n\n' +
+        '<iframe src="_files/slides.html"></iframe>\n\n' +
+        '<embed src="_files/model.svg">\n\n' +
+        '<object data="_files/handout.pdf"></object>\n\n' +
+        '<video controls><source src="_files/clip.webm" type="video/webm"></video>\n',
+    );
+
+    const { errors, warnings } = run();
+    assert.deepEqual(errors, []);
+    assert.deepEqual(
+      warnings.map((w) => w.replace(/^.*raw HTML (<[^>]+>).*$/s, '$1')),
+      [
+        '<video src="_files/clip.mp4">',
+        '<audio src="_files/track.mp3">',
+        '<iframe src="_files/slides.html">',
+        '<embed src="_files/model.svg">',
+        '<object data="_files/handout.pdf">',
+        '<source src="_files/clip.webm">',
+      ],
+    );
+  });
+
+  it('reports each distinct embed reference once, per tag and attribute', () => {
+    writePage(
+      '<video src="_files/clip.mp4"></video>\n\n' +
+        '<video src="_files/clip.mp4"></video>\n\n' +
+        '<audio src="_files/clip.mp4"></audio>\n',
+    );
+
+    const { warnings } = run();
+    assert.equal(warnings.length, 2);
+    assert.match(warnings[0], /<video src="_files\/clip\.mp4">/);
+    assert.match(warnings[1], /<audio src="_files\/clip\.mp4">/);
+  });
+
+  it('points a non-image embed at a markdown link', () => {
+    writePage('<video src="_files/clip.mp4"></video>');
+
+    const { warnings } = run();
+    assert.equal(warnings.length, 1);
+    assert.match(
+      warnings[0],
+      /Write it as \[text\]\(_files\/clip\.mp4\) instead\.$/,
+    );
+  });
+
+  it('leaves an absolute URL on an embed tag alone', () => {
+    writePage(
+      '<video src="https://example.org/_files/clip.mp4"></video>\n\n' +
+        '<object data="/_files/handout.pdf"></object>\n',
+    );
+
+    const { errors, warnings } = run();
+    assert.deepEqual(errors, []);
+    assert.deepEqual(warnings, []);
+  });
+
+  it('ignores an embed tag inside a fence or a code span', () => {
+    writePage(
+      '```html\n<video src="_files/clip.mp4"></video>\n```\n\n' +
+        'Avoid `<object data="_files/handout.pdf"></object>` in a page.\n',
+    );
+
+    const { errors, warnings } = run();
+    assert.deepEqual(errors, []);
+    assert.deepEqual(warnings, []);
+  });
+
+  it('does not mistake a data- attribute for data', () => {
+    writePage('<object data-src="_files/handout.pdf"></object>');
+
+    const { warnings } = run();
+    assert.deepEqual(warnings, []);
+  });
+
+  it('leaves srcset and poster unwarned', () => {
+    // Both are as dead on Canvas as everything this warns about, and both are
+    // out of the checked set on purpose (see the table in cli/validate.js and
+    // the bullet in docs/limitations.md).
+    writePage(
+      '<img srcset="_files/diagram.png 1x, _files/diagram@2x.png 2x" alt="D">\n\n' +
+        '<video poster="_files/diagram.png" src="https://example.org/clip.mp4"></video>\n',
+    );
+
+    const { warnings } = run();
+    assert.deepEqual(warnings, []);
+  });
+
+  it('keeps the embed-tag warning out of the exit-code path', () => {
+    writePage('<video src="_files/clip.mp4"></video>');
+
+    const { errors } = run();
+    assert.deepEqual(errors, []);
+  });
 });
 
 describe('validateModules — reference-style file references', () => {

@@ -11,14 +11,26 @@ const {
 const { COURSE_DIR } = require('./module-utils');
 const { PROJECT_ROOT } = require('./project-root');
 
-// A file reference written as an HTML tag rather than in markdown syntax. Only
-// `src` on `<img>` and `href` on `<a>` are looked at, and only when the value
-// names a `_files/` path: those are the two an author reaches for to embed
-// something. Deliberately a regex over the text rather than an HTML parse,
-// because the result is a warning about a shape, not a rewrite. Unquoted
-// attribute values are not matched; nothing in this project writes them.
+// A file reference written as an HTML tag rather than in markdown syntax:
+// `src` on the tags that embed something, `href` on `<a>`, `data` on
+// `<object>`, and only when the value names a `_files/` path. Every one of
+// these fails the same way, so they are checked as one cross product of tags
+// and attributes rather than pair by pair: the pairs it over-accepts
+// (`<a src=>`, `<img data=>`) are either invalid HTML nobody writes or the same
+// dead relative path under another name, and the message prints back the pair
+// it actually found.
+//
+// Two attributes stay out on purpose. `srcset` holds a list of candidates with
+// descriptors, which fits neither the single-path value test below nor the
+// `![alt](path)` the message suggests, and `poster` is a second path on a tag
+// whose own `src` is the file being embedded. Both are as dead on Canvas as
+// everything here; docs/limitations.md says so.
+//
+// Deliberately a regex over the text rather than an HTML parse, because the
+// result is a warning about a shape, not a rewrite. Unquoted attribute values
+// are not matched; nothing in this project writes them.
 const RAW_HTML_FILE_REF =
-  /<(img|a)\b[^>]*?\s(src|href)\s*=\s*(["'])([^"']*_files\/[^"']*)\3/gi;
+  /<(img|a|video|audio|source|iframe|embed|object)\b[^>]*?\s(src|href|data)\s*=\s*(["'])([^"']*_files\/[^"']*)\3/gi;
 
 // The label of a link reference definition, read back off the token's own raw
 // text so the warning can quote the author's spelling. Marked normalises the
@@ -277,6 +289,9 @@ function validateModules(modules, courseDir, projectRoot = PROJECT_ROOT) {
         if (seenRawRefs.has(key)) continue;
         seenRawRefs.add(key);
 
+        // Markdown has no embed syntax, so everything that is not an image is
+        // pointed at a plain link: that is the shape push uploads and repoints,
+        // and Canvas gives an uploaded media file a player of its own.
         const suggestion =
           tag.toLowerCase() === 'img' ? `![alt](${href})` : `[text](${href})`;
         warnings.push(

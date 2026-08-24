@@ -469,12 +469,17 @@ to merge against even in principle.
   is an address meant to carry the six characters `&amp;` as text, because every
   cycle resolves one level of it: `&amp;amp;` becomes `&amp;` becomes `&`.
 - **A file referenced from raw HTML is neither uploaded nor rewritten.** An
-  `<img src="_files/diagram.png">` or `<a href="_files/handout.pdf">` written as
-  an HTML tag in your markdown reaches Canvas exactly as you typed it, pointing
-  at a relative path that does not exist there. Only inline markdown references
+  `<img src="_files/diagram.png">`, `<a href="_files/handout.pdf">` or
+  `<video src="_files/clip.mp4">` written as an HTML tag in your markdown
+  reaches Canvas exactly as you typed it, pointing at a relative path that does
+  not exist there. Only inline markdown references
   (`![alt](_files/diagram.png)`, `[text](_files/handout.pdf)`) are uploaded and
   repointed at the Canvas file. Write the reference in markdown syntax;
-  `npx course validate` warns when it finds one that is not.
+  `npx course validate` warns about the attribute each embedding tag names its
+  file with: `src` on `img`, `video`, `audio`, `source`, `iframe` and `embed`,
+  `href` on `a`, and `data` on `object`. A path written in another attribute
+  (`srcset`, `poster`) or on a `<track>` tag is just as dead on Canvas and is
+  not warned about.
 - **A file referenced through a link definition is not uploaded either.**
   `![diagram][d]` with `[d]: _files/diagram.png` further down the page renders
   locally, but push reads inline destinations only, so the file is never
