@@ -105,9 +105,9 @@ synced, and the refusal says when it found those markers.
 Key properties:
 
 - **canvas_base_url**: the Canvas host, with no `/api/v1` suffix and no trailing
-  slash. `normaliseBaseUrl` in `lib/sync/state.js` puts both this value and the
-  one in `.env` into that shape, so the two can differ by punctuation and still
-  agree.
+  slash. `normaliseBaseUrl` in `lib/canvas/client.js` puts both this value and
+  the one in `.env` into that shape, so the two can differ by punctuation and
+  still agree.
 - **modules**: keyed by the local folder name; the Canvas module id is a value
   under it. `item_order` is the order the module's items were in at the last
   sync, and it is the base leg of the three-way ordering comparison, so a

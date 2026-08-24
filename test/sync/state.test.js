@@ -15,7 +15,6 @@ const {
   getItem,
   getModule,
   loadState,
-  normaliseBaseUrl,
   renameFolder,
   renameFolders,
   renamePath,
@@ -104,20 +103,6 @@ describe('emptyState', () => {
     const state = emptyState({});
     assert.equal(state.course_id, 0);
     assert.equal(state.canvas_base_url, '');
-  });
-});
-
-describe('normaliseBaseUrl', () => {
-  it('strips trailing slashes and an /api/v1 suffix', () => {
-    assert.equal(normaliseBaseUrl(`${URL}/`), URL);
-    assert.equal(normaliseBaseUrl(`${URL}/api/v1`), URL);
-    assert.equal(normaliseBaseUrl(`${URL}/api/v1/`), URL);
-  });
-
-  it('handles a missing value', () => {
-    assert.equal(normaliseBaseUrl(undefined), '');
-    assert.equal(normaliseBaseUrl(''), '');
-    assert.equal(normaliseBaseUrl(null), '');
   });
 });
 

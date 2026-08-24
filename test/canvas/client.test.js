@@ -11,6 +11,7 @@ const {
   post,
   put,
   del,
+  normaliseBaseUrl,
   CanvasApiError,
 } = require('../../lib/canvas/client');
 
@@ -717,5 +718,29 @@ describe('canvasRequest', () => {
 
       process.env.CANVAS_API_URL = originalUrl;
     });
+  });
+});
+
+describe('normaliseBaseUrl', () => {
+  const BASE = 'https://school.instructure.com';
+
+  it('strips trailing slashes and an /api/v1 suffix', () => {
+    assert.equal(normaliseBaseUrl(`${BASE}/`), BASE);
+    assert.equal(normaliseBaseUrl(`${BASE}/api/v1`), BASE);
+    assert.equal(normaliseBaseUrl(`${BASE}/api/v1/`), BASE);
+  });
+
+  it('leaves no slash behind when the two forms are combined', () => {
+    // The cases that separate this from a bare `/api/v1` trim: each of them
+    // ends in a slash after that trim alone, and anything built by putting a
+    // site-root-relative path behind it then carries `//` in the middle.
+    assert.equal(normaliseBaseUrl(`${BASE}//api/v1`), BASE);
+    assert.equal(normaliseBaseUrl(`${BASE}///`), BASE);
+  });
+
+  it('handles a missing value', () => {
+    assert.equal(normaliseBaseUrl(undefined), '');
+    assert.equal(normaliseBaseUrl(''), '');
+    assert.equal(normaliseBaseUrl(null), '');
   });
 });

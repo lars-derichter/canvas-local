@@ -3,10 +3,10 @@ const path = require('path');
 
 const { PROJECT_ROOT } = require('./project-root');
 const { createRL, prompt } = require('./module-utils');
+const { normaliseBaseUrl } = require('../lib/canvas/client');
 const {
   emptyState,
   loadState,
-  normaliseBaseUrl,
   saveState,
   SYNC_FILE,
 } = require('../lib/sync/state');

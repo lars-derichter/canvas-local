@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { LABEL_SETS } = require('../../lib/config/labels');
-const { normaliseBaseUrl } = require('../../lib/sync/state');
+const { normaliseBaseUrl } = require('../../lib/canvas/client');
 
 /** This plugin runs inside the Docusaurus build, where the CLI's project
  *  root detection does not apply — resolve it from this file instead. */
@@ -24,7 +24,7 @@ const itemCache = new Map();
  * site root so a `/api/v1` suffix (which `CANVAS_API_URL` is sometimes written
  * with) does not end up in a link a human is meant to click.
  *
- * The trimming is `normaliseBaseUrl` in lib/sync/state.js, which is the one
+ * The trimming is `normaliseBaseUrl` in lib/canvas/client.js, which is the one
  * definition of the shape `.env` and `.canvas-sync.json` hold. The surrounding
  * `.trim()` is this plugin's own: it reads a raw environment variable and a raw
  * Docusaurus option, neither of which has been through `init`.
