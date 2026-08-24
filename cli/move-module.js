@@ -76,7 +76,11 @@ async function moveModule(options = {}) {
     rl.close();
   }
 
-  if (sourceModule.prefix === targetPosition) {
+  // `targetPosition` is a 1-based ordinal into the sorted list, so the no-op
+  // check must compare ordinals too: with gapped or 00-based numbering the
+  // prefix disagrees with the ordinal, and comparing it here no-opped real
+  // moves while letting genuine same-slot moves through.
+  if (modules.indexOf(sourceModule) + 1 === targetPosition) {
     console.log('[move-module] Module is already at that position.');
     return;
   }

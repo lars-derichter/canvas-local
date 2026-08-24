@@ -98,7 +98,9 @@ async function moveItem(options = {}) {
   }
   rl.close();
 
-  if (sourceItem.prefix === targetPosition) {
+  // Ordinal against ordinal, as in move-module: the prefix is not the
+  // position when the numbering is gapped or starts at 00.
+  if (items.indexOf(sourceItem) + 1 === targetPosition) {
     console.log('[move-item] Item is already at that position.');
     return;
   }
