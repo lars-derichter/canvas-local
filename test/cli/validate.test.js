@@ -250,6 +250,142 @@ describe('validateModules — raw HTML file references', () => {
   });
 });
 
+describe('validateModules — reference-style file references', () => {
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'validate-refstyle-'));
+    moduleDir = path.join(tmpDir, '01-module');
+    fs.mkdirSync(moduleDir, { recursive: true });
+    fs.mkdirSync(path.join(moduleDir, '_files'), { recursive: true });
+    fs.writeFileSync(path.join(moduleDir, '_files', 'diagram.png'), 'binary');
+    fs.writeFileSync(path.join(moduleDir, '_files', 'handout.pdf'), 'binary');
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  /** Write a page whose body is `body`. */
+  function writePage(body) {
+    writeItem('01-page.md', `---\ntitle: Page\n---\n\n${body}\n`);
+  }
+
+  it('warns about an image written reference-style', () => {
+    writePage('![Diagram][d]\n\n[d]: _files/diagram.png');
+
+    const { errors, warnings } = run();
+    assert.deepEqual(errors, []);
+    assert.equal(warnings.length, 1);
+    assert.match(
+      warnings[0],
+      /^01-module\/01-page\.md: reference-style definition \[d\]: _files\/diagram\.png will not sync\./,
+    );
+    assert.match(warnings[0], /!\[alt\]\(_files\/diagram\.png\)/);
+    assert.match(warnings[0], /\[text\]\(_files\/diagram\.png\)/);
+  });
+
+  it('warns once per definition, not once per reference to it', () => {
+    writePage(
+      '![Diagram][d]\n\nAnd again: ![Diagram][d]\n\nCollapsed: ![d][]\n\n' +
+        'Shortcut: [d]\n\n[d]: _files/diagram.png\n[h]: _files/handout.pdf',
+    );
+
+    const { warnings } = run();
+    assert.equal(warnings.length, 2);
+    assert.match(warnings[0], /\[d\]: _files\/diagram\.png/);
+    assert.match(warnings[1], /\[h\]: _files\/handout\.pdf/);
+  });
+
+  it('quotes the label as the author spelled it', () => {
+    writePage('![Diagram][Big Label]\n\n[Big Label]: _files/diagram.png');
+
+    const { warnings } = run();
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /definition \[Big Label\]: _files\/diagram\.png/);
+  });
+
+  it('reads an angle-bracketed destination and a title on the next line', () => {
+    writePage('![Diagram][d]\n\n[d]: <_files/diagram.png>\n   "The diagram"');
+
+    const { warnings } = run();
+    assert.equal(warnings.length, 1);
+    assert.match(
+      warnings[0],
+      /definition \[d\]: _files\/diagram\.png will not/,
+    );
+  });
+
+  it('finds a definition nested in a blockquote or a list item', () => {
+    // CommonMark resolves a reference through either of these, so a push turns
+    // them into the same dead relative path a top-level definition would.
+    writePage(
+      '> [d]: _files/diagram.png\n\n- item\n\n  [h]: _files/handout.pdf',
+    );
+
+    const { warnings } = run();
+    assert.equal(warnings.length, 2);
+    assert.match(warnings[0], /\[d\]: _files\/diagram\.png/);
+    assert.match(warnings[1], /\[h\]: _files\/handout\.pdf/);
+  });
+
+  it('says nothing about the same reference in inline syntax', () => {
+    writePage(
+      '![Diagram](_files/diagram.png)\n\n[Handout](_files/handout.pdf)\n',
+    );
+
+    const { errors, warnings } = run();
+    assert.deepEqual(errors, []);
+    assert.deepEqual(warnings, []);
+  });
+
+  it('leaves an absolute destination alone', () => {
+    writePage(
+      '![Diagram][d]\n\n[d]: https://example.org/_files/diagram.png\n' +
+        '[h]: /_files/handout.pdf',
+    );
+
+    const { errors, warnings } = run();
+    assert.deepEqual(errors, []);
+    assert.deepEqual(warnings, []);
+  });
+
+  it('ignores a definition inside a fence, a code span or an indented block', () => {
+    writePage(
+      '```markdown\n[d]: _files/diagram.png\n```\n\n' +
+        'Avoid `[d]: _files/diagram.png` at the bottom.\n\n' +
+        '    [d]: _files/diagram.png\n',
+    );
+
+    const { errors, warnings } = run();
+    assert.deepEqual(errors, []);
+    assert.deepEqual(warnings, []);
+  });
+
+  it('does not mistake a definition-shaped line inside a paragraph for one', () => {
+    // A definition cannot interrupt a paragraph, so this is prose that happens
+    // to look like one and resolves no reference at all.
+    writePage('Some text\n[d]: _files/diagram.png');
+
+    const { warnings } = run();
+    assert.deepEqual(warnings, []);
+  });
+
+  it('leaves a definition that points outside _files/ alone', () => {
+    writePage('[d]: ./02-other.md\n[e]: ../01-module/notes.txt');
+
+    const { warnings } = run();
+    assert.deepEqual(warnings, []);
+  });
+
+  it('keeps the reference-style warning out of the exit-code path', () => {
+    // Warnings never fail validate; only errors do. The page still renders
+    // locally and still pushes, it just loses the file on the way.
+    writePage('![Diagram][d]\n\n[d]: _files/diagram.png');
+
+    const { errors } = run();
+    assert.deepEqual(errors, []);
+  });
+});
+
 describe('validateModules — quiz items', () => {
   let root;
   let courseDir;

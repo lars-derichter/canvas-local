@@ -475,6 +475,12 @@ to merge against even in principle.
   (`![alt](_files/diagram.png)`, `[text](_files/handout.pdf)`) are uploaded and
   repointed at the Canvas file. Write the reference in markdown syntax;
   `npx course validate` warns when it finds one that is not.
+- **A file referenced through a link definition is not uploaded either.**
+  `![diagram][d]` with `[d]: _files/diagram.png` further down the page renders
+  locally, but push reads inline destinations only, so the file is never
+  uploaded and the image reaches Canvas pointing at the relative path. Write the
+  destination inline (`![diagram](_files/diagram.png)`); `npx course validate`
+  warns about a definition whose destination points into `_files/`.
 - **A file embedded from another course becomes this course's.** Content copied
   over from another Canvas course can keep file URLs that point at the source
   course, links students of this course cannot always open. Pull downloads such

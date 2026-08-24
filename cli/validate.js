@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { Lexer } = require('marked');
 
 const { scanCourse, flattenItems } = require('../lib/convert/course-scanner');
 const { parseFrontmatter } = require('../lib/convert/frontmatter');
@@ -18,6 +19,43 @@ const { PROJECT_ROOT } = require('./project-root');
 // attribute values are not matched; nothing in this project writes them.
 const RAW_HTML_FILE_REF =
   /<(img|a)\b[^>]*?\s(src|href)\s*=\s*(["'])([^"']*_files\/[^"']*)\3/gi;
+
+// The label of a link reference definition, read back off the token's own raw
+// text so the warning can quote the author's spelling. Marked normalises the
+// label it keys the definition under — `[Diagram]` becomes `diagram` — and a
+// warning that renames what is written in the file is a warning that is harder
+// to find. Non-greedy up to the first `]:`, which is where the label ends.
+const DEFINITION_LABEL = /^\s*\[([\s\S]*?)\]:/;
+
+/**
+ * Every link/image reference definition in a markdown body.
+ *
+ * Marked rather than a regex over the text, because the question is not "does
+ * this line look like a definition" but "does this project's parser resolve a
+ * reference through it", and the two answers differ in both directions. A line
+ * that follows a paragraph line, or one indented four spaces, looks like a
+ * definition and is not one; a definition inside a blockquote or a list item
+ * does not look like a top-level line and is one, resolving references
+ * anywhere in the file. Lexing is local and synchronous — no network, no HTML
+ * conversion — so it keeps validate's character. `Lexer.lex` is the static
+ * form, which builds a fresh lexer with default options rather than picking up
+ * whatever extensions another module registered on a shared one.
+ *
+ * @param {string} body - Markdown with the frontmatter already stripped.
+ * @returns {Array<object>} Marked's `def` tokens, outermost first.
+ */
+function referenceDefinitions(body) {
+  const defs = [];
+  const walk = (tokens) => {
+    for (const token of tokens || []) {
+      if (token.type === 'def') defs.push(token);
+      walk(token.tokens);
+      walk(token.items);
+    }
+  };
+  walk(Lexer.lex(body));
+  return defs;
+}
 
 const VALID_CANVAS_TYPES = new Set([
   'page',
@@ -89,8 +127,9 @@ function validateModules(modules, courseDir, projectRoot = PROJECT_ROOT) {
       }
 
       let data;
+      let body;
       try {
-        ({ data } = parseFrontmatter(raw));
+        ({ data, content: body } = parseFrontmatter(raw));
       } catch (err) {
         errors.push(
           `${item.relativePath}: invalid frontmatter YAML: ${err.message}`,
@@ -242,6 +281,42 @@ function validateModules(modules, courseDir, projectRoot = PROJECT_ROOT) {
           tag.toLowerCase() === 'img' ? `![alt](${href})` : `[text](${href})`;
         warnings.push(
           `${item.relativePath}: raw HTML <${tag.toLowerCase()} ${attr.toLowerCase()}="${href}"> will not sync. Push uploads and rewrites inline markdown references only, so this one reaches Canvas as a dead relative path. Write it as ${suggestion} instead.`,
+        );
+      }
+
+      // Check for file references written reference-style. The same gap, one
+      // syntax over: `![diagram][d]` with `[d]: _files/diagram.png` at the
+      // bottom renders fine locally, but the extractor only ever sees inline
+      // `(...)` destinations, so the file is never uploaded and the `<img>`
+      // marked renders keeps the relative path. The definition is what is
+      // warned about rather than each reference to it, because it is the one
+      // line to fix however many times it is used. A definition nothing
+      // references yet is warned about too: it is one reference away from
+      // being the same broken page.
+      const seenDefs = new Set();
+      let definitions = [];
+      try {
+        definitions = referenceDefinitions(body);
+      } catch {
+        // Lexing may fail on unusual content
+      }
+      for (const def of definitions) {
+        const dest = def.href || '';
+        if (!dest.includes('_files/')) continue;
+        // Same skip as above: only a relative path is the broken case.
+        if (/^(https?:\/\/|\/\/|\/|data:|mailto:)/i.test(dest)) continue;
+
+        const labelMatch = DEFINITION_LABEL.exec(def.raw);
+        const label = (labelMatch ? labelMatch[1] : def.tag)
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        const key = `${label} ${dest}`;
+        if (seenDefs.has(key)) continue;
+        seenDefs.add(key);
+
+        warnings.push(
+          `${item.relativePath}: reference-style definition [${label}]: ${dest} will not sync. Push uploads and rewrites inline markdown references only, so this one reaches Canvas as a dead relative path. Write the reference inline as ![alt](${dest}) or [text](${dest}) instead.`,
         );
       }
     }
