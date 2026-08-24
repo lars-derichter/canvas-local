@@ -1,4 +1,4 @@
-const { describe, it, mock, afterEach } = require('node:test');
+const { describe, it, mock, afterEach, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 
 // Set required env vars before requiring anything that loads the client.
@@ -284,6 +284,141 @@ describe('resetCanvas --dry-run', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Exit codes
+//
+// The command reports its verdict through `process.exitCode` rather than
+// `process.exit`, so a test can read it — and has to put it back afterwards,
+// or the first run that legitimately fails would fail the whole suite.
+//
+// Three paths are a failure: a run with no course to reset, a run that ended
+// with content it was told to delete still in the course, and a run cancelled
+// at the prompt. The last follows the rule push and pull already apply:
+// however the "no" arrived, the reset the command was asked for did not
+// happen. A preview is not a failure; a dry run does everything a dry run is
+// for.
+// ---------------------------------------------------------------------------
+
+describe('resetCanvas exit code', () => {
+  beforeEach(() => {
+    process.exitCode = 0;
+  });
+  afterEach(() => {
+    mock.restoreAll();
+    process.exitCode = 0;
+  });
+
+  /** Mute the three sinks the logger writes to. */
+  function silence() {
+    mock.method(console, 'log', () => {});
+    mock.method(console, 'warn', () => {});
+    mock.method(console, 'error', () => {});
+  }
+
+  /** The four list calls, for a course holding one module and nothing else. */
+  function oneModule() {
+    return [
+      { method: 'GET', path: '/pages', body: [] },
+      { method: 'GET', path: '/files', body: [] },
+      { method: 'GET', path: '/modules', body: [{ id: 9, name: 'Module' }] },
+      { method: 'GET', path: '/assignments', body: [] },
+    ];
+  }
+
+  const deletions = (calls) => calls.filter((c) => c.method === 'DELETE');
+
+  it('exits non-zero when no Canvas course is configured', async () => {
+    silence();
+    const configured = process.env.CANVAS_COURSE_ID;
+    delete process.env.CANVAS_COURSE_ID;
+    try {
+      await resetCanvas({});
+    } finally {
+      process.env.CANVAS_COURSE_ID = configured;
+    }
+
+    assert.equal(
+      process.exitCode,
+      1,
+      'the run reset nothing, so a script must not read it as a clean sweep',
+    );
+  });
+
+  it('exits non-zero when a deletion failed', async () => {
+    silence();
+    // No DELETE route, so the one deletion this run makes answers 400, a
+    // status the client does not retry, and the run reports one error.
+    mockCanvas(oneModule());
+
+    const outcome = await withStdin('y\n', () => within(resetCanvas({})));
+
+    assert.notEqual(outcome, HUNG);
+    assert.equal(
+      process.exitCode,
+      1,
+      'the module is still in the course, so the reset did not do what it said',
+    );
+  });
+
+  it('leaves the exit code alone when every deletion landed', async () => {
+    silence();
+    mockCanvas([
+      ...oneModule(),
+      { method: 'DELETE', path: '/modules/9', body: {} },
+    ]);
+
+    const outcome = await withStdin('y\n', () => within(resetCanvas({})));
+
+    assert.notEqual(outcome, HUNG);
+    assert.equal(process.exitCode, 0);
+  });
+
+  it('exits non-zero when the answer is not "y"', async () => {
+    silence();
+    const calls = mockCanvas(oneModule());
+
+    const outcome = await withStdin('n\n', () => within(resetCanvas({})));
+
+    assert.notEqual(outcome, HUNG);
+    assert.deepEqual(deletions(calls), []);
+    assert.equal(
+      process.exitCode,
+      1,
+      'asked to reset, reset nothing: same verdict as a declined push or pull',
+    );
+  });
+
+  it('exits non-zero when the input stream ends unanswered', async () => {
+    silence();
+    const calls = mockCanvas(oneModule());
+
+    // `< /dev/null`, a CI step, an editor task: silence reads as "no", and a
+    // "no" is a "no" however it arrived.
+    const outcome = await withStdin('', () => within(resetCanvas({})));
+
+    assert.notEqual(
+      outcome,
+      HUNG,
+      'a question nothing will ever answer must settle rather than hang',
+    );
+    assert.deepEqual(deletions(calls), []);
+    assert.equal(process.exitCode, 1);
+  });
+
+  it('leaves the exit code alone on a dry run', async () => {
+    silence();
+    mockCanvas(oneModule());
+
+    await resetCanvas({ dryRun: true });
+
+    assert.equal(
+      process.exitCode,
+      0,
+      'a preview that exits non-zero is a broken preview',
+    );
+  });
+});
+
 /** A fake Response object compatible with the fetch API. */
 function fakeResponse(body, { status = 200 } = {}) {
   return {
@@ -318,4 +453,39 @@ function mockCanvas(routes) {
     return fakeResponse(route.body, { status: route.status || 200 });
   });
   return calls;
+}
+
+/** Returned in place of a promise that never settled. */
+const HUNG = Symbol('hung');
+
+/**
+ * Resolve to HUNG when `promise` has not settled shortly, so a confirmation
+ * that never answers fails the test that awaited it instead of hanging the
+ * whole run — and `withStdin` reaches its restore either way.
+ */
+function within(promise, ms = 2000) {
+  let timer;
+  const expiry = new Promise((resolve) => {
+    timer = setTimeout(() => resolve(HUNG), ms);
+  });
+  return Promise.race([promise, expiry]).finally(() => clearTimeout(timer));
+}
+
+/**
+ * Run a function with stdin replaced by a readable stream of `input`, so the
+ * confirmation resolves without a terminal. An empty `input` is a stream that
+ * ends without ever producing a line — what `< /dev/null`, a CI runner or a
+ * piped command with nothing left to say hands a question.
+ */
+async function withStdin(input, fn) {
+  const { Readable } = require('stream');
+  const original = Object.getOwnPropertyDescriptor(process, 'stdin');
+  const fake = Readable.from(input ? [input] : []);
+  fake.isTTY = false;
+  Object.defineProperty(process, 'stdin', { value: fake, configurable: true });
+  try {
+    return await fn();
+  } finally {
+    Object.defineProperty(process, 'stdin', original);
+  }
 }

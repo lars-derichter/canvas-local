@@ -104,6 +104,10 @@ async function resetCanvas(options = {}) {
   const courseId = process.env.CANVAS_COURSE_ID;
   if (!courseId) {
     log.error('CANVAS_COURSE_ID is not set. Run "npx course init" first.');
+    // A run that never found a course to reset did not do what it was asked.
+    // Push, pull, status and sync all exit non-zero on an unconfigured course,
+    // and exiting 0 here would let a script read the message as a clean sweep.
+    process.exitCode = 1;
     return;
   }
 
@@ -213,6 +217,12 @@ async function resetCanvas(options = {}) {
   );
   if (!ok) {
     log.info('[reset-canvas] Aborted.');
+    // Asked to reset, deleted nothing. Same rule as push and pull: the
+    // answer's provenance makes no difference, a deliberate "n" and a
+    // scripted run with no answer to give both leave the command having not
+    // done the one thing it was told to do, and `reset-canvas && push` would
+    // read the cancelled reset as an emptied course.
+    process.exitCode = 1;
     return;
   }
 
@@ -284,6 +294,11 @@ async function resetCanvas(options = {}) {
 
   if (errors.length > 0) {
     log.error(`[reset-canvas] Completed with ${errors.length} error(s).`);
+    // Carrying on past a failed deletion is deliberate: one 403 must not leave
+    // the rest of the course undeleted and unreported. The run still ended
+    // with content it was told to delete still in the course, though, and
+    // exiting 0 would tell the script that ran it the course is now empty.
+    process.exitCode = 1;
   } else {
     log.info('[reset-canvas] All content deleted successfully.');
   }

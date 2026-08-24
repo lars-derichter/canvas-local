@@ -131,11 +131,17 @@ Canvas does not answer it (an older instance, a trimmed response), the
 assignment is reported as `submission status unknown` and the warning says the
 status could not be determined. It is never reported as safe.
 
-Anything other than `y` cancels, so a piped or non-interactive run cancels
-rather than deleting.
+Anything other than `y` cancels, and so does an input stream that ends without
+answering: `< /dev/null`, a CI step or an editor task with nothing to say
+cancels rather than deleting. A piped answer is not silence, though.
+`printf 'y\n' | npx course reset-canvas` answers the question like a typed `y`,
+and the deletion runs.
 
-If individual deletions fail the command continues with the remaining items and
-reports a summary of errors at the end.
+If individual deletions fail the command continues with the remaining items,
+reports a summary of errors at the end, and exits non-zero. So does a run that
+found no `CANVAS_COURSE_ID` to work from, and a cancelled one: like a declined
+`push` or `pull`, a run that did not do what it was asked does not report
+success, however the "no" arrived.
 
 Use `--verbose` to see each deletion as it happens:
 
