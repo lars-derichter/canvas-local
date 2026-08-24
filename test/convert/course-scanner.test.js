@@ -1,4 +1,12 @@
-const { describe, it, before, after } = require('node:test');
+const {
+  describe,
+  it,
+  before,
+  after,
+  beforeEach,
+  afterEach,
+  mock,
+} = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
@@ -261,5 +269,113 @@ describe('scanCourse', () => {
       introItems[0].relativePath,
       path.join('01-intro', '01-welcome.md'),
     );
+  });
+});
+
+describe('scanCourse nesting warnings', () => {
+  let tmpDir;
+  let warnMock;
+
+  const write = (...parts) => {
+    const file = path.join(tmpDir, ...parts);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, '---\ntitle: Deep\n---\n\nBody.');
+  };
+
+  const warnings = () => warnMock.mock.calls.map((c) => c.arguments.join(' '));
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'course-nesting-'));
+    warnMock = mock.method(console, 'warn', () => {});
+  });
+
+  afterEach(() => {
+    warnMock.mock.restore();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('warns once, by name, about a folder nested inside a subfolder', () => {
+    write('01-intro', '01-welcome.md');
+    write('01-intro', '02-basics', '01-variables.md');
+    write('01-intro', '02-basics', '03-deep', '01-buried.md');
+
+    scanCourse(tmpDir);
+
+    assert.equal(warnMock.mock.callCount(), 1);
+    const [message] = warnings();
+    assert.match(message, /01-intro\/02-basics\/03-deep\//);
+    // Says what to do about it, not just that something went wrong.
+    assert.match(message, /Move its files into 01-intro\/02-basics\//);
+  });
+
+  it('still drops the files inside it, warning or no warning', () => {
+    // The warning is the whole change: what reaches Canvas is unchanged, so a
+    // file two levels down is still invisible to every caller of the scan.
+    write('01-intro', '02-basics', '01-variables.md');
+    write('01-intro', '02-basics', '03-deep', '01-buried.md');
+
+    const [module] = scanCourse(tmpDir);
+    const subheader = module.items.find((i) => i.type === 'subheader');
+
+    assert.equal(subheader.items.length, 1);
+    assert.equal(subheader.items[0].file, '01-variables.md');
+    assert.equal(
+      subheader.items.find((i) => i.file === '01-buried.md'),
+      undefined,
+    );
+  });
+
+  it('stays silent about an underscore-prefixed folder at that depth', () => {
+    // `_files/` inside a subfolder is internal by design. Warning about it
+    // would fire on the layout the tool itself writes during a pull.
+    write('01-intro', '02-basics', '01-variables.md');
+    fs.mkdirSync(path.join(tmpDir, '01-intro', '02-basics', '_files'));
+    fs.writeFileSync(
+      path.join(tmpDir, '01-intro', '02-basics', '_files', 'diagram.png'),
+      'fake-image',
+    );
+
+    scanCourse(tmpDir);
+
+    assert.equal(warnMock.mock.callCount(), 0);
+  });
+
+  it('names the topmost dropped folder only, however deep the tree goes', () => {
+    // The walk stops at the first folder it drops, so a four-deep tree is one
+    // warning about the folder to fix, not one per level below it.
+    write('01-intro', '02-basics', '03-deep', '04-deeper', '01-buried.md');
+
+    scanCourse(tmpDir);
+
+    assert.equal(warnMock.mock.callCount(), 1);
+    assert.match(warnings()[0], /01-intro\/02-basics\/03-deep\//);
+  });
+
+  it('warns once per dropped folder when a subfolder holds several', () => {
+    write('01-intro', '02-basics', '03-deep', '01-buried.md');
+    write('01-intro', '02-basics', '04-also-deep', '01-buried.md');
+
+    scanCourse(tmpDir);
+
+    assert.equal(warnMock.mock.callCount(), 2);
+    const messages = warnings();
+    assert.equal(
+      messages.filter((m) => m.includes('01-intro/02-basics/03-deep/')).length,
+      1,
+    );
+    assert.equal(
+      messages.filter((m) => m.includes('01-intro/02-basics/04-also-deep/'))
+        .length,
+      1,
+    );
+  });
+
+  it('says nothing about a subfolder directly inside a module', () => {
+    // One level of nesting is the supported layout; only deeper is a mistake.
+    write('01-intro', '02-basics', '01-variables.md');
+
+    scanCourse(tmpDir);
+
+    assert.equal(warnMock.mock.callCount(), 0);
   });
 });

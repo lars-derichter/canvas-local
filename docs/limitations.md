@@ -336,15 +336,25 @@ has, and `pull --force` does either over a file that holds uncommitted work. See
 
 ## The Folder Structure Is a Contract
 
-The scanner is strict, and it is quiet about it:
+The scanner is strict, and quiet about most of it:
 
 - **Only top-level directories under `course/` are modules.** Loose markdown at
   the root of `course/` is ignored, including `course/index.md`, which is why
   that file appears on the preview site but never in Canvas.
 - **One level of nesting, and one only.** A subfolder inside a module becomes a
-  text header. A folder inside _that_ is **silently dropped**, along with
-  everything in it. There is no warning and `validate` does not catch it. This
-  is the sharpest edge in the tool.
+  text header. A folder inside _that_ is **dropped**, along with everything in
+  it. The drop is announced, not silent: `sync`, `push`, `pull`, `status`,
+  `validate`, `search`, `export` and `export-toc` each name the folder once per
+  run and say what to do about it.
+
+  ```
+  [warn] Skipping 01-intro/02-basics/03-deep/ and everything in it: a module takes one level of subfolders and this is one deeper. Move its files into 01-intro/02-basics/, or make it a subfolder of 01-intro/.
+  ```
+
+  A folder prefixed with `_` at that depth is internal by design and says
+  nothing. The warning is the whole of the change: the folder is still dropped,
+  and `validate` does not count it among the warnings it tallies at the end.
+
 - **Numeric prefixes drive order.** A file or folder without a `NN-` prefix gets
   position 0, so it sorts first and ties with every other unprefixed sibling in
   whatever order the filesystem returns. `validate` warns, but push proceeds.

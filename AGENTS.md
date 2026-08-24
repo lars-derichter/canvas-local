@@ -55,9 +55,9 @@ questions never crossing in either direction, an LTI install that cannot be
 rebuilt from this repo because Canvas withholds `shared_secret`, the fact that a
 plain `push` reconciles the item list of every module it manages rather than
 rebuilding it and deletes nothing on Canvas without `--prune-canvas`, the
-one-level nesting limit (sub-subfolders are dropped silently), and why push/pull
-is not a merge. Never suggest a destructive command without pointing at
-[`docs/backups.md`](docs/backups.md).
+one-level nesting limit (a sub-subfolder is dropped, with a warning naming it),
+and why push/pull is not a merge. Never suggest a destructive command without
+pointing at [`docs/backups.md`](docs/backups.md).
 
 Before handing code back, run `npm run lint` (ESLint; defects only) and
 `npm run format` (Prettier; formatting). Both are checked in CI. Do not hand-

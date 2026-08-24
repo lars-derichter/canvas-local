@@ -392,8 +392,8 @@
   search of the whole repository for "backup" returned a single hit, about
   GitHub. [`docs/limitations.md`](docs/limitations.md) is the honest list (the
   four types that sync, quizzes being import-only through a QTI package, the
-  one-level nesting limit that drops a sub-subfolder without a warning, the
-  reasons push and pull are not a merge), and
+  one-level nesting limit that drops a sub-subfolder with a warning naming it,
+  the reasons push and pull are not a merge), and
   [`docs/backups.md`](docs/backups.md) has the three ways to protect a course
   first. Three statements that were simply wrong are corrected: pull does not
   preserve extra frontmatter (now it does, see below), `reset-sync-state` does
