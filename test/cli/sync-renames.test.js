@@ -362,7 +362,9 @@ describe('dropRowsRenumberedOver', () => {
   let courseDir;
   let file;
   let warned;
+  let errored;
   let realWarn;
+  let realError;
 
   function pageRow(canvasId, title) {
     return {
@@ -408,15 +410,20 @@ describe('dropRowsRenumberedOver', () => {
     file = path.join(root, '.canvas-sync.json');
     fs.mkdirSync(courseDir, { recursive: true });
     warned = [];
-    // The logger, not console: what this pins is that the warning goes through
-    // the sink `--quiet` and `--verbose` control. A console swap would pass
-    // either way.
+    errored = [];
+    // The logger, not console: what this pins is which of its sinks each line
+    // goes through, because that is what decides whether `--quiet` keeps it.
+    // A console swap would pass either way. Both are captured, so a line that
+    // changes channel fails a test rather than quietly moving.
     realWarn = log.warn;
+    realError = log.error;
     log.warn = (...args) => warned.push(args.join(' '));
+    log.error = (...args) => errored.push(args.join(' '));
   });
 
   afterEach(() => {
     log.warn = realWarn;
+    log.error = realError;
     fs.rmSync(root, { recursive: true, force: true });
   });
 
@@ -448,6 +455,7 @@ describe('dropRowsRenumberedOver', () => {
 
     assert.deepEqual(stranded, []);
     assert.deepEqual(warned, [], 'and it says nothing, because nothing went');
+    assert.deepEqual(errored, [], 'on either channel');
     assert.equal(fs.readFileSync(file, 'utf8'), before);
   });
 
@@ -483,9 +491,14 @@ describe('dropRowsRenumberedOver', () => {
       '01-mod/03-alerts.md',
     ]);
     // Silence is the failure mode here: the row is gone and the Canvas page is
-    // still live, so an author who is not told can never find it again.
-    assert.match(warned.join('\n'), /Delete them in Canvas by hand/);
-    assert.match(warned.join('\n'), /page "Alerts" \(Canvas id 502\)/);
+    // still live, so an author who is not told can never find it again. Which
+    // is why the whole block goes out on the error channel — `--quiet` closes
+    // the warning one, and this listing is the only record of page 502 left.
+    const said = errored.join('\n');
+    assert.match(said, /Renumbering moved 03-alerts\.md onto 02-alerts\.md/);
+    assert.match(said, /Delete them in Canvas by hand/);
+    assert.match(said, /page "Alerts" \(Canvas id 502\)/);
+    assert.deepEqual(warned, [], 'and nothing about it is left where it drops');
   });
 
   it('takes a deleted subsection whole, header row included', () => {
@@ -568,7 +581,9 @@ describe('dropRowsRenumberedOver', () => {
   it('says nothing about a row that was never pushed, but still clears it', () => {
     // A row with no Canvas id strands nothing — there is no object out there to
     // go and delete — so warning about it would be noise. It still has to go, or
-    // the rename it blocks is refused all the same.
+    // the rename it blocks is refused all the same. The row it gave up is still
+    // worth a word, and that word is a warning: nothing survived this that
+    // `--quiet` would have to carry.
     writeState({
       '01-mod': {
         id: 100,
@@ -590,6 +605,8 @@ describe('dropRowsRenumberedOver', () => {
     assert.deepEqual(stranded, []);
     assert.deepEqual(Object.keys(readState().modules['01-mod'].items), []);
     assert.doesNotMatch(warned.join('\n'), /Delete them in Canvas/);
+    assert.match(warned.join('\n'), /the deleted one gave way/);
+    assert.deepEqual(errored, [], 'and nothing is raised to the error channel');
   });
 
   it('does not invent a sync state for a course nobody has pushed', () => {

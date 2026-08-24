@@ -195,7 +195,9 @@ function strandedByModule(folder, entry) {
  * harm everything else in this area exists to prevent — but it is strictly the
  * lesser harm: crossing two items' ids writes to the wrong Canvas object *and*
  * offers the right one for deletion, and says nothing either way. This says
- * something, and an author who reads it can finish the job in Canvas by hand.
+ * something, and an author who reads it can finish the job in Canvas by hand —
+ * on the error channel, so that `--quiet` cannot leave a scripted run with no
+ * record of the object at all.
  *
  * **Why here.** The collision takes two facts, and only the command holds
  * both: which path it has just deleted, and the renames it has just applied to
@@ -211,7 +213,7 @@ function strandedByModule(folder, entry) {
  *   absolute directory the renumber ran in, `deleted` the entry name inside it
  *   that the command removed, `renames` what the renumber did.
  * @param {object} [options]
- * @param {string} [options.tag]       - Command name for the warning printed.
+ * @param {string} [options.tag]       - Command name the printed lines carry.
  * @param {object} [options.state]     - A state already in hand, edited in
  *   place and left unsaved, for a command that holds one and writes once at the
  *   end (`cli/delete-module.js`). Without it this loads and saves the way
@@ -246,17 +248,30 @@ function dropRowsRenumberedOver(
     const result = clearRowsAt(held, itemPath);
     dropped += result.dropped;
     if (result.dropped === 0) continue;
-    log.warn(
+    // Which sink, and why it is not always the same one. A run that strands a
+    // live Canvas object has just made this listing the only record of it, so
+    // the whole block — what happened, and the objects it left behind — goes
+    // out on `log.error`, the one channel `--quiet` cannot close.
+    // `quizNotImportedRefusal` in `lib/sync/canvas-write.js` gives the same
+    // reasoning for throwing rather than warning: a warning `--quiet` drops is
+    // not enough for something nothing here can reach again. Refusing is not
+    // available here — the delete already happened on disk, and the row had to
+    // give way — so the channel is what carries it. A collision whose row had
+    // never been pushed strands nothing, and stays a warning: `--quiet` says it
+    // shows only errors, and there is nothing out there to go and delete.
+    const strands = result.stranded.length > 0;
+    const say = strands ? log.error : log.warn;
+    say(
       `[${tag}] Renumbering moved ${movedFrom} onto ${deleted}, the entry ` +
         'just deleted, and the sync state holds one row per path — so the ' +
         'deleted one gave way rather than let the two swap Canvas ids.',
     );
-    if (result.stranded.length > 0) {
-      log.warn(
+    if (strands) {
+      say(
         `[${tag}] These Canvas objects are no longer tracked here and ` +
           '`--prune-canvas` will not offer them. Delete them in Canvas by hand:',
       );
-      for (const line of result.stranded) log.warn(`  - ${line}`);
+      for (const line of result.stranded) say(`  - ${line}`);
     }
     stranded.push(...result.stranded);
   }

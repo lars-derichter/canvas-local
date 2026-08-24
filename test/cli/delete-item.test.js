@@ -304,9 +304,15 @@ function project({ subsection = false, twin = false } = {}) {
   return dir;
 }
 
-/** Run `npx course delete-item` in `dir`, with no terminal to ask questions of. */
-function deleteItem(dir, args) {
-  return spawnSync(process.execPath, [CLI, 'delete-item', ...args], {
+/**
+ * Run `npx course delete-item` in `dir`, with no terminal to ask questions of.
+ *
+ * `global` carries the flags declared on the program rather than on the
+ * command — `--quiet` is the one used here — placed in front of the
+ * subcommand name the way a real invocation writes them.
+ */
+function deleteItem(dir, args, { global = [] } = {}) {
+  return spawnSync(process.execPath, [CLI, ...global, 'delete-item', ...args], {
     cwd: dir,
     input: '',
     encoding: 'utf8',
@@ -492,6 +498,33 @@ describe('npx course delete-item when the renumber lands on the deleted path', (
     const run = deleteItem(dir, ['--path', `course/${ALERTS}`, '--yes']);
 
     assert.equal(run.status, 0);
+    assert.match(
+      run.stderr,
+      /Renumbering moved 03-alerts\.md onto 02-alerts\.md/,
+    );
+    assert.match(run.stderr, /Delete them in Canvas by hand/);
+    assert.match(
+      run.stderr,
+      /01-intro\/02-alerts\.md — page "Alerts" \(Canvas id 502\)/,
+    );
+  });
+
+  it('names it under --quiet too, where a warning would be dropped', () => {
+    // `--quiet` closes the warning channel, and this listing is the only record
+    // of page 502 the run leaves anywhere: the row is gone from the sync state,
+    // nothing under course/ points at the page, and `--prune-canvas` will never
+    // offer it. So it goes out on the error channel, which `--quiet` keeps —
+    // the same reasoning `lib/sync/canvas-write.js` gives for throwing rather
+    // than warning on a quiz it could not place. A scripted delete is exactly
+    // the run that would otherwise lose the page without a word.
+    const dir = project({ twin: true });
+
+    const run = deleteItem(dir, ['--path', `course/${ALERTS}`, '--yes'], {
+      global: ['--quiet'],
+    });
+
+    // Still a completed delete with a caveat, not a failed run.
+    assert.equal(run.status, 0, run.stderr);
     assert.match(
       run.stderr,
       /Renumbering moved 03-alerts\.md onto 02-alerts\.md/,
