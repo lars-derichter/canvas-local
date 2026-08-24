@@ -25,6 +25,7 @@ const {
   setItem,
   toPosixPath,
 } = require('../../lib/sync/state');
+const { RefusalError } = require('../../lib/errors');
 
 const URL = 'https://school.instructure.com';
 const ENV = { CANVAS_COURSE_ID: '45083', CANVAS_API_URL: URL };
@@ -295,10 +296,89 @@ describe('loadState and saveState', () => {
     assert.equal(loadState({ file, env: ENV, allowNull: true }), null);
   });
 
-  it('falls back to a fresh state when the file is corrupt', () => {
+  it('refuses a file left with git conflict markers, and names them', () => {
+    // How this happens in practice: the file is committed and every push
+    // changes it, so two checkouts pushing produce a merge somebody left
+    // half-finished. It used to read as a course that had never been synced,
+    // and the push after it re-created on Canvas everything whose title had
+    // moved since.
+    fs.writeFileSync(
+      file,
+      [
+        '<<<<<<< HEAD',
+        `{ "schema_version": ${SCHEMA_VERSION}, "course_id": 45083 }`,
+        '=======',
+        `{ "schema_version": ${SCHEMA_VERSION}, "course_id": 45083, "modules": {} }`,
+        '>>>>>>> origin/main',
+        '',
+      ].join('\n'),
+      'utf8',
+    );
+
+    assert.throws(
+      () => loadState({ file, env: ENV }),
+      (err) => {
+        assert.ok(err instanceof RefusalError, 'a decision, not a crash');
+        assert.ok(err.message.includes(file), 'the message names the file');
+        assert.match(err.message, /exists, but it could not be parsed as JSON/);
+        assert.match(err.message, /conflict markers/);
+        assert.match(err.message, /git checkout/);
+        return true;
+      },
+    );
+  });
+
+  it('refuses plain garbage without blaming a merge for it', () => {
     fs.writeFileSync(file, '{ this is not json', 'utf8');
-    assert.deepEqual(loadState({ file, env: ENV }), emptyState(ENV));
-    assert.equal(loadState({ file, env: ENV, allowNull: true }), null);
+
+    assert.throws(
+      () => loadState({ file, env: ENV }),
+      (err) => {
+        assert.ok(err instanceof RefusalError);
+        assert.match(err.message, /could not be parsed as JSON/);
+        assert.doesNotMatch(
+          err.message,
+          /It still holds git conflict markers/,
+          'nothing in this file says a merge is what broke it',
+        );
+        return true;
+      },
+    );
+
+    // `allowNull` chooses between two answers for a file that is not there. It
+    // is not a way to read past one that is, which is what the course-identity
+    // hook passes it for.
+    assert.throws(
+      () => loadState({ file, env: ENV, allowNull: true }),
+      RefusalError,
+    );
+  });
+
+  it('refuses an empty file rather than call it a first run', () => {
+    fs.writeFileSync(file, '', 'utf8');
+
+    assert.throws(
+      () => loadState({ file, env: ENV }),
+      (err) => {
+        assert.ok(err instanceof RefusalError);
+        assert.match(err.message, /could not be parsed as JSON/);
+        return true;
+      },
+    );
+  });
+
+  it('refuses a file that parses to nothing', () => {
+    // The one shape that gets past `JSON.parse` and still holds no state.
+    fs.writeFileSync(file, 'null\n', 'utf8');
+
+    assert.throws(
+      () => loadState({ file, env: ENV }),
+      (err) => {
+        assert.ok(err instanceof RefusalError);
+        assert.match(err.message, /holds no sync state/);
+        return true;
+      },
+    );
   });
 
   it('refuses the v3 schema and names the way out', () => {

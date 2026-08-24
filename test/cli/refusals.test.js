@@ -21,7 +21,8 @@ afterEach(() => {
 });
 
 /**
- * A throwaway project whose sync state describes a course `.env` does not name.
+ * A throwaway project whose sync state describes a course `.env` does not name,
+ * or holds whatever `stateText` says instead.
  *
  * Out of the repository and run as a child, for the reason
  * `test/cli/delete-module.test.js` gives: `SYNC_FILE` is a module-level constant
@@ -29,7 +30,7 @@ afterEach(() => {
  * has to be the fixture rather than this repository — which also keeps dotenv
  * away from the repository's own `.env`.
  */
-function project() {
+function project(stateText) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'refusal-'));
   made.push(dir);
   fs.writeFileSync(
@@ -45,19 +46,20 @@ function project() {
   );
   fs.writeFileSync(
     path.join(dir, '.canvas-sync.json'),
-    JSON.stringify(
-      {
-        schema_version: SCHEMA_VERSION,
-        canvas_base_url: CANVAS_URL,
-        course_id: STATE_COURSE,
-        last_sync: null,
-        modules: {},
-        icons: {},
-        files: {},
-      },
-      null,
-      2,
-    ) + '\n',
+    stateText ??
+      JSON.stringify(
+        {
+          schema_version: SCHEMA_VERSION,
+          canvas_base_url: CANVAS_URL,
+          course_id: STATE_COURSE,
+          last_sync: null,
+          modules: {},
+          icons: {},
+          files: {},
+        },
+        null,
+        2,
+      ) + '\n',
     'utf8',
   );
   return dir;
@@ -116,6 +118,34 @@ describe('a refusal reaching the user', () => {
       result.stderr,
       /Node\.js v|triggerUncaughtException/,
       'nor is it the runtime reporting that nobody handled it',
+    );
+  });
+
+  it('is what a sync state left mid-merge gets, before anything runs', () => {
+    // The other way the sync file stops being readable, and the one an author
+    // meets: a merge nobody finished. It used to pass for a course that had
+    // never been synced, which the tool only announced by duplicating content
+    // on Canvas some runs later.
+    const dir = project(
+      [
+        '<<<<<<< HEAD',
+        `{ "schema_version": ${SCHEMA_VERSION} }`,
+        '=======',
+        `{ "schema_version": ${SCHEMA_VERSION}, "modules": {} }`,
+        '>>>>>>> origin/main',
+        '',
+      ].join('\n'),
+    );
+
+    const result = run(dir, ['status']);
+
+    assert.equal(result.status, 1, 'a refused run must not report success');
+    assert.match(result.stderr, /could not be parsed as JSON/);
+    assert.match(result.stderr, /conflict markers/);
+    assert.doesNotMatch(
+      result.stderr,
+      /\n\s+at /,
+      'a decision the tool made and can explain is not a crash',
     );
   });
 

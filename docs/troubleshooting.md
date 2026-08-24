@@ -165,6 +165,11 @@ refuses is answering a different question than the one it advertises.
 
 ### Corrupted .canvas-sync.json
 
+A sync file that is there and cannot be parsed stops the commands that act on
+the ids in it, rather than passing for a course that was never synced, so a run
+that hit this changed nothing. The message names the file and says whether git
+conflict markers are still in it, which is the usual reason.
+
 The sync file is committed, so the first answer is git rather than the CLI. Take
 the last good copy back:
 

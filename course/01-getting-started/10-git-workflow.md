@@ -163,13 +163,12 @@ writes the rows again.
 
 > [!WARNING]
 >
-> Never commit the file with the conflict markers still in it. It stops being
-> readable, and nothing warns you: the tool reads it as empty and behaves as
-> though the course had never been synced. Most items are claimed back by title
-> anyway, but anything whose title has changed since is created a second time on
-> Canvas. The troubleshooting guide (`docs/troubleshooting.md` in your project
-> folder, also readable on GitHub) covers the repair under “Corrupted
-> .canvas-sync.json”.
+> Never commit the file with the conflict markers still in it. The file stops
+> being readable, and until you repair it, `push`, `pull` and `sync` refuse to
+> run: each one names the file and tells you the markers are still there.
+> Resolve the merge as above and they run again. The troubleshooting guide
+> (`docs/troubleshooting.md` in your project folder, also readable on GitHub)
+> covers the repair under “Corrupted .canvas-sync.json”.
 
 ## Viewing History and Getting Things Back
 

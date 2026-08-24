@@ -127,12 +127,14 @@ function requiresMatchingCourse(commandName) {
  * Run the course-identity check for a command that needs it, and nothing else.
  *
  * `loadState` is what asks the question, so this inherits its answers exactly,
- * and only a file that parses and names a different course is one. A project
- * with no `.canvas-sync.json` is not a mismatch and neither is a file too
- * corrupt to read: the check sits past both, so neither refuses. A file that
- * names no course adopts the environment's identity in memory only — nothing is
- * written here, which matters, because a hook that saved the file would be a
- * write by the run that is about to refuse.
+ * and only a file that parses and names a different course is a mismatch. A
+ * project with no `.canvas-sync.json` is not one: the check sits past a missing
+ * file, so it does not refuse. A file that is there and unreadable stops the
+ * command all the same, one refusal earlier than this one and for its own
+ * reason — see `loadState`. A file that names no course adopts the
+ * environment's identity in memory only — nothing is written here, which
+ * matters, because a hook that saved the file would be a write by the run that
+ * is about to refuse.
  *
  * `allowNull` is belt and braces rather than the thing that spares an unsynced
  * project: it only decides whether a fabricated empty state comes back in place
@@ -146,8 +148,9 @@ function requiresMatchingCourse(commandName) {
  * @param {object} [options.env]  - Injection point for tests, to `loadState`.
  * @throws {RefusalError} When the sync state describes another Canvas course —
  *   and, inherited from `loadState` rather than added here, when it was written
- *   by a schema this version does not read. The command would have refused that
- *   one anyway; this only moves it to the same place as the other.
+ *   by a schema this version does not read, or cannot be read at all. The
+ *   command would have refused those anyway; this only moves them to the same
+ *   place as the other.
  */
 function guardCourseMatch(commandName, options = {}) {
   if (!requiresMatchingCourse(commandName)) return;

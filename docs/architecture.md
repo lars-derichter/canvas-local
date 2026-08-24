@@ -37,7 +37,10 @@ site locale and the remark plugin labels.
 `.canvas-sync.json` is where a local file's Canvas identity lives. It is
 committed rather than gitignored, and since schema v4 no markdown file carries a
 `canvas_id` at all, so a push or a pull leaves a change here to commit alongside
-the content that caused it.
+the content that caused it. Being committed is also how it stops being readable:
+a merge left half-finished puts conflict markers in it. A file that is there and
+cannot be parsed refuses the run rather than passing for a course that was never
+synced, and the refusal says when it found those markers.
 
 ```json
 {
