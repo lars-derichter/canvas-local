@@ -455,6 +455,14 @@ relative link).
 - **Stale IDs**: a 404 on updating a page, assignment or discussion means the
   object was deleted in Canvas, so it is created again. A module is not: a 404
   there fails the action, and the run reports it.
+- **Unreadable modules**: when Canvas lists a module but refuses to list its
+  items (retries exhausted, a permission error), the gather carries the module
+  through flagged `unreadable` instead of dropping it, and the planner refuses
+  to derive anything from or about it: no writes on either side, no orphan or
+  prune candidates, local edits inside its folder parked for the run. The
+  refusal lands as one skipped entry naming the module and the failure, which
+  fails the run the way every skip does. A module that could not be read is
+  never treated as one that was deleted.
 - **Saving the state**: the sync state is written once the alert icons are
   uploaded, again after any action that failed, and again at the end of the run,
   so a run that dies partway through leaves a state describing what did land

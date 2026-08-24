@@ -927,6 +927,70 @@ describe('gatherCanvas', () => {
     );
     assert.equal(modules[0].items[2].canvasId, 700);
   });
+
+  it('carries a module whose items cannot be listed as unreadable, not as gone', async () => {
+    // The defect this pins: the module used to be dropped from the gather
+    // entirely, and a dropped module is byte for byte what a module deleted on
+    // Canvas looks like — `--prune-local` then offered to delete its local
+    // folder. A plain 403 (no "Rate Limit Exceeded" in the body) is not
+    // retried, so the failure is one request.
+    silence();
+    mockCanvas([
+      {
+        method: 'GET',
+        path: '/modules/10/items',
+        body: { message: 'unauthorized' },
+        status: 403,
+      },
+      {
+        method: 'GET',
+        path: '/modules/20/items',
+        body: [
+          {
+            id: 91,
+            type: 'SubHeader',
+            title: 'Theory',
+            position: 1,
+            indent: 0,
+          },
+        ],
+      },
+      {
+        method: 'GET',
+        path: '/modules',
+        body: [
+          { id: 10, name: 'Intro', position: 1 },
+          { id: 20, name: 'Basics', position: 2 },
+        ],
+      },
+    ]);
+
+    const { modules, warnings } = await gatherCanvas({
+      courseId: COURSE_ID,
+      base: null,
+    });
+
+    // Both modules arrive: the unreadable one flagged, with its identity
+    // intact and no item list at all — an empty list would be a claim about
+    // what the module holds, and that claim is exactly what could not be read.
+    assert.equal(modules.length, 2);
+    const [intro, basics] = modules;
+    assert.equal(intro.canvasModuleId, 10);
+    assert.equal(intro.name, 'Intro');
+    assert.equal(intro.suggestedFolder, '01-intro');
+    assert.match(intro.unreadable, /403/);
+    assert.equal('items' in intro, false);
+
+    // The failure stays confined: the next module is gathered in full.
+    assert.equal(basics.unreadable, undefined);
+    assert.equal(basics.items.length, 1);
+    assert.equal(basics.items[0].canvasType, 'sub_header');
+
+    assert.equal(
+      warnings.filter((warning) => /module 10/.test(warning)).length,
+      1,
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------

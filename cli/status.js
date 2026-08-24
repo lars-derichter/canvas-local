@@ -179,14 +179,17 @@ async function status(options = {}) {
   log.info('[status] What `npx course sync` would do. Status wrote nothing.');
   for (const line of lines) log.info(line);
 
-  // One kind of skip reaches this, and it is here on purpose: a Canvas module
-  // whose derived folder another module has already taken (`writesNothing` in
-  // `lib/sync/plan.js`). Every other entry in `skipped` is gated on the write
-  // landing, and under this policy no write lands, so none of those can. The
-  // difference is what the refusal is about. The rest protect a write this
-  // command does not make; that one says the Canvas course holds two modules
-  // that derive one folder name, which no run can work through and every run
-  // refuses. `sync` exits 1 over it and so does `sync --dry-run`, and a preview
+  // Two kinds of skip reach this, and both on purpose: a Canvas module whose
+  // derived folder another module has already taken (`writesNothing` in
+  // `lib/sync/plan.js`), and a module whose items Canvas would not list
+  // (`canvas-unreadable`, recorded unconditionally). Every other entry in
+  // `skipped` is gated on the write landing, and under this policy no write
+  // lands, so none of those can. The difference is what the refusal is about.
+  // The rest protect a write this command does not make; these two describe
+  // the Canvas course itself — two modules deriving one folder name, or a
+  // module this run could not read — which is a state a sync refuses rather
+  // than works through, until somebody renames a module or Canvas answers.
+  // `sync` exits 1 over either and so does `sync --dry-run`, and a preview
   // that exited 0 on a course its own subject refuses would be answering a
   // different question than the one it advertises.
   if (report.skipped.length > 0 || report.collision) process.exitCode = 1;

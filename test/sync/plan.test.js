@@ -2909,6 +2909,304 @@ describe('plan: pruning', () => {
   });
 });
 
+describe('plan: an unreadable Canvas module is a wall', () => {
+  // What `gatherCanvas` hands over when `listModuleItems` failed for one
+  // module: the module's identity, the failure, and no item list at all. An
+  // empty list would be a claim about what the module holds, and that claim is
+  // exactly what could not be read — the planner must not tell "unreadable"
+  // and "everything in it was deleted on Canvas" apart by guessing.
+  const FAILURE =
+    'Canvas API GET /api/v1/courses/1/modules/100/items failed with status 403: {}';
+
+  function unreadableMod(extra = {}) {
+    return {
+      canvasModuleId: extra.canvasModuleId ?? 100,
+      name: extra.name ?? 'Introduction',
+      position: extra.position ?? 1,
+      suggestedFolder: extra.suggestedFolder ?? FOLDER,
+      unreadable: FAILURE,
+    };
+  }
+
+  /** The one skipped entry the wall owes the report, and nothing else in it. */
+  function assertWalled(result, moduleFolder = FOLDER) {
+    assert.equal(result.skipped.length, 1);
+    const skip = result.skipped[0];
+    assert.equal(skip.kind, 'module');
+    assert.equal(skip.reason, 'canvas-unreadable');
+    assert.equal(skip.moduleFolder, moduleFolder);
+    assert.equal(skip.action, null);
+    assert.match(skip.remedy, /403/);
+    assert.match(skip.remedy, /Run again/);
+    return skip;
+  }
+
+  it('derives nothing from the module, and exactly one skip says why', () => {
+    // Local and base agree; only the Canvas side is missing. Before the wall,
+    // the missing side read as "every item deleted on Canvas": two local
+    // orphans, ready to become prune candidates.
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([A, B]) } },
+      local: { modules: [lMod(FOLDER, [A, B])] },
+      canvas: { modules: [unreadableMod()] },
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.deepEqual(result.orphans.canvas, []);
+    assert.deepEqual(result.orphans.local, []);
+    assert.deepEqual(result.decisions, []);
+    assertWalled(result);
+  });
+
+  it('offers no prune-local candidate for items it cannot see the far side of', () => {
+    // The defect that motivated the wall: with the module dropped from the
+    // gather, `sync --prune-local` offered to recursively delete the local
+    // folder of a module that still exists on Canvas.
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([A, B]) } },
+      local: { modules: [lMod(FOLDER, [A, B])] },
+      canvas: { modules: [unreadableMod()] },
+      policy: { pruneLocal: true },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.deepEqual(result.orphans.local, []);
+    assertWalled(result);
+  });
+
+  it('offers no prune-canvas candidate when the local folder is gone', () => {
+    // The folder was deleted here, and the Canvas side could not be listed.
+    // Deleting the Canvas module would act on the very contents this run
+    // could not read.
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([A, B]) } },
+      local: { modules: [] },
+      canvas: { modules: [unreadableMod()] },
+      policy: { pruneCanvas: true },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.deepEqual(result.orphans.canvas, []);
+    assertWalled(result);
+  });
+
+  it('creates nothing on Canvas for its items under a push-shaped policy', () => {
+    // B is new locally. Its Canvas twin may well exist — the items were not
+    // listed, not absent — so pushing it would create a duplicate beside an
+    // object this run simply could not see.
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([A]) } },
+      local: { modules: [lMod(FOLDER, [A, B])] },
+      canvas: { modules: [unreadableMod()] },
+      policy: {
+        write: { canvas: true, local: false },
+        conflict: 'local',
+        adopt: 'local',
+      },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.deepEqual(result.withheld, []);
+    assertWalled(result);
+  });
+
+  it('parks a local edit inside the folder rather than pushing blind', () => {
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([A]) } },
+      local: {
+        modules: [
+          lMod(FOLDER, [A], { items: { [A]: { localHash: `edited:${A}` } } }),
+        ],
+      },
+      canvas: { modules: [unreadableMod()] },
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), []);
+    assertWalled(result);
+  });
+
+  it('walls a module the state has never seen: no local folder, no adoption', () => {
+    // Canvas-only and unknown to us, under a pull-shaped policy that would
+    // otherwise create the folder and adopt its way through the contents.
+    const result = plan({
+      base: { modules: {} },
+      local: { modules: [] },
+      canvas: {
+        modules: [
+          unreadableMod({
+            canvasModuleId: 300,
+            name: 'Extra',
+            position: 3,
+            suggestedFolder: '03-extra',
+          }),
+        ],
+      },
+      policy: {
+        write: { canvas: false, local: true },
+        conflict: 'canvas',
+        adopt: 'canvas',
+      },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.deepEqual(result.withheld, []);
+    assertWalled(result, '03-extra');
+  });
+
+  it('leaves every readable module to proceed exactly as before', () => {
+    const X = '02-basics/01-x.md';
+    const result = plan({
+      base: {
+        modules: {
+          [FOLDER]: bMod([A]),
+          '02-basics': bMod([X], {
+            canvasModuleId: 200,
+            name: 'Basics',
+            position: 2,
+          }),
+        },
+      },
+      local: {
+        modules: [
+          lMod(FOLDER, [A], { items: { [A]: { localHash: `edited:${A}` } } }),
+          lMod('02-basics', [X], {
+            name: 'Basics',
+            position: 2,
+            items: { [X]: { localHash: `edited:${X}` } },
+          }),
+        ],
+      },
+      canvas: {
+        modules: [
+          unreadableMod(),
+          cMod([X], { canvasModuleId: 200, name: 'Basics', position: 2 }),
+        ],
+      },
+      policy: {},
+    });
+
+    // The readable module's edit is pushed as it always was; the walled one
+    // contributes its skip and nothing else.
+    assert.deepEqual(types(result), ['update-canvas-item']);
+    assert.equal(only(result, 'update-canvas-item').itemPath, X);
+    assertWalled(result);
+  });
+
+  it('parks a rename out of the folder instead of duplicating or deleting', () => {
+    // A's file was moved by hand into the readable module. Re-keying the row
+    // would strand it in a context whose Canvas match is missing — the walled
+    // module's items were never listed — where it reads as deleted on Canvas;
+    // refusing the pair outright would create the moved file as a second
+    // Canvas copy. Both ends are parked instead, and the module's own skip is
+    // the account.
+    const MOVED = '02-basics/05-moved.md';
+    const result = plan({
+      base: {
+        modules: {
+          [FOLDER]: bMod([A]),
+          '02-basics': bMod([], {
+            canvasModuleId: 200,
+            name: 'Basics',
+            position: 2,
+          }),
+        },
+      },
+      local: {
+        modules: [
+          lMod(FOLDER, []),
+          lMod('02-basics', [MOVED], {
+            name: 'Basics',
+            position: 2,
+            items: { [MOVED]: { localHash: `L:${A}` } },
+          }),
+        ],
+      },
+      canvas: {
+        modules: [
+          unreadableMod(),
+          cMod([], { canvasModuleId: 200, name: 'Basics', position: 2 }),
+        ],
+      },
+      policy: { pruneLocal: true },
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.deepEqual(result.pending.renames, [], 'parked, not asked about');
+    assert.deepEqual(result.orphans.local, []);
+    assert.deepEqual(result.orphans.canvas, []);
+    assertWalled(result);
+  });
+
+  it('keeps the embedded-file sweep off rows keyed under the fenced folder', () => {
+    // The local folder is gone and the Canvas side unlisted, so "nothing
+    // embeds this any more" cannot be concluded for its binaries: the
+    // unlisted pages may be exactly what embeds them. A row in a readable
+    // module is swept as normal, so the fence is a fence and not a wall
+    // around the whole sweep.
+    const result = plan({
+      base: {
+        modules: { [FOLDER]: bMod([]) },
+        files: {
+          '01-intro/_files/logo.png': { canvas_file_id: 900, sha256: 'aa' },
+          '02-basics/_files/old.png': { canvas_file_id: 901, sha256: 'bb' },
+        },
+      },
+      local: { modules: [], embedded: { refs: new Set(), complete: true } },
+      canvas: { modules: [unreadableMod()] },
+      policy: { pruneCanvas: true },
+    });
+
+    assert.deepEqual(types(result), ['delete-canvas-file']);
+    assert.equal(only(result, 'delete-canvas-file').canvasFileId, 901);
+    const files = result.orphans.canvas.filter((o) => o.kind === 'file');
+    assert.equal(files.length, 1);
+    assert.equal(files[0].canvasFileId, 901);
+    assertWalled(result);
+  });
+
+  it('lets the flag win even when an item list is handed in beside it', () => {
+    // `gatherCanvas` never produces both, but the planner is a pure function
+    // over caller-built data, and this is the shape where items behind the
+    // flag would leak past the wall: X's base row is keyed in the *readable*
+    // module, and its Canvas item is handed in inside the flagged one. The
+    // course-wide matching runs before any context exists to be walled, so
+    // without the forcing in `normaliseCanvas` the row matches that item and
+    // a `move-canvas-item` is emitted to drag it back — a decision built
+    // entirely on data the flag says was never read. With the forcing, the
+    // row matches nothing: X is listed as a local orphan (the residual every
+    // id-unmatched row gets, prune-gated as always) and no action touches it.
+    const X = '02-basics/01-x.md';
+    const result = plan({
+      base: {
+        modules: {
+          '02-basics': bMod([X], {
+            canvasModuleId: 200,
+            name: 'Basics',
+            position: 2,
+          }),
+        },
+      },
+      local: {
+        modules: [lMod('02-basics', [X], { name: 'Basics', position: 2 })],
+      },
+      canvas: {
+        modules: [
+          { ...cMod([X], { suggestedFolder: FOLDER }), unreadable: FAILURE },
+          cMod([], { canvasModuleId: 200, name: 'Basics', position: 2 }),
+        ],
+      },
+      policy: {},
+    });
+
+    assert.deepEqual(types(result), []);
+    assert.equal(result.orphans.local.length, 1);
+    assert.equal(result.orphans.local[0].itemPath, X);
+    assertWalled(result);
+  });
+});
+
 describe('plan: the action list is in execution order', () => {
   it('puts creates before the reorder that names them', () => {
     const D = '01-intro/04-d.md';

@@ -356,10 +356,11 @@ error that says as much.
 
 Writing nothing does not make it always exit 0. A course mid-edit exits 0
 whatever is waiting in it. A course a `sync` would refuse rather than work
-through exits 1: a module both sides hold with nothing linking them, or two
-Canvas modules deriving one folder name. So does a run that could not report at
-all, from a missing course id to a `-m` naming no module. A script can read a
-non-zero `status` as a course that needs a person before anything is synced.
+through exits 1: a module both sides hold with nothing linking them, two Canvas
+modules deriving one folder name, or a module whose items Canvas would not list
+this run. So does a run that could not report at all, from a missing course id
+to a `-m` naming no module. A script can read a non-zero `status` as a course
+that needs a person before anything is synced.
 
 #### Who Wins When Both Sides Moved
 
