@@ -1,13 +1,14 @@
 const vscode = require('vscode');
 const fs = require('fs');
 const path = require('path');
+const {
+  extractPosition,
+  cliSiblings,
+  reorderPosition,
+  crossContainerPosition,
+} = require('./helpers');
 
 // --- Utility functions (inlined from lib/convert/course-scanner.js and cli/) ---
-
-function extractPosition(name) {
-  const match = name.match(/^(\d+)/);
-  return match ? parseInt(match[1], 10) : 0;
-}
 
 function displayTitle(name) {
   const stripped = name.replace(/^\d+-/, '');
@@ -139,6 +140,11 @@ class CourseTreeItem extends vscode.TreeItem {
 // --- Tree data provider + drag-and-drop controller ---
 
 const TREE_MIME = 'application/vnd.code.tree.coursetree';
+
+/** Tell the author why a drop could not be handed to the CLI. */
+function refuseDrop(message) {
+  vscode.window.showInformationMessage(`Canvas Course Builder: ${message}`);
+}
 
 class CourseTreeProvider {
   /**
@@ -310,6 +316,10 @@ class CourseTreeProvider {
   //
   // Drops are translated into `npx course` commands (via this._actions.runCli)
   // so renumbering and Canvas sync state stay consistent with the CLI.
+  //
+  // A drop the CLI cannot express is refused out loud via `refuseDrop` rather
+  // than silently ignored; only genuine no-ops (an entry dropped onto itself
+  // or onto its own slot) return without a word.
 
   handleDrag(source, dataTransfer, _token) {
     const data = source.map((item) => ({
@@ -363,12 +373,31 @@ class CourseTreeProvider {
   }
 
   async _handleModuleDrop(dragged, target, runCli) {
+    // `move-module --position` is a 1-based ordinal into the CLI's sorted
+    // module list, not a folder prefix — with gapped numbering the two
+    // disagree, and the CLI range-checks the ordinal.
     const courseDir = path.join(this._workspaceRoot, 'course');
-    const moduleCount = fs
+    const names = fs
       .readdirSync(courseDir, { withFileTypes: true })
-      .filter((e) => e.isDirectory() && !e.name.startsWith('_')).length;
-    const targetPosition = target ? target._position : moduleCount;
-    if (targetPosition === dragged.position) return;
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name);
+    const targetPosition = target
+      ? reorderPosition(names, target.moduleFolderName)
+      : cliSiblings(names).length;
+    const draggedPosition = reorderPosition(names, dragged.moduleFolderName);
+    if (draggedPosition === null) {
+      refuseDrop(
+        `"${dragged.moduleFolderName}" has no numeric prefix, so the CLI cannot move it.`,
+      );
+      return;
+    }
+    if (targetPosition === null) {
+      refuseDrop(
+        `"${target.moduleFolderName}" has no numeric prefix, so the CLI cannot place anything at its position.`,
+      );
+      return;
+    }
+    if (targetPosition === draggedPosition) return;
 
     await runCli([
       'move-module',
@@ -407,17 +436,43 @@ class CourseTreeProvider {
     // Dropping onto another item
     const targetDir = path.dirname(target.filePath);
     if (draggedDir === targetDir) {
-      // Same folder: reorder to the target's position
-      if (dragged.position === target._position) return;
+      // Same folder: reorder so the dragged item takes the target's slot.
+      // `move-item --position` is an ordinal, not the target's prefix.
+      if (dragged.entryName === target._entryName) return;
+      const position = reorderPosition(
+        fs.readdirSync(targetDir),
+        target._entryName,
+      );
+      if (position === null) {
+        refuseDrop(
+          `"${target._entryName}" has no numeric prefix, so the CLI cannot place anything at its position.`,
+        );
+        return;
+      }
       await runCli([
         'move-item',
         '--path',
         dragged.filePath,
         '--position',
-        String(target._position),
+        String(position),
       ]);
     } else {
-      // Different folder: move next to the target
+      // Different folder: take the target's slot in its container.
+      // `movetomodule-item --position` is a prefix, so this stays the
+      // target's own prefix.
+      const position = crossContainerPosition(target._entryName);
+      if (position === null) {
+        refuseDrop(
+          `"${target._entryName}" has no numeric prefix, so the CLI cannot place anything at its position.`,
+        );
+        return;
+      }
+      if (position === 0) {
+        refuseDrop(
+          `"${target._entryName}" is numbered 00, and the CLI cannot place an item before a 00-numbered entry.`,
+        );
+        return;
+      }
       const args = [
         'movetomodule-item',
         '--path',
@@ -425,7 +480,7 @@ class CourseTreeProvider {
         '--to-module',
         target.moduleFolderName,
         '--position',
-        String(target._position),
+        String(position),
       ];
       if (target._subfolderName) {
         args.push('--to-subsection', target._subfolderName);
@@ -463,20 +518,44 @@ class CourseTreeProvider {
       return;
     }
 
-    // Dropping onto a sibling subsection or a top-level item — move to that
-    // target's position within its module root.
+    // Dropping onto a sibling subsection or a top-level item — take that
+    // target's slot within its module root. Same-module drops go through
+    // `move-item`, whose --position is an ordinal; cross-module drops go
+    // through `movetomodule-item`, whose --position is a prefix.
     const targetModule = target.moduleFolderName;
-    const targetPosition = target._position;
     if (targetModule === sourceModule) {
-      if (dragged.position === targetPosition) return;
+      if (dragged.entryName === target._entryName) return;
+      const position = reorderPosition(
+        fs.readdirSync(path.dirname(sourcePath)),
+        target._entryName,
+      );
+      if (position === null) {
+        refuseDrop(
+          `"${target._entryName}" has no numeric prefix, so the CLI cannot place anything at its position.`,
+        );
+        return;
+      }
       await runCli([
         'move-item',
         '--path',
         sourcePath,
         '--position',
-        String(targetPosition),
+        String(position),
       ]);
     } else {
+      const position = crossContainerPosition(target._entryName);
+      if (position === null) {
+        refuseDrop(
+          `"${target._entryName}" has no numeric prefix, so the CLI cannot place anything at its position.`,
+        );
+        return;
+      }
+      if (position === 0) {
+        refuseDrop(
+          `"${target._entryName}" is numbered 00, and the CLI cannot place an item before a 00-numbered entry.`,
+        );
+        return;
+      }
       await runCli([
         'movetomodule-item',
         '--path',
@@ -484,7 +563,7 @@ class CourseTreeProvider {
         '--to-module',
         targetModule,
         '--position',
-        String(targetPosition),
+        String(position),
       ]);
     }
   }
