@@ -1,4 +1,5 @@
 const { BACKUP_HINT } = require('./backup-warning');
+const log = require('./logger');
 
 /**
  * The closing report `sync`, `push`, `pull` and `status` all print.
@@ -20,6 +21,11 @@ const { BACKUP_HINT } = require('./backup-warning');
  * prints outside the report, in a prune listing or an error heading, read as one
  * voice with the ones inside it. There were four copies of that one-liner, in
  * two different signatures.
+ *
+ * `checkModuleFilter` is the one thing here that prints rather than returns
+ * lines, and it earns its place the same way: three of the four commands refuse
+ * an unknown `-m` in the same words, and a refusal that drifted between them
+ * would be a refusal none of the three could be trusted to give.
  */
 
 /**
@@ -491,8 +497,56 @@ function buildReport(report, options = {}) {
   return lines;
 }
 
+// ---------------------------------------------------------------------------
+// The `-m` refusal
+// ---------------------------------------------------------------------------
+
+/**
+ * Refuse a `-m` that names a module nothing has heard of, rather than scoping
+ * the run to nothing and reporting a course in perfect agreement.
+ *
+ * The set it checks against is the union of three sources rather than the local
+ * folders alone, because a module may exist only in Canvas and be about to be
+ * written here for the first time: that is what a `pull` does by definition,
+ * what a `sync` does whenever Canvas is ahead, and what `status` previews.
+ * Refusing those would refuse the very run that creates the folder. A typo, on
+ * the other hand, matches none of the three.
+ *
+ * `push` deliberately does not use this. It writes to Canvas out of local
+ * folders, so a name no folder answers to is a name it cannot push whatever
+ * Canvas holds, and it says exactly that in its own refusal.
+ *
+ * @param {string[]|null} modules - The names `-m` was given, or null when the
+ *   flag was absent, which is nothing to check.
+ * @param {object} sources
+ * @param {object} sources.local  - What `gatherLocal` returned.
+ * @param {object} sources.canvas - What `gatherCanvas` returned.
+ * @param {object} sources.state  - The sync state, which knows the folders
+ *   neither side is showing this run.
+ * @param {string} sources.tag    - The calling command's log tag.
+ * @returns {boolean} Whether the run may go on. A false has already said why.
+ */
+function checkModuleFilter(modules, { local, canvas, state, tag }) {
+  if (!modules) return true;
+
+  const known = new Set([
+    ...local.modules.map((mod) => mod.folder),
+    ...Object.keys(state.modules || {}),
+    ...canvas.modules.map((mod) => mod.suggestedFolder).filter(Boolean),
+  ]);
+  const missing = modules.filter((name) => !known.has(name));
+  if (missing.length === 0) return true;
+
+  log.error(
+    `[${tag}] Error: no module named ${missing.join(', ')} — nothing under ` +
+      'course/ and nothing in the Canvas course answers to it.',
+  );
+  return false;
+}
+
 module.exports = {
   buildReport,
+  checkModuleFilter,
   plural,
   // `cli/sync.js` prints the same timestamps in the questions it asks about a
   // conflict as the report prints in its answer, so both read them off this.

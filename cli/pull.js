@@ -8,7 +8,7 @@ const {
 const { loadState, saveState } = require('../lib/sync/state');
 const { COURSE_DIR, createRL, prompt } = require('./module-utils');
 const { BACKUP_DOC, confirmForcedPull } = require('./backup-warning');
-const { buildReport, plural } = require('./report');
+const { buildReport, checkModuleFilter, plural } = require('./report');
 const log = require('./logger');
 
 /**
@@ -211,21 +211,9 @@ async function pull(options = {}) {
   // Checked here rather than up front, because the folder a Canvas module will
   // be written into need not exist yet: `-m` may name one nothing but Canvas
   // has heard of. So the answer needs both sides and the state that links them.
-  if (modules) {
-    const known = new Set([
-      ...local.modules.map((mod) => mod.folder),
-      ...Object.keys(state.modules || {}),
-      ...canvas.modules.map((mod) => mod.suggestedFolder).filter(Boolean),
-    ]);
-    const missing = modules.filter((name) => !known.has(name));
-    if (missing.length > 0) {
-      log.error(
-        `[pull] Error: no module named ${missing.join(', ')} — nothing under ` +
-          'course/ and nothing in the Canvas course answers to it.',
-      );
-      process.exitCode = 1;
-      return;
-    }
+  if (!checkModuleFilter(modules, { local, canvas, state, tag: 'pull' })) {
+    process.exitCode = 1;
+    return;
   }
 
   const policy = {

@@ -6,7 +6,7 @@ const {
 } = require('../lib/sync/gather');
 const { loadState } = require('../lib/sync/state');
 const { COURSE_DIR } = require('./module-utils');
-const { buildReport } = require('./report');
+const { buildReport, checkModuleFilter } = require('./report');
 const log = require('./logger');
 
 /**
@@ -118,25 +118,12 @@ async function status(options = {}) {
   }
   for (const warning of canvas.warnings) log.warn(`[status] ${warning}`);
 
-  // The same union `pull` checks against, for the same reason: a module `-m`
-  // names may exist only in Canvas, and previewing what sync would do with it
-  // is exactly the kind of question worth scoping. A typo, though, would
-  // otherwise report a clean course.
-  if (modules) {
-    const known = new Set([
-      ...local.modules.map((mod) => mod.folder),
-      ...Object.keys(state.modules || {}),
-      ...canvas.modules.map((mod) => mod.suggestedFolder).filter(Boolean),
-    ]);
-    const missing = modules.filter((name) => !known.has(name));
-    if (missing.length > 0) {
-      log.error(
-        `[status] Error: no module named ${missing.join(', ')} — nothing ` +
-          'under course/ and nothing in the Canvas course answers to it.',
-      );
-      process.exitCode = 1;
-      return;
-    }
+  // Checked once both sides are in hand, for pull's reason: a module `-m` names
+  // may exist only in Canvas, and previewing what a sync would do with it is
+  // exactly the kind of question worth scoping.
+  if (!checkModuleFilter(modules, { local, canvas, state, tag: 'status' })) {
+    process.exitCode = 1;
+    return;
   }
 
   const report = plan({
