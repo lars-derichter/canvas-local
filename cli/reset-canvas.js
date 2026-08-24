@@ -103,7 +103,10 @@ function newQuizNotice(newQuizzes) {
 async function resetCanvas(options = {}) {
   const courseId = process.env.CANVAS_COURSE_ID;
   if (!courseId) {
-    log.error('CANVAS_COURSE_ID is not set. Run "npx course init" first.');
+    log.error(
+      '[reset-canvas] Error: CANVAS_COURSE_ID is not set. Run ' +
+        '"npx course init" first.',
+    );
     // A run that never found a course to reset did not do what it was asked.
     // Push, pull, status and sync all exit non-zero on an unconfigured course,
     // and exiting 0 here would let a script read the message as a clean sweep.
