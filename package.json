@@ -23,6 +23,7 @@
     "clear": "docusaurus clear",
     "course:setup": "node cli/index.js setup",
     "canvas:init": "node cli/index.js init",
+    "canvas:sync": "node cli/index.js sync",
     "canvas:push": "node cli/index.js push",
     "canvas:pull": "node cli/index.js pull",
     "canvas:status": "node cli/index.js status",
