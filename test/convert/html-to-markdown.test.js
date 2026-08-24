@@ -1192,6 +1192,37 @@ describe('round trip through push and pull: escaped attributes', () => {
     assert.match(rt.md2, /!\[Cheese\]\(\.\/_files\/say&co\.png\)/);
   });
 
+  it('survives an alt text the author wrote with an entity in it', () => {
+    // The same trip one field over: alt text is raw source text too, so it is
+    // decoded before it is escaped. Undecoded it went out as `&amp;amp;` and
+    // the reader saw the entity spelled out under the image.
+    const rt = roundTrips('![a &amp; b](./_files/x.png)\n', passthrough);
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.h1, /alt="a &amp; b"/);
+    assert.doesNotMatch(rt.h1, /&amp;amp;/);
+    // The pull writes the decoded spelling, which is what the next push
+    // already sends: the entity settles into it once and stays there.
+    assert.match(rt.md2, /!\[a & b\]\(\.\/_files\/x\.png\)/);
+  });
+
+  it('survives a link title the author wrote with an entity in it', () => {
+    const rt = roundTrips(
+      'Read [the docs](https://example.com "a &amp; b").\n',
+      passthrough,
+    );
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.h1, /title="a &amp; b"/);
+    assert.doesNotMatch(rt.h1, /&amp;amp;/);
+    assert.match(rt.md2, /\(https:\/\/example\.com "a & b"\)/);
+  });
+
+  it('pushes both spellings of one alt text to the same HTML', () => {
+    const plain = roundTrips('![a & b](./_files/x.png)\n', passthrough);
+    const encoded = roundTrips('![a &amp; b](./_files/x.png)\n', passthrough);
+    assert.equal(encoded.h1, plain.h1);
+    assert.equal(encoded.md2, plain.md2);
+  });
+
   it('pushes both spellings of one URL to the same HTML', () => {
     // The two forms CommonMark reads as the same URL, pushed side by side.
     // Equal HTML is what makes the entity spelling settle rather than drift:

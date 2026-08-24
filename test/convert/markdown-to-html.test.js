@@ -292,11 +292,11 @@ describe('markdownToHtml link/file resolvers', () => {
   });
 });
 
-describe('markdownToHtml destinations already carrying entities', () => {
-  // marked hands the renderer the destination as raw source text, entities
-  // undecoded, so an escape on its own would encode the `&` of an entity the
-  // author had already written. The trigger is ordinary: a URL copied out of a
-  // page's HTML source arrives spelled `&amp;`.
+describe('markdownToHtml source text already carrying entities', () => {
+  // marked hands the renderer a destination, an alt text and a title as raw
+  // source text, entities undecoded, so an escape on its own would encode the
+  // `&` of an entity the author had already written. The trigger is ordinary:
+  // a URL copied out of a page's HTML source arrives spelled `&amp;`.
 
   it('does not double-escape an entity in a link href', () => {
     const md = '[Search](https://example.com/s?a=1&amp;b=2)';
@@ -370,21 +370,46 @@ describe('markdownToHtml destinations already carrying entities', () => {
     );
   });
 
-  it('leaves the alt and title double-escape alone', () => {
-    // Known gap, older than the href fix and not part of it: alt text and link
-    // titles reach the renderer as raw source text too, and are escaped
-    // without a decode, so `&amp;` in either goes out as `&amp;amp;` and
-    // Canvas displays the entity rather than the `&`. Pinned so the next
-    // change to this file is a decision rather than an accident.
+  it('does not double-escape an entity in an alt text or a title', () => {
+    // Alt text and titles reach the renderer as raw source text too, so they
+    // take the same decode a destination does. Without it `&amp;` went out as
+    // `&amp;amp;` and the reader saw the entity instead of the `&`.
     const image = markdownToHtml('![a &amp; b](./_files/x.png)', {
       fileResolver: () => null,
     });
-    assert.match(image, /alt="a &amp;amp; b"/);
+    assert.match(image, /alt="a &amp; b"/);
+    assert.doesNotMatch(image, /&amp;amp;/);
 
     const link = markdownToHtml('[L](https://example.com "a &amp; b")', {
       linkResolver: () => null,
     });
-    assert.match(link, /title="a &amp;amp; b"/);
+    assert.match(link, /title="a &amp; b"/);
+    assert.doesNotMatch(link, /&amp;amp;/);
+
+    const imageTitle = markdownToHtml('![x](./_files/x.png "a &amp; b")', {
+      fileResolver: () => null,
+    });
+    assert.match(imageTitle, /title="a &amp; b"/);
+    assert.doesNotMatch(imageTitle, /&amp;amp;/);
+  });
+
+  it('spells both forms of the same alt text the same way', () => {
+    // The destinations' invariant, one field over: two spellings CommonMark
+    // reads as one string have to reach Canvas as one attribute value.
+    const opts = { fileResolver: () => null };
+    const plain = markdownToHtml('![a & b](./_files/x.png)', opts);
+    const encoded = markdownToHtml('![a &amp; b](./_files/x.png)', opts);
+    assert.equal(encoded, plain);
+  });
+
+  it('still escapes an angle bracket an alt text spells out', () => {
+    // Decode then escape, not decode alone: `&lt;` is the author writing a
+    // literal `<`, and it has to leave as `&lt;` rather than open a tag.
+    const html = markdownToHtml('![a &lt;b&gt; c](./_files/x.png)', {
+      fileResolver: () => null,
+    });
+    assert.match(html, /alt="a &lt;b&gt; c"/);
+    assert.doesNotMatch(html, /<b>/);
   });
 });
 

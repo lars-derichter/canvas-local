@@ -413,21 +413,27 @@ URLs, fragment-only links, and non-`.md` links pass through unchanged.
   icons. The icon is decorative and carries an empty `alt`: the alert's title
   says the same thing in words, right beside it
 - Custom link/image renderers resolve internal references
-- Every value interpolated into an attribute is HTML-escaped. A `"` or a `<` in
-  a filename would otherwise end the attribute early and lose the rest of the
-  URL; a `&` in a query string is not an attribute-breaking character but is
-  read as the start of an entity, so it has to be escaped as well
+- Every outside value the converter interpolates is HTML-escaped, in an
+  attribute or in element content. A `"` or a `<` in a filename would otherwise
+  end the attribute early and lose the rest of the URL; a `&` in a query string
+  is not an attribute-breaking character but is read as the start of an entity,
+  so it has to be escaped as well. The alert title is the content case: it comes
+  from a `labels:` override in `course.config.yml`, and raw it could open a tag
+  in the page. One escaper serves both positions, because the four characters an
+  attribute needs are a superset of the three content needs
 - A value that came out of a markdown token is entity-decoded before it is
-  escaped, because `marked` hands the renderer a link destination as raw source
-  text: `?a=1&b=2` and `?a=1&amp;b=2` are the same URL to CommonMark, and both
-  go to Canvas as the one attribute value that resolves back to `?a=1&b=2`.
-  Skipping the decode would send `&amp;amp;` and Canvas would serve a query
-  parameter named `amp;b`. Only the five entities the escaper itself produces
-  and numeric references are decoded; a name like `&copy;` stays literal text. A
-  resolver's output is not decoded: it is assembled from ids in
-  `.canvas-sync.json`, so there is no encoding there to undo
+  escaped, because `marked` hands the renderer a link destination, an image's
+  alt text and either one's title as raw source text: `?a=1&b=2` and
+  `?a=1&amp;b=2` are the same URL to CommonMark, and both go to Canvas as the
+  one attribute value that resolves back to `?a=1&b=2`. Skipping the decode
+  would send `&amp;amp;` and Canvas would serve a query parameter named `amp;b`,
+  or print the six characters `&amp;` in an image's alt text. Only the five
+  entities the escaper itself produces and numeric references are decoded; a
+  name like `&copy;` stays literal text. A resolver's output is not decoded: it
+  is assembled from ids in `.canvas-sync.json`, so there is no encoding there to
+  undo
 - Push, pull, push therefore sends the same HTML twice, in either spelling. A
-  pull reads the URL back off the attribute with a real HTML parser, so the
+  pull reads the value back off the attribute with a real HTML parser, so the
   markdown it writes holds the decoded spelling, which pushes to the HTML that
   was already there
 
