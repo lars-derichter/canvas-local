@@ -5,9 +5,16 @@ const path = require('path');
 const os = require('os');
 
 const {
+  extractPosition,
   cliSiblings,
   reorderPosition,
   crossContainerPosition,
+  nameSuffix,
+  matchBySuffix,
+  appendPosition,
+  batchPositions,
+  sortByVisualOrder,
+  validateBatchDrop,
 } = require('../../.vscode/extensions/course-manager/helpers');
 const { reorder } = require('../../cli/renumber');
 const { getItems } = require('../../cli/item-utils');
@@ -135,6 +142,248 @@ describe('helpers: reorderPosition drives reorder() onto the drop slot', () => {
   });
 });
 
+describe('helpers: nameSuffix', () => {
+  it('strips the numeric prefix and keeps everything after it', () => {
+    assert.equal(nameSuffix('03-foo.md'), '-foo.md');
+    assert.equal(nameSuffix('00-intro'), '-intro');
+  });
+
+  it('leaves an unnumbered name whole', () => {
+    assert.equal(nameSuffix('notes.md'), 'notes.md');
+  });
+});
+
+describe('helpers: matchBySuffix', () => {
+  it('finds numbered entries sharing the suffix, in prefix order', () => {
+    assert.deepStrictEqual(
+      matchBySuffix(['07-a.md', 'notes.md', '01-a.md', '02-b.md'], '-a.md'),
+      ['01-a.md', '07-a.md'],
+    );
+  });
+
+  it('never matches an unnumbered entry', () => {
+    assert.deepStrictEqual(matchBySuffix(['notes.md'], 'notes.md'), []);
+  });
+});
+
+describe('helpers: appendPosition', () => {
+  it('is one past the highest prefix, gaps and all', () => {
+    assert.equal(appendPosition(['01-a.md', '07-c.md', 'notes.md']), 8);
+  });
+
+  it('is 1 for a container with no numbered entries', () => {
+    assert.equal(appendPosition([]), 1);
+    assert.equal(appendPosition(['notes.md', '_category_.json']), 1);
+  });
+});
+
+describe('helpers: batchPositions', () => {
+  it('counts up from the base, one prefix per dragged entry', () => {
+    assert.deepStrictEqual(batchPositions(3, 3), [3, 4, 5]);
+    assert.deepStrictEqual(batchPositions(6, 1), [6]);
+  });
+
+  it('allows a batch that ends exactly on 99', () => {
+    assert.deepStrictEqual(batchPositions(97, 3), [97, 98, 99]);
+  });
+
+  it('refuses a batch that would run past 99', () => {
+    assert.equal(batchPositions(98, 3), null);
+    assert.equal(batchPositions(100, 1), null);
+  });
+});
+
+// Rows as handleDrag serialises them. `sub` puts a file inside a subsection;
+// kind 'subheader' makes the row a subsection itself.
+function dragRow(module, entry, { sub = null, kind = 'page' } = {}) {
+  const moduleDir = path.join('/ws', 'course', module);
+  const container = sub ? path.join(moduleDir, sub) : moduleDir;
+  return {
+    contextValue: kind,
+    filePath: kind === 'subheader' ? null : path.join(container, entry),
+    folderPath: kind === 'subheader' ? path.join(moduleDir, entry) : null,
+    moduleFolderName: module,
+    subfolderName: sub,
+    entryName: entry,
+    position: extractPosition(entry),
+  };
+}
+
+describe('helpers: sortByVisualOrder', () => {
+  it('orders across modules by module prefix, then entry prefix', () => {
+    const rows = [
+      dragRow('10-late', '01-a.md'),
+      dragRow('02-early', '05-b.md'),
+      dragRow('02-early', '01-c.md'),
+    ];
+    assert.deepStrictEqual(
+      sortByVisualOrder(rows).map((r) => r.entryName),
+      ['01-c.md', '05-b.md', '01-a.md'],
+    );
+  });
+
+  it('keeps a subsection header before its children and slots both by the subsection prefix', () => {
+    const rows = [
+      dragRow('01-m', '03-b.md'),
+      dragRow('01-m', '01-x.md', { sub: '02-s' }),
+      dragRow('01-m', '02-s', { kind: 'subheader' }),
+    ];
+    assert.deepStrictEqual(
+      sortByVisualOrder(rows).map((r) => r.entryName),
+      ['02-s', '01-x.md', '03-b.md'],
+    );
+  });
+});
+
+describe('helpers: validateBatchDrop', () => {
+  const ws = path.join('/ws', 'course');
+  const dir = (...parts) => path.join(ws, ...parts);
+
+  // A fake tree: dir path -> entries. Missing dirs list as empty, matching
+  // the provider's readdir fallback.
+  function readDirFrom(tree) {
+    return (d) =>
+      (tree[d] || []).map((name) => ({
+        name: name.replace(/\/$/, ''),
+        isDirectory: name.endsWith('/'),
+      }));
+  }
+
+  const rootDest = { dir: dir('05-dest'), subfolderName: null };
+  const subDest = {
+    dir: dir('05-dest', '02-sub'),
+    subfolderName: '02-sub',
+  };
+
+  it('accepts a clean cross-module batch', () => {
+    const rows = [dragRow('01-m', '01-a.md'), dragRow('01-m', '02-b.md')];
+    const tree = { [dir('01-m')]: ['01-a.md', '02-b.md'] };
+    assert.equal(validateBatchDrop(rows, rootDest, readDirFrom(tree)), null);
+  });
+
+  it('refuses an unnumbered dragged entry by name', () => {
+    const rows = [dragRow('01-m', '01-a.md'), dragRow('01-m', 'notes.md')];
+    assert.match(
+      validateBatchDrop(rows, rootDest, readDirFrom({})),
+      /"notes\.md" has no numeric prefix/,
+    );
+  });
+
+  it('refuses a dragged subsection when the destination is a subsection', () => {
+    // Not a nesting rule: a single subheader dropped onto a subheader takes
+    // its slot at the module root. The batch is refused because files would
+    // land inside the target while the subheader lands beside it.
+    const rows = [
+      dragRow('01-m', '01-a.md'),
+      dragRow('01-m', '02-s', { kind: 'subheader' }),
+    ];
+    assert.match(
+      validateBatchDrop(rows, subDest, readDirFrom({})),
+      /"02-s" is a subsection, which can only land beside "02-sub"/,
+    );
+  });
+
+  it('refuses a dragged row inside an unnumbered subsection', () => {
+    // Re-resolution finds subsections by suffix among numbered CLI siblings,
+    // so an unnumbered one would strand the batch after its first move.
+    const rows = [
+      dragRow('01-m', '00-a.md'),
+      dragRow('01-m', '01-in.md', { sub: 'extra' }),
+    ];
+    assert.match(
+      validateBatchDrop(rows, rootDest, readDirFrom({})),
+      /"extra" has no numeric prefix, so the batch cannot re-find it/,
+    );
+  });
+
+  it('refuses an unnumbered destination subsection', () => {
+    const rows = [dragRow('01-m', '01-a.md'), dragRow('01-m', '02-b.md')];
+    const dest = { dir: dir('05-dest', 'notes'), subfolderName: 'notes' };
+    assert.match(
+      validateBatchDrop(rows, dest, readDirFrom({})),
+      /"notes" has no numeric prefix, so the batch cannot re-find it/,
+    );
+  });
+
+  it('refuses a file dragged along with the subsection that holds it', () => {
+    const rows = [
+      dragRow('01-m', '02-s', { kind: 'subheader' }),
+      dragRow('01-m', '01-x.md', { sub: '02-s' }),
+    ];
+    assert.match(
+      validateBatchDrop(rows, rootDest, readDirFrom({})),
+      /moving the subsection already moves it/,
+    );
+  });
+
+  it('refuses a same-container multi-item reorder outright', () => {
+    const rows = [dragRow('05-dest', '01-a.md'), dragRow('05-dest', '02-b.md')];
+    assert.match(
+      validateBatchDrop(rows, rootDest, readDirFrom({})),
+      /multi-item reorder/,
+    );
+  });
+
+  it('refuses a batch that mixes a reorder into a move, naming the resident', () => {
+    const rows = [dragRow('01-m', '01-a.md'), dragRow('05-dest', '02-b.md')];
+    assert.match(
+      validateBatchDrop(rows, rootDest, readDirFrom({})),
+      /"02-b\.md" is already in the destination/,
+    );
+  });
+
+  it('refuses suffix twins in a source container', () => {
+    const rows = [dragRow('01-m', '01-a.md'), dragRow('01-m', '02-b.md')];
+    const tree = { [dir('01-m')]: ['01-a.md', '02-b.md', '07-a.md'] };
+    assert.match(
+      validateBatchDrop(rows, rootDest, readDirFrom(tree)),
+      /"01-a\.md" and "07-a\.md" differ only in their numeric prefix/,
+    );
+  });
+
+  it('refuses suffix twins among source subsection directories', () => {
+    const rows = [dragRow('01-m', '01-x.md', { sub: '02-s' })];
+    const tree = {
+      [dir('01-m')]: ['02-s/', '05-s/', '03-b.md'],
+      [dir('01-m', '02-s')]: ['01-x.md'],
+    };
+    assert.match(
+      validateBatchDrop(rows, rootDest, readDirFrom(tree)),
+      /Subsections "02-s" and "05-s"/,
+    );
+  });
+
+  it('refuses a dragged subsection landing next to its suffix twin', () => {
+    // Dest is 05-dest's root; one row comes out of its subsection 02-s while
+    // another row lands a subsection also suffixed "-s" in that same root.
+    const rows = [
+      dragRow('05-dest', '01-x.md', { sub: '02-s' }),
+      dragRow('01-m', '03-s', { kind: 'subheader' }),
+    ];
+    const tree = {
+      [dir('05-dest')]: ['02-s/'],
+      [dir('05-dest', '02-s')]: ['01-x.md'],
+      [dir('01-m')]: ['03-s/'],
+    };
+    assert.match(
+      validateBatchDrop(rows, rootDest, readDirFrom(tree)),
+      /Landing "03-s" next to subsection "02-s"/,
+    );
+  });
+
+  it('refuses a destination subsection with a suffix twin', () => {
+    const rows = [dragRow('01-m', '01-a.md')];
+    const tree = {
+      [dir('01-m')]: ['01-a.md'],
+      [dir('05-dest')]: ['02-sub/', '04-sub/'],
+    };
+    assert.match(
+      validateBatchDrop(rows, subDest, readDirFrom(tree)),
+      /could not re-find the destination/,
+    );
+  });
+});
+
 describe('helpers: crossContainerPosition drives moveEntry onto the drop slot', () => {
   let tmpDir;
   let sourceDir;
@@ -183,6 +432,72 @@ describe('helpers: crossContainerPosition drives moveEntry onto the drop slot', 
       '01-a.md',
       '03-b.md',
       '07-x.md',
+      '08-c.md',
+    ]);
+  });
+});
+
+describe('helpers: batchPositions drives sequential moveEntry in dragged order', () => {
+  let tmpDir;
+  let sourceDir;
+  let destDir;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'helpers-batchmove-'));
+    sourceDir = path.join(tmpDir, 'source');
+    destDir = path.join(tmpDir, 'dest');
+    fs.mkdirSync(sourceDir);
+    fs.mkdirSync(destDir);
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  // The batch loop the provider runs: each entry is re-found by suffix in the
+  // freshly listed source, because the gap-close after every move renames the
+  // entries still waiting their turn.
+  function moveBatch(entryNames, positions) {
+    for (const [i, name] of entryNames.entries()) {
+      const matches = matchBySuffix(
+        fs.readdirSync(sourceDir),
+        nameSuffix(name),
+      );
+      assert.equal(matches.length, 1, `stale "${name}" must resolve uniquely`);
+      _moveEntry(sourceDir, matches[0], destDir, positions[i]);
+    }
+  }
+
+  it('take-slot: three entries land in dragged order on the target slot, gapped destination and renumbered source included', () => {
+    createFiles(sourceDir, ['01-a.md', '02-b.md', '03-c.md']);
+    createFiles(destDir, ['01-x.md', '03-t.md', '07-y.md']);
+    const positions = batchPositions(crossContainerPosition('03-t.md'), 3);
+    assert.deepStrictEqual(positions, [3, 4, 5]);
+    // After the first move the source gap-close renames 02-b -> 01-b and
+    // 03-c -> 02-c: the serialised paths are stale from then on.
+    moveBatch(['01-a.md', '02-b.md', '03-c.md'], positions);
+    assert.deepStrictEqual(sortedNames(destDir), [
+      '01-x.md',
+      '03-a.md',
+      '04-b.md',
+      '05-c.md',
+      '06-t.md',
+      '10-y.md',
+    ]);
+    assert.deepStrictEqual(sortedNames(sourceDir), []);
+  });
+
+  it('append: each entry advances one past the previous, never re-reading the CLI default', () => {
+    createFiles(sourceDir, ['01-a.md', '02-b.md', '03-c.md']);
+    createFiles(destDir, ['02-x.md', '05-y.md']);
+    const base = appendPosition(fs.readdirSync(destDir));
+    assert.equal(base, 6);
+    moveBatch(['01-a.md', '02-b.md', '03-c.md'], batchPositions(base, 3));
+    assert.deepStrictEqual(sortedNames(destDir), [
+      '02-x.md',
+      '05-y.md',
+      '06-a.md',
+      '07-b.md',
       '08-c.md',
     ]);
   });

@@ -6,6 +6,12 @@ const {
   cliSiblings,
   reorderPosition,
   crossContainerPosition,
+  nameSuffix,
+  matchBySuffix,
+  appendPosition,
+  batchPositions,
+  sortByVisualOrder,
+  validateBatchDrop,
 } = require('./helpers');
 
 // --- Utility functions (inlined from lib/convert/course-scanner.js and cli/) ---
@@ -358,8 +364,30 @@ class CourseTreeProvider {
     if (!transferItem) return;
     const draggedItems = transferItem.value;
     if (!draggedItems || draggedItems.length === 0) return;
-    const dragged = draggedItems[0];
 
+    const moduleCount = draggedItems.filter(
+      (d) => d.contextValue === 'module',
+    ).length;
+    if (moduleCount > 0 && moduleCount < draggedItems.length) {
+      refuseDrop(
+        'A drop mixing modules with items cannot be expressed as one move. Drag the modules and the items separately.',
+      );
+      return;
+    }
+    if (moduleCount > 1) {
+      refuseDrop(
+        'Modules only reorder within the course, and a multi-module drop cannot say which one takes the target slot. Move one module at a time.',
+      );
+      return;
+    }
+
+    if (draggedItems.length > 1) {
+      if (!target) return;
+      await this._handleBatchEntryDrop(draggedItems, target, runCli);
+      return;
+    }
+
+    const dragged = draggedItems[0];
     if (dragged.contextValue === 'module') {
       if (target && target.contextValue !== 'module') return;
       await this._handleModuleDrop(dragged, target, runCli);
@@ -487,6 +515,164 @@ class CourseTreeProvider {
       }
       await runCli(args);
     }
+  }
+
+  // A batch drop calls the CLI once per dragged entry, and every call may
+  // rename entries the batch still has to touch: the CLI renumbers the source
+  // directory to close the gap the move leaves, and a landing shifts
+  // destination prefixes upward — either can rewrite a path serialised at
+  // drag time. The invariant the batch leans on: no renumbering pass touches
+  // a module folder or an entry's prefix-stripped suffix (they all rename via
+  // name.replace(/^\d+/, newPrefix)). So each entry — and each subsection
+  // directory on its path — is re-resolved by suffix in its freshly listed
+  // container right before its own move, and `validateBatchDrop` refuses any
+  // batch in which a suffix lookup could ever become ambiguous.
+  //
+  // Placement is load-bearing: extension.test.js asserts over the source
+  // slice between _handleSubsectionDrop and _handleExternalFileDrop, so this
+  // handler must stay above _handleSubsectionDrop or its --to-subsection
+  // args would falsely fail the no-nesting assertion there.
+  async _handleBatchEntryDrop(draggedItems, target, runCli) {
+    // Destination container and base position mirror the single-item
+    // handlers: a module or subheader target means append, an item target
+    // means the batch takes that item's slot.
+    const destModule = target.moduleFolderName;
+    let destDir;
+    let destSubfolder = null;
+    let basePosition;
+    if (target.contextValue === 'module') {
+      destDir = target.folderPath;
+    } else if (target.contextValue === 'subheader') {
+      destDir = target.folderPath;
+      destSubfolder = target._entryName;
+    } else {
+      destDir = path.dirname(target.filePath);
+      destSubfolder = target._subfolderName;
+      basePosition = crossContainerPosition(target._entryName);
+      if (basePosition === null) {
+        refuseDrop(
+          `"${target._entryName}" has no numeric prefix, so the CLI cannot place anything at its position.`,
+        );
+        return;
+      }
+      if (basePosition === 0) {
+        refuseDrop(
+          `"${target._entryName}" is numbered 00, and the CLI cannot place an item before a 00-numbered entry.`,
+        );
+        return;
+      }
+    }
+    if (basePosition === undefined) {
+      basePosition = appendPosition(fs.readdirSync(destDir));
+    }
+
+    const rows = sortByVisualOrder(draggedItems);
+    const error = validateBatchDrop(
+      rows,
+      { dir: destDir, subfolderName: destSubfolder },
+      (dir) => this._readDirEntries(dir),
+    );
+    if (error) {
+      refuseDrop(error);
+      return;
+    }
+
+    const positions = batchPositions(basePosition, rows.length);
+    if (positions === null) {
+      refuseDrop(
+        `Dropping ${rows.length} items at position ${basePosition} would run past 99, the highest prefix the CLI accepts.`,
+      );
+      return;
+    }
+
+    const destModuleDir = path.join(this._workspaceRoot, 'course', destModule);
+    for (let i = 0; i < rows.length; i++) {
+      const resolved = this._resolveRowPath(rows[i]);
+      if (resolved.error) {
+        refuseDrop(resolved.error);
+        this.refresh();
+        return;
+      }
+      const args = [
+        'movetomodule-item',
+        '--path',
+        resolved.path,
+        '--to-module',
+        destModule,
+        '--position',
+        String(positions[i]),
+      ];
+      if (destSubfolder) {
+        // The destination subsection is an entry of its module root, so a
+        // source gap-close in that root can renumber it mid-batch too.
+        const sub = this._resolveDirBySuffix(destModuleDir, destSubfolder);
+        if (sub.error) {
+          refuseDrop(sub.error);
+          this.refresh();
+          return;
+        }
+        args.push('--to-subsection', sub.name);
+      }
+      const ok = await runCli(args);
+      if (!ok) {
+        // runCli has surfaced the CLI's own error; show the true state of
+        // what did and did not land.
+        this.refresh();
+        return;
+      }
+    }
+  }
+
+  /**
+   * The current absolute path of a dragged row, re-derived from the directory
+   * listing by suffix (see the batch invariant above). Module folders are
+   * never renamed by item moves, so the walk restarts from one.
+   * Returns { path } or { error }.
+   */
+  _resolveRowPath(row) {
+    const moduleDir = path.join(
+      this._workspaceRoot,
+      'course',
+      row.moduleFolderName,
+    );
+    let containerDir = moduleDir;
+    if (row.subfolderName) {
+      const sub = this._resolveDirBySuffix(moduleDir, row.subfolderName);
+      if (sub.error) return sub;
+      containerDir = path.join(moduleDir, sub.name);
+    }
+    const names = this._readDirEntries(containerDir).map((e) => e.name);
+    const matches = matchBySuffix(names, nameSuffix(row.entryName));
+    if (matches.length !== 1) {
+      return { error: this._staleRowError(row.entryName) };
+    }
+    return { path: path.join(containerDir, matches[0]) };
+  }
+
+  /** The unique numbered directory in `dir` sharing `originalName`'s suffix. */
+  _resolveDirBySuffix(dir, originalName) {
+    const names = this._readDirEntries(dir)
+      .filter((e) => e.isDirectory)
+      .map((e) => e.name);
+    const matches = matchBySuffix(names, nameSuffix(originalName));
+    if (matches.length !== 1) {
+      return { error: this._staleRowError(originalName) };
+    }
+    return { name: matches[0] };
+  }
+
+  _staleRowError(entryName) {
+    return `"${entryName}" was not where the batch expected it any more, so the batch stopped. The tree shows what did move.`;
+  }
+
+  _readDirEntries(dir) {
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      entries = [];
+    }
+    return entries.map((e) => ({ name: e.name, isDirectory: e.isDirectory() }));
   }
 
   async _handleSubsectionDrop(dragged, target, runCli) {
