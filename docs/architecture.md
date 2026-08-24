@@ -133,10 +133,12 @@ Key properties:
   that the file lives in this course, so a pull that meets a file embedded from
   another course downloads the binary without writing one; the next push of the
   embedding page uploads the file into this course and records it then.
-- **last_sync**: stamped at the end of a run that wrote something. Nothing reads
-  it, and no decision depends on it. The only timestamps a decision reads are
-  the file's mtime and Canvas's `updated_at`, and only to break a tie when both
-  sides of an item changed.
+- **last_sync**: stamped at the end of any `sync`, `push` or `pull` that ran to
+  completion, including one that found nothing to do. A `--dry-run` and a
+  `status` never write it, and a run that stopped before the end leaves the
+  value the last completed one left. Nothing reads it, and no decision depends
+  on it. The only timestamps a decision reads are the file's mtime and Canvas's
+  `updated_at`, and only to break a tie when both sides of an item changed.
 - **schema_version**: the loader reads version 4 only. A file written by any
   other version is refused with an error rather than guessed at, because
   misreading the mapping would create duplicates on Canvas. There is

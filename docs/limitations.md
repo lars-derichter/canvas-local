@@ -251,6 +251,16 @@ of object they delete, and only one of those kinds takes student work with it.
 Pages and files carry no grades, so pruning one costs you the content and
 nothing else, recoverable from git, or from a course export.
 
+One sweep sits out any run you narrow with `-m`. A prune also looks for embedded
+binaries nothing points at any more: the `_files/` image or PDF you renamed, or
+whose last reference you deleted, leaves its uploaded copy behind in the course
+Files area, and `--prune-canvas` clears those out along with the items. On a
+scoped run it does not, and it does not list them either, because "no item
+references this file" is a question about the whole course and `-m` is you
+saying which modules this run may touch: a Canvas file belonging to a module you
+did not name is not that run's to delete. Run the prune over the whole course
+when you want the orphaned binaries gone.
+
 ### Deleting a Module Folder Is Safer Than Deleting an Assignment File
 
 The asymmetry runs the wrong way round from what you would expect:

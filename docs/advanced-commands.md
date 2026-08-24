@@ -182,9 +182,9 @@ everything.
   written over and never deleted. `pull --force` switches that guard off, for
   overwrites and deletes alike. It asks first whenever it would override at
   least one such file under `course/`, and whenever git could not answer at all,
-  which outside a checkout is every file in the tree. A non-interactive run
-  answers no and cancels. See
-  [Skipped with "(git-dirty)"](troubleshooting.md#git-dirty-under-skipped).
+  which outside a checkout is every file in the tree. An input stream that ends
+  without answering cancels the run; a piped `y` confirms it like a typed one.
+  See [Skipped with "(git-dirty)"](troubleshooting.md#git-dirty-under-skipped).
 - **Stale ID recovery**: a 404 on updating a page, assignment or discussion
   means the object was deleted in Canvas, so it is created again and the new id
   recorded. A module is not: a 404 there fails the action, and the run reports

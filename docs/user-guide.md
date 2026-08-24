@@ -201,7 +201,9 @@ that file is yours and the run had otherwise only read it, so formatting it
 would put changes you never made into your working tree.
 
 So `.prettierignore` cannot keep Prettier out of `course/`. It still works for
-the folders the tool never writes to:
+the folders the tool never writes to, and whether to use it there is your call:
+the file this project ships excludes only `package-lock.json`. Add lines of your
+own if you would rather keep a folder exactly as you typed it:
 
 ```
 evaluations/
@@ -428,12 +430,12 @@ in a script.
   both sides and named in the report. That does not fail the run, so a script
   that cares should pin `--order`.
 - **A possible rename goes unanswered**, and neither path is touched.
-- **Two questions have no scripted path at all, and stop the run.** The first
-  push to a Canvas course that already holds content is one. `pull --force`
-  while the git guard is holding at least one file is the other, which includes
-  every run outside a git checkout, where the guard covers the whole tree.
-  Neither writes anything when nothing answers, and both exit 1 rather than
-  report the run they did not make as a success.
+- **Two questions take no flag, and a piped `y` is the only way past them.** The
+  first push to a Canvas course that already holds content is one.
+  `pull --force` while the git guard is holding at least one file is the other,
+  which includes every run outside a git checkout, where the guard covers the
+  whole tree. Neither writes anything when nothing answers, and both exit 1
+  rather than report the run they did not make as a success.
 
 `sync -y` behaves the same way in a terminal: it confirms the prune and skips
 the conflict and ordering questions rather than putting them to you.
