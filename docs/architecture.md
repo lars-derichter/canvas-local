@@ -304,9 +304,13 @@ wrong. Push overwrote Canvas unconditionally, pull refused any file whose mtime
 was later than `last_sync`, and status called a fresh clone an entirely modified
 course.
 
-One decision still reads an mtime, and only one: the `newest` tiebreak, reached
-only for an item where both hashes moved. A Canvas `updated_at` that is missing
-or unparseable gives it to local, and so does a tie, because of the two possible
+One decision still reads an mtime, and only one: the `newest` tiebreak. It has
+two timestamps to compare only for an item of an authored type where both hashes
+moved. A module name renamed on both sides, a reference, and a text header reach
+the same policy with nothing to compare, because Canvas keeps no timestamp on
+any of them; each falls to local with a reason naming what is untimed rather
+than blaming Canvas for bad data. A Canvas `updated_at` that is missing or
+unparseable gives it to local, and so does a tie, because of the two possible
 mistakes pushing over a remote edit is the one git can undo.
 
 ### Adoption, Not Duplication

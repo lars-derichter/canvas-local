@@ -433,9 +433,13 @@ to merge against even in principle.
   separates "changed here" from "changed there" and both from "changed on both
   sides". Neither fingerprint reads a modification time, so a fresh `git clone`
   is no longer mistaken for an entirely edited course. Exactly one decision
-  still reads a timestamp: the `newest` tiebreak, reached only for an item whose
-  two fingerprints have both moved. Push and pull never reach it, because
-  pinning a direction has already answered that question. See
+  still reads a timestamp: the `newest` tiebreak, and it has two timestamps to
+  compare only for a page, assignment, discussion or file whose two fingerprints
+  have both moved. A module renamed on both sides, a quiz, an LTI link, an
+  external URL and a text header reach the same setting with nothing to compare,
+  because Canvas keeps no timestamp on any of them, and go to your copy with a
+  reason saying so. Push and pull never reach any of it, because pinning a
+  direction has already answered that question. See
   [The reconcile engine](architecture.md#the-reconcile-engine).
 - **A file holding uncommitted work is never overwritten and never deleted.** A
   single `git status` covers the whole run, and any file it reports as modified

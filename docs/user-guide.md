@@ -376,9 +376,9 @@ only one side reordered keeps that side's order.
   reports no usable timestamp: of the two possible mistakes, writing over Canvas
   is the one git can undo. `ask` stops at each item and asks.
 - **`--order local|canvas|ask`** (default `ask`) settles a module both sides
-  reordered. There is no `newest` here (an order has no timestamp to compare)
-  and only `sync` takes the flag. `push`, `pull` and `status` leave such a
-  module in whatever order each side has it and name it in the report.
+  reordered. There is no `newest` here, and only `sync` takes the flag. `push`,
+  `pull` and `status` leave such a module in whatever order each side has it and
+  name it in the report.
 
 A value neither flag recognises is an error rather than a fallback.
 `npx course sync --conflict newst` prints

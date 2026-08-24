@@ -180,11 +180,13 @@ npx course sync --conflict local       # your file wins every disputed item
 ### The Questions Sync Asks
 
 A content conflict is settled without asking: the newest change wins, and the
-report names the item with both timestamps. Two things sync will not decide on
-its own, because it has nothing to decide them with:
+report names the item with the two times it compared. If Canvas reports no
+usable time, your file wins and the report writes `Canvas unknown` in its place.
+Two things sync asks about instead of settling on its own:
 
-- **A module both sides reordered.** An order carries no timestamp, so “newest”
-  means nothing here. Sync prints both orders and asks which one wins.
+- **A module both sides reordered.** An order is its own question with its own
+  flag, `--order`, so sync parks it rather than guessing. It prints both orders
+  and asks which one wins.
 - **A file that disappeared while a new one turned up** in the same folder, with
   the same title. Sync asks whether that is the same item renamed. Say no and
   they count as two unrelated items: the new file is created on Canvas, and the

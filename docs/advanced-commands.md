@@ -174,9 +174,12 @@ everything.
   and both from "changed on both sides". Neither fingerprint reads a
   modification time, so a fresh `git clone` is not mistaken for an entirely
   edited course. One decision still reads a timestamp, the `newest` tiebreak,
-  and only an item whose two fingerprints have both moved reaches it; `push` and
-  `pull` never do, because pinning a direction has already answered that
-  question. See
+  and only a page, assignment, discussion or file whose two fingerprints have
+  both moved gives it two timestamps to compare; a module renamed on both sides,
+  and every item Canvas keeps no timestamp on, reach the same setting with
+  nothing to compare and fall to the local copy with a reason saying so. `push`
+  and `pull` never reach any of it, because pinning a direction has already
+  answered that question. See
   [Push and pull are not a merge](limitations.md#push-and-pull-are-not-a-merge).
 - **Forced overwrite**: a file git reports as modified or untracked is never
   written over and never deleted. `pull --force` switches that guard off, for
