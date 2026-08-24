@@ -460,6 +460,14 @@ to merge against even in principle.
   spellings are one alert type: both are accepted and render identically, but
   the HTML carries only the one kind, and a pull writes it back in this
   project's spelling. See [Custom alerts](markdown.md#custom-alerts).
+- **A URL written with `&amp;` comes back written with `&`.** The two spellings
+  are one URL to CommonMark and reach Canvas as the same link, but a pull reads
+  the address back off the attribute with a real HTML parser, so the markdown it
+  writes holds the decoded spelling. The link itself is unchanged; the file
+  settles on one way of writing it after the first pull and stays there. The
+  same goes for an image's alt text and a link's title. What this does rule out
+  is an address meant to carry the six characters `&amp;` as text, because every
+  cycle resolves one level of it: `&amp;amp;` becomes `&amp;` becomes `&`.
 - **A file referenced from raw HTML is neither uploaded nor rewritten.** An
   `<img src="_files/diagram.png">` or `<a href="_files/handout.pdf">` written as
   an HTML tag in your markdown reaches Canvas exactly as you typed it, pointing
