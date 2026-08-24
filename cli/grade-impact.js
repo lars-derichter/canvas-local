@@ -18,12 +18,12 @@ const log = require('./logger');
  * the warning can come from, and it has to reach every command that writes to
  * Canvas — `push` and `sync` both do.
  *
- * It lives here rather than in either of them because `cli/push.js` already
- * imports `cli/sync.js` for the report. A second edge from sync back to push
- * would close the cycle, and Node answers a cyclic require with a half-built
- * module: push's `buildReport` would be `undefined` at load. One module both can
- * import is what keeps the two commands warning in the same words about the same
- * fields, which is the whole point of a warning that must not drift.
+ * It lives here rather than in either of them for the same reason the report
+ * lives in `cli/report.js`: a home inside one of them would make the other
+ * require a command to warn about its own writes, and a command is an entry
+ * point rather than a library. One module both can import is what keeps the two
+ * commands warning in the same words about the same fields, which is the whole
+ * point of a warning that must not drift.
  *
  * Everything here runs **between plan and apply, over the plan**, which is what
  * makes it answerable from one list request.

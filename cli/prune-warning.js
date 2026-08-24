@@ -21,10 +21,11 @@ const log = require('./logger');
  *
  * Both `push --prune-canvas` and `sync --prune-canvas` run the same delete
  * against the same course, so both say the same words about it. This lives here
- * rather than in either command because `cli/push.js` already imports
- * `cli/sync.js` for the report, and an edge back the other way would close the
- * cycle — Node answers a cyclic require with a half-built module, and push's
- * `buildReport` would be `undefined` at load.
+ * rather than in either command for the same reason the report lives in
+ * `cli/report.js`: a home inside one of them would make the other require a
+ * command to print its own warning, and a command is an entry point rather than
+ * a library. One module both import is what keeps the warning from drifting
+ * between them.
  *
  * Everything here reads the **plan's delete actions**, so what is listed is
  * exactly what would run — including nothing, when the planner declined to emit

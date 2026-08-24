@@ -6,7 +6,7 @@ const {
 } = require('../lib/sync/gather');
 const { loadState } = require('../lib/sync/state');
 const { COURSE_DIR } = require('./module-utils');
-const buildReport = require('./sync')._buildReport;
+const { buildReport } = require('./report');
 const log = require('./logger');
 
 /**

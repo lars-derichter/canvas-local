@@ -17,7 +17,7 @@ const {
 } = require('./backup-warning');
 const { warnGradeImpact } = require('./grade-impact');
 const { describeCanvasPrune } = require('./prune-warning');
-const buildReport = require('./sync')._buildReport;
+const { buildReport } = require('./report');
 const log = require('./logger');
 
 /**

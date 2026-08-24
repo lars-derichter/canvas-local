@@ -251,9 +251,10 @@ no separate push algorithm and no separate pull algorithm. The engine lives in
    the per-type writes for each side.
 
 `cli/sync.js`, `cli/push.js`, `cli/pull.js` and `cli/status.js` set a policy,
-ask the questions the planner parked, and print the report. They decide nothing
-else, which is why the four commands agree with each other by construction
-instead of by four implementations happening to match.
+ask the questions the planner parked, and print the report `cli/report.js`
+renders for all four. They decide nothing else, which is why the four commands
+agree with each other by construction instead of by four implementations
+happening to match.
 
 | Command  | Writes Canvas | Writes `course/` | Both sides changed    | Adopts |
 | -------- | ------------- | ---------------- | --------------------- | ------ |

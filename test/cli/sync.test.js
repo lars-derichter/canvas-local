@@ -11,7 +11,7 @@ process.env.CANVAS_API_TOKEN = 'test-token-123';
 process.env.CANVAS_COURSE_ID = '4242';
 
 const sync = require('../../cli/sync');
-const { buildReport } = { buildReport: sync._buildReport };
+const { buildReport } = require('../../cli/report');
 
 const COURSE_ID = '4242';
 const CLEAN = { available: true, paths: new Set(), reason: null };

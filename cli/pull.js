@@ -8,7 +8,7 @@ const {
 const { loadState, saveState } = require('../lib/sync/state');
 const { COURSE_DIR, createRL, prompt } = require('./module-utils');
 const { BACKUP_DOC, confirmForcedPull } = require('./backup-warning');
-const buildReport = require('./sync')._buildReport;
+const { buildReport } = require('./report');
 const log = require('./logger');
 
 /**
