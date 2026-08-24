@@ -436,6 +436,13 @@ to merge against even in principle.
 - **The round trip is lossy.** Canvas HTML becomes markdown through a converter.
   Raw HTML, anything the Canvas rich-content editor added, and formatting
   nuances are normalised away.
+- **A file referenced from raw HTML is neither uploaded nor rewritten.** An
+  `<img src="_files/diagram.png">` or `<a href="_files/handout.pdf">` written as
+  an HTML tag in your markdown reaches Canvas exactly as you typed it, pointing
+  at a relative path that does not exist there. Only inline markdown references
+  (`![alt](_files/diagram.png)`, `[text](_files/handout.pdf)`) are uploaded and
+  repointed at the Canvas file. Write the reference in markdown syntax;
+  `npx course validate` warns when it finds one that is not.
 - **A file embedded from another course becomes this course's.** Content copied
   over from another Canvas course can keep file URLs that point at the source
   course, links students of this course cannot always open. Pull downloads such
