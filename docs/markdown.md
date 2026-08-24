@@ -146,7 +146,8 @@ labels" section in the [user guide](user-guide.md).
 One naming quirk to know: the alert you write as `[!ATTENTION]` is the one
 GitHub calls `[!CAUTION]`, so its label key in `course.config.yml` is `caution`
 and its default English title is "Caution". `[!CAUTION]` is accepted in your
-markdown as a synonym.
+markdown as a synonym, but a pull rewrites it to `[!ATTENTION]`: the HTML on
+Canvas records the type, not which of the two spellings you wrote.
 
 Alert icons are automatically uploaded to Canvas on first push and tracked in
 `.canvas-sync.json`.

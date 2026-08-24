@@ -446,6 +446,10 @@ to merge against even in principle.
 - **The round trip is lossy.** Canvas HTML becomes markdown through a converter.
   Raw HTML, anything the Canvas rich-content editor added, and formatting
   nuances are normalised away.
+- **An alert written as `[!CAUTION]` comes back as `[!ATTENTION]`.** The two
+  spellings are one alert type: both are accepted and render identically, but
+  the HTML carries only the one kind, and a pull writes it back in this
+  project's spelling. See [Custom alerts](markdown.md#custom-alerts).
 - **A file referenced from raw HTML is neither uploaded nor rewritten.** An
   `<img src="_files/diagram.png">` or `<a href="_files/handout.pdf">` written as
   an HTML tag in your markdown reaches Canvas exactly as you typed it, pointing
