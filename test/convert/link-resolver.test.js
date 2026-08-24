@@ -5,6 +5,7 @@ const {
   resolveRelativeLink,
   resolveCanvasLink,
   extractFileReferences,
+  replaceOutsideCode,
   buildFileMap,
 } = require('../../lib/convert/link-resolver');
 
@@ -419,6 +420,49 @@ describe('extractFileReferences', () => {
     ].join('\n');
     const refs = extractFileReferences(md, '01-intro/01-welcome.md');
     assert.deepEqual(refs, ['01-intro/_files/real.png']);
+  });
+});
+
+// --- replaceOutsideCode ---
+
+describe('replaceOutsideCode', () => {
+  const shout = (md) => replaceOutsideCode(md, /cat/g, () => 'CAT');
+
+  it('replaces a match in ordinary prose', () => {
+    assert.equal(shout('one cat, two cats'), 'one CAT, two CATs');
+  });
+
+  it('leaves a match inside a fenced block alone', () => {
+    assert.equal(shout('```\ncat\n```'), '```\ncat\n```');
+  });
+
+  it('leaves a match inside an inline code span alone', () => {
+    assert.equal(shout('a `cat` here'), 'a `cat` here');
+  });
+
+  it('replaces around code rather than giving up on the line', () => {
+    assert.equal(shout('a cat, a `cat`, a cat'), 'a CAT, a `cat`, a CAT');
+  });
+
+  it('hands the replacer the real text, not the masked view', () => {
+    // The mask is only there to locate a match; what the replacer sees has to
+    // be the characters the author wrote, or a fence anywhere in the file
+    // would turn every later replacement into spaces.
+    const seen = [];
+    replaceOutsideCode('`x` then cat', /cat/g, (real) => {
+      seen.push(real);
+      return real.toUpperCase();
+    });
+    assert.deepEqual(seen, ['cat']);
+  });
+
+  it('resets a regex that was left mid-string', () => {
+    const re = /cat/g;
+    re.lastIndex = 5;
+    assert.equal(
+      replaceOutsideCode('cat', re, () => 'CAT'),
+      'CAT',
+    );
   });
 });
 

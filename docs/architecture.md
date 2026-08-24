@@ -408,7 +408,12 @@ URLs, fragment-only links, and non-`.md` links pass through unchanged.
 
 - Strips YAML frontmatter
 - Uses `marked` with GFM extensions
-- `marked-alert` handles `> [!NOTE]` etc.
+- `marked-alert` handles `> [!NOTE]` etc. `[!ATTENTION]`, this project's
+  spelling of GitHub's `[!CAUTION]`, is rewritten to it in the source before
+  parsing. That is the one rewrite here that works on text rather than on
+  tokens, so it runs through `replaceOutsideCode`
+  (`lib/convert/link-resolver.js`) and skips fenced blocks and inline code: a
+  lesson that documents the alert syntax keeps saying what its author wrote
 - Custom renderer produces inline-styled alert HTML with Canvas-hosted SVG
   icons. The icon is decorative and carries an empty `alt`: the alert's title
   says the same thing in words, right beside it

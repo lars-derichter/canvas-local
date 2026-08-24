@@ -1029,6 +1029,21 @@ describe('round trip through push and pull: alerts', () => {
     );
   });
 
+  it('survives an alert written out as a fenced example', () => {
+    // A lesson that teaches the alert syntax would carry one of these. The push
+    // used to rewrite the marker inside the fence, so the page on Canvas told
+    // the reader to write `[!CAUTION]`, and the pull then wrote that spelling
+    // back into the source file.
+    const rt = roundTrips(
+      'Write this:\n\n```md\n> [!ATTENTION]\n>\n> Mind this.\n```\n',
+    );
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.h1, /&gt; \[!ATTENTION\]/);
+    assert.doesNotMatch(rt.h1, /CAUTION/);
+    assert.doesNotMatch(rt.h1, /markdown-alert/);
+    assert.match(rt.md2, /^> \[!ATTENTION\]$/m);
+  });
+
   it('survives an alert whose body is more than one paragraph', () => {
     const rt = roundTrips(
       '> [!NOTE]\n>\n> The first paragraph.\n>\n> The second paragraph.\n',

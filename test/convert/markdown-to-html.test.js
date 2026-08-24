@@ -89,6 +89,47 @@ describe('markdownToHtml alerts', () => {
     assert.match(html, /Check<\/p>/);
   });
 
+  it('leaves an ATTENTION marker inside a code fence as written', () => {
+    // The ATTENTION -> CAUTION map is a regex over the source rather than over
+    // parsed tokens, and a ```md fence showing a reader how to write an alert
+    // is text *about* markdown. Rewritten, the Canvas page taught `[!CAUTION]`
+    // while the preview site and the PDF export showed what the author wrote.
+    const md = 'Write this:\n\n```md\n> [!ATTENTION]\n>\n> Mind this.\n```\n';
+    const html = markdownToHtml(md);
+    assert.match(html, /&gt; \[!ATTENTION\]/);
+    assert.doesNotMatch(html, /CAUTION/);
+    assert.doesNotMatch(html, /markdown-alert/);
+  });
+
+  it('leaves an ATTENTION marker inside an inline code span as written', () => {
+    // Inline spans are covered as well as fences: the mask this shares with
+    // the exporter blanks both. This one never matched the rewrite anyway —
+    // the pattern wants the marker straight after the `>` — so the case is
+    // pinned rather than repaired.
+    const html = markdownToHtml('Type `> [!ATTENTION]` to warn.\n');
+    assert.match(html, /<code>&gt; \[!ATTENTION\]<\/code>/);
+    assert.doesNotMatch(html, /CAUTION/);
+  });
+
+  it('does not let a blockquote above a fence reach a marker below it', () => {
+    // The mask blanks a code region with spaces and keeps its newlines, so a
+    // `\s*` after the `>` walked from the blockquote on the first line, across
+    // the fence, down to the bare marker on the last one and rewrote it. The
+    // prefix matches spaces and tabs, so it stays on the line it started on.
+    const html = markdownToHtml('>\n```md\nx\n```\n[!ATTENTION]\n');
+    assert.match(html, /<p>\[!ATTENTION\]<\/p>/);
+    assert.doesNotMatch(html, /CAUTION/);
+  });
+
+  it('still rewrites a live alert beside a fence that documents one', () => {
+    const md =
+      '```md\n> [!ATTENTION]\n```\n\n> [!ATTENTION]\n>\n> Mind this.\n';
+    const html = markdownToHtml(md);
+    assert.match(html, /markdown-alert-caution/);
+    assert.match(html, /Caution<\/p>/);
+    assert.match(html, /<code class="language-md">&gt; \[!ATTENTION\]/);
+  });
+
   it('renders titles from options.alertTitles', () => {
     const alertTitles = {
       note: 'Info',
