@@ -95,9 +95,12 @@ async function init() {
     process.exit(1);
   }
 
-  // Normalize the URL: strip trailing slashes and any /api/v1 suffix
-  // (API paths already include /api/v1, so CANVAS_API_URL should be the base URL only)
-  const apiUrl = canvasUrl.replace(/\/+$/, '').replace(/\/api\/v1$/, '');
+  // Strip trailing slashes and any /api/v1 suffix: API paths already carry
+  // /api/v1, so CANVAS_API_URL is the base URL alone. `normaliseBaseUrl` is the
+  // definition of that shape, and this is the command that writes it, so the
+  // two agreeing is not a nicety — every later comparison of `.env` against the
+  // sync file assumes both went through it.
+  const apiUrl = normaliseBaseUrl(canvasUrl);
 
   // Write .env file
   const envContent = [

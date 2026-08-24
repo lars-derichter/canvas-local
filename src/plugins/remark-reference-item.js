@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { LABEL_SETS } = require('../../lib/config/labels');
+const { normaliseBaseUrl } = require('../../lib/sync/state');
 
 /** This plugin runs inside the Docusaurus build, where the CLI's project
  *  root detection does not apply — resolve it from this file instead. */
@@ -19,15 +20,17 @@ const locationCache = new Map();
 const itemCache = new Map();
 
 /**
- * Trim a Canvas address down to the site root, so a `/api/v1` suffix (which
- * `CANVAS_API_URL` is sometimes written with) does not end up in a link a
- * human is meant to click.
+ * A Canvas address as this plugin's sources hand one over, trimmed down to the
+ * site root so a `/api/v1` suffix (which `CANVAS_API_URL` is sometimes written
+ * with) does not end up in a link a human is meant to click.
+ *
+ * The trimming is `normaliseBaseUrl` in lib/sync/state.js, which is the one
+ * definition of the shape `.env` and `.canvas-sync.json` hold. The surrounding
+ * `.trim()` is this plugin's own: it reads a raw environment variable and a raw
+ * Docusaurus option, neither of which has been through `init`.
  */
-function normaliseBaseUrl(url) {
-  return String(url || '')
-    .trim()
-    .replace(/\/+$/, '')
-    .replace(/\/api\/v1$/, '');
+function cleanBaseUrl(url) {
+  return normaliseBaseUrl(String(url || '').trim());
 }
 
 /**
@@ -40,7 +43,7 @@ function normaliseBaseUrl(url) {
  * clone has neither, and the card then renders unlinked.
  */
 function readCanvasLocation(projectDir) {
-  const envBaseUrl = normaliseBaseUrl(process.env.CANVAS_API_URL);
+  const envBaseUrl = cleanBaseUrl(process.env.CANVAS_API_URL);
   const envCourseId = String(process.env.CANVAS_COURSE_ID || '').trim();
   if (envBaseUrl && envCourseId) {
     return { baseUrl: envBaseUrl, courseId: envCourseId };
@@ -52,7 +55,7 @@ function readCanvasLocation(projectDir) {
       'utf8',
     );
     const state = JSON.parse(raw);
-    const baseUrl = normaliseBaseUrl(state.canvas_base_url);
+    const baseUrl = cleanBaseUrl(state.canvas_base_url);
     const courseId = String(state.course_id || '').trim();
     // course_id 0 is the placeholder a sync file written without credentials
     // carries, and it addresses no course.
@@ -115,7 +118,7 @@ function rowForFile(projectDir, vfile) {
  */
 function resolveCanvasLocation(options) {
   if (options.canvasBaseUrl || options.courseId) {
-    const baseUrl = normaliseBaseUrl(options.canvasBaseUrl);
+    const baseUrl = cleanBaseUrl(options.canvasBaseUrl);
     const courseId = String(options.courseId || '').trim();
     return baseUrl && courseId ? { baseUrl, courseId } : null;
   }
