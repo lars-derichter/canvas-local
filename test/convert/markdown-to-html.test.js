@@ -4,6 +4,7 @@ const {
   markdownToHtml,
   getAlertConfig,
 } = require('../../lib/convert/markdown-to-html');
+const { LABEL_SETS } = require('../../lib/config/labels');
 
 describe('markdownToHtml', () => {
   it('converts basic markdown to HTML', () => {
@@ -113,6 +114,42 @@ describe('markdownToHtml alerts', () => {
       alertTitles: { note: 'Info' },
     });
     assert.match(html, /Tip<\/p>/);
+  });
+
+  it('escapes markup in a title from options.alertTitles', () => {
+    // A `labels:` override in course.config.yml is outside data like a URL is.
+    // Raw, the `<b>` opened a bold run in the Canvas page that the author
+    // never wrote, and the next pull dropped it again without saying so.
+    const html = markdownToHtml('> [!NOTE]\n> x', {
+      alertTitles: { note: 'Let <b>op</b> & co' },
+    });
+    assert.match(html, /Let &lt;b&gt;op&lt;\/b&gt; &amp; co<\/p>/);
+    assert.doesNotMatch(html, /<b>/);
+  });
+
+  it('renders every shipped label as its own bytes', () => {
+    // The escape has to be invisible for a normal course: no built-in title
+    // carries a character an escaper touches, so every language's alert
+    // paragraph reads exactly as it did before titles were escaped at all.
+    const markers = {
+      note: 'NOTE',
+      tip: 'TIP',
+      important: 'IMPORTANT',
+      warning: 'WARNING',
+      caution: 'ATTENTION',
+      check: 'CHECK',
+    };
+    for (const [language, set] of Object.entries(LABEL_SETS)) {
+      for (const [type, title] of Object.entries(set.alerts)) {
+        const html = markdownToHtml(`> [!${markers[type]}]\n> x`, {
+          alertTitles: set.alerts,
+        });
+        assert.ok(
+          html.includes(`1.2em;">${title}</p>`),
+          `${language}.${type} came out changed:\n${html}`,
+        );
+      }
+    }
   });
 
   it('includes icon when iconUrls are provided', () => {
