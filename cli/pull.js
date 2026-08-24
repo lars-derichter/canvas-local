@@ -8,6 +8,7 @@ const {
 const { loadState, saveState } = require('../lib/sync/state');
 const { COURSE_DIR, createRL, prompt } = require('./module-utils');
 const { BACKUP_DOC, confirmForcedPull } = require('./backup-warning');
+const { describeLocalPrune } = require('./prune-warning');
 const {
   buildReport,
   checkModuleFilter,
@@ -298,13 +299,18 @@ async function pull(options = {}) {
 }
 
 /**
- * List what `--prune-local` is about to delete, and ask.
+ * List what `--prune-local` is about to delete, say what the undo is, and ask.
  *
- * Read off the plan's delete actions rather than off the working tree, so what
- * is listed is exactly what would run — including nothing, when the planner
- * declined to emit a delete it had a reason not to. The commonest such reason
- * is the git guard: a file holding uncommitted work is reported under "Skipped"
- * with a remedy, and never reaches this listing.
+ * The listing is `describeLocalPrune`, the same one `sync --prune-local`
+ * prints: it is the same delete against the same working tree, and a listing
+ * that differed between the two would be one the author could not rely on. It
+ * reads the plan's delete actions rather than the tree, so what is listed is
+ * exactly what would run — including nothing, when the planner declined to emit
+ * a delete it had a reason not to.
+ *
+ * What is pull's own is the question and the sentence above it. `--force` is
+ * pull's flag, and it changes what saying yes costs, which is not something a
+ * listing shared with `sync` should have to know about.
  *
  * A dry run deletes nothing, so it gets the listing and no question: hiding the
  * deletes behind a prompt the run will never act on is the opposite of what a
@@ -313,45 +319,15 @@ async function pull(options = {}) {
  * @returns {Promise<boolean>} Whether the deletes should stay in the plan.
  */
 async function confirmPrune(report, { interactive, dryRun, force }) {
-  const actions = report.actions || [];
-  const doomedModules = actions.filter(
-    (action) => action.type === 'delete-local-module',
-  );
-  const doomedItems = actions.filter(
-    (action) => action.type === 'delete-local-item',
-  );
-  if (doomedModules.length === 0 && doomedItems.length === 0) {
-    log.info('\n[pull] Prune: nothing to remove from course/.');
-    return true;
-  }
-
-  if (doomedModules.length > 0) {
-    log.info(
-      `\n[pull] Prune: ${plural(doomedModules.length, 'module folder')} gone ` +
-        'from Canvas, to delete here:',
-    );
-    for (const action of doomedModules) {
-      log.info(`  - ${action.folder}/ (the whole folder)`);
-    }
-  }
-
-  if (doomedItems.length > 0) {
-    log.info(
-      `\n[pull] Prune: ${plural(doomedItems.length, 'file')} gone from ` +
-        'Canvas, to delete here:',
-    );
-    for (const action of doomedItems) {
-      log.info(`  - ${action.itemPath} (${action.canvasType})`);
-    }
-  }
+  const { count } = describeLocalPrune(report.actions || [], { tag: 'pull' });
+  if (count === 0) return true;
 
   if (dryRun) return true;
 
   if (!interactive) {
     log.warn(
-      `[pull] ${plural(doomedModules.length + doomedItems.length, 'thing')} ` +
-        'would be deleted, and this run cannot ask. Nothing was pruned; run ' +
-        'it in a terminal.',
+      `[pull] ${plural(count, 'thing')} would be deleted, and this run cannot ` +
+        'ask. Nothing was pruned; run it in a terminal.',
     );
     return false;
   }
