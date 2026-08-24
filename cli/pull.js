@@ -8,7 +8,12 @@ const {
 const { loadState, saveState } = require('../lib/sync/state');
 const { COURSE_DIR, createRL, prompt } = require('./module-utils');
 const { BACKUP_DOC, confirmForcedPull } = require('./backup-warning');
-const { buildReport, checkModuleFilter, plural } = require('./report');
+const {
+  buildReport,
+  checkModuleFilter,
+  plural,
+  printErrors,
+} = require('./report');
 const log = require('./logger');
 
 /**
@@ -281,16 +286,7 @@ async function pull(options = {}) {
     log.info('[pull] course/ already holds everything in Canvas.');
   }
 
-  if (outcome.errors.length > 0) {
-    log.error(`\n[pull] ${plural(outcome.errors.length, 'error')}:`);
-    for (const failure of outcome.errors) {
-      log.error(
-        // A run-wide failure — the icon upload — names no path and no folder,
-        // so it falls back to its own name rather than printing "undefined".
-        `  - ${failure.action.itemPath || failure.action.folder || failure.action.type}: ${failure.error}`,
-      );
-    }
-  }
+  printErrors(outcome.errors, { tag: 'pull' });
 
   // A skip is a refusal pull could not carry out, which under this policy means
   // a file holding uncommitted work that Canvas wanted to overwrite. Orphans

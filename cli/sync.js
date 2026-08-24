@@ -10,7 +10,13 @@ const { COURSE_DIR, createRL, prompt } = require('./module-utils');
 const { BACKUP_HINT, submissionRiskSuffix } = require('./backup-warning');
 const { warnGradeImpact } = require('./grade-impact');
 const { describeCanvasPrune, describeLocalPrune } = require('./prune-warning');
-const { buildReport, checkModuleFilter, plural, stamp } = require('./report');
+const {
+  buildReport,
+  checkModuleFilter,
+  plural,
+  printErrors,
+  stamp,
+} = require('./report');
 const log = require('./logger');
 
 /**
@@ -373,16 +379,7 @@ async function sync(options = {}) {
     log.info('[sync] Everything is already in sync.');
   }
 
-  if (outcome.errors.length > 0) {
-    log.error(`\n[sync] ${plural(outcome.errors.length, 'error')}:`);
-    for (const failure of outcome.errors) {
-      log.error(
-        // A run-wide failure — the icon upload — names no path and no folder,
-        // so it falls back to its own name rather than printing "undefined".
-        `  - ${failure.action.itemPath || failure.action.folder || failure.action.type}: ${failure.error}`,
-      );
-    }
-  }
+  printErrors(outcome.errors, { tag: 'sync' });
 
   // A refusal fails the run, which is this tool's convention everywhere else.
   // Orphans and the informational sections do not: a course mid-edit is a

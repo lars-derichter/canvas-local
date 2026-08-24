@@ -17,7 +17,7 @@ const {
 } = require('./backup-warning');
 const { warnGradeImpact } = require('./grade-impact');
 const { describeCanvasPrune } = require('./prune-warning');
-const { buildReport, plural } = require('./report');
+const { buildReport, plural, printErrors } = require('./report');
 const log = require('./logger');
 
 /**
@@ -246,16 +246,7 @@ async function push(options = {}) {
     log.info('[push] Canvas already holds everything in course/.');
   }
 
-  if (outcome.errors.length > 0) {
-    log.error(`\n[push] ${plural(outcome.errors.length, 'error')}:`);
-    for (const failure of outcome.errors) {
-      log.error(
-        // A run-wide failure — the icon upload — names no path and no folder,
-        // so it falls back to its own name rather than printing "undefined".
-        `  - ${failure.action.itemPath || failure.action.folder || failure.action.type}: ${failure.error}`,
-      );
-    }
-  }
+  printErrors(outcome.errors, { tag: 'push' });
 
   // A skip is a refusal push could not carry out, which under this policy means
   // a file whose `canvas_type` no longer matches the Canvas object it names.

@@ -22,10 +22,11 @@ const log = require('./logger');
  * voice with the ones inside it. There were four copies of that one-liner, in
  * two different signatures.
  *
- * `checkModuleFilter` is the one thing here that prints rather than returns
- * lines, and it earns its place the same way: three of the four commands refuse
- * an unknown `-m` in the same words, and a refusal that drifted between them
- * would be a refusal none of the three could be trusted to give.
+ * `printErrors` and `checkModuleFilter` are the two things here that print
+ * rather than return lines, and they earn their place the same way: the same
+ * listing closes three of the four runs, the same refusal answers an unknown
+ * `-m` in three of them, and both were written out once per command, with three
+ * chances each to drift.
  */
 
 /**
@@ -498,6 +499,37 @@ function buildReport(report, options = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// The errors
+// ---------------------------------------------------------------------------
+
+/**
+ * What failed, under a heading that counts it, after the report has said what
+ * the run did.
+ *
+ * Separate from `buildReport` rather than a section of it, because the report is
+ * built from the plan and what ran, and an error is neither: it is what
+ * `applyPlan` handed back. Keeping it out is also what lets each command read
+ * its own `errors` first and decide what a bare report means — "nothing was
+ * applied, see the errors below" rather than "everything is already in sync".
+ *
+ * @param {object[]} errors    - `applyPlan`'s `outcome.errors`, each `{action,
+ *   error}`. An empty list prints nothing at all.
+ * @param {object} options
+ * @param {string} options.tag - The calling command's log tag.
+ */
+function printErrors(errors, { tag }) {
+  if (errors.length === 0) return;
+  log.error(`\n[${tag}] ${plural(errors.length, 'error')}:`);
+  for (const failure of errors) {
+    log.error(
+      // A run-wide failure — the icon upload — names no path and no folder,
+      // so it falls back to its own name rather than printing "undefined".
+      `  - ${failure.action.itemPath || failure.action.folder || failure.action.type}: ${failure.error}`,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The `-m` refusal
 // ---------------------------------------------------------------------------
 
@@ -548,6 +580,7 @@ module.exports = {
   buildReport,
   checkModuleFilter,
   plural,
+  printErrors,
   // `cli/sync.js` prints the same timestamps in the questions it asks about a
   // conflict as the report prints in its answer, so both read them off this.
   stamp,
