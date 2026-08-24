@@ -458,7 +458,13 @@ describe('plan: conflict resolution', () => {
 
     assert.deepEqual(types(result), ['update-canvas-item']);
     assert.equal(result.conflicts[0].winner, 'local');
-    assert.match(result.conflicts[0].reason, /cannot prove it is newer/);
+    assert.equal(
+      result.conflicts[0].reason,
+      'newest: Canvas gave no usable timestamp, so it cannot prove it is newer',
+      'a page has an `updated_at` and this one arrived without it, so the ' +
+        'reason names Canvas. The module rename below is the other case — ' +
+        'nothing to supply — and the two must not drift into one wording',
+    );
   });
 
   it('newest: local wins when the Canvas timestamp will not parse', () => {
@@ -3308,6 +3314,28 @@ describe('plan: modules', () => {
     const asked = plan({ ...course, policy: { conflict: 'ask' } });
     assert.deepEqual(types(asked), []);
     assert.equal(asked.pending.conflicts[0].kind, 'module');
+  });
+
+  it('says why newest cannot time a rename, rather than blaming Canvas', () => {
+    // Local wins, as it always did. What it may not say is that Canvas "gave no
+    // usable timestamp": a module name is timestamped on neither side, so there
+    // was none to give, and the item wording sends the author looking for a
+    // Canvas fault that is not there.
+    const result = plan({
+      base: { modules: { [FOLDER]: bMod([PATH]) } },
+      local: { modules: [lMod(FOLDER, [PATH], { name: 'Getting started' })] },
+      canvas: { modules: [cMod([PATH], { name: 'Kick-off' })] },
+      policy: { conflict: 'newest' },
+    });
+
+    assert.deepEqual(types(result), ['update-canvas-module']);
+    assert.equal(result.conflicts[0].kind, 'module');
+    assert.equal(result.conflicts[0].winner, 'local');
+    assert.equal(
+      result.conflicts[0].reason,
+      'newest: a module name carries no timestamp on either side, so neither ' +
+        'can prove it is newer',
+    );
   });
 
   it('ignores a Canvas position, which counts in another space entirely', () => {
