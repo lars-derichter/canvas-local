@@ -8,6 +8,7 @@ const {
   countSubmissionRisk,
   submissionWarningLines,
 } = require('./backup-warning');
+const { plural } = require('./report');
 const log = require('./logger');
 
 /**
@@ -31,11 +32,6 @@ const log = require('./logger');
  * exactly what would run — including nothing, when the planner declined to emit
  * a delete it had a reason not to.
  */
-
-/** `1 item` / `3 items`, so a count never reads as a stutter. */
-function plural(count, singular) {
-  return `${count} ${count === 1 ? singular : `${singular}s`}`;
-}
 
 /**
  * Annotate the doomed assignments and discussions with whether Canvas already

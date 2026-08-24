@@ -8,7 +8,7 @@ const {
 const { loadState, saveState } = require('../lib/sync/state');
 const { COURSE_DIR, createRL, prompt } = require('./module-utils');
 const { BACKUP_DOC, confirmForcedPull } = require('./backup-warning');
-const { buildReport } = require('./report');
+const { buildReport, plural } = require('./report');
 const log = require('./logger');
 
 /**
@@ -67,11 +67,6 @@ const log = require('./logger');
  * them without requiring a command. Nothing left in this file writes a Canvas
  * object out; what is left decides whether the run may.
  */
-
-/** `1 file` / `3 files`, so a count never reads as a stutter. */
-function plural(count, singular) {
-  return `${count} ${count === 1 ? singular : `${singular}s`}`;
-}
 
 /**
  * @param {object} options - Commander's flags, plus four injection points for

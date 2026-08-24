@@ -15,9 +15,20 @@ const { BACKUP_HINT } = require('./backup-warning');
  * its arguments alone, which is what lets `status` be this over a plan that
  * writes to neither side, and what lets the whole report be tested without
  * running a sync.
+ *
+ * `plural` is here for the same reason the report is: the counts a command
+ * prints outside the report, in a prune listing or an error heading, read as one
+ * voice with the ones inside it. There were four copies of that one-liner, in
+ * two different signatures.
  */
 
-/** `1 page` / `3 pages`, so a count never reads as a stutter. */
+/**
+ * `1 page` / `3 pages`, so a count never reads as a stutter.
+ *
+ * The third argument is for the words that do not take `s`: `plural(1, 'reply',
+ * 'replies')`. Left out, the plural is the singular plus `s`, which is what
+ * every count in the report itself needs.
+ */
 function plural(count, singular, pluralForm = `${singular}s`) {
   return `${count} ${count === 1 ? singular : pluralForm}`;
 }
@@ -482,6 +493,7 @@ function buildReport(report, options = {}) {
 
 module.exports = {
   buildReport,
+  plural,
   // `cli/sync.js` prints the same timestamps in the questions it asks about a
   // conflict as the report prints in its answer, so both read them off this.
   stamp,

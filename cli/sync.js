@@ -10,7 +10,7 @@ const { COURSE_DIR, createRL, prompt } = require('./module-utils');
 const { BACKUP_HINT, submissionRiskSuffix } = require('./backup-warning');
 const { warnGradeImpact } = require('./grade-impact');
 const { describeCanvasPrune, describeLocalPrune } = require('./prune-warning');
-const { buildReport, stamp } = require('./report');
+const { buildReport, plural, stamp } = require('./report');
 const log = require('./logger');
 
 /**
@@ -35,11 +35,6 @@ const log = require('./logger');
 
 const CONFLICT_POLICIES = ['newest', 'local', 'canvas', 'ask'];
 const ORDER_POLICIES = ['local', 'canvas', 'ask'];
-
-/** `1 page` / `3 pages`, so a count never reads as a stutter. */
-function plural(count, singular, pluralForm = `${singular}s`) {
-  return `${count} ${count === 1 ? singular : pluralForm}`;
-}
 
 // ---------------------------------------------------------------------------
 // Questions

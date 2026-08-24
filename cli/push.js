@@ -17,7 +17,7 @@ const {
 } = require('./backup-warning');
 const { warnGradeImpact } = require('./grade-impact');
 const { describeCanvasPrune } = require('./prune-warning');
-const { buildReport } = require('./report');
+const { buildReport, plural } = require('./report');
 const log = require('./logger');
 
 /**
@@ -59,11 +59,6 @@ const log = require('./logger');
  * `cli/grade-impact.js` and the prune listing in `cli/prune-warning.js`. What is
  * left here is the question itself, which is push's own.
  */
-
-/** `1 item` / `3 items`, so a count never reads as a stutter. */
-function plural(count, singular) {
-  return `${count} ${count === 1 ? singular : `${singular}s`}`;
-}
 
 /**
  * @param {object} options - Commander's flags, plus four injection points for
