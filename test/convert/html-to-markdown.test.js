@@ -523,11 +523,19 @@ function normaliseHtml(html) {
  *   h1  — the HTML the first push sends to Canvas
  *   md2 — the markdown the pull writes back into the file
  *   h2  — the HTML the next push would send
+ *
+ * `options` reaches all three legs. Both converters read the same two resolver
+ * names, and a real sync always passes them, which matters for more than
+ * completeness: `markdownToHtml` only installs its own link and image renderers
+ * when it is given one, so the trip a case runs without them never reaches the
+ * code that escapes a URL. A pair of resolvers answering null is the honest
+ * stand-in for a reference that resolves to nothing — installed, resolving
+ * nothing, leaving the URL the author wrote as the one under test.
  */
-function roundTrips(sourceMarkdown) {
-  const h1 = markdownToHtml(sourceMarkdown);
-  const md2 = htmlToMarkdown(h1);
-  const h2 = markdownToHtml(md2);
+function roundTrips(sourceMarkdown, options = {}) {
+  const h1 = markdownToHtml(sourceMarkdown, options);
+  const md2 = htmlToMarkdown(h1, options);
+  const h2 = markdownToHtml(md2, options);
   return { h1, md2, h2 };
 }
 
@@ -1079,6 +1087,143 @@ describe('round trip through push and pull: alerts', () => {
     assert.match(rt.md2, /^> \[!TIP\]$/m);
     assert.doesNotMatch(rt.md2, /\u00a0|&nbsp;/);
     assert.match(rt.md2, /^And a closing paragraph\.$/m);
+  });
+});
+
+describe('round trip through push and pull: escaped attributes', () => {
+  // Installed so the escaping renderers run, answering null so the URL the
+  // author wrote is the one that makes the trip.
+  const passthrough = { linkResolver: () => null, fileResolver: () => null };
+
+  it('survives an ampersand in a query string', () => {
+    const rt = roundTrips(
+      'Read [the docs](https://example.com/s?q=one&r=two).\n',
+      passthrough,
+    );
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.h1, /href="https:\/\/example\.com\/s\?q=one&amp;r=two"/);
+    // The half that makes the escape safe: turndown parses the HTML rather
+    // than pattern-matching it, so `&amp;` comes back off the attribute as the
+    // `&` the author typed and the next push escapes it again.
+    assert.match(rt.md2, /\(https:\/\/example\.com\/s\?q=one&r=two\)/);
+  });
+
+  it('survives a quote in a link href', () => {
+    const rt = roundTrips(
+      'Read [the docs](https://example.com/s?q=a"b).\n',
+      passthrough,
+    );
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.h1, /href="https:\/\/example\.com\/s\?q=a&quot;b"/);
+    // Unescaped, the attribute ended at the quote and the pull read back
+    // `…?q=a`, silently rewriting the author's link to a different URL.
+    assert.match(rt.md2, /\(https:\/\/example\.com\/s\?q=a"b\)/);
+  });
+
+  it('survives a quote and an ampersand in a filename', () => {
+    const rt = roundTrips(
+      '![Cheese](./_files/say"cheese&co.png)\n',
+      passthrough,
+    );
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.h1, /src="\.\/_files\/say&quot;cheese&amp;co\.png"/);
+    assert.match(rt.md2, /!\[Cheese\]\(\.\/_files\/say"cheese&co\.png\)/);
+  });
+
+  it('survives a Canvas file URL carrying a verifier query string', () => {
+    // The real shape of the trip: the push swaps the local path for a Canvas
+    // URL, the pull swaps it back. Written out rather than run through
+    // roundTrips because the two resolvers point opposite ways.
+    const local = './_files/diagram.png';
+    const canvasUrl = '/courses/42/files/500/preview?verifier=ab12&wrap=1';
+    const push = { fileResolver: (ref) => (ref === local ? canvasUrl : null) };
+    const pull = {
+      fileResolver: (src) =>
+        src.startsWith('/courses/42/files/500/') ? local : null,
+    };
+
+    const h1 = markdownToHtml(`![A diagram](${local})\n`, push);
+    assert.match(
+      h1,
+      /src="\/courses\/42\/files\/500\/preview\?verifier=ab12&amp;wrap=1"/,
+    );
+    // What `downloadReferencedFiles` (lib/sync/local-write.js) reads out of the
+    // raw HTML on a pull: digits and slashes, upstream of the `?` where the
+    // first escapable character can appear, so the escape cannot reach it.
+    assert.deepEqual(h1.match(/\/courses\/(\d+)\/files\/(\d+)/).slice(1), [
+      '42',
+      '500',
+    ]);
+
+    const md2 = htmlToMarkdown(h1, pull);
+    assert.match(md2, /!\[A diagram\]\(\.\/_files\/diagram\.png\)/);
+
+    const h2 = markdownToHtml(md2, push);
+    assert.equal(
+      normaliseHtml(h2),
+      normaliseHtml(h1),
+      `A pull changed what the page says. The pull wrote:\n${md2}`,
+    );
+  });
+
+  it('survives a href the author wrote with an entity in it', () => {
+    // A URL copied out of a page's HTML source. marked hands the renderer the
+    // destination as raw source text, so this arrives spelled `&amp;` and is
+    // decoded before it is escaped again; without that it would go out as
+    // `&amp;amp;` and Canvas would serve a parameter named `amp;b`.
+    const rt = roundTrips(
+      'Read [the docs](https://example.com/s?a=1&amp;b=2).\n',
+      passthrough,
+    );
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.h1, /href="https:\/\/example\.com\/s\?a=1&amp;b=2"/);
+    assert.doesNotMatch(rt.h1, /&amp;amp;/);
+    // The pull writes the URL in its decoded spelling, which is the form the
+    // next push already handled — the entity spelling settles into it once and
+    // stays there.
+    assert.match(rt.md2, /\(https:\/\/example\.com\/s\?a=1&b=2\)/);
+  });
+
+  it('survives an image src the author wrote with an entity in it', () => {
+    const rt = roundTrips('![Cheese](./_files/say&amp;co.png)\n', passthrough);
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.h1, /src="\.\/_files\/say&amp;co\.png"/);
+    assert.doesNotMatch(rt.h1, /&amp;amp;/);
+    assert.match(rt.md2, /!\[Cheese\]\(\.\/_files\/say&co\.png\)/);
+  });
+
+  it('pushes both spellings of one URL to the same HTML', () => {
+    // The two forms CommonMark reads as the same URL, pushed side by side.
+    // Equal HTML is what makes the entity spelling settle rather than drift:
+    // whichever one the author wrote, the next push sends this.
+    const plain = roundTrips(
+      'Read [the docs](https://example.com/s?a=1&b=2).\n',
+      passthrough,
+    );
+    const encoded = roundTrips(
+      'Read [the docs](https://example.com/s?a=1&amp;b=2).\n',
+      passthrough,
+    );
+    assert.equal(encoded.h1, plain.h1);
+    assert.equal(encoded.md2, plain.md2);
+  });
+
+  it('survives an alert, icon URL and all', () => {
+    const iconUrls = {
+      note: 'https://canvas.example.com/courses/42/files/9/preview?verifier=ab12&wrap=1',
+    };
+    const rt = roundTrips('> [!NOTE]\n>\n> Mind this.\n', {
+      ...passthrough,
+      iconUrls,
+    });
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.h1, /<img[^>]*\?verifier=ab12&amp;wrap=1"/);
+    // Decorative: the title beside it says the same thing in words.
+    assert.match(rt.h1, /<img[^>]*alt=""/);
+    assert.match(rt.md2, /^> \[!NOTE\]$/m);
+    // The icon belongs to the rendering, not to the page: a pull drops it
+    // along with the whole title paragraph, and the next push puts it back.
+    assert.doesNotMatch(rt.md2, /verifier|!\[/);
   });
 });
 

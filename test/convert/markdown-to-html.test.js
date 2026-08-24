@@ -120,7 +120,29 @@ describe('markdownToHtml alerts', () => {
     const html = markdownToHtml(md, {
       iconUrls: { note: 'https://canvas.example.com/icons/info.svg' },
     });
-    assert.match(html, /<img.*info\.svg/);
+    assert.match(
+      html,
+      /<img[^>]*src="https:\/\/canvas\.example\.com\/icons\/info\.svg"/,
+    );
+  });
+
+  it('gives the alert icon an empty alt', () => {
+    // The icon is decorative: the title says the same thing in words, right
+    // beside it. Naming the file here had a screenreader read "info.svg Note".
+    const html = markdownToHtml('> [!NOTE]\n> With icon.', {
+      iconUrls: { note: 'https://canvas.example.com/icons/info.svg' },
+    });
+    assert.match(html, /<img[^>]*alt=""/);
+    assert.doesNotMatch(html, /alt="[^"]*\.svg"/);
+  });
+
+  it('escapes the icon URL it writes into the src', () => {
+    const html = markdownToHtml('> [!NOTE]\n> With icon.', {
+      iconUrls: {
+        note: 'https://canvas.example.com/courses/1/files/9/preview?verifier=a&b=2',
+      },
+    });
+    assert.match(html, /src="[^"]*\?verifier=a&amp;b=2"/);
   });
 
   it('adds spacer paragraph after alert', () => {
@@ -188,6 +210,144 @@ describe('markdownToHtml link/file resolvers', () => {
       fileResolver: () => null,
     });
     assert.match(html, /alt="alt with &quot;quotes&quot; &amp; &lt;angle&gt;"/);
+  });
+
+  it('escapes an ampersand in a link href', () => {
+    const md = '[Search](https://example.com/s?q=one&r=two)';
+    const html = markdownToHtml(md, { linkResolver: () => null });
+    assert.match(html, /href="https:\/\/example\.com\/s\?q=one&amp;r=two"/);
+  });
+
+  it('escapes an ampersand in a resolved link href', () => {
+    // The resolved URL is escaped too, not just the one the author typed: a
+    // Canvas file URL carries a `?verifier=…` query string of its own.
+    const md = '[Handout](./_files/handout.pdf)';
+    const html = markdownToHtml(md, {
+      fileResolver: () => '/courses/42/files/600/download?verifier=ab12&wrap=1',
+    });
+    assert.match(
+      html,
+      /href="\/courses\/42\/files\/600\/download\?verifier=ab12&amp;wrap=1"/,
+    );
+  });
+
+  it('escapes a quote in a link href instead of ending the attribute', () => {
+    const md = '[Search](https://example.com/s?q=a"b)';
+    const html = markdownToHtml(md, { linkResolver: () => null });
+    // The whole tag, not just the href: unescaped, the quote closed the
+    // attribute and `b"` became a second attribute on the anchor.
+    assert.ok(
+      html.includes('<a href="https://example.com/s?q=a&quot;b">Search</a>'),
+      `Expected the URL to stay inside one attribute, got:\n${html}`,
+    );
+  });
+
+  it('escapes a quote and an ampersand in an image src', () => {
+    const md = '![Cheese](./_files/say"cheese&co.png)';
+    const html = markdownToHtml(md, { fileResolver: () => null });
+    assert.match(html, /src="\.\/_files\/say&quot;cheese&amp;co\.png"/);
+  });
+
+  it('escapes angle brackets in an image src', () => {
+    const md = '![Odd](./_files/a<b>c.png)';
+    const html = markdownToHtml(md, { fileResolver: () => null });
+    assert.match(html, /src="\.\/_files\/a&lt;b&gt;c\.png"/);
+  });
+});
+
+describe('markdownToHtml destinations already carrying entities', () => {
+  // marked hands the renderer the destination as raw source text, entities
+  // undecoded, so an escape on its own would encode the `&` of an entity the
+  // author had already written. The trigger is ordinary: a URL copied out of a
+  // page's HTML source arrives spelled `&amp;`.
+
+  it('does not double-escape an entity in a link href', () => {
+    const md = '[Search](https://example.com/s?a=1&amp;b=2)';
+    const html = markdownToHtml(md, { linkResolver: () => null });
+    assert.match(html, /href="https:\/\/example\.com\/s\?a=1&amp;b=2"/);
+    // `&amp;amp;` would have Canvas serve a query parameter named `amp;b`.
+    assert.doesNotMatch(html, /&amp;amp;/);
+  });
+
+  it('spells both forms of the same URL the same way', () => {
+    // What the fix is for: CommonMark reads these two as one URL, so Canvas
+    // has to be handed one attribute value.
+    const plain = markdownToHtml('[S](https://example.com/s?a=1&b=2)', {
+      linkResolver: () => null,
+    });
+    const encoded = markdownToHtml('[S](https://example.com/s?a=1&amp;b=2)', {
+      linkResolver: () => null,
+    });
+    assert.equal(encoded, plain);
+  });
+
+  it('does not double-escape an entity in an image src', () => {
+    const md = '![Cheese](./_files/say&amp;co.png)';
+    const html = markdownToHtml(md, { fileResolver: () => null });
+    assert.match(html, /src="\.\/_files\/say&amp;co\.png"/);
+    assert.doesNotMatch(html, /&amp;amp;/);
+  });
+
+  it('decodes a numeric character reference', () => {
+    const decimal = markdownToHtml('[S](https://example.com/s?a=&#38;b)', {
+      linkResolver: () => null,
+    });
+    const hex = markdownToHtml('[S](https://example.com/s?a=&#x26;b)', {
+      linkResolver: () => null,
+    });
+    assert.match(decimal, /href="https:\/\/example\.com\/s\?a=&amp;b"/);
+    assert.equal(hex, decimal);
+  });
+
+  it('leaves a code point that is not one as literal text', () => {
+    // A lone surrogate and `&#0;` are not decoded: the range check refuses
+    // both, since neither belongs in a URL.
+    for (const ref of ['&#xD800;', '&#0;', '&#99999999;']) {
+      const html = markdownToHtml(`[S](https://example.com/s?a=${ref})`, {
+        linkResolver: () => null,
+      });
+      assert.match(html, new RegExp(`\\?a=&amp;${ref.slice(1)}"`));
+    }
+  });
+
+  it('leaves a named entity outside the escaper set as literal text', () => {
+    // The deliberate gap: decoding the full HTML5 table needs a dependency, so
+    // `&copy;` stays the six characters the author typed rather than becoming
+    // ©. Harmless direction, and stable across a round trip.
+    const md = '[S](https://example.com/s?a=&copy;b)';
+    const html = markdownToHtml(md, { linkResolver: () => null });
+    assert.match(html, /href="https:\/\/example\.com\/s\?a=&amp;copy;b"/);
+  });
+
+  it('escapes what a resolver hands back without decoding it', () => {
+    // The asymmetry is deliberate. A resolver's URL is assembled from ids in
+    // .canvas-sync.json, never parsed out of HTML, so there is no encoding to
+    // undo — and a path that really does contain `&amp;` must survive as those
+    // five characters.
+    const html = markdownToHtml('[Handout](./_files/handout.pdf)', {
+      fileResolver: () => '/courses/42/files/600/download?v=a&amp;b',
+    });
+    assert.match(
+      html,
+      /href="\/courses\/42\/files\/600\/download\?v=a&amp;amp;b"/,
+    );
+  });
+
+  it('leaves the alt and title double-escape alone', () => {
+    // Known gap, older than the href fix and not part of it: alt text and link
+    // titles reach the renderer as raw source text too, and are escaped
+    // without a decode, so `&amp;` in either goes out as `&amp;amp;` and
+    // Canvas displays the entity rather than the `&`. Pinned so the next
+    // change to this file is a decision rather than an accident.
+    const image = markdownToHtml('![a &amp; b](./_files/x.png)', {
+      fileResolver: () => null,
+    });
+    assert.match(image, /alt="a &amp;amp; b"/);
+
+    const link = markdownToHtml('[L](https://example.com "a &amp; b")', {
+      linkResolver: () => null,
+    });
+    assert.match(link, /title="a &amp;amp; b"/);
   });
 });
 
