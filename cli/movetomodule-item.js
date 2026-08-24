@@ -22,6 +22,22 @@ const {
 const { recordRenames } = require('./sync-renames');
 
 /**
+ * Where a path is now, after a batch of sibling renames inside `dir` — the
+ * path itself when it is one of the renamed entries, or rebased when it sits
+ * under one. A path the renames never touched comes back unchanged.
+ */
+function followRenames(p, dir, renames) {
+  for (const { from, to } of renames) {
+    const before = path.join(dir, from);
+    if (p === before) return path.join(dir, to);
+    if (p.startsWith(before + path.sep)) {
+      return path.join(dir, to) + p.slice(before.length);
+    }
+  }
+  return p;
+}
+
+/**
  * Core move: shift destination items to make room, move the file, renumber
  * the source directory to close the gap.
  */
@@ -33,42 +49,68 @@ function moveEntry(sourceDir, entryName, destDir, position) {
     ? renumberUp(destDir, destItems, position)
     : [];
 
+  // A same-module move can put the source inside destDir, where the shift
+  // above just renamed it: the subsection holding the entry, or the entry
+  // itself when source and destination are one directory. Re-derive the
+  // source path so the rename below never works from a name the shift has
+  // already taken off the disk.
+  const entryPath = followRenames(
+    path.join(sourceDir, entryName),
+    destDir,
+    destRenames,
+  );
+  sourceDir = path.dirname(entryPath);
+  entryName = path.basename(entryPath);
+
   const newName = entryName.replace(/^\d+/, pad(position));
-  const sourcePath = path.join(sourceDir, entryName);
   const destPath = path.join(destDir, newName);
 
+  // The shift is already on disk, so every exit from here on — the refusal
+  // below included — must carry what landed into the sync state, or the next
+  // push reads each shifted entry as a delete plus a create.
+  const batches = [{ fromDir: destDir, renames: destRenames }];
+
   if (fs.existsSync(destPath)) {
+    recordRenames(batches);
     console.error(
       `[movetomodule] Error: ${newName} already exists in the destination.`,
     );
     process.exit(1);
   }
 
-  fs.renameSync(sourcePath, destPath);
-
-  // A moved subsection keeps its own _category_.json; align its position to
-  // the new prefix (renumberUp/renumberSequential only fix the other entries).
-  if (fs.statSync(destPath).isDirectory()) {
-    updateCategoryPosition(destDir, newName, position);
-  }
-
-  // Renumber source to close gap
-  const sourceRenames = renumberSequential(sourceDir, getItems);
-
-  // All three in the order they happened, so the row lands in the destination
-  // module rather than in the slot the shift above has just vacated.
-  recordRenames([
-    { fromDir: destDir, renames: destRenames },
-    {
+  let sourceRenames;
+  try {
+    fs.renameSync(entryPath, destPath);
+    // Batches stay in the order the renames happened, so the row lands in the
+    // destination module rather than in the slot the shift above has vacated.
+    batches.push({
       fromDir: sourceDir,
       toDir: destDir,
       renames: [{ from: entryName, to: newName }],
-    },
-    { fromDir: sourceDir, renames: sourceRenames },
-  ]);
+    });
 
+    // A moved subsection keeps its own _category_.json; align its position to
+    // the new prefix (renumberUp/renumberSequential only fix the other entries).
+    if (fs.statSync(destPath).isDirectory()) {
+      updateCategoryPosition(destDir, newName, position);
+    }
+
+    // Renumber source to close gap
+    sourceRenames = renumberSequential(sourceDir, getItems);
+    batches.push({ fromDir: sourceDir, renames: sourceRenames });
+  } catch (err) {
+    recordRenames(batches);
+    throw err;
+  }
+
+  recordRenames(batches);
+
+  // Closing the source gap can in turn rename destDir itself — a move into a
+  // subsection of the same module — so the reported path is re-derived the
+  // same way the source path was above.
+  const finalPath = followRenames(destPath, sourceDir, sourceRenames);
   console.log(
-    `[movetomodule] Moved ${entryName} -> ${path.relative(process.cwd(), destPath)}`,
+    `[movetomodule] Moved ${entryName} -> ${path.relative(process.cwd(), finalPath)}`,
   );
   if (sourceRenames.length > 0) {
     console.log('[movetomodule] Renumbered source:');
