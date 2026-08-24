@@ -11,8 +11,10 @@ const path = require('path');
 
 const { LABEL_SETS } = require('../../lib/config/labels');
 const { ALERT_KINDS, loadTheme } = require('../../lib/config/theme');
-const { readIconSvg } = require('../../lib/convert/alert-icons');
-const { ALERT_KIND_MAP } = require('../../lib/export/preprocess');
+const {
+  ALERT_KIND_MAP,
+  readIconSvg,
+} = require('../../lib/convert/alert-icons');
 
 /** This plugin runs inside the Docusaurus build, where the CLI's project
  *  root detection does not apply — resolve it from this file instead. */
@@ -43,7 +45,7 @@ function visit(tree, type, visitor) {
 
 /**
  * The alert markers, as they are written in markdown, mapped to the CSS variant
- * each renders as. Derived from ALERT_KIND_MAP in lib/export/preprocess.js so
+ * each renders as. Derived from ALERT_KIND_MAP in lib/convert/alert-icons.js so
  * the preview site and the PDF export recognise exactly the same set, aliases
  * (`ATTENTION` for `CAUTION`) included.
  */
