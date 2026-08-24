@@ -877,6 +877,6 @@ async function sync(options = {}) {
 }
 
 module.exports = sync;
-// Exported for testing
+// Exported for `cli/push.js`, `cli/pull.js`, `cli/status.js` and their tests:
+// the four commands print one report, and this is the function that builds it.
 sync._buildReport = buildReport;
-sync._summariseActions = summariseActions;

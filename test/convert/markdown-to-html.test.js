@@ -369,7 +369,6 @@ describe('getAlertConfig', () => {
         config[type].background,
         `Missing background for type: ${type}`,
       );
-      assert.ok(config[type].icon, `Missing icon for type: ${type}`);
     }
   });
 

@@ -6,11 +6,18 @@ process.env.CANVAS_API_URL = 'https://canvas.example.com';
 process.env.CANVAS_API_TOKEN = 'test-token-123';
 
 const {
-  NO_MATCHING_TOOL,
   listExternalTools,
   findToolForUrl,
   describeInstalledTools,
 } = require('../../lib/canvas/external-tools');
+
+/**
+ * The error Canvas returns from the sessionless-launch endpoint when no
+ * installed tool claims the URL it was handed. `findToolForUrl` never compares
+ * against it — it reports whatever `errors.external_tool` says — so the string
+ * lives here, where the mock responses that carry it are built.
+ */
+const NO_MATCHING_TOOL = 'Unable to find a matching external tool';
 
 /**
  * Helper: create a fake Response object compatible with the fetch API.

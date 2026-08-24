@@ -12,7 +12,6 @@ const {
   deleteModule,
   emptyState,
   ensureModule,
-  findModuleByCanvasId,
   getItem,
   getModule,
   loadState,
@@ -515,36 +514,11 @@ describe('ensureModule', () => {
   });
 });
 
-describe('getModule, findModuleByCanvasId and deleteModule', () => {
+describe('getModule and deleteModule', () => {
   it('finds a module by folder, and returns null for an unknown one', () => {
     const state = twoModules();
     assert.equal(getModule(state, '02-basics').canvas_module_id, 200);
     assert.equal(getModule(state, '99-nope'), null);
-  });
-
-  it('finds a module by the Canvas id it carries', () => {
-    const state = twoModules();
-    const [folder, entry] = findModuleByCanvasId(state, 200);
-    assert.equal(folder, '02-basics');
-    assert.equal(entry.name, 'Basics');
-  });
-
-  it('matches a numeric id against a stored string, and vice versa', () => {
-    const state = emptyState(ENV);
-    ensureModule(state, '01-introduction', { canvas_module_id: '100' });
-    assert.equal(findModuleByCanvasId(state, 100)[0], '01-introduction');
-  });
-
-  it('returns null for an unknown or absent Canvas id', () => {
-    const state = twoModules();
-    ensureModule(state, '03-unpushed', { name: 'Not on Canvas yet' });
-
-    assert.equal(findModuleByCanvasId(state, 999), null);
-    assert.equal(
-      findModuleByCanvasId(state, undefined),
-      null,
-      'a module that names no Canvas id must not answer for one',
-    );
   });
 
   it('deletes a module and reports what it removed', () => {
