@@ -12,6 +12,7 @@ const path = require('path');
 const { LABEL_SETS } = require('../../lib/config/labels');
 const { ALERT_KINDS, loadTheme } = require('../../lib/config/theme');
 const { readIconSvg } = require('../../lib/convert/alert-icons');
+const { ALERT_KIND_MAP } = require('../../lib/export/preprocess');
 
 /** This plugin runs inside the Docusaurus build, where the CLI's project
  *  root detection does not apply — resolve it from this file instead. */
@@ -40,18 +41,22 @@ function visit(tree, type, visitor) {
   walk(tree);
 }
 
-const ALERT_TYPES = {
-  NOTE: { cssType: 'note' },
-  TIP: { cssType: 'tip' },
-  IMPORTANT: { cssType: 'important' },
-  WARNING: { cssType: 'warning' },
-  CAUTION: { cssType: 'caution' },
-  ATTENTION: { cssType: 'caution' },
-  CHECK: { cssType: 'check' },
-};
+/**
+ * The alert markers, as they are written in markdown, mapped to the CSS variant
+ * each renders as. Derived from ALERT_KIND_MAP in lib/export/preprocess.js so
+ * the preview site and the PDF export recognise exactly the same set, aliases
+ * (`ATTENTION` for `CAUTION`) included.
+ */
+const ALERT_TYPES = Object.fromEntries(
+  Object.entries(ALERT_KIND_MAP).map(([marker, cssType]) => [
+    marker.toUpperCase(),
+    { cssType },
+  ]),
+);
 
-const ALERT_PATTERN =
-  /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|ATTENTION|CHECK)\]\s*\n?/;
+const ALERT_PATTERN = new RegExp(
+  `^\\[!(${Object.keys(ALERT_TYPES).join('|')})\\]\\s*\\n?`,
+);
 
 /**
  * SVG icons per type as data URIs for MDX-compatible img elements.
