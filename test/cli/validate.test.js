@@ -147,6 +147,109 @@ describe('validateModules — file items', () => {
   });
 });
 
+describe('validateModules — raw HTML file references', () => {
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'validate-rawhtml-'));
+    moduleDir = path.join(tmpDir, '01-module');
+    fs.mkdirSync(moduleDir, { recursive: true });
+    fs.mkdirSync(path.join(moduleDir, '_files'), { recursive: true });
+    fs.writeFileSync(path.join(moduleDir, '_files', 'diagram.png'), 'binary');
+    fs.writeFileSync(path.join(moduleDir, '_files', 'handout.pdf'), 'binary');
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  /** Write a page whose body is `body`. */
+  function writePage(body) {
+    writeItem('01-page.md', `---\ntitle: Page\n---\n\n${body}\n`);
+  }
+
+  it('warns about an image written as a raw HTML tag', () => {
+    writePage('<img src="_files/diagram.png" alt="Diagram">');
+
+    const { errors, warnings } = run();
+    assert.deepEqual(errors, []);
+    assert.equal(warnings.length, 1);
+    assert.match(
+      warnings[0],
+      /^01-module\/01-page\.md: raw HTML <img src="_files\/diagram\.png"> will not sync\./,
+    );
+    assert.match(warnings[0], /!\[alt\]\(_files\/diagram\.png\)/);
+  });
+
+  it('warns about a link written as a raw HTML tag', () => {
+    writePage('<a href="_files/handout.pdf">Handout</a>');
+
+    const { errors, warnings } = run();
+    assert.deepEqual(errors, []);
+    assert.equal(warnings.length, 1);
+    assert.match(
+      warnings[0],
+      /^01-module\/01-page\.md: raw HTML <a href="_files\/handout\.pdf"> will not sync\./,
+    );
+    assert.match(warnings[0], /\[text\]\(_files\/handout\.pdf\)/);
+  });
+
+  it('says nothing about the same references in markdown syntax', () => {
+    writePage(
+      '![Diagram](_files/diagram.png)\n\n[Handout](_files/handout.pdf)\n',
+    );
+
+    const { errors, warnings } = run();
+    assert.deepEqual(errors, []);
+    assert.deepEqual(warnings, []);
+  });
+
+  it('ignores a raw HTML example inside a fence or a code span', () => {
+    writePage(
+      '```html\n<img src="_files/diagram.png">\n```\n\n' +
+        'Avoid `<a href="_files/handout.pdf">Handout</a>` in a page.\n',
+    );
+
+    const { errors, warnings } = run();
+    assert.deepEqual(errors, []);
+    assert.deepEqual(warnings, []);
+  });
+
+  it('reports each distinct raw HTML reference once', () => {
+    writePage(
+      '<img src="_files/diagram.png">\n\n<img src="_files/diagram.png">\n\n' +
+        "<a href='_files/handout.pdf'>Handout</a>\n",
+    );
+
+    const { warnings } = run();
+    assert.equal(warnings.length, 2);
+    assert.match(warnings[0], /<img src="_files\/diagram\.png">/);
+    assert.match(warnings[1], /<a href="_files\/handout\.pdf">/);
+  });
+
+  it('leaves an absolute URL that happens to contain _files/ alone', () => {
+    writePage('<img src="https://example.org/_files/diagram.png">');
+
+    const { errors, warnings } = run();
+    assert.deepEqual(errors, []);
+    assert.deepEqual(warnings, []);
+  });
+
+  it('does not mistake a data- attribute for src', () => {
+    writePage('<div data-src="_files/diagram.png"></div>');
+
+    const { warnings } = run();
+    assert.deepEqual(warnings, []);
+  });
+
+  it('keeps the raw HTML warning out of the exit-code path', () => {
+    // Warnings never fail validate; only errors do. This one is a warning
+    // because the page still renders locally and pushes without crashing.
+    writePage('<img src="_files/diagram.png">');
+
+    const { errors } = run();
+    assert.deepEqual(errors, []);
+  });
+});
+
 describe('validateModules — quiz items', () => {
   let root;
   let courseDir;

@@ -10,6 +10,15 @@ const {
 const { COURSE_DIR } = require('./module-utils');
 const { PROJECT_ROOT } = require('./project-root');
 
+// A file reference written as an HTML tag rather than in markdown syntax. Only
+// `src` on `<img>` and `href` on `<a>` are looked at, and only when the value
+// names a `_files/` path: those are the two an author reaches for to embed
+// something. Deliberately a regex over the text rather than an HTML parse,
+// because the result is a warning about a shape, not a rewrite. Unquoted
+// attribute values are not matched; nothing in this project writes them.
+const RAW_HTML_FILE_REF =
+  /<(img|a)\b[^>]*?\s(src|href)\s*=\s*(["'])([^"']*_files\/[^"']*)\3/gi;
+
 const VALID_CANVAS_TYPES = new Set([
   'page',
   'assignment',
@@ -209,6 +218,31 @@ function validateModules(modules, courseDir, projectRoot = PROJECT_ROOT) {
         }
       } catch {
         // extractFileReferences may fail on unusual content
+      }
+
+      // Check for file references written as raw HTML. Push only uploads and
+      // rewrites what extractFileReferences finds, and that is markdown syntax
+      // only, so an HTML tag reaches Canvas with the relative path intact and
+      // nothing behind it. The same masked copy is used, so an example inside a
+      // fence or a code span does not count.
+      const seenRawRefs = new Set();
+      RAW_HTML_FILE_REF.lastIndex = 0;
+      let rawMatch;
+      while ((rawMatch = RAW_HTML_FILE_REF.exec(scannable)) !== null) {
+        const [, tag, attr, , href] = rawMatch;
+        // An absolute or protocol URL that happens to contain "_files/" points
+        // somewhere real; only a relative path is the broken case.
+        if (/^(https?:\/\/|\/\/|\/|data:|mailto:)/i.test(href)) continue;
+
+        const key = `${tag.toLowerCase()} ${attr.toLowerCase()} ${href}`;
+        if (seenRawRefs.has(key)) continue;
+        seenRawRefs.add(key);
+
+        const suggestion =
+          tag.toLowerCase() === 'img' ? `![alt](${href})` : `[text](${href})`;
+        warnings.push(
+          `${item.relativePath}: raw HTML <${tag.toLowerCase()} ${attr.toLowerCase()}="${href}"> will not sync. Push uploads and rewrites inline markdown references only, so this one reaches Canvas as a dead relative path. Write it as ${suggestion} instead.`,
+        );
       }
     }
   }
