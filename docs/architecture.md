@@ -153,6 +153,13 @@ detection runs over the whole course before the `--module` filter narrows
 anything, so a row follows its file even into a module this run was not asked to
 touch.
 
+Pruning a `file` item has one more check in it. Canvas deduplicates uploads, so
+the Canvas file behind a wrapper can be the same file a page embeds or a second
+wrapper names. Prune deletes the file only when no other row in
+`.canvas-sync.json` still holds its id — the same `fileStillReferenced` sweep
+every file delete in `lib/sync/apply.js` runs — and otherwise removes only the
+module item, naming the row that kept the file in the verbose log.
+
 Before it asks for confirmation, prune checks whether the items on its list
 already hold student submissions, because deleting an assignment or a graded
 discussion takes its gradebook column and every grade in it. The plan's delete

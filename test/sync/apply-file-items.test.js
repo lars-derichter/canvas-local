@@ -709,6 +709,151 @@ describe('an upload that renamed nothing deletes nothing', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Pruning a wrapper whose Canvas file something else still shows
+// ---------------------------------------------------------------------------
+
+/**
+ * `--prune-canvas` over a deleted wrapper plans a `delete-canvas-item`, and for
+ * a `file` item that delete used to go straight to the Canvas file, with none
+ * of the checking every other file delete does. But the id is not always the
+ * item's alone: Canvas deduplicates uploads, so a wrapper and a page's embedded
+ * image can share one file id — and the embed's `state.files` row holds the
+ * binary's sha256, which tells every later run "already uploaded". Deleting the
+ * file broke the page's embed for good: nothing ever re-uploads bytes the state
+ * still vouches for.
+ *
+ * So the prune now takes the `fileStillReferenced` sweep too, minus the row
+ * being pruned, and removes only the module item when anything else still
+ * names the id.
+ */
+describe('pruning a file item whose Canvas file something else still names', () => {
+  function deleteAction() {
+    return {
+      type: 'delete-canvas-item',
+      folder: '01-intro',
+      canvasModuleId: MODULE_ID,
+      itemPath: WRAPPER,
+      moduleItemId: MODULE_ITEM_ID,
+      canvasType: 'file',
+      canvasId: OLD_FILE_ID,
+    };
+  }
+
+  /** The tree a prune sees: the wrapper is gone, which is what planned this. */
+  function courseWithoutWrapper() {
+    const dir = tempCourse();
+    fs.rmSync(path.join(dir, WRAPPER));
+    return dir;
+  }
+
+  it('keeps the file a page still embeds, and unlinks only the item', async () => {
+    silence();
+    const state = stateWithFileItem();
+    state.files['01-intro/_files/handbook.pdf'] = {
+      canvas_file_id: OLD_FILE_ID,
+      canvas_url: `/courses/${COURSE_ID}/files/${OLD_FILE_ID}/preview`,
+      sha256: 'matches-the-binary-on-disk',
+    };
+    const lines = [];
+    const calls = mockCanvas([
+      {
+        method: 'DELETE',
+        path: `/modules/${MODULE_ID}/items/${MODULE_ITEM_ID}`,
+        body: {},
+      },
+    ]);
+
+    const outcome = await run([deleteAction()], {
+      courseDir: courseWithoutWrapper(),
+      state,
+      log: {
+        info: () => {},
+        warn: () => {},
+        error: () => {},
+        verbose: (line) => lines.push(line),
+      },
+    });
+
+    assert.deepEqual(outcome.errors, []);
+    assert.deepEqual(
+      fileDeletes(calls),
+      [],
+      'the binary is the page’s as much as the wrapper’s',
+    );
+    assert.equal(calls.length, 1, 'the module item is all that may go');
+    // The wrapper's own row goes — it is the thing being pruned — while the
+    // embed's row stays, sha256 and all, so the page keeps working.
+    assert.equal(state.modules['01-intro'].items[WRAPPER], undefined);
+    assert.notEqual(state.files['01-intro/_files/handbook.pdf'], undefined);
+    // And the run says who kept the file, by path — otherwise the kept binary
+    // reads as a delete that silently did not happen.
+    assert.equal(
+      lines.some(
+        (line) =>
+          line.includes('01-intro/_files/handbook.pdf') &&
+          line.includes(String(OLD_FILE_ID)),
+      ),
+      true,
+      'the verbose log must name the row that kept the file',
+    );
+  });
+
+  it('keeps a file a second wrapper still names', async () => {
+    silence();
+    // The item-row mirror of the embed case: two wrappers whose binaries were
+    // byte-identical under one name got one file id from Canvas's dedup.
+    // Pruning one must not take the file out from under the other.
+    const state = stateWithFileItem();
+    state.modules['01-intro'].items['01-intro/04-copy.md'] = {
+      canvas_type: 'file',
+      canvas_id: OLD_FILE_ID,
+      module_item_id: 92,
+    };
+    const calls = mockCanvas([
+      {
+        method: 'DELETE',
+        path: `/modules/${MODULE_ID}/items/${MODULE_ITEM_ID}`,
+        body: {},
+      },
+    ]);
+
+    const outcome = await run([deleteAction()], {
+      courseDir: courseWithoutWrapper(),
+      state,
+    });
+
+    assert.deepEqual(outcome.errors, []);
+    assert.deepEqual(fileDeletes(calls), []);
+    assert.equal(state.modules['01-intro'].items[WRAPPER], undefined);
+    assert.notEqual(
+      state.modules['01-intro'].items['01-intro/04-copy.md'],
+      undefined,
+      'the surviving wrapper keeps its row, and with it the file',
+    );
+  });
+
+  it('still deletes the file no other row names', async () => {
+    silence();
+    // The unchanged case, pinned: the item's own row naming the id is not
+    // "something else", or every prune would answer "yes, itself" and the
+    // Files area would never be cleaned up again.
+    const state = stateWithFileItem();
+    const calls = mockCanvas([
+      { method: 'DELETE', path: `/api/v1/files/${OLD_FILE_ID}`, body: {} },
+    ]);
+
+    const outcome = await run([deleteAction()], {
+      courseDir: courseWithoutWrapper(),
+      state,
+    });
+
+    assert.deepEqual(outcome.errors, []);
+    assert.equal(fileDeletes(calls).length, 1, 'the orphan is still swept');
+    assert.equal(state.modules['01-intro'].items[WRAPPER], undefined);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // The git guard on the binary a pulled `file` item brings down
 // ---------------------------------------------------------------------------
 
