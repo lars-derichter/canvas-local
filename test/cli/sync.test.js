@@ -1285,6 +1285,10 @@ describe('the sync report', () => {
     assert.match(text, /`--prune-canvas` is what deletes these/);
     assert.match(text, /`--prune-local` is what deletes these/);
     assert.match(text, /docs\/backups\.md/);
+    // A local orphan has a second route, and deleting is not it: the entry
+    // comes out of the sync state and the next push creates the object again.
+    assert.match(text, /Or put one back on Canvas/);
+    assert.match(text, /docs\/frontmatter\.md/);
     // A conflict names the winner, both timestamps, and where the loser went.
     assert.match(text, /04-both\.md: Canvas won — newest: Canvas/);
     assert.match(text, /2026-08-19T08:00:00\.000Z.*2026-08-19T09:00:00\.000Z/);

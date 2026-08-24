@@ -80,6 +80,12 @@ says so as it goes:
 The label is `Page`, `Assignment` or `Discussion`, and the number is the id that
 went stale. No manual action needed.
 
+That recovery is an update that came back 404, so it only runs while Canvas
+still lists the module item; deleting the object usually takes the item with it,
+and once the item is gone there is nothing to update, so the run writes nothing
+and reports the file instead (see
+[Push reconciles a module's item list](limitations.md#push-reconciles-a-modules-item-list)).
+
 A module is the exception, and the only one. There is no 404 recovery on a
 module update, so a module deleted in Canvas while `.canvas-sync.json` still
 names it fails that action and the run reports the error. Take that module's

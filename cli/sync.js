@@ -351,6 +351,25 @@ function buildReport(report, options = {}) {
         : '  Nothing was deleted. `--prune-local` is what deletes these.',
     );
     if (!options.pruneLocal) body.push(`  ${BACKUP_HINT}`);
+    // Deleting is one of two routes, and the only one a flag covers. The other
+    // is the sync state: an entry taken out of it leaves a file nothing links
+    // to Canvas any more, which is a new file, so the next push creates the
+    // object again. Named here because nothing else in the report says it, and
+    // an author who wants the item back rather than gone would otherwise read
+    // the deleting flag as the whole answer.
+    //
+    // It sits below the backup hint rather than above it so that the sentence
+    // naming the delete and the warning about the delete stay adjacent, and
+    // carries a precondition: this section is built from what Canvas listed in
+    // the modules, so an object dragged out of every module reads here exactly
+    // like a deleted one, and pushing a row-less file at that state creates a
+    // second copy of an object that was never gone.
+    body.push(
+      '  Or put one back on Canvas: check it is really gone rather than ' +
+        'sitting outside every module, then take its entry out of the sync ' +
+        'state and push, and it is created fresh; see docs/frontmatter.md, ' +
+        'under "Adopting an Item You Made by Hand in Canvas".',
+    );
     section('Orphaned locally (gone from Canvas, still here)', body);
   }
 

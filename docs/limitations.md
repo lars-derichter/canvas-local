@@ -164,6 +164,24 @@ recorded at the last sync, and only what differs is written.
   whose local file you deleted. Something push has never seen is never one. See
   [Destructive operations and student work](#destructive-operations-and-student-work)
   for what that flag reaches and what it costs.
+- **An item you deleted by hand in Canvas is not recreated once Canvas stops
+  listing its module item.** Deleting the object usually removes the item with
+  it, though not always, and while the item is still listed the recovery in
+  [A stale id on the sync row](troubleshooting.md#a-stale-id-on-the-sync-row-404-on-update)
+  puts the object back by itself. Past that, the row in `.canvas-sync.json`
+  names an object no run can see, so push writes nothing and names the item
+  instead, on every run: under `Orphaned locally` while the local file is
+  unchanged, under `Needs a decision` once you have edited it. Putting a Canvas
+  deletion back is not the tool's call to make. Two routes out, and the report
+  names both: delete the local file, which `sync --prune-local` does for you in
+  the unchanged case, or take the item's row out of `.canvas-sync.json` and
+  push, which reads the file as new and creates a fresh Canvas object for it
+  under a new id. Check first that the object really is gone: this tool reads a
+  course through its modules, so one sitting outside every module reads exactly
+  like a deleted one, and pushing a row-less file at that state gives you a
+  second copy of it. See
+  [Frontmatter reference](frontmatter.md#adopting-an-item-you-made-by-hand-in-canvas)
+  for what those rows hold and for the objects a push cannot see.
 
 One thing does hold part of a push back: an item of a type this version does not
 recognise. The content and the membership of that module are still reconciled,
