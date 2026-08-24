@@ -4409,6 +4409,63 @@ describe('applyPlan, per action type', () => {
     // lost to a later error.
     assert.equal(saves.length, 2);
   });
+
+  it('saves after every applied action, and claims a sync only in the last save', async () => {
+    silence();
+    const state = emptyState();
+    // Deep copies, because the executor mutates one state object in place:
+    // each snapshot is the file a kill straight after that save would leave
+    // on disk.
+    const saves = [];
+    mockCanvas([
+      { method: 'POST', path: '/modules', body: { id: 10, name: 'First' } },
+      { method: 'POST', path: '/modules', body: { id: 20, name: 'Second' } },
+    ]);
+
+    const outcome = await applyPlan(
+      {
+        actions: [
+          {
+            type: 'create-canvas-module',
+            folder: '01-first',
+            name: 'First',
+            position: 1,
+          },
+          {
+            type: 'create-canvas-module',
+            folder: '02-second',
+            name: 'Second',
+            position: 2,
+          },
+        ],
+      },
+      {
+        courseId: COURSE_ID,
+        courseDir: tempCourse(),
+        state,
+        save: (next) => saves.push(structuredClone(next)),
+        now: () => '2026-08-20T12:00:00.000Z',
+      },
+    );
+
+    assert.deepEqual(outcome.errors, []);
+    // One save per applied action, plus the end-of-run save.
+    assert.equal(saves.length, 3);
+
+    // The first snapshot already carries the first module's Canvas id. That is
+    // what a run killed outright during the second action leaves behind, and
+    // what lets the next run recognise the module instead of creating a second
+    // copy of it on both sides.
+    assert.equal(saves[0].modules['01-first'].canvas_module_id, 10);
+    assert.equal(saves[0].modules['02-second'], undefined);
+    assert.equal(saves[1].modules['02-second'].canvas_module_id, 20);
+
+    // Only the run that reached its end claims a sync: a snapshot a partial
+    // run leaves behind keeps the previous run's stamp.
+    assert.equal(saves[0].last_sync, null);
+    assert.equal(saves[1].last_sync, null);
+    assert.equal(saves[2].last_sync, '2026-08-20T12:00:00.000Z');
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -464,8 +464,10 @@ relative link).
   fails the run the way every skip does. A module that could not be read is
   never treated as one that was deleted.
 - **Saving the state**: the sync state is written once the alert icons are
-  uploaded, again after any action that failed, and again at the end of the run,
-  so a run that dies partway through leaves a state describing what did land
-  rather than one describing neither side.
+  uploaded, after every action that was applied or failed, and again at the end
+  of the run. However a run stops, an error or an outright kill alike, it loses
+  at most the action in flight: every Canvas id already handed out is on disk,
+  so the next run recognises the objects behind it instead of creating them a
+  second time. Only the end-of-run save stamps `last_sync`.
 - **Atomic writes**: sync file uses write-to-tmp-then-rename to prevent
   corruption.
