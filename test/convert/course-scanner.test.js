@@ -29,23 +29,39 @@ describe('extractPosition', () => {
 });
 
 describe('displayTitle', () => {
-  it('strips numeric prefix and title-cases', () => {
+  it('strips numeric prefix and capitalises the first word only', () => {
     assert.equal(displayTitle('01-welcome'), 'Welcome');
-    assert.equal(displayTitle('02-getting-started'), 'Getting Started');
+    assert.equal(displayTitle('02-getting-started'), 'Getting started');
   });
 
   it('handles names without numeric prefix', () => {
     assert.equal(displayTitle('introduction'), 'Introduction');
-    assert.equal(displayTitle('deep-dive'), 'Deep Dive');
+    assert.equal(displayTitle('deep-dive'), 'Deep dive');
   });
 
   it('replaces underscores with spaces', () => {
-    assert.equal(displayTitle('01-my_page'), 'My Page');
+    assert.equal(displayTitle('01-my_page'), 'My page');
   });
 
   it('handles single-word names', () => {
     assert.equal(displayTitle('99-appendix'), 'Appendix');
     assert.equal(displayTitle('overview'), 'Overview');
+  });
+
+  it('leaves every word but the first as the author wrote it', () => {
+    // Sentence case, not title case: title case belongs to one language, and
+    // this derivation runs on courses in any of them. It also mangles a name
+    // that is not a phrase. "15-e2e-sub" used to come out as "E2e Sub".
+    assert.equal(displayTitle('15-e2e-sub'), 'E2e sub');
+    assert.equal(displayTitle('03-de-eerste-les'), 'De eerste les');
+    // Capitals the author typed survive, so an acronym keeps its shape.
+    assert.equal(displayTitle('04-rest-API'), 'Rest API');
+    // ASCII \b in the old regex fired inside accented words ("üBer Uns").
+    assert.equal(displayTitle('01-über-uns'), 'Über uns');
+  });
+
+  it('returns an empty string for a name that is only a prefix', () => {
+    assert.equal(displayTitle('01-'), '');
   });
 });
 

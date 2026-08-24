@@ -12,7 +12,9 @@ function extractPosition(name) {
 function displayTitle(name) {
   const stripped = name.replace(/^\d+-/, '');
   const spaced = stripped.replace(/[-_]+/g, ' ').trim();
-  return spaced.replace(/\b\w/g, (c) => c.toUpperCase());
+  // Sentence case, matching the library: only the first character is raised,
+  // so the tree shows the same label Canvas gets.
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
 function safeReadJSON(filePath, fallback = {}) {
