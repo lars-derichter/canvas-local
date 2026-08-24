@@ -25,7 +25,7 @@ const log = require('./logger');
  * rather than in either command for the same reason the report lives in
  * `cli/report.js`: a home inside one of them would make the other require a
  * command to print its own warning, and a command is an entry point rather than
- * a library. One module both import is what keeps the warning from drifting
+ * a library. One module both can import is what keeps the warning from drifting
  * between them.
  *
  * Everything here reads the **plan's delete actions**, so what is listed is
