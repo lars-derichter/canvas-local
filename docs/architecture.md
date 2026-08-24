@@ -129,7 +129,10 @@ Key properties:
   HTML converter embeds, and a fingerprint of the theme the SVG was painted in,
   so a theme change re-uploads the icons and an unchanged theme does not.
 - **files**: embedded file (images, PDFs) Canvas URLs and IDs, plus a SHA-256
-  content hash used to re-upload files when their content changes.
+  content hash used to re-upload files when their content changes. A row vouches
+  that the file lives in this course, so a pull that meets a file embedded from
+  another course downloads the binary without writing one; the next push of the
+  embedding page uploads the file into this course and records it then.
 - **last_sync**: stamped at the end of a run that wrote something. Nothing reads
   it, and no decision depends on it. The only timestamps a decision reads are
   the file's mtime and Canvas's `updated_at`, and only to break a tie when both

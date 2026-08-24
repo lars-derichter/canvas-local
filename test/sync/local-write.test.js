@@ -54,6 +54,26 @@ describe('createPullFileResolver', () => {
     assert.equal(result, './_files/doc.pdf');
   });
 
+  it('resolves a foreign-course href through the mapped entry', () => {
+    // The map decides, not the href's course id: `downloadReferencedFiles`
+    // keys a foreign-course embed under this course's preview pattern (and
+    // withholds its row), and the resolver derives that same pattern from any
+    // href's file id. That is what turns a source-course URL into the
+    // `_files/` link the next push uploads from.
+    const canvasToLocal = new Map([
+      ['/courses/1/files/100/preview', '01-mod/_files/image.png'],
+    ]);
+    const resolver = createPullFileResolver(
+      1,
+      '01-mod/01-page.md',
+      canvasToLocal,
+    );
+    assert.equal(
+      resolver('/courses/9999/files/100/preview'),
+      './_files/image.png',
+    );
+  });
+
   it('resolves cross-directory file references', () => {
     const canvasToLocal = new Map([
       ['/courses/1/files/10/preview', '02-other/_files/shared.png'],

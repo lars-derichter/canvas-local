@@ -564,6 +564,202 @@ describe('an embedded binary takes the same name as a file item would', () => {
 });
 
 // ---------------------------------------------------------------------------
+// A file whose URL names another course
+// ---------------------------------------------------------------------------
+
+/**
+ * Content copied over from another Canvas course keeps file URLs that point at
+ * the source course. The binary is worth downloading — the author wants the
+ * content — but the id in that URL is not this course's to record: a row would
+ * file it under a this-course preview URL, and the next push would rewrite the
+ * embed to that URL, a link students not enrolled in the source course cannot
+ * open.
+ *
+ * So the contract under test is: bytes on disk, a `_files/` link in the
+ * markdown, one warning naming the foreign course — and **no row**. The
+ * missing row is the healing half: `uploadEmbeddedFiles` uploads any
+ * referenced binary `state.files` has no row for, so the next push of the
+ * embedding page uploads these bytes into this course and records the id they
+ * really have here.
+ */
+
+const FOREIGN_COURSE_ID = 9999;
+const FOREIGN_FILE_ID = 888;
+const FOREIGN_PATH = '01-intro/_files/imported-chart.png';
+const FOREIGN_URL = `/courses/${FOREIGN_COURSE_ID}/files/${FOREIGN_FILE_ID}/preview`;
+
+/** The same three requests a download costs, aimed at the foreign file. */
+function foreignRoutes() {
+  const meta = {
+    id: FOREIGN_FILE_ID,
+    display_name: 'imported-chart.png',
+    url: `https://files.example.com/blob/${FOREIGN_FILE_ID}`,
+  };
+  return [
+    { method: 'GET', path: `/api/v1/files/${FOREIGN_FILE_ID}`, body: meta },
+    { method: 'GET', path: `/api/v1/files/${FOREIGN_FILE_ID}`, body: meta },
+    { method: 'GET', path: `/blob/${FOREIGN_FILE_ID}`, body: BINARY },
+  ];
+}
+
+/** Every warning that names the foreign course, however it is worded. */
+function foreignWarnings(silenced) {
+  return silenced.warn.mock.calls.filter((call) =>
+    call.arguments.join(' ').includes(`course ${FOREIGN_COURSE_ID}`),
+  );
+}
+
+describe('a file embedded from another course', () => {
+  it('downloads the binary but records no row, and says whose it is', async () => {
+    const silenced = silence();
+    const courseDir = tempCourse();
+    const state = stateWithModule();
+    mockCanvas([...downloadRoutes(), ...foreignRoutes()]);
+
+    const content = pageContent();
+    content.get('91').content.body =
+      `<p><img src="/courses/${COURSE_ID}/files/${FILE_ID}/preview" alt="Diagram">` +
+      `<img src="${FOREIGN_URL}" alt="Chart"></p>`;
+
+    const outcome = await run([writeAction('create-local-item')], {
+      courseDir,
+      state,
+      gitDirty: CLEAN,
+      canvasContent: content,
+    });
+
+    assert.deepEqual(outcome.errors, []);
+
+    // Both binaries land; only the course's own file gets a row. The foreign
+    // id under this course's preview URL is the exact lie under test.
+    assert.equal(
+      fs.readFileSync(path.join(courseDir, FOREIGN_PATH), 'utf8'),
+      BINARY,
+    );
+    assert.deepEqual(Object.keys(state.files), [EMBEDDED_PATH]);
+
+    // The page still points at the local copy of both, so Docusaurus serves
+    // them and the next push finds the unrecorded reference to upload.
+    const markdown = fs.readFileSync(
+      path.join(courseDir, '01-intro/01-welcome.md'),
+      'utf8',
+    );
+    assert.match(markdown, /\.\/_files\/diagram\.png/);
+    assert.match(markdown, /\.\/_files\/imported-chart\.png/);
+    assert.doesNotMatch(markdown, /\/courses\/9999\//);
+
+    assert.equal(foreignWarnings(silenced).length, 1);
+  });
+
+  it('downloads and warns once when two pages embed the same foreign file', async () => {
+    const silenced = silence();
+    const courseDir = tempCourse();
+    const state = stateWithModule();
+    const calls = mockCanvas(foreignRoutes());
+
+    const body = `<p><img src="${FOREIGN_URL}" alt="Chart"></p>`;
+    const updated_at = '2026-08-20T11:00:00.000Z';
+    const content = new Map([
+      [
+        '91',
+        {
+          item: { id: 91, type: 'Page', title: 'Welcome', indent: 0 },
+          content: {
+            page_id: 501,
+            url: 'welcome',
+            title: 'Welcome',
+            body,
+            updated_at,
+          },
+        },
+      ],
+      [
+        '92',
+        {
+          item: { id: 92, type: 'Page', title: 'Second', indent: 0 },
+          content: {
+            page_id: 502,
+            url: 'second',
+            title: 'Second',
+            body,
+            updated_at,
+          },
+        },
+      ],
+    ]);
+    const second = {
+      ...writeAction('create-local-item'),
+      itemPath: '01-intro/02-second.md',
+      moduleItemId: 92,
+      canvasId: 502,
+      pageUrl: 'second',
+      title: 'Second',
+      position: 2,
+    };
+
+    // After the first page's download the binary is untracked, which is what
+    // git really reports mid-run. Only the run's own memory of the foreign
+    // file stops the second page from walking into the guard — there is no
+    // row for the rebuilt maps to remember it by.
+    const outcome = await run([writeAction('create-local-item'), second], {
+      courseDir,
+      state,
+      gitDirty: {
+        available: true,
+        paths: new Set(['01-intro', '01-intro/_files', FOREIGN_PATH]),
+        reason: null,
+      },
+      canvasContent: content,
+    });
+
+    assert.deepEqual(outcome.errors, []);
+    assert.deepEqual(outcome.skipped, [], 'the guard must not fire');
+    assert.equal(
+      calls.filter((call) => call.url.includes(`/blob/${FOREIGN_FILE_ID}`))
+        .length,
+      1,
+      'one download per local path',
+    );
+    assert.equal(foreignWarnings(silenced).length, 1, 'one warning per file');
+
+    // Both pages point at the one local copy, and still no row.
+    for (const page of ['01-intro/01-welcome.md', '01-intro/02-second.md']) {
+      const markdown = fs.readFileSync(path.join(courseDir, page), 'utf8');
+      assert.match(markdown, /\.\/_files\/imported-chart\.png/);
+    }
+    assert.deepEqual(Object.keys(state.files), []);
+  });
+
+  it('leaves the user-files form alone: no course id, no download, no row', async () => {
+    silence();
+    const courseDir = tempCourse();
+    const state = stateWithModule();
+    const calls = mockCanvas([]);
+
+    const content = pageContent();
+    content.get('91').content.body =
+      '<p><a href="/files/555/download">handout</a></p>';
+
+    const outcome = await run([writeAction('create-local-item')], {
+      courseDir,
+      state,
+      gitDirty: CLEAN,
+      canvasContent: content,
+    });
+
+    assert.deepEqual(outcome.errors, []);
+    assert.deepEqual(calls, [], 'a URL naming no course costs no request');
+    assert.deepEqual(Object.keys(state.files), []);
+
+    const markdown = fs.readFileSync(
+      path.join(courseDir, '01-intro/01-welcome.md'),
+      'utf8',
+    );
+    assert.match(markdown, /\/files\/555\/download/);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Deleting an embedded binary nothing points at any more
 // ---------------------------------------------------------------------------
 

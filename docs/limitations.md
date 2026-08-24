@@ -418,6 +418,13 @@ to merge against even in principle.
 - **The round trip is lossy.** Canvas HTML becomes markdown through a converter.
   Raw HTML, anything the Canvas rich-content editor added, and formatting
   nuances are normalised away.
+- **A file embedded from another course becomes this course's.** Content copied
+  over from another Canvas course can keep file URLs that point at the source
+  course, links students of this course cannot always open. Pull downloads such
+  a binary into `_files/` and warns, but records it nowhere, because the id in
+  that URL belongs to a course this one cannot vouch for. The next push of the
+  page that embeds it uploads the file into this course and takes ownership,
+  rather than leaving the embed pointing across courses.
 - **Pull does not rename your files.** A Canvas title lands in the file's
   frontmatter as `title:` and a Canvas module name lands in the folder's
   `_category_.json`, while the filename stays as you wrote it, because that path
