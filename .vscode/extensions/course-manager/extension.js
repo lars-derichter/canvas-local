@@ -561,12 +561,48 @@ function activate(context) {
     });
   }
 
-  // Push a single module (from the inline tree button or the palette)
+  // The sync family, scoped to the module row it was clicked on: the inline
+  // push button and the three context-menu entries beside it. Each reads that
+  // row and does nothing without one, so none of them is offered in the
+  // palette, which carries the whole-course Sync, Push, Pull and Status
+  // instead, and a Push Module that asks which module to send.
+  //
+  // All four stream into the terminal rather than through the silent runner.
+  // What they produce is a report to read as it arrives, and two of them stop
+  // for an answer even on this flag set, where the silent runner would hang at
+  // a prompt nobody can see. Sync asks twice over: which side wins when both
+  // sides reordered the module (the CLI's `--order` default is `ask`, no flag
+  // involved), and whether a path that vanished and a new one with the same
+  // title in the same folder are one item renamed. Push asks before the first
+  // push to a Canvas course that already holds content and that this project
+  // has never pushed to, which `--module` does not suppress. Pull and status
+  // ask nothing here, and follow the other two so the group behaves one way.
   register('course.pushItem', (treeItem) => {
     const moduleName = treeItem?.moduleFolderName;
     if (!moduleName) return;
     if (!validateWorkspace()) return;
     runInTerminal((q) => `npx course push --module ${q(moduleName)}`);
+  });
+
+  register('course.syncItem', (treeItem) => {
+    const moduleName = treeItem?.moduleFolderName;
+    if (!moduleName) return;
+    if (!validateWorkspace()) return;
+    runInTerminal((q) => `npx course sync --module ${q(moduleName)}`);
+  });
+
+  register('course.pullItem', (treeItem) => {
+    const moduleName = treeItem?.moduleFolderName;
+    if (!moduleName) return;
+    if (!validateWorkspace()) return;
+    runInTerminal((q) => `npx course pull --module ${q(moduleName)}`);
+  });
+
+  register('course.statusItem', (treeItem) => {
+    const moduleName = treeItem?.moduleFolderName;
+    if (!moduleName) return;
+    if (!validateWorkspace()) return;
+    runInTerminal((q) => `npx course status --module ${q(moduleName)}`);
   });
 
   register('course.pushModule', async () => {

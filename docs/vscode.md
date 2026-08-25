@@ -1,12 +1,14 @@
 # VS Code Integration
 
 All course commands are available in the VS Code command palette (Cmd+Shift+P /
-Ctrl+Shift+P). Type "Course:" to filter the list. Four actions are kept out of
+Ctrl+Shift+P). Type "Course:" to filter the list. Seven actions are kept out of
 it, because they act on the tree item you clicked and can do nothing without
 one: the inline **Push This Module to Canvas** and **Open in Canvas** buttons,
-and the two-step **Merge: Set as Source** / **Merge with Source**. The palette
-has its own **Course: Push Module to Canvas...** and **Course: Merge Items**,
-which ask which module or item you mean.
+the module-scoped **Sync**, **Pull** and **Status** that sit beside push in a
+module's right-click menu, and the two-step **Merge: Set as Source** / **Merge
+with Source**. The palette has its own whole-course sync commands, plus
+**Course: Push Module to Canvas...** and **Course: Merge Items**, which ask
+which module or item you mean.
 
 ## Installation
 
@@ -71,9 +73,10 @@ write yourself: see [Frontmatter](frontmatter.md).
 ### Context Menu
 
 Right-click a module or item to access management commands. The command acts on
-the element you clicked. Names, positions, and confirmation are collected
-through native VS Code dialogs, and the operation runs the CLI in the background
-(no terminal pops up):
+the element you clicked. For the management commands, names, positions, and
+confirmation are collected through native VS Code dialogs and the CLI runs in
+the background (no terminal pops up); the export and Canvas entries stream their
+output in the shared terminal instead:
 
 - **New Item / New Module**: create items or modules
 - **Rename / Move**: rename or reorder items and modules (rename pre-fills the
@@ -88,16 +91,31 @@ through native VS Code dialogs, and the operation runs the CLI in the background
   Module to PDF/DOCX** for the whole module. Select several items first
   (Ctrl/Cmd-click or Shift-click in the tree) to export them together as one
   combined document. You then pick PDF or Word.
+- **Sync This Module with Canvas**, **Push This Module to Canvas**, **Pull This
+  Module from Canvas** and **Status of This Module** (module rows only): run
+  `sync`, `push`, `pull` or `status` with `--module` set to the module you
+  clicked. These stream in the shared terminal rather than running in the
+  background: their output is a report to read, and two of them stop for an
+  answer. Sync asks which side wins when local and Canvas both reordered the
+  module (the `--order` default is `ask`), and whether a path that vanished and
+  a new one with the same title in the same folder are one item renamed. Push
+  asks before the first push to a Canvas course that already holds content and
+  that this project has never pushed to. The background runner would hang on any
+  of those, at a prompt nobody can see.
 
-The same commands also work from the command palette; you then pick the module
-or item from a quick-pick list instead. When the active editor's file lies
-inside a module, that module (or the file itself) is offered first, marked as
-current, so Enter confirms it. The two-step merge is the exception: it needs
-both right-clicks, so the palette carries **Course: Merge Items**, which asks
-for source and target. Either way the actual work is done by the `npx course`
-CLI with non-interactive flags, so renumbering and Canvas sync state behave
-exactly like the terminal commands. Full output is available in the **Canvas
-Course Builder** output channel (View → Output).
+Most of these commands also work from the command palette; you then pick the
+module or item from a quick-pick list instead. When the active editor's file
+lies inside a module, that module (or the file itself) is offered first, marked
+as current, so Enter confirms it. Two sets are the exception. The two-step merge
+needs both right-clicks, so the palette carries **Course: Merge Items**, which
+asks for source and target. The four module-scoped Canvas actions have no
+palette entry at all: the palette already covers the whole course with **Course:
+Sync with Canvas**, **Push to Canvas**, **Pull from Canvas** and **Status**, and
+a single module with **Course: Push Module to Canvas...**. Either way the actual
+work is done by the `npx course` CLI, so renumbering and Canvas sync state
+behave exactly like the terminal commands. Full output of the background
+commands is available in the **Canvas Course Builder** output channel (View →
+Output).
 
 ### Drag and Drop
 
@@ -209,14 +227,15 @@ margins.
 
 - Long-running commands run in a shared **Canvas Course Builder** terminal so
   you can follow their output: Setup, Init, Sync, Push, Pull, Status, Validate,
-  Build Glossary, the two reset commands, and the three dry runs. The terminal
-  is also where the two reset commands ask their questions: Reset Canvas prints
-  an inventory of what it is about to delete and waits for y/N, Reset Sync State
-  waits for y/N. A terminal that is still running something is never reused —
-  while Sync waits at a conflict question, a second command would be typed
-  straight into that prompt as its answer — so the next command opens **Canvas
-  Course Builder 2**, and so on up to five, before falling back to the most
-  recently used one. Idle terminals are reused, lowest number first, and a
+  Build Glossary, the two reset commands, the three dry runs, and the four
+  module-scoped Canvas actions on a module row. The terminal is also where the
+  two reset commands ask their questions: Reset Canvas prints an inventory of
+  what it is about to delete and waits for y/N, Reset Sync State waits for y/N.
+  A terminal that is still running something is never reused — while Sync waits
+  for an answer about a reordering both sides made, a second command would be
+  typed straight into that prompt as its answer — so the next command opens
+  **Canvas Course Builder 2**, and so on up to five, before falling back to the
+  most recently used one. Idle terminals are reused, lowest number first, and a
   closed terminal frees its number.
 - Structural commands (new/rename/move/delete, merge, split) run the CLI
   silently in the background; results appear as notifications and in the

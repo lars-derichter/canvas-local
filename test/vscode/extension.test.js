@@ -123,7 +123,7 @@ describe('VS Code extension: command registry consistency', () => {
 
 describe('VS Code extension: command palette visibility', () => {
   // A contributed command is palette-visible unless a commandPalette entry
-  // hides it, and these four do nothing there: each reads the tree item it was
+  // hides it, and these seven do nothing there: each reads the tree item it was
   // clicked on and returns when it is missing, silently. Every other command
   // asks for what it needs (quick pick, input box, active editor) and works
   // from the palette.
@@ -132,6 +132,9 @@ describe('VS Code extension: command palette visibility', () => {
     'course.mergeWithSource',
     'course.openInCanvas',
     'course.pushItem',
+    'course.syncItem',
+    'course.pullItem',
+    'course.statusItem',
   ];
   const paletteMenus = packageJson.contributes.menus.commandPalette;
 
@@ -195,7 +198,7 @@ describe('VS Code extension: command palette visibility', () => {
 
   // Typing "Course:" has to bring up everything the palette offers, so a
   // palette-visible command without the prefix is invisible to that search.
-  // The four hidden ones are exempt: nobody ever reads their title in a
+  // The hidden ones are exempt: nobody ever reads their title in a
   // palette, only in the tree's hover buttons and right-click menu.
   //
   // The assertion runs on the label the palette composes, not on the raw
@@ -828,6 +831,154 @@ describe('VS Code extension: inline push button', () => {
     assert.ok(cmd, 'course.pushItem needs a contributes.commands entry');
     assert.equal(cmd.title, 'Push This Module to Canvas');
     assert.match(cmd.icon, /cloud-upload/);
+  });
+});
+
+describe('VS Code extension: module-scoped sync family', () => {
+  // sync, pull and status all take -m, and for a long time only push was
+  // offered on a module row: narrowing a sync to one module meant leaving the
+  // tree for the terminal. The three join push in one context-menu group, so a
+  // module row carries the same four directions the view title carries for the
+  // whole course.
+  const family = {
+    'course.syncItem': {
+      title: 'Sync This Module with Canvas',
+      line: 'npx course sync --module',
+    },
+    'course.pushItem': {
+      title: 'Push This Module to Canvas',
+      line: 'npx course push --module',
+    },
+    'course.pullItem': {
+      title: 'Pull This Module from Canvas',
+      line: 'npx course pull --module',
+    },
+    'course.statusItem': {
+      title: 'Status of This Module',
+      line: 'npx course status --module',
+    },
+  };
+  const itemContextMenus = packageJson.contributes.menus['view/item/context'];
+  const grouped = itemContextMenus.filter((m) =>
+    (m.group || '').startsWith('4_canvas'),
+  );
+
+  it('declares and registers all four', () => {
+    for (const [id, { title }] of Object.entries(family)) {
+      const cmd = packageCommands.find((c) => c.command === id);
+      assert.ok(cmd, `${id} needs a contributes.commands entry`);
+      assert.equal(cmd.title, title);
+      assert.ok(
+        extraRegistered.includes(id),
+        `${id} should be registered via registerCommand`,
+      );
+    }
+  });
+
+  it('keeps all four out of the palette', () => {
+    // Each acts on the row it was clicked, and the palette already carries the
+    // whole-course Sync, Push, Pull and Status. A palette entry here would
+    // have no row to read and would return silently.
+    const hidden = new Set(
+      packageJson.contributes.menus.commandPalette.map((m) => m.command),
+    );
+    for (const id of Object.keys(family)) {
+      assert.ok(hidden.has(id), `${id} has no tree row in the palette`);
+    }
+  });
+
+  it('offers each on module rows and nowhere else', () => {
+    // `--module` is the narrowest scope all four share, so on a page row the
+    // entry would promise a per-item sync and move every sibling with it.
+    for (const entry of grouped) {
+      assert.ok(
+        admits(entry.when, 'module'),
+        `"${entry.when}" has to admit module rows`,
+      );
+      for (const row of [
+        'page',
+        'assignment',
+        'discussion',
+        'quiz',
+        'external_url',
+        'external_tool',
+        'file',
+        'subheader',
+      ]) {
+        assert.ok(
+          !admits(entry.when, row),
+          `"${entry.when}" offers a module-scoped run on a ${row} row`,
+        );
+      }
+    }
+  });
+
+  it('reads as one menu group, in the order the four commands relate', () => {
+    // Sync is the whole engine; push and pull are that engine with one side
+    // pinned; status is the same run writing nothing. Without the @n suffixes
+    // VS Code sorts a group by title, which would file them Pull, Push,
+    // Status, Sync: alphabetical, and meaningless.
+    assert.deepEqual(
+      grouped
+        .slice()
+        .sort((a, b) => a.group.localeCompare(b.group))
+        .map((m) => m.command),
+      [
+        'course.syncItem',
+        'course.pushItem',
+        'course.pullItem',
+        'course.statusItem',
+      ],
+    );
+  });
+
+  it('leaves push its inline button as well as its menu entry', () => {
+    // The group entry is a second contribution, not a move: the hover button
+    // is how a module gets pushed without opening a menu at all. VS Code
+    // renders the two from one contribution each, because the context menu is
+    // built from the groups that are not `inline`.
+    //
+    // The cost of the pair, recorded here because a manifest cannot carry a
+    // comment: "Hide" in a menu is keyed on (menu id, command id), and both
+    // entries are view/item/context + course.pushItem. So an author who hides
+    // the dropdown row hides the inline button with it. The alternative was a
+    // menu whose Canvas group skips the one direction authors use most.
+    const pushEntries = itemContextMenus.filter(
+      (m) => m.command === 'course.pushItem',
+    );
+    assert.equal(pushEntries.length, 2);
+    assert.ok(pushEntries.some((m) => m.group === 'inline'));
+  });
+
+  it('builds a --module line with the folder name quoted', () => {
+    // A module folder name is whatever the author (or a Canvas pull) created,
+    // so it reaches the terminal through the builder's q(), never raw.
+    for (const { line } of Object.values(family)) {
+      assert.match(
+        extensionSource,
+        new RegExp(
+          `runInTerminal\\(\\(q\\) => \`${line} \\$\\{q\\(moduleName\\)\\}\`\\)`,
+        ),
+        `${line} should be built with a quoted module name`,
+      );
+    }
+  });
+
+  it('streams all four through the terminal, not the silent runner', () => {
+    // The output is a report to read as it arrives, and sync stops to ask
+    // which side wins when both reordered the module: the CLI's `--order`
+    // default is `ask`, and the silent runner would hang on that question
+    // where nobody could see it.
+    for (const id of Object.keys(family)) {
+      const start = extensionSource.indexOf(`register('${id}'`);
+      const next = extensionSource.indexOf("\n  register('", start);
+      const handler = extensionSource.slice(start, next);
+      assert.match(handler, /runInTerminal\(/, `${id} must stream its output`);
+      assert.ok(
+        !handler.includes('runCli('),
+        `${id} must not run through the silent runner`,
+      );
+    }
   });
 });
 

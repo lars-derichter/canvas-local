@@ -171,6 +171,18 @@
         "icon": "$(cloud-upload)"
       },
       {
+        "command": "course.syncItem",
+        "title": "Sync This Module with Canvas"
+      },
+      {
+        "command": "course.pullItem",
+        "title": "Pull This Module from Canvas"
+      },
+      {
+        "command": "course.statusItem",
+        "title": "Status of This Module"
+      },
+      {
         "command": "course.exportItem",
         "title": "Course: Export Item to PDF/DOCX..."
       },
@@ -215,6 +227,18 @@
         },
         {
           "command": "course.pushItem",
+          "when": "false"
+        },
+        {
+          "command": "course.syncItem",
+          "when": "false"
+        },
+        {
+          "command": "course.pullItem",
+          "when": "false"
+        },
+        {
+          "command": "course.statusItem",
           "when": "false"
         }
       ],
@@ -347,6 +371,26 @@
           "command": "course.exportModule",
           "when": "view == courseTree && viewItem == module",
           "group": "3_export"
+        },
+        {
+          "command": "course.syncItem",
+          "when": "view == courseTree && viewItem == module",
+          "group": "4_canvas@1"
+        },
+        {
+          "command": "course.pushItem",
+          "when": "view == courseTree && viewItem == module",
+          "group": "4_canvas@2"
+        },
+        {
+          "command": "course.pullItem",
+          "when": "view == courseTree && viewItem == module",
+          "group": "4_canvas@3"
+        },
+        {
+          "command": "course.statusItem",
+          "when": "view == courseTree && viewItem == module",
+          "group": "4_canvas@4"
         }
       ]
     }

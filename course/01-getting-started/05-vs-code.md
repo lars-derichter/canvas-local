@@ -95,15 +95,23 @@ Right-click any module or item in the sidebar to see context actions:
 - **Course: Export Item to PDF/DOCX...**: export the selected item or items
   (multi-select combines them into one document), or a whole module via
   **Course: Export Module to PDF/DOCX...**
+- **Sync This Module with Canvas**, **Push This Module to Canvas**, **Pull This
+  Module from Canvas** and **Status of This Module**: run one of the four Canvas
+  commands on the module you clicked instead of on the whole course. Module rows
+  only. These open the shared terminal, so you can read the report and answer
+  the questions the command asks there, such as which side wins when you and
+  Canvas both reordered the same module.
 
 **Split Item at Cursor** is not on this menu. It works on the file open in the
 editor and the position of your cursor, neither of which a right-click on the
 tree tells it, so it lives in the command palette only.
 
-Names, positions, and confirmations are collected through normal VS Code
-dialogs, and the command runs quietly in the background: no terminal pops up.
-You get a notification when it is done, and the full output is available in the
-**Canvas Course Builder** output channel (View > Output).
+For the management commands, names, positions, and confirmations are collected
+through normal VS Code dialogs, and the command runs quietly in the background:
+no terminal pops up. You get a notification when it is done, and the full output
+is available in the **Canvas Course Builder** output channel (View > Output).
+The export and Canvas actions do open a terminal, so you can watch the output
+and answer whatever the CLI asks.
 
 ### Drag and Drop
 
@@ -175,9 +183,10 @@ Open the command palette with **Cmd+Shift+P** (macOS) or **Ctrl+Shift+P**
 | Course: Preview                      | Start the dev server and open the course               |
 | Course: Refresh Tree                 | Rebuild the sidebar tree by hand                       |
 
-A few tree actions (**Push This Module to Canvas**, **Open in Canvas**, and the
-two halves of the merge) need a selected row to work on, so the palette does not
-list them; use the hover buttons and the right-click menu for those.
+Some tree actions need a selected row to work on, so the palette does not list
+them: **Push This Module to Canvas**, **Open in Canvas**, the module-scoped
+**Sync**, **Pull** and **Status**, and the two halves of the merge. Use the
+hover buttons and the right-click menu for those.
 
 ## How It Works
 
