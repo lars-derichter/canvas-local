@@ -168,3 +168,46 @@ against the source. Prettier decides where those lines wrap, so any pattern
 there has to span newlines: use `[\s\S]*?` rather than `.*` or `[^\n]*`, and
 allow for a trailing comma inside a wrapped call. Assert on what the extension
 does, never on how it is laid out.
+
+## The Extension and CLI Contract Test
+
+`test/vscode/cli-contract.test.js` is the guard between the two halves of this
+project. It reads every `npx course` command line and every `runCli` argv the
+extension builds, reads the commands commander actually registers in
+`cli/index.js`, and fails when the two disagree. A flag renamed on one side used
+to be found by whoever clicked the button in VS Code; this finds it on the next
+`npm test`.
+
+It checks two things and nothing more: the subcommand exists, and every flag
+exists on that subcommand (or on the program, since commander accepts
+`--verbose` and its three siblings anywhere). It deliberately does not check the
+values flags are given, how many positional arguments a command line carries, or
+a flag hidden inside a runtime value. The reverse direction is not asserted
+either: a CLI flag the extension never uses is ordinary, and the test only
+reports it.
+
+Two things about it surprise people the first time.
+
+**It fails on a shape it cannot read, rather than skipping it.** A scan that
+quietly ignored what it did not understand would report a green contract over an
+unchecked command line, so an argv that is reassigned, spliced, written by
+index, spread, or handed to another function is refused by name and line.
+Reading the array is fine and needs no ceremony: `args.length`,
+`args.join(' ')`, `args.includes(...)`, `args.slice(...)` and `args[0]` are all
+accepted, as is a `push` whose first value is a literal flag. If you are
+refused, the message names the shape and, where one exists, the list to add to.
+The three lists live at the top of the file: `RUNNERS` (functions that hand a
+command to the CLI), `NOT_RUNNERS` (helpers that take a list of strings and are
+not runners), and `READ_ONLY_CALLEES` (functions that receive an argv array and
+only read it).
+
+**It has floors, and they are the point.** A static scan whose pattern stops
+matching finds nothing and passes forever, which is the failure
+`scripts/check-test-glob.js` exists to prevent elsewhere in this repo. So the
+test asserts a minimum number of invocations, per construction shape, and a
+minimum number of subcommand+flag pairs. If you genuinely remove commands from
+the extension, lower the floor in the same commit, and only then.
+
+Adding a runner is the one change that needs the test edited: put its name in
+`RUNNERS`, or everything it runs goes unchecked. The test says so itself when it
+sees an argv-shaped array going somewhere it does not recognise.
