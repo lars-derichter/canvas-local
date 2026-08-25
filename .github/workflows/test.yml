@@ -6,8 +6,17 @@ on:
   pull_request:
 
 jobs:
+  # Windows is a supported platform, and almost everything this tool does is
+  # paths, line endings and child processes — the three things that behave
+  # differently there. Nobody here develops on Windows, so this matrix is the
+  # only Windows end-to-end the project has. `fail-fast: false` keeps a red leg
+  # on one OS from cancelling the other, so a single run always reports both.
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -17,7 +26,10 @@ jobs:
       - run: npm test
       - run: npm run build
 
-  # Separate from `test` so a formatting nit never hides the test signal.
+  # Separate from `test` so a formatting nit never hides the test signal, and
+  # deliberately not in the matrix above: ESLint and Prettier judge bytes, and
+  # `.gitattributes` pins those to LF on every platform, so a second run on
+  # Windows would spend minutes reaching a verdict already known.
   lint:
     runs-on: ubuntu-latest
     steps:
