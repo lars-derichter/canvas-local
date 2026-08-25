@@ -128,3 +128,30 @@ returns keeps only a boolean per id, so `annotateSubmissions` in
 `cli/prune-warning.js` would need that map to carry the object, or a second map
 beside it. `isNewQuizAssignment` and the wording in `newQuizNotice` are already
 there to reuse.
+
+### Bundling dotenv Into the Extension
+
+The extension parses `.env` itself, in `helpers.js`, while every CLI command
+reads that same file through `dotenv`. Shipping a copy of dotenv inside the
+`.vsix` would delete the second reader: `readEnvConfig` collapses to a wrapper
+around `dotenv.parse`, and the corpus that currently proves the two agree stops
+being necessary, because there would only be one of them. The runtime is about
+16KB with targeted `.vscodeignore` negations, against a 50KB package.
+
+It was considered during the extension review and declined for now, on two
+counts. A missing dependency at activation is not a degraded feature, it is the
+whole sidebar failing to load. And no test can see that coming: `node --test`
+resolves `dotenv` against the repository's own `node_modules`, so a packaging
+mistake passes the full suite, both CI platforms and lint, then throws once
+installed. Proving it works needs a check at the packaging level, which does not
+exist today.
+
+Two things would reopen it. A `.env` shape the hand-rolled reader deliberately
+omits (its docstring lists them) turning up in a real course, since extending
+the reader then costs more than the dependency does. Or a smoke test that
+actually launches the packaged extension, which would make the activation
+failure visible and leave size as the only remaining cost.
+
+Copying dotenv's `parse` into `helpers.js` instead, with attribution, is a third
+option and a worse one: exact parity with no packaging step, but a fork with no
+update path, so the maintenance moves rather than goes away.

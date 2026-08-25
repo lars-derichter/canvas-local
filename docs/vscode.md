@@ -253,3 +253,12 @@ margins.
 - **Preview** checks whether the Docusaurus dev server is already running. If
   not, it starts `npm start` in a Preview terminal and opens the browser as soon
   as the server responds.
+- The extension ships no dependencies. Everything it needs lives in its own
+  three JavaScript files, because the installed extension sits in
+  `~/.vscode/extensions` with no `node_modules` beside it, and resolving a
+  package from the opened workspace instead would let any folder you open run
+  code in the extension host. That is why `helpers.js` parses `.env` itself
+  instead of calling `dotenv`, which the CLI uses for the same file. A test
+  keeps the two in step: it runs the shapes a hand-edited `.env` takes through
+  both readers and pins the handful where they still differ, so CI reports it if
+  either side moves.

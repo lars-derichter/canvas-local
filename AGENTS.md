@@ -76,6 +76,14 @@ can only be reached by typing their name. Both destructive ones run in a
 terminal, where the CLI's own confirmation prompts still gate them. Install with
 `npm run vscode:install`. See [`docs/vscode.md`](docs/vscode.md).
 
+**Never add a `require` to `helpers.js`**, neither `vscode` nor an npm package.
+It holds the parts that do not touch the editor API precisely so plain
+`node --test` can load them, and the packaged extension has no `node_modules` of
+its own to resolve anything from. This is why it parses `.env` by hand rather
+than with `dotenv`; [`docs/vscode.md`](docs/vscode.md) explains the reasoning
+and [`docs/roadmap.md`](docs/roadmap.md) records why bundling dotenv was
+declined.
+
 ## Architecture
 
 Three layers:
