@@ -1,0 +1,21 @@
+# Line endings are LF everywhere: in the repository, and in the working tree on
+# every platform. Without this rule Git's `core.autocrlf` decides, and it is on
+# by default on Windows and on the windows-latest CI runner, so a checkout there
+# rewrites every text file to CRLF. That breaks two things at once: Prettier
+# reports a formatting failure on 267 files, since `endOfLine: "lf"` is its
+# default and `.editorconfig` asks for the same, and the tests that read this
+# project's own source back and match it line by line stop matching.
+#
+# Nothing here is a workaround for the tool itself, which normalises line
+# endings when it hashes and when it parses frontmatter, so a course file that
+# arrives with CRLF still syncs correctly.
+* text=auto eol=lf
+
+# `text=auto` calls a file binary when it finds a NUL byte in the first 8000,
+# which is true of every binary committed so far but is still a guess. These
+# extensions are binary whatever the guess says.
+*.docx binary
+*.ico binary
+*.pdf binary
+*.png binary
+*.ttf binary
