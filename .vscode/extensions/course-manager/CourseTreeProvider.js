@@ -2,6 +2,9 @@ const vscode = require('vscode');
 const fs = require('fs');
 const path = require('path');
 const {
+  displayTitle,
+  safeReadJSON,
+  readFrontmatter,
   extractPosition,
   cliSiblings,
   reorderPosition,
@@ -12,118 +15,7 @@ const {
   batchPositions,
   sortByVisualOrder,
   validateBatchDrop,
-  moduleCanvasId,
 } = require('./helpers');
-
-// --- Utility functions (inlined from lib/convert/course-scanner.js and cli/) ---
-
-function displayTitle(name) {
-  const stripped = name.replace(/^\d+-/, '');
-  const spaced = stripped.replace(/[-_]+/g, ' ').trim();
-  // Sentence case, matching the library: only the first character is raised,
-  // so the tree shows the same label Canvas gets.
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
-}
-
-function safeReadJSON(filePath, fallback = {}) {
-  try {
-    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-  } catch {
-    return fallback;
-  }
-}
-
-/**
- * Read frontmatter fields from a markdown file without a YAML dependency.
- * Returns { canvasType, title, externalUrl }. The Canvas id is deliberately
- * not among them: identity lives in `.canvas-sync.json`, keyed by path, and a
- * `canvas_id` left behind in an older file is the stale copy that made the two
- * disagree. `getCanvasId` reads the state instead.
- */
-function readFrontmatter(filePath) {
-  const result = {
-    canvasType: 'page',
-    title: null,
-    externalUrl: null,
-  };
-  try {
-    const content = fs.readFileSync(filePath, 'utf8');
-    if (!content.startsWith('---')) return result;
-    const endIndex = content.indexOf('\n---', 3);
-    if (endIndex === -1) return result;
-    const frontmatter = content.substring(3, endIndex);
-
-    const typeMatch = frontmatter.match(/^canvas_type:\s*(.+)$/m);
-    if (typeMatch) result.canvasType = typeMatch[1].trim();
-
-    const titleMatch = frontmatter.match(/^title:\s*(.+)$/m);
-    if (titleMatch) {
-      // Strip surrounding quotes gray-matter may have added
-      result.title = titleMatch[1].trim().replace(/^["'](.*)["']$/, '$1');
-    }
-
-    const urlMatch = frontmatter.match(/^external_url:\s*(.+)$/m);
-    if (urlMatch)
-      result.externalUrl = urlMatch[1].trim().replace(/^["'](.*)["']$/, '$1');
-  } catch {
-    // Defaults
-  }
-  return result;
-}
-
-/**
- * The parsed `.canvas-sync.json`, or null when there is none to read.
- *
- * Read on every call rather than cached: a push or a pull rewrites that file
- * while the window stays open, and an id cached from before it would send the
- * author to the wrong object — or to none at all, for an item that has only
- * just been created. Unreadable and corrupt read as absent here; the two
- * lookups below have nothing to vouch for either way.
- *
- * @param {string} workspaceRoot
- */
-function readSyncState(workspaceRoot) {
-  if (!workspaceRoot) return null;
-  try {
-    return JSON.parse(
-      fs.readFileSync(path.join(workspaceRoot, '.canvas-sync.json'), 'utf8'),
-    );
-  } catch {
-    return null;
-  }
-}
-
-/**
- * The Canvas id recorded for a course file, or null.
- *
- * @param {string} workspaceRoot
- * @param {string} filePath - Absolute path to the course file.
- */
-function getCanvasId(workspaceRoot, filePath) {
-  if (!workspaceRoot) return null;
-  const relative = path.relative(path.join(workspaceRoot, 'course'), filePath);
-  if (!relative || relative.startsWith('..')) return null;
-  const key = relative.split(path.sep).join('/');
-  const state = readSyncState(workspaceRoot);
-  for (const module of Object.values((state && state.modules) || {})) {
-    const row = (module.items || {})[key];
-    if (row && row.canvas_id != null) return String(row.canvas_id);
-  }
-  return null;
-}
-
-/**
- * The Canvas id recorded for a module folder, or null when that module has
- * never been pushed. Keyed by the folder name, the way `.canvas-sync.json` keys
- * modules: a module has no path row of its own for `getCanvasId` to find.
- *
- * @param {string} workspaceRoot
- * @param {string} moduleFolderName - e.g. '01-introduction'.
- */
-function getModuleCanvasId(workspaceRoot, moduleFolderName) {
-  if (!workspaceRoot || !moduleFolderName) return null;
-  return moduleCanvasId(readSyncState(workspaceRoot), moduleFolderName);
-}
 
 // --- Icon map ---
 
@@ -826,9 +718,4 @@ class CourseTreeProvider {
 
 module.exports = {
   CourseTreeProvider,
-  getCanvasId,
-  getModuleCanvasId,
-  readFrontmatter,
-  displayTitle,
-  extractPosition,
 };

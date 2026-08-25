@@ -6,6 +6,9 @@ const path = require('path');
 const os = require('os');
 
 const {
+  displayTitle,
+  safeReadJSON,
+  readFrontmatter,
   extractPosition,
   cliSiblings,
   reorderPosition,
@@ -19,8 +22,11 @@ const {
   courseLocation,
   promoteActive,
   seedsDestination,
+  getCanvasId,
   moduleCanvasId,
+  getModuleCanvasId,
   canvasModuleUrl,
+  readEnvConfig,
   terminalNumber,
   pickTerminal,
   shellFlavour,
@@ -30,6 +36,9 @@ const {
 const { reorder } = require('../../cli/renumber');
 const { getItems } = require('../../cli/item-utils');
 const { _moveEntry } = require('../../cli/movetomodule-item');
+const {
+  displayTitle: libraryDisplayTitle,
+} = require('../../lib/convert/course-scanner');
 
 function createFiles(dir, names) {
   for (const name of names) {
@@ -41,6 +50,187 @@ function createFiles(dir, names) {
 function sortedNames(dir) {
   return getItems(dir).map((i) => i.name);
 }
+
+describe('helpers: displayTitle', () => {
+  it('strips the numeric prefix and spaces the separators out', () => {
+    assert.equal(displayTitle('01-welcome'), 'Welcome');
+    assert.equal(displayTitle('02-getting-started'), 'Getting started');
+    assert.equal(displayTitle('03-my_page'), 'My page');
+  });
+
+  it('raises the first character only, leaving author capitals alone', () => {
+    // Sentence case, not title case: capitalising every word is wrong in
+    // Dutch and French, and "15-e2e-sub" would come out as "E2e Sub".
+    assert.equal(displayTitle('04-rest-API'), 'Rest API');
+    assert.equal(displayTitle('15-e2e-sub'), 'E2e sub');
+  });
+
+  it('leaves an unnumbered name whole and survives an empty remainder', () => {
+    assert.equal(displayTitle('introduction'), 'Introduction');
+    assert.equal(displayTitle('01-'), '');
+  });
+
+  it('agrees with the library copy it was inlined from', () => {
+    // The tree label and the Canvas item title come from two implementations
+    // of the same rule — this one, and displayTitle in
+    // lib/convert/course-scanner.js. A change to either that the other does
+    // not follow shows the author one title in VS Code and pushes another.
+    for (const name of [
+      '01-welcome',
+      '02-getting-started',
+      '03-my_page',
+      '04-rest-API',
+      '15-e2e-sub',
+      '01-über-uns',
+      'introduction',
+      '01-',
+      '',
+    ]) {
+      assert.equal(
+        displayTitle(name),
+        libraryDisplayTitle(name),
+        `the two copies disagree on ${JSON.stringify(name)}`,
+      );
+    }
+  });
+});
+
+describe('helpers: safeReadJSON', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'helpers-json-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  const write = (name, text) => {
+    const file = path.join(tmpDir, name);
+    fs.writeFileSync(file, text, 'utf8');
+    return file;
+  };
+
+  it('parses the file', () => {
+    const file = write('_category_.json', '{"label": "Intro", "position": 1}');
+    assert.deepStrictEqual(safeReadJSON(file), { label: 'Intro', position: 1 });
+  });
+
+  it('falls back on a missing file and on malformed JSON', () => {
+    // Both are ordinary states in a course folder being edited: a module
+    // without a _category_.json, and one saved half-typed. Neither may take
+    // the tree down.
+    assert.deepStrictEqual(safeReadJSON(path.join(tmpDir, 'absent.json')), {});
+    assert.deepStrictEqual(safeReadJSON(write('bad.json', '{oops')), {});
+  });
+
+  it('honours the caller fallback, null included', () => {
+    // The tree passes null and then reads `cat?.label`, so an empty object
+    // would be a label-less category rather than no category at all.
+    assert.equal(safeReadJSON(path.join(tmpDir, 'absent.json'), null), null);
+    assert.deepStrictEqual(safeReadJSON(write('bad.json', '{oops'), { a: 1 }), {
+      a: 1,
+    });
+  });
+});
+
+describe('helpers: readFrontmatter', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'helpers-frontmatter-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  const write = (text) => {
+    const file = path.join(tmpDir, 'page.md');
+    fs.writeFileSync(file, text, 'utf8');
+    return file;
+  };
+
+  it('reads the three fields the tree builds a row from', () => {
+    const file = write(
+      '---\ncanvas_type: external_url\ntitle: Course platform\nexternal_url: https://example.test/x\n---\n\nBody\n',
+    );
+    assert.deepStrictEqual(readFrontmatter(file), {
+      canvasType: 'external_url',
+      title: 'Course platform',
+      externalUrl: 'https://example.test/x',
+    });
+  });
+
+  it('strips the quotes a YAML writer may have added', () => {
+    const file = write(
+      '---\ntitle: "Chapter 1: intro"\nexternal_url: \'https://example.test/x\'\n---\n',
+    );
+    const fm = readFrontmatter(file);
+    assert.equal(fm.title, 'Chapter 1: intro');
+    assert.equal(fm.externalUrl, 'https://example.test/x');
+  });
+
+  it('defaults to a page with no title for a file without frontmatter', () => {
+    assert.deepStrictEqual(readFrontmatter(write('# Just a heading\n')), {
+      canvasType: 'page',
+      title: null,
+      externalUrl: null,
+    });
+  });
+
+  it('reads a body with a horizontal rule as no frontmatter at all', () => {
+    // The guard is the leading `---`. Without it the first rule anywhere in
+    // the body closes a block that never opened, and prose above it that
+    // happens to look like fields becomes the row's Canvas type and title:
+    // this page would render as an assignment called "Fake".
+    const file = write(
+      'A page with a rule in it\n\ncanvas_type: assignment\ntitle: Fake\n\n---\n\nmore\n',
+    );
+    assert.deepStrictEqual(readFrontmatter(file), {
+      canvasType: 'page',
+      title: null,
+      externalUrl: null,
+    });
+  });
+
+  it('defaults when the frontmatter block is never closed', () => {
+    const fm = readFrontmatter(write('---\ncanvas_type: assignment\n'));
+    assert.equal(fm.canvasType, 'page');
+  });
+
+  it('defaults for a file that is not there to read', () => {
+    assert.deepStrictEqual(readFrontmatter(path.join(tmpDir, 'gone.md')), {
+      canvasType: 'page',
+      title: null,
+      externalUrl: null,
+    });
+  });
+
+  it('reads nothing from the body below the closing delimiter', () => {
+    // A line that looks like a field is prose once the block has closed —
+    // reading it would give a page the icon and the Canvas URL of an
+    // assignment.
+    const file = write(
+      '---\ntitle: Real\n---\n\ncanvas_type: assignment\ntitle: Fake\n',
+    );
+    const fm = readFrontmatter(file);
+    assert.equal(fm.canvasType, 'page');
+    assert.equal(fm.title, 'Real');
+  });
+
+  it('keeps the carriage return of a CRLF file out of the values', () => {
+    // A file written on Windows, or pulled through a CRLF-normalising git
+    // checkout, must not leave "page\r" as the canvas type: nothing matches
+    // that against the icon map or the Canvas URL branches.
+    const file = write(
+      '---\r\ncanvas_type: assignment\r\ntitle: Homework\r\n---\r\n',
+    );
+    assert.equal(readFrontmatter(file).canvasType, 'assignment');
+    assert.equal(readFrontmatter(file).title, 'Homework');
+  });
+});
 
 describe('helpers: cliSiblings', () => {
   it('keeps only numeric-prefixed entries, sorted by prefix', () => {
@@ -691,6 +881,144 @@ describe('helpers: seedsDestination', () => {
   });
 });
 
+describe('helpers: getCanvasId and getModuleCanvasId', () => {
+  // The same v4 state the two lookups read, on disk, because both of them
+  // reach for `.canvas-sync.json` themselves: they are what turns a tree row
+  // into a Canvas address, and no markdown file carries an id any more.
+  const state = {
+    schema_version: 4,
+    modules: {
+      '01-intro': {
+        canvas_module_id: 67890,
+        name: 'Intro',
+        items: {
+          '01-intro/01-welcome.md': {
+            canvas_type: 'page',
+            canvas_id: 'welcome',
+          },
+          '01-intro/02-sub/01-deep.md': {
+            canvas_type: 'assignment',
+            canvas_id: 4321,
+          },
+          '01-intro/03-draft.md': { canvas_type: 'page', canvas_id: null },
+        },
+      },
+      '02-planning': {
+        name: 'Planning',
+        items: {
+          '02-planning/01-brief.md': { canvas_type: 'page', canvas_id: 999 },
+        },
+      },
+    },
+  };
+
+  let root;
+
+  beforeEach(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'helpers-state-'));
+    fs.writeFileSync(
+      path.join(root, '.canvas-sync.json'),
+      JSON.stringify(state),
+      'utf8',
+    );
+  });
+
+  afterEach(() => {
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  const inCourse = (...parts) => path.join(root, 'course', ...parts);
+
+  it('returns the id as a string, whichever module row holds it', () => {
+    // A page id is a slug, an assignment id is a number, and the row may sit
+    // under any module: the lookup is by path key, not by module.
+    assert.equal(
+      getCanvasId(root, inCourse('01-intro', '01-welcome.md')),
+      'welcome',
+    );
+    assert.equal(
+      getCanvasId(root, inCourse('02-planning', '01-brief.md')),
+      '999',
+    );
+  });
+
+  it('keys a subsection file with forward slashes', () => {
+    // The state is committed and shared between machines, so its keys are
+    // always forward-slashed; on Windows the native separator would miss.
+    assert.equal(
+      getCanvasId(root, inCourse('01-intro', '02-sub', '01-deep.md')),
+      '4321',
+    );
+  });
+
+  it('returns null for a file the state has no id for', () => {
+    // Not pushed yet (no row) and pushed-but-idless are the same answer: the
+    // caller says "this item has not been pushed to Canvas yet".
+    assert.equal(getCanvasId(root, inCourse('01-intro', '99-new.md')), null);
+    assert.equal(getCanvasId(root, inCourse('01-intro', '03-draft.md')), null);
+  });
+
+  it('returns null outside course/, and for course/ itself', () => {
+    assert.equal(
+      getCanvasId(root, path.join(root, 'sources', 'note.md')),
+      null,
+    );
+    assert.equal(getCanvasId(root, path.join(root, 'course')), null);
+    assert.equal(
+      getCanvasId(root, path.join(root, 'course-extra', '01-intro', 'a.md')),
+      null,
+    );
+  });
+
+  it('returns null without a workspace root', () => {
+    assert.equal(
+      getCanvasId(null, inCourse('01-intro', '01-welcome.md')),
+      null,
+    );
+    assert.equal(getModuleCanvasId(null, '01-intro'), null);
+    assert.equal(getModuleCanvasId(root, null), null);
+  });
+
+  it('reads the module id off the module row', () => {
+    assert.equal(getModuleCanvasId(root, '01-intro'), '67890');
+    // Created locally, never pushed: the row exists, the id does not.
+    assert.equal(getModuleCanvasId(root, '02-planning'), null);
+    assert.equal(getModuleCanvasId(root, '09-unknown'), null);
+  });
+
+  it('reads the state fresh, so a push mid-session is seen', () => {
+    // A cached state would send the author to the wrong object after a pull,
+    // or to none at all for an item that has only just been created.
+    assert.equal(getCanvasId(root, inCourse('01-intro', '99-new.md')), null);
+    const pushed = JSON.parse(JSON.stringify(state));
+    pushed.modules['01-intro'].items['01-intro/99-new.md'] = {
+      canvas_type: 'page',
+      canvas_id: 555,
+    };
+    fs.writeFileSync(
+      path.join(root, '.canvas-sync.json'),
+      JSON.stringify(pushed),
+      'utf8',
+    );
+    assert.equal(getCanvasId(root, inCourse('01-intro', '99-new.md')), '555');
+  });
+
+  it('treats a missing or corrupt state as no ids at all', () => {
+    fs.writeFileSync(path.join(root, '.canvas-sync.json'), '{oops', 'utf8');
+    assert.equal(
+      getCanvasId(root, inCourse('01-intro', '01-welcome.md')),
+      null,
+    );
+    assert.equal(getModuleCanvasId(root, '01-intro'), null);
+    fs.rmSync(path.join(root, '.canvas-sync.json'), { force: true });
+    assert.equal(
+      getCanvasId(root, inCourse('01-intro', '01-welcome.md')),
+      null,
+    );
+    assert.equal(getModuleCanvasId(root, '01-intro'), null);
+  });
+});
+
 describe('helpers: moduleCanvasId', () => {
   // A v4 sync state, trimmed to what the lookup reads: 01-intro has been
   // pushed, 02-planning was created locally and never has.
@@ -758,6 +1086,84 @@ describe('helpers: canvasModuleUrl', () => {
       canvasModuleUrl(base, 12345, null),
       'https://school.instructure.com/courses/12345/modules',
     );
+  });
+});
+
+describe('helpers: readEnvConfig', () => {
+  let root;
+
+  beforeEach(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'helpers-env-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  const writeEnv = (text) => {
+    fs.writeFileSync(path.join(root, '.env'), text, 'utf8');
+    return readEnvConfig(root);
+  };
+
+  it('reads the pairs "Open in Canvas" builds its URL from', () => {
+    const env = writeEnv(
+      'CANVAS_API_URL=https://school.instructure.com/api/v1\nCANVAS_COURSE_ID=45083\n',
+    );
+    assert.equal(env.CANVAS_API_URL, 'https://school.instructure.com/api/v1');
+    assert.equal(env.CANVAS_COURSE_ID, '45083');
+  });
+
+  it('skips comment lines and blank lines, commented-out keys included', () => {
+    // A commented-out key is the shape that matters, and the one a hand-edited
+    // .env grows: last year's credentials kept alongside this year's. Only the
+    // leading `^` of the line pattern tells the two apart, and read as live
+    // configuration a stale id would send "Open in Canvas" to the course the
+    // author had deliberately retired. dotenv skips them too.
+    const env = writeEnv(
+      '# Canvas credentials\n\nCANVAS_COURSE_ID=45083\n# CANVAS_COURSE_ID=99999\n# CANVAS_API_TOKEN=last-years-token\n\n# end\n',
+    );
+    assert.deepStrictEqual(env, { CANVAS_COURSE_ID: '45083' });
+  });
+
+  it('trims the whitespace around a bare value', () => {
+    const env = writeEnv('CANVAS_COURSE_ID =  45083  \n');
+    assert.equal(env.CANVAS_COURSE_ID, '45083');
+  });
+
+  it('splits on the first = only', () => {
+    // A token is base64 and an API URL carries query strings; both hold =.
+    const env = writeEnv('CANVAS_API_TOKEN=abc==def\n');
+    assert.equal(env.CANVAS_API_TOKEN, 'abc==def');
+  });
+
+  it('leaves out a key with nothing after the =', () => {
+    const env = writeEnv('CANVAS_COURSE_ID=\nCANVAS_API_URL=https://x.test\n');
+    assert.ok(!Object.hasOwn(env, 'CANVAS_COURSE_ID'));
+    assert.equal(env.CANVAS_API_URL, 'https://x.test');
+  });
+
+  it('reads no CRLF line at all — a known defect, pinned as it stands', () => {
+    // `.` never matches a carriage return and `$` without the `m` flag does
+    // not match before one, so `KEY=value\r` matches nothing and a .env
+    // written by a Windows editor reads as empty: "Open in Canvas" reports no
+    // Canvas configuration on a workspace that has one. Only a final line
+    // without its CRLF survives. Recorded here rather than repaired, so the
+    // move out of extension.js stays a move; the repair belongs with the
+    // Windows sweep that owns every other CRLF site.
+    const env = writeEnv(
+      'CANVAS_API_URL=https://x.test\r\nCANVAS_COURSE_ID=45083\r\n',
+    );
+    assert.deepStrictEqual(env, {});
+    assert.deepStrictEqual(
+      writeEnv('CANVAS_API_URL=https://x.test\r\nCANVAS_COURSE_ID=45083'),
+      { CANVAS_COURSE_ID: '45083' },
+    );
+  });
+
+  it('returns nothing at all when there is no .env to read', () => {
+    // The state a fresh clone is in until Init runs; the caller shows its own
+    // "no Canvas configuration" warning rather than failing.
+    assert.deepStrictEqual(readEnvConfig(root), {});
   });
 });
 

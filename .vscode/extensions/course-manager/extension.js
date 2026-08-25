@@ -3,18 +3,17 @@ const path = require('path');
 const fs = require('fs');
 const cp = require('child_process');
 const http = require('http');
-const {
-  CourseTreeProvider,
-  getCanvasId,
-  getModuleCanvasId,
-  readFrontmatter,
-  displayTitle,
-} = require('./CourseTreeProvider');
+const { CourseTreeProvider } = require('./CourseTreeProvider');
 const {
   canvasModuleUrl,
   courseLocation,
+  displayTitle,
+  getCanvasId,
+  getModuleCanvasId,
   pickTerminal,
   promoteActive,
+  readEnvConfig,
+  readFrontmatter,
   seedsDestination,
   shellFlavour,
   shellQuote,
@@ -1177,24 +1176,6 @@ function isServerUp(url) {
       resolve(false);
     });
   });
-}
-
-/**
- * Read .env file and return CANVAS_API_URL and CANVAS_COURSE_ID.
- */
-function readEnvConfig(root) {
-  const envPath = path.join(root, '.env');
-  try {
-    const content = fs.readFileSync(envPath, 'utf8');
-    const vars = {};
-    for (const line of content.split('\n')) {
-      const match = line.match(/^(\w+)\s*=\s*(.+)$/);
-      if (match) vars[match[1]] = match[2].trim();
-    }
-    return vars;
-  } catch {
-    return {};
-  }
 }
 
 function deactivate() {}
