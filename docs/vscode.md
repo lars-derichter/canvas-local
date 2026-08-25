@@ -184,9 +184,14 @@ margins.
 
 ## How It Works
 
-- Long-running commands run in a single shared **Canvas Course Builder**
-  terminal so you can follow their output: Setup, Init, Sync, Push, Pull,
-  Status, Validate, and the two dry runs.
+- Long-running commands run in a shared **Canvas Course Builder** terminal so
+  you can follow their output: Setup, Init, Sync, Push, Pull, Status, Validate,
+  and the two dry runs. A terminal that is still running something is never
+  reused — while Sync waits at a conflict question, a second command would be
+  typed straight into that prompt as its answer — so the next command opens
+  **Canvas Course Builder 2**, and so on up to five, before falling back to the
+  most recently used one. Idle terminals are reused, lowest number first, and a
+  closed terminal frees its number.
 - Structural commands (new/rename/move/delete, merge, split) run the CLI
   silently in the background; results appear as notifications and in the
   **Canvas Course Builder** output channel, and the tree refreshes

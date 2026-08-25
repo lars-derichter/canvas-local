@@ -9,6 +9,7 @@ const {
   readFrontmatter,
   displayTitle,
 } = require('./CourseTreeProvider');
+const { pickTerminal, terminalNumber } = require('./helpers');
 
 // Long-running / streaming commands run in a shared terminal. Structural
 // commands (new/rename/move/delete) run silently via runCli and report
@@ -58,23 +59,47 @@ function validateWorkspace() {
 
 // --- Terminal runner (for streaming commands like push/pull) ---
 
-function getSharedTerminal() {
-  let terminal = vscode.window.terminals.find(
-    (t) => t.name === 'Canvas Course Builder',
-  );
-  if (!terminal) {
-    terminal = vscode.window.createTerminal({
-      name: 'Canvas Course Builder',
-      cwd: workspaceRoot,
-    });
-  }
-  return terminal;
+const TERMINAL_BASE_NAME = 'Canvas Course Builder';
+
+// The terminals this extension streams commands into, most recently used
+// last. `busy` means a sendText now would land inside whatever runs there:
+// while `npx course sync` waits at a conflict prompt, a second command line
+// would be read as that prompt's answer. Shell integration events flip the
+// flag precisely; a terminal without them counts as busy from the moment we
+// send into it (`awaitingStart`), and rejoins the pool only when shell
+// integration starts reporting in it mid-run, or by closing. When the sent
+// command finishes before integration ever reports, the terminal stays busy
+// until closed; the pickTerminal cap bounds how many such terminals can
+// accumulate.
+let terminalPool = [];
+
+function terminalPoolEntry(terminal) {
+  return terminalPool.find((entry) => entry.terminal === terminal);
 }
 
 function runInTerminal(commandStr) {
-  const terminal = getSharedTerminal();
-  terminal.show();
-  terminal.sendText(commandStr);
+  const choice = pickTerminal(terminalPool, TERMINAL_BASE_NAME);
+  let entry;
+  if (choice.action === 'reuse') {
+    entry = terminalPool[choice.index];
+    terminalPool.splice(choice.index, 1);
+    terminalPool.push(entry); // most recently used last
+  } else {
+    entry = {
+      terminal: vscode.window.createTerminal({
+        name: choice.name,
+        cwd: workspaceRoot,
+      }),
+      name: choice.name,
+      busy: false,
+      awaitingStart: false,
+    };
+    terminalPool.push(entry);
+  }
+  entry.busy = true;
+  entry.awaitingStart = true;
+  entry.terminal.show();
+  entry.terminal.sendText(commandStr);
 }
 
 // --- Silent CLI runner (for structural commands) ---
@@ -305,6 +330,66 @@ function activate(context) {
     watcher.onDidDelete(debouncedRefresh);
     watcher.onDidChange(debouncedRefresh);
     context.subscriptions.push(watcher);
+  }
+
+  // --- Terminal pool bookkeeping ---
+
+  // Adopt pool-named terminals that survived a window reload, so a fresh
+  // window does not stack a second "Canvas Course Builder" beside the old
+  // one. Their state is unknowable, and unknowable means busy: each rejoins
+  // the pool when shell integration activates in it, when it reports a
+  // command ending, or by closing.
+  for (const terminal of vscode.window.terminals) {
+    if (terminalNumber(terminal.name, TERMINAL_BASE_NAME) !== null) {
+      terminalPool.push({
+        terminal,
+        name: terminal.name,
+        busy: true,
+        awaitingStart: false,
+      });
+    }
+  }
+
+  context.subscriptions.push(
+    vscode.window.onDidCloseTerminal((terminal) => {
+      terminalPool = terminalPool.filter((e) => e.terminal !== terminal);
+    }),
+  );
+
+  // Shell integration is the precise busy signal. Its events need VS Code >=
+  // 1.93 (package.json requires that much), but the typeof checks keep an
+  // older host on the sendText-marks-busy fallback instead of crashing here.
+  if (
+    typeof vscode.window.onDidStartTerminalShellExecution === 'function' &&
+    typeof vscode.window.onDidEndTerminalShellExecution === 'function'
+  ) {
+    context.subscriptions.push(
+      vscode.window.onDidStartTerminalShellExecution((event) => {
+        const entry = terminalPoolEntry(event.terminal);
+        if (entry) {
+          entry.busy = true;
+          entry.awaitingStart = false;
+        }
+      }),
+      vscode.window.onDidEndTerminalShellExecution((event) => {
+        const entry = terminalPoolEntry(event.terminal);
+        if (entry) {
+          entry.busy = false;
+          entry.awaitingStart = false;
+        }
+      }),
+    );
+  }
+  if (typeof vscode.window.onDidChangeTerminalShellIntegration === 'function') {
+    context.subscriptions.push(
+      vscode.window.onDidChangeTerminalShellIntegration((event) => {
+        const entry = terminalPoolEntry(event.terminal);
+        // Integration activates at a shell prompt, so nothing is running
+        // there — unless it is a command we just sent that integration has
+        // not reported started yet.
+        if (entry && !entry.awaitingStart) entry.busy = false;
+      }),
+    );
   }
 
   // --- Terminal-based commands (streaming output) ---

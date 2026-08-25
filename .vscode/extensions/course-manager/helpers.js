@@ -256,6 +256,69 @@ function validateBatchDrop(rows, dest, readDir) {
   return null;
 }
 
+/**
+ * The pool number a terminal name carries: the bare base name is 1, and
+ * "<base> 2" and up are their number. Any other name — another suffix like
+ * ": Preview", a literal "<base> 1" (never issued: 1 is the bare name), a
+ * user's own terminal — is null: not a pool terminal.
+ */
+function terminalNumber(name, baseName) {
+  if (name === baseName) return 1;
+  if (!name.startsWith(`${baseName} `)) return null;
+  const suffix = name.slice(baseName.length + 1);
+  if (!/^\d+$/.test(suffix)) return null;
+  const number = parseInt(suffix, 10);
+  return number >= 2 ? number : null;
+}
+
+/**
+ * Which terminal a streaming command may use, given the pool as
+ * [{ name, busy }] with the most recently used entry last. A busy terminal is
+ * never picked while an alternative exists: sending into one would type the
+ * command line into whatever interactive prompt is open there (a sync
+ * conflict question, the setup wizard, init's questions) as its answer.
+ * Returns { action: 'reuse', index } or { action: 'create', name }.
+ *
+ * Policy: the lowest-numbered idle terminal wins; with no idle terminal a
+ * new one is created under the lowest free number, so a number a closed
+ * terminal freed is filled before the count grows. At `cap` owned terminals
+ * the most recently used one is reused even though it reads busy — a shell
+ * without integration never reports idle, so past the cap every command
+ * would otherwise open one more terminal forever. Typing into a busy
+ * terminal is the bug this function exists to avoid, but unbounded terminal
+ * spawn is the greater harm, and shell integration is on by default in
+ * every VS Code new enough to run this extension, so the trade-off is
+ * rarely reached.
+ */
+function pickTerminal(terminals, baseName, cap = 5) {
+  let idle = -1;
+  for (let i = 0; i < terminals.length; i++) {
+    if (terminals[i].busy) continue;
+    if (
+      idle === -1 ||
+      terminalNumber(terminals[i].name, baseName) <
+        terminalNumber(terminals[idle].name, baseName)
+    ) {
+      idle = i;
+    }
+  }
+  if (idle !== -1) return { action: 'reuse', index: idle };
+
+  if (terminals.length >= cap) {
+    return { action: 'reuse', index: terminals.length - 1 };
+  }
+
+  const used = new Set(
+    terminals.map((entry) => terminalNumber(entry.name, baseName)),
+  );
+  let number = 1;
+  while (used.has(number)) number += 1;
+  return {
+    action: 'create',
+    name: number === 1 ? baseName : `${baseName} ${number}`,
+  };
+}
+
 module.exports = {
   extractPosition,
   cliSiblings,
@@ -267,4 +330,6 @@ module.exports = {
   batchPositions,
   sortByVisualOrder,
   validateBatchDrop,
+  terminalNumber,
+  pickTerminal,
 };

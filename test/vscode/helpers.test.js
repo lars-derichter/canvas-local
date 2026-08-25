@@ -15,6 +15,8 @@ const {
   batchPositions,
   sortByVisualOrder,
   validateBatchDrop,
+  terminalNumber,
+  pickTerminal,
 } = require('../../.vscode/extensions/course-manager/helpers');
 const { reorder } = require('../../cli/renumber');
 const { getItems } = require('../../cli/item-utils');
@@ -500,5 +502,105 @@ describe('helpers: batchPositions drives sequential moveEntry in dragged order',
       '07-b.md',
       '08-c.md',
     ]);
+  });
+});
+
+describe('helpers: terminalNumber', () => {
+  const BASE = 'Canvas Course Builder';
+
+  it('numbers the bare base name 1 and "<base> N" its N', () => {
+    assert.equal(terminalNumber(BASE, BASE), 1);
+    assert.equal(terminalNumber(`${BASE} 2`, BASE), 2);
+    assert.equal(terminalNumber(`${BASE} 10`, BASE), 10);
+  });
+
+  it('rejects "<base> 1", a name the pool never issues', () => {
+    assert.equal(terminalNumber(`${BASE} 1`, BASE), null);
+  });
+
+  it('rejects foreign names: the preview terminal, a user shell, prose', () => {
+    assert.equal(terminalNumber(`${BASE}: Preview`, BASE), null);
+    assert.equal(terminalNumber('zsh', BASE), null);
+    assert.equal(terminalNumber(`${BASE} two`, BASE), null);
+    assert.equal(terminalNumber(`${BASE} 2 extra`, BASE), null);
+  });
+});
+
+describe('helpers: pickTerminal', () => {
+  // The pool is most recently used last; index is into that ordering.
+  const t = (name, busy) => ({ name, busy });
+
+  it('creates the bare-named terminal for an empty pool', () => {
+    assert.deepStrictEqual(pickTerminal([], 'CM'), {
+      action: 'create',
+      name: 'CM',
+    });
+  });
+
+  it('reuses the lowest-numbered idle terminal, not the most recent one', () => {
+    const pool = [t('CM 2', false), t('CM', false)];
+    assert.deepStrictEqual(pickTerminal(pool, 'CM'), {
+      action: 'reuse',
+      index: 1,
+    });
+  });
+
+  it('creates "<base> 2" instead of typing into the busy bare terminal', () => {
+    assert.deepStrictEqual(pickTerminal([t('CM', true)], 'CM'), {
+      action: 'create',
+      name: 'CM 2',
+    });
+  });
+
+  it('fills the lowest number a closed terminal freed', () => {
+    const pool = [t('CM', true), t('CM 3', true)];
+    assert.deepStrictEqual(pickTerminal(pool, 'CM'), {
+      action: 'create',
+      name: 'CM 2',
+    });
+  });
+
+  it('recreates the bare name when only numbered terminals remain', () => {
+    const pool = [t('CM 2', true), t('CM 3', true)];
+    assert.deepStrictEqual(pickTerminal(pool, 'CM'), {
+      action: 'create',
+      name: 'CM',
+    });
+  });
+
+  it('reuses the most recently used terminal at the cap, busy and all', () => {
+    const pool = [
+      t('CM', true),
+      t('CM 2', true),
+      t('CM 4', true),
+      t('CM 5', true),
+      t('CM 3', true),
+    ];
+    assert.deepStrictEqual(pickTerminal(pool, 'CM'), {
+      action: 'reuse',
+      index: 4,
+    });
+  });
+
+  it('still prefers an idle terminal at the cap', () => {
+    const pool = [
+      t('CM', true),
+      t('CM 2', false),
+      t('CM 3', true),
+      t('CM 4', true),
+      t('CM 5', true),
+    ];
+    assert.deepStrictEqual(pickTerminal(pool, 'CM'), {
+      action: 'reuse',
+      index: 1,
+    });
+  });
+
+  it('honours a caller-supplied cap', () => {
+    const pool = [t('CM', true), t('CM 2', true)];
+    assert.deepStrictEqual(pickTerminal(pool, 'CM', 2), {
+      action: 'reuse',
+      index: 1,
+    });
   });
 });

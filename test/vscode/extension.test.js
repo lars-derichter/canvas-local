@@ -477,14 +477,6 @@ describe('VS Code extension: CLI runner', () => {
     assert.match(extensionSource, /cp\.execFile\(/);
   });
 
-  it('reuses a single shared terminal for streaming commands', () => {
-    assert.match(extensionSource, /function getSharedTerminal\(\)/);
-    assert.match(
-      extensionSource,
-      /terminals\.find\(\s*\(t\) => t\.name === 'Canvas Course Builder',?\s*\)/,
-    );
-  });
-
   it('surfaces a warning a successful run wrote to stderr', () => {
     // The silent runner drives every delete and the merge, and it used to
     // append a successful run's stderr to a channel it never reveals. That is
@@ -505,5 +497,94 @@ describe('VS Code extension: CLI runner', () => {
       /'Show Log'/,
       'and offer the channel, because the CLI lists one object per line',
     );
+  });
+});
+
+describe('VS Code extension: terminal pool', () => {
+  // Streaming commands must never type into a terminal that is running
+  // something — while sync waits at a conflict prompt, a second command line
+  // would be read as the answer. The decision itself is pickTerminal
+  // (helpers.test.js); these assertions pin the wiring around it. Whether the
+  // shell integration events actually flip `busy` needs an extension host and
+  // is checked by the manual smoke test.
+
+  it('requires a VS Code with the shell integration events', () => {
+    // onDidStartTerminalShellExecution and friends arrived in 1.93.
+    assert.equal(packageJson.engines.vscode, '^1.93.0');
+  });
+
+  it('chooses the terminal through pickTerminal, never by bare name lookup', () => {
+    assert.match(
+      extensionSource,
+      /pickTerminal\(terminalPool, TERMINAL_BASE_NAME\)/,
+    );
+    assert.ok(
+      !extensionSource.includes('getSharedTerminal'),
+      'the by-name shared-terminal lookup must be gone',
+    );
+  });
+
+  it('marks the terminal busy before showing it and sending the text', () => {
+    const start = extensionSource.indexOf('function runInTerminal(');
+    assert.ok(start !== -1);
+    const handler = extensionSource.slice(start, start + 1200);
+    const busyAt = handler.indexOf('entry.busy = true');
+    const awaitingAt = handler.indexOf('entry.awaitingStart = true');
+    const showAt = handler.indexOf('.show()');
+    const sendAt = handler.indexOf('.sendText(');
+    assert.ok(busyAt !== -1 && awaitingAt !== -1 && showAt !== -1);
+    assert.ok(busyAt < sendAt, 'busy must be set before the text is sent');
+    assert.ok(
+      awaitingAt < sendAt,
+      'the fallback flag must be set before the text is sent',
+    );
+    assert.ok(showAt < sendAt, 'the terminal is shown before the send');
+  });
+
+  it('moves the chosen terminal to the most-recently-used end of the pool', () => {
+    assert.match(extensionSource, /terminalPool\.splice\(choice\.index, 1\)/);
+    assert.match(extensionSource, /terminalPool\.push\(entry\)/);
+  });
+
+  it('flips busy on the shell integration execution events', () => {
+    assert.match(
+      extensionSource,
+      /onDidStartTerminalShellExecution\(\(event\)/,
+    );
+    assert.match(extensionSource, /onDidEndTerminalShellExecution\(\(event\)/);
+    assert.match(
+      extensionSource,
+      /onDidChangeTerminalShellIntegration\(\(event\)/,
+    );
+  });
+
+  it('guards the 1.93 events so an older host degrades instead of crashing', () => {
+    assert.match(
+      extensionSource,
+      /typeof vscode\.window\.onDidStartTerminalShellExecution === 'function'/,
+    );
+    assert.match(
+      extensionSource,
+      /typeof vscode\.window\.onDidChangeTerminalShellIntegration === 'function'/,
+    );
+  });
+
+  it('prunes closed terminals from the pool', () => {
+    assert.match(extensionSource, /onDidCloseTerminal\(\(terminal\)/);
+    assert.match(
+      extensionSource,
+      /terminalPool\.filter\(\(e\) => e\.terminal !== terminal\)/,
+    );
+  });
+
+  it('adopts pool-named terminals from before a window reload as busy', () => {
+    const start = extensionSource.indexOf('Terminal pool bookkeeping');
+    assert.ok(start !== -1);
+    const wiring = extensionSource.slice(start, start + 900);
+    assert.match(
+      wiring,
+      /terminalNumber\(terminal\.name, TERMINAL_BASE_NAME\) !== null/,
+    );
+    assert.match(wiring, /busy: true/);
   });
 });
