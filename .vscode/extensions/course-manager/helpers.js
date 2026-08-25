@@ -506,12 +506,39 @@ function unquote(value) {
 }
 
 /**
+ * One line of a `.env`, as the shapes a hand-edited one takes: an optional
+ * `export`, leading whitespace, a quoted or bare value, and a trailing `#`
+ * comment that the quotes protect. Modelled on dotenv's own `LINE` pattern
+ * (node_modules/dotenv/lib/main.js), narrowed to the shapes this project's
+ * `.env` is written in — see `readEnvConfig` for what is left out and why.
+ *
+ * The `^` is load-bearing: it is the whole of what tells a commented-out
+ * `# CANVAS_COURSE_ID=99999` from a live one. `[^#\r]` rather than `[^#]` for
+ * the bare value keeps a lone-CR file matching nothing, as it always has,
+ * instead of reading the file as one long line.
+ */
+const ENV_LINE =
+  /^\s*(?:export\s+)?(\w+)\s*=\s*('(?:\\'|[^'])*'|"(?:\\"|[^"])*"|[^#\r]*)\s*(?:#.*)?$/;
+
+/**
  * Every `KEY=value` pair in the workspace's `.env`, as a plain object, or an
  * empty one when there is no file to read.
  *
  * The parse is by shape, not by name, so the whole file comes back —
  * CANVAS_API_TOKEN included. `extension.js` reads two of them, CANVAS_API_URL
  * and CANVAS_COURSE_ID, to build the "Open in Canvas" address.
+ *
+ * Hand-rolled rather than `require('dotenv')` deliberately: the extension is
+ * installed into ~/.vscode/extensions with no `node_modules` of its own, and
+ * reaching into the opened workspace's copy would let any folder someone opens
+ * run code in the extension host. So this file stays dependency-free and
+ * tracks dotenv by test instead — helpers.test.js runs a corpus of hand-edited
+ * shapes through both and pins where the two part company. Where it stops
+ * short, for want of any evidence a `.env` here takes those shapes: keys with
+ * dots or hyphens, `KEY: value`, backtick quotes, `\n` escapes inside double
+ * quotes, values spanning lines, a key and its `=` split across lines (dotenv
+ * matches one global `/m` pattern whose `\s*=` crosses the newline, where this
+ * reads a line at a time), and lone-CR (classic Mac) line endings.
  *
  * Quoting a value is ordinary `.env` practice, and `dotenv` — which every CLI
  * command loads this same file with (`cli/index.js`) — takes the quotes off.
@@ -525,12 +552,14 @@ function readEnvConfig(root) {
   try {
     const content = fs.readFileSync(envPath, 'utf8');
     const vars = {};
-    // Split on either ending, and on a file that mixes them: `.` never
-    // matches a carriage return and a non-multiline `$` does not match before
-    // one, so a `\r` left on the line made the whole line match nothing —
-    // reading a CRLF `.env` as no configuration at all.
+    // Split on either ending, and on a file that mixes them. ENV_LINE's
+    // trailing `\s*` would absorb a stray carriage return on a plain line, so
+    // the split looks redundant until a line carries an inline comment: `#.*`
+    // stops dead at the `\r`, the `$` has nothing left to reach, and the line
+    // is dropped whole. Splitting here is what keeps every line of a CRLF
+    // `.env` readable, commented or not.
     for (const line of content.split(/\r?\n/)) {
-      const match = line.match(/^(\w+)\s*=\s*(.+)$/);
+      const match = line.match(ENV_LINE);
       if (match) vars[match[1]] = unquote(match[2].trim());
     }
     return vars;

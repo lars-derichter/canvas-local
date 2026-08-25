@@ -33,6 +33,7 @@ const {
   shellQuote,
   UnquotableValue,
 } = require('../../.vscode/extensions/course-manager/helpers');
+const dotenv = require('dotenv');
 const { reorder } = require('../../cli/renumber');
 const { getItems } = require('../../cli/item-utils');
 const { _moveEntry } = require('../../cli/movetomodule-item');
@@ -1136,9 +1137,9 @@ describe('helpers: readEnvConfig', () => {
     assert.equal(env.CANVAS_API_TOKEN, 'abc==def');
   });
 
-  it('leaves out a key with nothing after the =', () => {
+  it('reads a key with nothing after the = without losing the rest', () => {
     const env = writeEnv('CANVAS_COURSE_ID=\nCANVAS_API_URL=https://x.test\n');
-    assert.ok(!Object.hasOwn(env, 'CANVAS_COURSE_ID'));
+    assert.equal(env.CANVAS_COURSE_ID, '');
     assert.equal(env.CANVAS_API_URL, 'https://x.test');
   });
 
@@ -1255,9 +1256,8 @@ describe('helpers: readEnvConfig takes off surrounding quotes', () => {
     const env = readEnvConfig(root);
     assert.equal(env.KEY, '');
     assert.equal(env.OTHER, 'x');
-    // Without the quotes there is nothing after the = to read, and the key
-    // stays out of the result entirely.
-    assert.equal(value('KEY='), undefined);
+    // Quoted or bare, an emptied-out value reads the same way.
+    assert.equal(value('KEY='), '');
   });
 
   it('keeps a = inside a quoted value', () => {
@@ -1281,6 +1281,253 @@ describe('helpers: readEnvConfig takes off surrounding quotes', () => {
       CANVAS_COURSE_ID: '45083',
     });
   });
+});
+
+describe('helpers: readEnvConfig reads a hand-edited .env', () => {
+  // docs/new-academic-year.md tells the author to open .env and change the
+  // course id by hand, so the shapes a person writes are the shapes that have
+  // to work. Each of these used to drop the line, or keep a comment inside the
+  // value, while every CLI command read the same file through dotenv.
+  let root;
+
+  beforeEach(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'helpers-env-hand-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  const value = (line) => {
+    fs.writeFileSync(path.join(root, '.env'), `${line}\n`, 'utf8');
+    return readEnvConfig(root).K;
+  };
+
+  it('drops an inline comment after a bare value', () => {
+    assert.equal(value('K=45083 # last year was 44012'), '45083');
+    // No space needed before the #, the way dotenv reads it.
+    assert.equal(value('K=45083# terse'), '45083');
+  });
+
+  it('drops an inline comment after a quoted value', () => {
+    // The likelier of the two: quoting a URL is what invites a trailing note.
+    assert.equal(value('K="https://x.test" # sandbox'), 'https://x.test');
+    assert.equal(value("K='45083' # sandbox"), '45083');
+  });
+
+  it('keeps a # that the quotes protect', () => {
+    assert.equal(value('K="https://x.test/#anchor"'), 'https://x.test/#anchor');
+    // Unquoted, the fragment is a comment — to dotenv as well, so the CLI and
+    // the extension are wrong about this one together rather than separately.
+    assert.equal(value('K=https://x.test/#anchor'), 'https://x.test/');
+  });
+
+  it('reads a line the author left an export on', () => {
+    assert.equal(value('export K=45083'), '45083');
+    assert.equal(value('export K="https://x.test"'), 'https://x.test');
+  });
+
+  it('reads a line the author indented', () => {
+    assert.equal(value('  K=45083'), '45083');
+    assert.equal(value('\tK=45083'), '45083');
+  });
+
+  it('reads an emptied-out value as empty rather than dropping the key', () => {
+    // Clearing the value is how an author parks a setting. Dropping the key
+    // said "no configuration at all", which is a different thing.
+    fs.writeFileSync(path.join(root, '.env'), 'K=\nOTHER=x\n', 'utf8');
+    const env = readEnvConfig(root);
+    assert.equal(env.K, '');
+    assert.equal(env.OTHER, 'x');
+    assert.equal(value('K= # nothing yet'), '');
+  });
+
+  it('still tells a commented-out key from a live one', () => {
+    fs.writeFileSync(path.join(root, '.env'), '  # K=99999\nK=45083\n', 'utf8');
+    assert.deepStrictEqual(readEnvConfig(root), { K: '45083' });
+  });
+
+  it('reads a whole hand-edited file', () => {
+    fs.writeFileSync(
+      path.join(root, '.env'),
+      '# Canvas credentials\nCANVAS_API_URL="https://x.test"  # sandbox\nexport CANVAS_API_TOKEN=abc  \n  CANVAS_COURSE_ID=45083\n# CANVAS_COURSE_ID=99999\n',
+      'utf8',
+    );
+    assert.deepStrictEqual(readEnvConfig(root), {
+      CANVAS_API_URL: 'https://x.test',
+      CANVAS_API_TOKEN: 'abc',
+      CANVAS_COURSE_ID: '45083',
+    });
+  });
+});
+
+describe('helpers: readEnvConfig agrees with dotenv', () => {
+  // The CLI loads this same file through dotenv (cli/index.js), so any shape
+  // the two read differently is a file the author has configured for one half
+  // of the tool and not the other. readEnvConfig cannot call dotenv — the
+  // installed extension has no node_modules — so agreement is held by this
+  // corpus instead. A dotenv upgrade that moves either list shows up here.
+  let root;
+
+  beforeEach(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'helpers-env-dotenv-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  const read = (content) => {
+    fs.writeFileSync(path.join(root, '.env'), content, 'utf8');
+    return readEnvConfig(root);
+  };
+
+  const AGREED = [
+    ['plain', 'CANVAS_API_URL=https://school.instructure.com/api/v1'],
+    ['double quoted', 'CANVAS_API_URL="https://school.instructure.com/api/v1"'],
+    ['single quoted', "CANVAS_COURSE_ID='45083'"],
+    ['inline comment, bare', 'K=45083 # my course'],
+    ['inline comment, quoted', 'K="https://x.test" # prod'],
+    ['inline comment, no space', 'K=45083# terse'],
+    ['comment only after =', 'K= # nothing yet'],
+    ['export', 'export K=value'],
+    ['export quoted', 'export K="value"'],
+    ['leading whitespace', '   K=value'],
+    ['leading tab', '\tK=value'],
+    ['empty value', 'K='],
+    ['empty quoted value', 'K=""'],
+    ['quoted whitespace', 'K="  spaced  "'],
+    ['loose spacing', 'K =  45083  '],
+    ['comment line', '# comment'],
+    ['commented-out key', '# CANVAS_COURSE_ID=99999'],
+    ['commented-out key, indented', '  # CANVAS_COURSE_ID=99999'],
+    ['blank line', ''],
+    ['mismatched quotes', 'K="45083\''],
+    ['open quote', 'K="45083'],
+    ['close quote', 'K=45083"'],
+    ['bare quote', 'K="'],
+    ['internal quote', 'K=pa"ss'],
+    ['nested quotes', 'K="say "hi""'],
+    ['equals in value', 'K=abc==def'],
+    ['equals in quoted value', 'K="abc==def"'],
+    ['url fragment, quoted', 'K="https://x.test/#anchor"'],
+    // A # inside single quotes, with and without a comment after the closing
+    // quote: the single-quote branch of the pattern is the only thing that
+    // keeps the # out of the comment, and the `\s*` before the comment is the
+    // only thing that lets a comment follow a quoted value at all.
+    ['single-quoted #', "K='a#b'"],
+    ['single-quoted # with a comment after it', "K='a#b' # c"],
+    // An escaped quote inside double quotes, which the `\\"` alternative of
+    // the double-quote branch is there for. dotenv leaves the backslash in
+    // place as well: only \n and \r are expanded.
+    ['escaped quote inside double quotes', 'K="a\\" # b"'],
+    ['underscore key', '_K=1'],
+    ['digit in key', 'K2=1'],
+    ['file, LF', 'A=1\nB=2\n'],
+    ['file, CRLF', 'A=1\r\nB=2\r\n'],
+    // CRLF and an inline comment together, which no other row combines. The
+    // pattern's trailing `\s*` swallows a stray \r on a plain line, so this is
+    // the shape — and the only shape here — that the CRLF split is still
+    // load-bearing for: `#.*` stops at the \r and the line is dropped whole.
+    ['file, CRLF with inline comment', 'A=1 # note\r\nB=2\r\n'],
+    ['file, mixed', '# creds\r\nA=1\nB=2\r\n\r\nC=3'],
+    [
+      'file, hand-edited',
+      '# Canvas credentials\nCANVAS_API_URL="https://x.test"  # sandbox\nexport CANVAS_API_TOKEN=abc  \n  CANVAS_COURSE_ID=45083\n# CANVAS_COURSE_ID=99999\n',
+    ],
+  ];
+
+  // Shapes left to dotenv alone, each because nothing writes it here: this
+  // project's keys are the three CANVAS_* names that `npx course init` writes.
+  // Listed rather than ignored, so a later reader sees the edge was considered
+  // and an implementation that closes one of them fails this test on purpose.
+  //
+  // Both sides are spelled out. Asserting only that the two differ would pass
+  // for any difference at all, including one where the reader has started
+  // reading a shape it is documented not to read — `[^#\r]*` widened to
+  // `[^#]*` leaves the lone-CR file parsing as {A: '1\rB=2'}, a malformed line
+  // read as live configuration, and "they still differ" calls that fine.
+  const DIVERGES = [
+    {
+      name: 'dotted key',
+      input: 'K.WITH.DOTS=1',
+      ours: {},
+      theirs: { 'K.WITH.DOTS': '1' },
+    },
+    {
+      name: 'hyphenated key',
+      input: 'K-WITH-DASH=1',
+      ours: {},
+      theirs: { 'K-WITH-DASH': '1' },
+    },
+    {
+      name: 'colon separator',
+      input: 'K: value',
+      ours: {},
+      theirs: { K: 'value' },
+    },
+    {
+      name: 'backtick quotes',
+      input: 'K=`value`',
+      ours: { K: '`value`' },
+      theirs: { K: 'value' },
+    },
+    {
+      name: 'escape inside double quotes',
+      input: 'K="line1\\nline2"',
+      ours: { K: 'line1\\nline2' },
+      theirs: { K: 'line1\nline2' },
+    },
+    {
+      name: 'value spanning lines',
+      input: 'K="line1\nline2"\n',
+      ours: { K: '"line1' },
+      theirs: { K: 'line1\nline2' },
+    },
+    {
+      // dotenv replaces /\r\n?/mg with \n before it matches anything, so it
+      // reads both pairs. Normalising that wide here would turn one malformed
+      // line into configuration, so the file goes on reading as nothing.
+      name: 'lone CR endings',
+      input: 'A=1\rB=2\r',
+      ours: {},
+      theirs: { A: '1', B: '2' },
+    },
+    {
+      // dotenv matches one global /m pattern whose `\s*=` crosses the newline;
+      // this reads a line at a time. Unreachable in a file anyone hand-edits.
+      name: 'key and = on separate lines',
+      input: 'A\n=v',
+      ours: {},
+      theirs: { A: 'v' },
+    },
+  ];
+
+  for (const [name, content] of AGREED) {
+    it(`agrees on ${name}`, () => {
+      assert.deepStrictEqual(read(content), dotenv.parse(content));
+    });
+  }
+
+  for (const { name, input, ours, theirs } of DIVERGES) {
+    it(`knowingly differs on ${name}`, () => {
+      assert.deepStrictEqual(
+        read(input),
+        ours,
+        `readEnvConfig has moved on this shape. If it now reads it the way dotenv does, move the row to AGREED; if it reads it some third way, that is a bug.`,
+      );
+      assert.deepStrictEqual(
+        dotenv.parse(input),
+        theirs,
+        `dotenv has moved on this shape, which takes a deliberate version bump (package-lock.json pins it and CI runs npm ci). Re-derive the rules from node_modules/dotenv/lib/main.js, then move the row to AGREED if the two now agree.`,
+      );
+      assert.notDeepStrictEqual(
+        ours,
+        theirs,
+        `this row claims a divergence but spells the same result on both sides — it belongs in AGREED`,
+      );
+    });
+  }
 });
 
 describe('helpers: terminalNumber', () => {
