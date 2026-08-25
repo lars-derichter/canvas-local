@@ -428,6 +428,260 @@ function pickTerminal(terminals, baseName, cap = 5) {
   };
 }
 
+// The shell names whose quoting rules this module knows, by flavour. A shell
+// is only quoted for by name: guessing from the family a name looks like is
+// what let csh and fish through the first version of this code, both of which
+// break POSIX single-quoting in ways that corrupt a value silently.
+const SHELL_NAMES = {
+  cmd: ['cmd'],
+  powershell: ['powershell', 'pwsh'],
+  csh: ['csh', 'tcsh'],
+  fish: ['fish'],
+  posix: [
+    'sh',
+    'bash',
+    'zsh',
+    'dash',
+    'ash',
+    'ksh',
+    'ksh93',
+    'mksh',
+    'pdksh',
+    'busybox',
+    'wsl',
+  ],
+};
+
+/**
+ * The bare executable name inside what VS Code reports as the shell, lowercased
+ * and without its `.exe`. The reported value is usually a plain path, but it
+ * can arrive quoted, with a trailing space, or with arguments appended
+ * (`pwsh.exe -NoLogo`), and a name that fails to parse falls through to the
+ * platform guess — on Windows, the unsafe direction. So: trim, unwrap a quoted
+ * path, and end an unquoted Windows path at its `.exe` rather than at the first
+ * space, because `C:\Program Files\...` has spaces inside the path itself.
+ *
+ * Shapes this deliberately does not chase, because every one of them is
+ * pathological and none is a shell VS Code would report: a POSIX path that both
+ * contains a space and carries arguments (`/opt/my shell/fish -l`), a directory
+ * called something.exe (`C:\my.exe dir\cmd.exe`), and a doubled suffix
+ * (`bash.exe.exe`). Each resolves to a name no list matches, which lands on the
+ * platform guess.
+ */
+function shellExecutable(shellPath) {
+  let text = String(shellPath || '').trim();
+  if (!text) return '';
+  if (text[0] === '"' || text[0] === "'") {
+    const close = text.indexOf(text[0], 1);
+    text = close === -1 ? text.slice(1) : text.slice(1, close);
+  } else {
+    const exe = text.match(/^(.*?\.exe)(?=\s|$)/i);
+    text = exe ? exe[1] : text.split(/\s/)[0];
+    // A stray trailing quote would otherwise defeat the .exe suffix strip and
+    // send a cmd.exe to the platform guess, which is the unsafe direction.
+    text = text.replace(/["']+$/, '');
+  }
+  return text
+    .split(/[\\/]/)
+    .pop()
+    .toLowerCase()
+    .replace(/\.exe$/, '');
+}
+
+/**
+ * Which quoting rules a command line typed into the terminal needs.
+ *
+ * `shellPath` is what VS Code reports as the shell it will start
+ * (`vscode.env.shell`), and a name this module knows always decides on its own:
+ * a terminal opened without an explicit `shellPath` runs that shell, and on
+ * Windows the answer is genuinely one of several (PowerShell, cmd, or a POSIX
+ * shell on a win32 platform — Git Bash, WSL), so the platform must never
+ * overrule a known name. Windows paths are compared case-insensitively, with
+ * either separator.
+ *
+ * `platform` decides for a name no list matches, and for no name at all (in
+ * practice never: `vscode.env.shell` is a non-optional string in the API).
+ * win32 then means PowerShell, VS Code's default terminal profile there;
+ * anywhere else, POSIX. This is a guess in both directions, and it is the
+ * likeliest shell rather than the safest one — there is no safe fallback, since
+ * every flavour's quoting is an injection somewhere else (cmd's caret form
+ * leaves `$(…)` live inside the double quotes a POSIX shell would see).
+ *
+ * @param {string|undefined} shellPath
+ * @param {string} platform - A `process.platform` value.
+ * @returns {'posix'|'powershell'|'cmd'|'csh'|'fish'}
+ */
+function shellFlavour(shellPath, platform) {
+  const name = shellExecutable(shellPath);
+  for (const [flavour, names] of Object.entries(SHELL_NAMES)) {
+    if (names.includes(name)) return flavour;
+  }
+  return platform === 'win32' ? 'powershell' : 'posix';
+}
+
+/**
+ * A value no quoting rule for this shell can carry. Thrown rather than
+ * returned, because the caller must not send anything at all: the whole point
+ * is that there is no string that would mean this value there.
+ */
+class UnquotableValue extends Error {
+  constructor(value, flavour, character) {
+    const shown = value.length > 60 ? `${value.slice(0, 60)}…` : value;
+    const problem =
+      character === '\0'
+        ? 'a null byte, which cannot be part of any command-line argument'
+        : `a line break, which ${flavour} would run as a second command`;
+    super(`${JSON.stringify(shown)} contains ${problem}`);
+    this.name = 'UnquotableValue';
+    this.value = value;
+    this.flavour = flavour;
+  }
+}
+
+// What each flavour cannot represent at all. A NUL is impossible everywhere: it
+// terminates a C string, so no argument can contain one. A line break is
+// carried only where that is verified, and refused everywhere else, because
+// where it is not carried it is an injection and not a lost value: csh reports
+// "Unmatched '" and then runs the second line as a fresh command (verified in
+// csh and tcsh, `-c` and interactive), and cmd would do the same. PowerShell is
+// unverifiable here and shares cmd's failure mode, so it is refused too; on
+// Windows the case cannot arise anyway, because Win32 forbids control
+// characters in filenames.
+//
+// The weak entry in this table is fish. POSIX carrying a newline was measured
+// end to end — typed into a real interactive bash and zsh on a pty, argv read
+// back from the child — but fish was only ever reachable non-interactively
+// here (the one binary available segfaults under a pty), so "fish's reader
+// continues an open quote across a newline" is reasoned from its documented
+// grammar, not observed. If that reasoning is wrong, fish is an injection like
+// csh rather than corruption like a folded CR. Anyone who gets an interactive
+// fish should check that case first.
+const UNREPRESENTABLE = {
+  posix: /\0/,
+  fish: /\0/,
+  csh: /[\0\r\n]/,
+  cmd: /[\0\r\n]/,
+  powershell: /[\0\r\n]/,
+};
+
+/**
+ * `value` as one argument of a command line for a `shellFlavour` shell.
+ *
+ * Throws `UnquotableValue` for a value the flavour cannot represent (see
+ * `UNREPRESENTABLE`), and a plain Error for a flavour it does not know. Both
+ * are refusals, not fallbacks: quoting for the wrong shell is the injection
+ * this module exists to prevent, so there is nothing safe to return.
+ *
+ * What each flavour guarantees, and what it cannot:
+ *
+ * **posix** (sh, bash, zsh, dash, ksh, WSL, Git Bash) — single quotes, with the
+ * `'\''` idiom for an embedded quote. Everything else is literal inside them:
+ * `$`, a backtick, `!` (history expansion does not run inside quotes in these
+ * shells), `\`, glob characters, whitespace and the control operators `;`,
+ * `&&`, `|`. A newline survives too: the open quote continues onto the next
+ * line, and the value arrives with the newline in it — measured by typing one
+ * into a real interactive bash and zsh on a pty, which is what `sendText`
+ * does, and checking the argv the child received. That is the shell grammar;
+ * the delivery channel is narrower, because a pty is not a pipe — a TAB
+ * triggers completion, ESC/DEL/VT/FF/NUL are swallowed and a CR arrives as LF,
+ * none of which quoting can restore. Verified by round-tripping the hostile
+ * corpus through real sh, bash, zsh, dash and ksh.
+ *
+ * **csh** (csh, tcsh) — the POSIX idiom plus `!` written as `\!` *inside* the
+ * quotes, because csh runs history expansion before it parses quotes, so single
+ * quotes do not protect a `!` there. `\!` is the form csh accepts inside single
+ * quotes, and it drops that backslash, so the value arrives intact. Verified
+ * against real csh and tcsh: over this module's 28-value hostile corpus the
+ * plain POSIX rule fails 4 under `tcsh -c` — loudly on `wow!!`, `!important`
+ * and `a!b` ("Event not found", the line never runs) and silently on `a\!b`,
+ * which arrives as `a!b`. Typed into an interactive tcsh it fails more, and
+ * worse: `!$` is silently replaced by the previous command's last argument
+ * (measured — the value came back as `seeded-argument`). The csh rule passes
+ * all 28 in both. Same pty caveat as POSIX, and measured there too: a TAB in
+ * the value is eaten by completion before the shell ever parses the line. A
+ * newline is refused, not quoted; see `UNREPRESENTABLE`.
+ *
+ * **fish** — single quotes, but fish's single quotes are not POSIX single
+ * quotes: `\\` and `\'` are escapes inside them and nothing else is. So a
+ * backslash has to be doubled and a quote written `\'`. fish has no history
+ * expansion, so `!` needs nothing. Verified against real fish 4.8.1: all 28
+ * hostile values round-trip, and the POSIX rule breaks 2 of them there — a
+ * hard parse error on `C:\dir\`, whose trailing backslash escapes fish's
+ * closing quote, and silent corruption of `a\\b` into `a\b`. A newline is
+ * carried correctly (verified under `-c`; fish would not start interactively
+ * in this sandbox, so that path is untested).
+ *
+ * **powershell** — single quotes, doubling an embedded quote. PowerShell does
+ * no interpolation inside them. The token is then parsed a *second* time before
+ * it reaches node, so that is the parse this rule is really chosen for. Under
+ * PowerShell `npx` resolves to npm's `npx.ps1` shim, not to `npx.cmd` (the
+ * everyday "npx.ps1 cannot be loaded because running scripts is disabled" error
+ * is that shim), and the branch it takes for a command typed at a prompt
+ * re-parses the original line with
+ * `[Management.Automation.Language.Parser]::ParseInput`, takes each argument's
+ * `Extent.Text` — the token's own source text, quotes included — joins them
+ * with spaces and runs `Invoke-Expression "& \`"$NODE_EXE\`" \`"$NPX_CLI_JS\`"
+ * $NPX_ARGS"`. A single-quoted token re-parses to itself; a double-quoted one
+ * would survive PowerShell's first parse and then interpolate `$…` on the
+ * second. Read from the `npx.ps1` npm ships, and modelled in the tests, but not
+ * executed: there is no Windows in this repo's toolchain.
+ *
+ * **cmd** — two layers, because cmd hands the raw line to the program and the
+ * program parses it again:
+ *   1. The program's layer, the MSVC CRT rules — `node.exe` has a `wmain`, so
+ *      its argv comes from the CRT's own parser, not from
+ *      `CommandLineToArgvW`. The two agree everywhere except on the rule this
+ *      depends on: for `""` inside a quoted region the CRT emits one quote and
+ *      stays in the region, while `CommandLineToArgvW` needs three consecutive
+ *      quotes for that. A program that took its argv from
+ *      `CommandLineToArgvW` would therefore split several of these values.
+ *      Wrap in `"`, write an embedded `"` as `""`, and double a backslash run
+ *      that sits immediately before a quote. `""` rather than the more familiar
+ *      `\"` because `npx.cmd` forwards `%*` on to `node` and cmd re-parses that
+ *      line: cmd does not know about backslash escapes, so `\"` would close the
+ *      quoted section early and leave a following `&` live, while a doubled
+ *      quote keeps cmd's quote parity balanced and still reads as one literal
+ *      quote to the CRT. A `"` in the value therefore survives both hops.
+ *   2. cmd's own layer: prefix every one of `( ) % ! ^ " < > & |` with `^`,
+ *      the quotes from step 1 included, so cmd never enters a quoted section at
+ *      all. This is the only way to cover `%`: cmd expands `%VAR%` inside
+ *      double quotes, but percent expansion runs before caret removal, so
+ *      `^%VAR^%` looks up a variable named `VAR^`, misses, and survives as the
+ *      literal text.
+ * A newline is refused rather than quoted, for the reason given on
+ * `UNREPRESENTABLE`. What remains uncovered is `!` under `cmd /v:on`, where
+ * delayed expansion re-reads it inside quotes; that stays unreachable in
+ * practice, since Win32 forbids control characters in filenames and nothing
+ * here enables delayed expansion. The cmd rules are modelled against the
+ * documented parsers, not executed: there is no Windows in this toolchain.
+ *
+ * @param {string} value
+ * @param {'posix'|'powershell'|'cmd'|'csh'|'fish'} flavour
+ * @throws {UnquotableValue} when the flavour cannot represent the value.
+ */
+function shellQuote(value, flavour) {
+  const text = String(value);
+  const unrepresentable = UNREPRESENTABLE[flavour];
+  if (!unrepresentable) {
+    throw new Error(
+      `shellQuote: unknown shell flavour ${JSON.stringify(flavour)}`,
+    );
+  }
+  const found = text.match(unrepresentable);
+  if (found) throw new UnquotableValue(text, flavour, found[0]);
+
+  if (flavour === 'powershell') return `'${text.replace(/'/g, "''")}'`;
+  if (flavour === 'fish') return `'${text.replace(/[\\']/g, '\\$&')}'`;
+  if (flavour === 'csh') {
+    return `'${text.replace(/'/g, "'\\''").replace(/!/g, '\\!')}'`;
+  }
+  if (flavour === 'cmd') {
+    const quoted = `"${text.replace(/(\\*)"/g, '$1$1""').replace(/(\\+)$/, '$1$1')}"`;
+    return quoted.replace(/[()%!^"<>&|]/g, '^$&');
+  }
+  return `'${text.replace(/'/g, "'\\''")}'`;
+}
+
 module.exports = {
   extractPosition,
   cliSiblings,
@@ -446,4 +700,7 @@ module.exports = {
   canvasModuleUrl,
   terminalNumber,
   pickTerminal,
+  shellFlavour,
+  shellQuote,
+  UnquotableValue,
 };

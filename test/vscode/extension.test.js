@@ -478,10 +478,13 @@ describe('VS Code extension: export commands', () => {
   });
 
   it('streams export output through the shared terminal', () => {
-    assert.match(extensionSource, /runInTerminal\(`npx course export /);
     assert.match(
       extensionSource,
-      /npx course export --module \$\{folder\} --format/,
+      /runInTerminal\(\s*\(q\) => `npx course export /,
+    );
+    assert.match(
+      extensionSource,
+      /npx course export --module \$\{q\(folder\)\} --format/,
     );
   });
 
@@ -629,7 +632,7 @@ describe('VS Code extension: pushModule command', () => {
   });
 
   it('pushModule builds the correct CLI command with --module flag', () => {
-    assert.match(extensionSource, /npx course push --module \$\{picked\}/);
+    assert.match(extensionSource, /npx course push --module \$\{q\(picked\)\}/);
   });
 });
 
@@ -856,7 +859,7 @@ describe('VS Code extension: search command', () => {
     assert.ok(start !== -1);
     const handler = extensionSource.slice(start, start + 600);
     assert.match(handler, /showInputBox/);
-    assert.match(handler, /npx course search "/);
+    assert.match(handler, /npx course search \$\{q\(keyword\.trim\(\)\)\}/);
   });
 });
 
@@ -1166,6 +1169,8 @@ describe('VS Code extension: terminal pool', () => {
   });
 
   it('chooses the terminal through pickTerminal, never by bare name lookup', () => {
+    // The whole pool, unfiltered: the line is quoted for whichever terminal
+    // comes back, so none of them has to be held out of the running.
     assert.match(
       extensionSource,
       /pickTerminal\(terminalPool, TERMINAL_BASE_NAME\)/,
@@ -1179,7 +1184,12 @@ describe('VS Code extension: terminal pool', () => {
   it('marks the terminal busy before showing it and sending the text', () => {
     const start = extensionSource.indexOf('function runInTerminal(');
     assert.ok(start !== -1);
-    const handler = extensionSource.slice(start, start + 1200);
+    // The whole function, not a fixed window: it grows, and a window that ran
+    // out before the send turned this into a test of nothing.
+    const handler = extensionSource.slice(
+      start,
+      extensionSource.indexOf('\n}\n', start),
+    );
     const busyAt = handler.indexOf('entry.busy = true');
     const awaitingAt = handler.indexOf('entry.awaitingStart = true');
     const showAt = handler.indexOf('.show()');
@@ -1238,5 +1248,498 @@ describe('VS Code extension: terminal pool', () => {
       /terminalNumber\(terminal\.name, TERMINAL_BASE_NAME\) !== null/,
     );
     assert.match(wiring, /busy: true/);
+  });
+});
+
+// --- Terminal argument quoting -------------------------------------------
+//
+// Every value interpolated into a terminal command line has to be quoted for
+// the shell that will run it: a search term is whatever the author typed, and a
+// folder name is whatever the author (or a Canvas pull) created — `01-intro;
+// rm -rf ~` is a legal directory name. The quoting rules are shellQuote and
+// shellFlavour in helpers.js, tested there. Here: that no call site can slip a
+// value past them, and that runInTerminal really quotes for the terminal it
+// picks.
+
+const {
+  pickTerminal,
+  shellFlavour,
+  shellQuote,
+} = require('../../.vscode/extensions/course-manager/helpers');
+
+/**
+ * The source with comments removed. Scanning the raw text would match command
+ * lines written in doc comments, which look exactly like the real thing.
+ */
+function stripComments(source) {
+  let out = '';
+  let i = 0;
+  while (i < source.length) {
+    const c = source[i];
+    if (c === '/' && source[i + 1] === '/') {
+      while (i < source.length && source[i] !== '\n') i++;
+      continue;
+    }
+    if (c === '/' && source[i + 1] === '*') {
+      const end = source.indexOf('*/', i + 2);
+      i = end === -1 ? source.length : end + 2;
+      continue;
+    }
+    if (c === "'" || c === '"' || c === '`') {
+      out += c;
+      i++;
+      while (i < source.length) {
+        if (source[i] === '\\') {
+          out += source.slice(i, i + 2);
+          i += 2;
+          continue;
+        }
+        out += source[i];
+        if (source[i] === c) {
+          i++;
+          break;
+        }
+        i++;
+      }
+      continue;
+    }
+    out += c;
+    i++;
+  }
+  return out;
+}
+
+/** The argument text of every `callee(...)` call, parens and quotes balanced. */
+function callArguments(source, callee) {
+  const args = [];
+  const needle = `${callee}(`;
+  let at = source.indexOf(needle);
+  while (at !== -1) {
+    if (source.slice(Math.max(0, at - 9), at) === 'function ') {
+      at = source.indexOf(needle, at + needle.length);
+      continue;
+    }
+    let i = at + needle.length;
+    const start = i;
+    let depth = 1;
+    while (i < source.length && depth > 0) {
+      const c = source[i];
+      if (c === '(') depth++;
+      else if (c === ')') depth--;
+      else if (c === '`' || c === "'" || c === '"') {
+        i++;
+        while (i < source.length && source[i] !== c) {
+          if (source[i] === '\\') i++;
+          i++;
+        }
+      }
+      i++;
+    }
+    args.push(
+      source
+        .slice(start, i - 1)
+        .replace(/,\s*$/, '')
+        .trim(),
+    );
+    at = source.indexOf(needle, i);
+  }
+  return args;
+}
+
+/** Every `${...}` of a template literal's body, braces balanced. */
+function interpolationsOf(template) {
+  const found = [];
+  for (let i = 0; i < template.length - 1; i++) {
+    if (template[i] !== '$' || template[i + 1] !== '{') continue;
+    let depth = 1;
+    let j = i + 2;
+    const start = j;
+    while (j < template.length && depth > 0) {
+      if (template[j] === '{') depth++;
+      else if (template[j] === '}') depth--;
+      j++;
+    }
+    found.push({
+      expression: template.slice(start, j - 1),
+      // What sits against the hole on either side. A quote there is a second,
+      // hand-written layer of quoting around an already quoted value.
+      before: template[i - 1] ?? '',
+      after: template[j] ?? '',
+    });
+    i = j - 1;
+  }
+  return found;
+}
+
+/** Is the expression exactly one `q(...)` call, and nothing wrapped around it? */
+function isQuoteCall(expression) {
+  if (!expression.startsWith('q(')) return false;
+  let depth = 0;
+  for (let i = 1; i < expression.length; i++) {
+    const c = expression[i];
+    if (c === "'" || c === '"' || c === '`') {
+      i++;
+      while (i < expression.length && expression[i] !== c) {
+        if (expression[i] === '\\') i++;
+        i++;
+      }
+      continue;
+    }
+    if (c === '(') depth++;
+    else if (c === ')') {
+      depth--;
+      if (depth === 0) return i === expression.length - 1;
+    }
+  }
+  return false;
+}
+
+describe('VS Code extension: terminal argument quoting', () => {
+  const code = stripComments(extensionSource);
+
+  // Names that may appear unquoted, each with the assignment that proves it
+  // carries a literal this file wrote. The name proves nothing on its own: a
+  // future `format = await showInputBox(...)` has to fail here.
+  const provenLiterals = {
+    format: /^(?:const |let |var )?format = await pickFormat\(\);$/,
+    flag: /^(?:const |let |var )?flag = scope\.scope === 'flagged' \? ' --flagged' : '';$/,
+  };
+
+  const builders = callArguments(code, 'runInTerminal');
+  const templates = builders.flatMap((argument) => {
+    const body = argument.replace(/^\((?:q)?\)\s*=>\s*/, '');
+    return body.startsWith('`') ? [body.slice(1, -1)] : [];
+  });
+  const interpolations = templates.flatMap(interpolationsOf);
+
+  it('strips comments without eating the code it has to scan', () => {
+    assert.ok(code.includes('function runInTerminal(build) {'));
+    assert.ok(
+      !code.includes('rm -rf ~'),
+      'the doc comment that names a hostile folder should be gone',
+    );
+    assert.ok(code.includes("'npx course setup'"), 'strings must survive');
+  });
+
+  it('finds the command lines it is meant to be checking', () => {
+    assert.ok(
+      builders.length >= 8,
+      `found ${builders.length} runInTerminal calls`,
+    );
+    assert.ok(
+      interpolations.length >= 6,
+      `expected several interpolations, found ${interpolations.length}`,
+    );
+  });
+
+  it('lets only a builder reach runInTerminal, never a built string', () => {
+    // The shape is `(q) => \`…\`` or `() => name`. A concatenation —
+    // `'npx course push --module ' + moduleName` — cannot match, which is the
+    // point: it would carry an unquoted value past every other check here.
+    for (const argument of builders) {
+      assert.match(
+        argument,
+        /^\((?:q)?\) =>\s*(`[\s\S]*`|[A-Za-z_$][\w$]*)$/,
+        `runInTerminal argument is not a template builder: ${argument}`,
+      );
+    }
+  });
+
+  it('quotes every interpolated value that is not a proven literal', () => {
+    for (const { expression } of interpolations) {
+      if (Object.hasOwn(provenLiterals, expression)) continue;
+      // The one multi-value form: every path quoted, then joined.
+      if (/^[A-Za-z_$][\w$]*\.map\(q\)\.join\(' '\)$/.test(expression))
+        continue;
+      assert.ok(
+        isQuoteCall(expression),
+        `${expression} reaches a terminal without being exactly one q() call`,
+      );
+    }
+  });
+
+  it('writes no quotes of its own around an already quoted value', () => {
+    // `"${q(path)}"` passes every other check here and is an injection under
+    // cmd: q() emits `^"…^"`, whose caret-escaped quotes leave the hand-written
+    // pair as the only real ones, so cmd enters a quoted section it never
+    // leaves and a `&` inside the value goes live. The quoting function decides
+    // what quotes a value needs; the template contributes none.
+    for (const { expression, before, after } of interpolations) {
+      for (const [side, character] of [
+        ['before', before],
+        ['after', after],
+      ]) {
+        assert.ok(
+          !['"', "'", '`'].includes(character),
+          `a ${character} sits ${side} \${${expression}}, quoting an already quoted value`,
+        );
+      }
+    }
+  });
+
+  it('proves each unquoted name really is a literal this file wrote', () => {
+    for (const [name, assignment] of Object.entries(provenLiterals)) {
+      // Every assignment, not merely one: `format` is assigned at four export
+      // sites, and one of them turning into an input box has to fail. `let`,
+      // `var` and a bare reassignment all count.
+      const pattern = new RegExp(
+        `(?:^|[^.\\w])((?:const |let |var )?${name} = [^\\n]*)`,
+        'g',
+      );
+      const assignments = [...code.matchAll(pattern)].map((m) => m[1]);
+      assert.ok(assignments.length > 0, `${name} is never assigned`);
+      for (const line of assignments) {
+        assert.match(
+          line,
+          assignment,
+          `${name} is exempt from quoting but this assignment does not prove it`,
+        );
+      }
+    }
+    const start = code.indexOf('async function pickFormat(');
+    assert.deepStrictEqual(
+      [...code.slice(start, start + 400).matchAll(/format: '(\w+)'/g)].map(
+        (m) => m[1],
+      ),
+      ['pdf', 'docx'],
+    );
+  });
+
+  it('quotes through the one function that knows the terminal', () => {
+    // shellQuote is called exactly once, inside runInTerminal, so no handler
+    // can quote for a shell of its own choosing.
+    const calls = [...code.matchAll(/shellQuote\(/g)];
+    assert.equal(calls.length, 1, 'shellQuote should have one call site');
+    const runner = code.indexOf('function runInTerminal(');
+    const runnerEnd = code.indexOf('\n}\n', runner);
+    assert.ok(calls[0].index > runner && calls[0].index < runnerEnd);
+  });
+
+  it('lets nothing else reach either terminal sink', () => {
+    const sendTextArgs = callArguments(code, '.sendText').sort();
+    assert.deepStrictEqual(sendTextArgs, ["'npm start'", 'commandStr']);
+  });
+});
+
+describe('VS Code extension: runInTerminal quotes for the terminal it picks', () => {
+  // Source assertions cannot show that the flavour used is the flavour of the
+  // terminal that receives the line, so runInTerminal itself is lifted out of
+  // the file and run against the real pickTerminal and the real shellQuote,
+  // with only vscode and the pool stubbed.
+  function loadRunInTerminal(overrides = {}) {
+    const start = extensionSource.indexOf('function runInTerminal(');
+    const end = extensionSource.indexOf('\n}\n', start) + 2;
+    const source = extensionSource.slice(start, end);
+    const typed = [];
+    const created = [];
+    const errors = [];
+    const vscode = {
+      window: {
+        createTerminal: (options) => {
+          created.push(options.name);
+          return {
+            name: options.name,
+            show() {},
+            sendText: (text) => typed.push(text),
+          };
+        },
+        showErrorMessage: (message) => errors.push(message),
+      },
+    };
+    const deps = {
+      vscode,
+      pickTerminal,
+      shellQuote,
+      TERMINAL_BASE_NAME: 'CCB',
+      workspaceRoot: '/ws',
+      currentFlavour: () => 'posix',
+      terminalPool: [],
+      ...overrides,
+    };
+    const names = Object.keys(deps);
+    const factory = new Function(...names, `${source}\nreturn runInTerminal;`);
+    return {
+      run: factory(...names.map((name) => deps[name])),
+      pool: deps.terminalPool,
+      typed,
+      created,
+      errors,
+    };
+  }
+
+  /** A pooled terminal that records what is typed into the shared log. */
+  const pooled = (name, flavour, busy, typed) => ({
+    terminal: { name, show() {}, sendText: (text) => typed.push(text) },
+    name,
+    busy,
+    awaitingStart: false,
+    flavour,
+  });
+
+  it('stamps a new terminal with the flavour it was created under', () => {
+    const h = loadRunInTerminal({ currentFlavour: () => 'powershell' });
+    h.run((q) => `npx course search ${q("it's")}`);
+    assert.deepStrictEqual(h.created, ['CCB']);
+    assert.equal(h.pool[0].flavour, 'powershell');
+    assert.deepStrictEqual(h.typed, ["npx course search 'it''s'"]);
+  });
+
+  it('quotes for the reused terminal, not for the current profile', () => {
+    // The regression this shape exists for: the author started a terminal
+    // under Command Prompt and has since switched the default to PowerShell.
+    const typed = [];
+    const pool = [pooled('CCB', 'cmd', false, typed)];
+    const h = loadRunInTerminal({
+      terminalPool: pool,
+      currentFlavour: () => 'powershell',
+      ...{},
+    });
+    h.run((q) => `npx course search ${q('a & calc')}`);
+    assert.deepStrictEqual(h.created, [], 'the idle terminal is reused');
+    assert.deepStrictEqual(typed, ['npx course search ^"a ^& calc^"']);
+  });
+
+  it('quotes for the stamped terminal even at the cap', () => {
+    // Five idle cmd terminals and a profile now set to PowerShell: this is the
+    // case that used to type PowerShell quoting into a cmd terminal, because
+    // hiding the stale entries drove the pool to its cap and the cap fallback
+    // handed one back anyway.
+    const typed = [];
+    const pool = [1, 2, 3, 4, 5].map((n) =>
+      pooled(n === 1 ? 'CCB' : `CCB ${n}`, 'cmd', false, typed),
+    );
+    const h = loadRunInTerminal({
+      terminalPool: pool,
+      currentFlavour: () => 'powershell',
+    });
+    h.run((q) => `npx course search ${q('a & calc')}`);
+    assert.deepStrictEqual(h.created, []);
+    assert.deepStrictEqual(typed, ['npx course search ^"a ^& calc^"']);
+  });
+
+  it('guesses the current flavour for an adopted terminal', () => {
+    // Five adopted terminals: all busy, none stamped, so the cap fallback
+    // reuses the most recent one. Its shell is unknowable, so the current
+    // profile is the guess — and it must be a guess that still quotes.
+    const typed = [];
+    const pool = [1, 2, 3, 4, 5].map((n) =>
+      pooled(n === 1 ? 'CCB' : `CCB ${n}`, null, true, typed),
+    );
+    const h = loadRunInTerminal({
+      terminalPool: pool,
+      currentFlavour: () => 'csh',
+    });
+    h.run((q) => `npx course search ${q('wow!!')}`);
+    assert.deepStrictEqual(h.created, []);
+    assert.deepStrictEqual(typed, ["npx course search 'wow\\!\\!'"]);
+  });
+
+  it('types nothing at all when the value cannot be represented', () => {
+    // A module folder named with a line break. csh would run the second line
+    // as a command, so the line is never built and never sent.
+    const typed = [];
+    const pool = [pooled('CCB', 'csh', false, typed)];
+    const h = loadRunInTerminal({
+      terminalPool: pool,
+      currentFlavour: () => 'csh',
+    });
+    h.run((q) => `npx course push --module ${q('01-intro\ntouch /tmp/pwned')}`);
+    assert.deepStrictEqual(typed, [], 'nothing may be typed');
+    assert.deepStrictEqual(h.created, [], 'and no terminal may be created');
+    assert.equal(h.errors.length, 1);
+    assert.match(h.errors[0], /line break/);
+    assert.match(h.errors[0], /Nothing was run/);
+    // This terminal was opened here, so its shell is known and the message
+    // says csh without hedging.
+    assert.ok(!/guess/.test(h.errors[0]), h.errors[0]);
+    assert.equal(
+      pool[0].busy,
+      false,
+      'the terminal stays free for the next run',
+    );
+  });
+
+  it('does not claim to know the shell of an adopted terminal', () => {
+    // Five adopted terminals, so the cap fallback reuses one, and its flavour
+    // is the current profile standing in for a shell nobody here knows. The
+    // refusal is still right; naming that shell as fact would not be.
+    const typed = [];
+    const pool = [1, 2, 3, 4, 5].map((n) =>
+      pooled(n === 1 ? 'CCB' : `CCB ${n}`, null, true, typed),
+    );
+    const h = loadRunInTerminal({
+      terminalPool: pool,
+      currentFlavour: () => 'powershell',
+    });
+    h.run((q) => `npx course search ${q('a\nb')}`);
+    assert.deepStrictEqual(typed, []);
+    assert.equal(h.errors.length, 1);
+    assert.match(h.errors[0], /line break/);
+    assert.match(h.errors[0], /its shell is a guess/);
+  });
+
+  it('does not create a terminal for a refused value', () => {
+    const h = loadRunInTerminal({ currentFlavour: () => 'cmd' });
+    h.run((q) => `npx course search ${q('a\nb')}`);
+    assert.deepStrictEqual(h.created, []);
+    assert.deepStrictEqual(h.pool, []);
+    assert.deepStrictEqual(h.typed, []);
+    assert.equal(h.errors.length, 1);
+  });
+});
+
+describe('VS Code extension: the flavour the quoting is done for', () => {
+  // currentFlavour is the single place the shell is read, and it is the one
+  // piece the behavioural tests above cannot cover, because they inject it. So
+  // it is run here for real, against the real shellFlavour, with vscode and
+  // process stubbed. Without this, `return 'posix'` would be a green suite and
+  // POSIX single quotes typed into PowerShell or cmd.
+  function currentFlavourWith(shell, platform) {
+    const start = extensionSource.indexOf('function currentFlavour(');
+    const end = extensionSource.indexOf('\n}\n', start) + 2;
+    const source = extensionSource.slice(start, end);
+    const deps = {
+      vscode: { env: { shell } },
+      shellFlavour,
+      process: { platform },
+    };
+    const names = Object.keys(deps);
+    const factory = new Function(...names, `${source}\nreturn currentFlavour;`);
+    return factory(...names.map((name) => deps[name]))();
+  }
+
+  it('reads the shell VS Code reports, whatever the platform is', () => {
+    assert.equal(
+      currentFlavourWith('C:\\Windows\\System32\\cmd.exe', 'win32'),
+      'cmd',
+    );
+    assert.equal(
+      currentFlavourWith('C:\\Program Files\\PowerShell\\7\\pwsh.exe', 'win32'),
+      'powershell',
+    );
+    assert.equal(
+      currentFlavourWith('C:\\Program Files\\Git\\bin\\bash.exe', 'win32'),
+      'posix',
+    );
+    assert.equal(currentFlavourWith('/bin/zsh', 'darwin'), 'posix');
+    assert.equal(currentFlavourWith('/bin/tcsh', 'darwin'), 'csh');
+    assert.equal(currentFlavourWith('/usr/bin/fish', 'linux'), 'fish');
+  });
+
+  it('falls back on the platform when VS Code reports no shell', () => {
+    assert.equal(currentFlavourWith('', 'win32'), 'powershell');
+    assert.equal(currentFlavourWith(undefined, 'darwin'), 'posix');
+  });
+
+  it('leaves an adopted terminal unstamped, which the guess depends on', () => {
+    // Stamping these with the current profile at activation would turn a guess
+    // into a claim, and runInTerminal could no longer tell the two apart.
+    const start = extensionSource.indexOf('Terminal pool bookkeeping');
+    const wiring = extensionSource.slice(start, start + 1200);
+    assert.match(wiring, /flavour: null/);
+    assert.ok(
+      !/flavour: currentFlavour\(\)/.test(wiring),
+      'an adopted terminal must not be stamped with the current profile',
+    );
   });
 });

@@ -1,5 +1,6 @@
 const { describe, it, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
+const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -22,6 +23,9 @@ const {
   canvasModuleUrl,
   terminalNumber,
   pickTerminal,
+  shellFlavour,
+  shellQuote,
+  UnquotableValue,
 } = require('../../.vscode/extensions/course-manager/helpers');
 const { reorder } = require('../../cli/renumber');
 const { getItems } = require('../../cli/item-utils');
@@ -844,5 +848,825 @@ describe('helpers: pickTerminal', () => {
       action: 'reuse',
       index: 1,
     });
+  });
+});
+
+// --- Shell quoting -------------------------------------------------------
+//
+// Golden strings alone would only pin the implementation to itself: had the
+// cmd rule been written with `\"` instead of `""`, the golden strings would
+// have been written to match it and the suite would have stayed green while
+// shipping an injection. So the two flavours that cannot be executed here are
+// judged by independent models of the parsers they have to satisfy, written
+// from the documented algorithms. `crtArgv` is validated against Microsoft's
+// published examples; the other four have no published example table to check
+// against, so each is validated below against worked cases of the rules it
+// implements. The three flavours that can be executed are executed instead.
+
+/**
+ * The MSVC CRT's command-line parser — the one that matters here, because
+ * `node.exe` has a `wmain` and so takes its argv from the CRT rather than from
+ * `CommandLineToArgvW`. 2n backslashes before a `"` are n backslashes and the
+ * quote is a delimiter; 2n+1 are n backslashes and a literal quote; and inside
+ * a quoted region `""` is one literal quote that leaves the region open. That
+ * last rule is where the two parsers part company: `CommandLineToArgvW` wants
+ * three consecutive quotes for the same effect, so a program taking its argv
+ * from that would split several of these values.
+ */
+function crtArgv(line) {
+  const args = [];
+  let i = 0;
+  while (i < line.length) {
+    while (line[i] === ' ' || line[i] === '\t') i++;
+    if (i >= line.length) break;
+    let arg = '';
+    let quoted = false;
+    while (i < line.length) {
+      const c = line[i];
+      if (!quoted && (c === ' ' || c === '\t')) break;
+      if (c === '\\') {
+        let slashes = 0;
+        while (line[i] === '\\') {
+          slashes++;
+          i++;
+        }
+        if (line[i] === '"') {
+          arg += '\\'.repeat(slashes >> 1);
+          if (slashes % 2 === 1) {
+            arg += '"';
+            i++;
+          }
+        } else {
+          arg += '\\'.repeat(slashes);
+        }
+        continue;
+      }
+      if (c === '"') {
+        if (quoted && line[i + 1] === '"') {
+          arg += '"';
+          i += 2;
+          continue;
+        }
+        quoted = !quoted;
+        i++;
+        continue;
+      }
+      arg += c;
+      i++;
+    }
+    args.push(arg);
+  }
+  return args;
+}
+
+/**
+ * cmd.exe percent expansion, command-line rules: an undefined `%VAR%` and a
+ * lone `%` are left exactly as typed, and substituted text is not rescanned.
+ */
+function cmdPercent(line, env) {
+  let out = '';
+  let i = 0;
+  while (i < line.length) {
+    if (line[i] !== '%') {
+      out += line[i++];
+      continue;
+    }
+    const close = line.indexOf('%', i + 1);
+    if (close === -1) {
+      out += line[i++];
+      continue;
+    }
+    const name = Object.keys(env).find(
+      (k) => k.toLowerCase() === line.slice(i + 1, close).toLowerCase(),
+    );
+    out += name === undefined ? line.slice(i, close + 1) : env[name];
+    i = close + 1;
+  }
+  return out;
+}
+
+/**
+ * cmd.exe's caret and quote pass. Returns the text cmd hands on, and every
+ * command-splitting metacharacter that was live when it got there — a caret
+ * only escapes outside a quoted region, and only there do `&`, `|`, `<` and
+ * `>` split the line.
+ */
+function cmdSpecial(line) {
+  let text = '';
+  let quoted = false;
+  const live = [];
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '^' && !quoted) {
+      if (i + 1 < line.length) text += line[++i];
+      continue;
+    }
+    if (c === '"') quoted = !quoted;
+    else if (!quoted && '&|<>'.includes(c)) live.push(c);
+    text += c;
+  }
+  return { text, live, quoted };
+}
+
+/** A PowerShell single-quoted string literal: `''` is one quote, nothing else escapes. */
+function psSingleQuoted(token) {
+  assert.equal(token[0], "'", 'not a single-quoted token');
+  let value = '';
+  let i = 1;
+  for (;;) {
+    if (i >= token.length) throw new Error('unterminated single-quoted string');
+    if (token[i] === "'") {
+      if (token[i + 1] === "'") {
+        value += "'";
+        i += 2;
+        continue;
+      }
+      i++;
+      break;
+    }
+    value += token[i++];
+  }
+  assert.equal(i, token.length, 'trailing text after the closing quote');
+  return value;
+}
+
+/** PowerShell argument tokens, honouring both quote forms. */
+function psTokens(line) {
+  const tokens = [];
+  let i = 0;
+  while (i < line.length) {
+    while (line[i] === ' ') i++;
+    if (i >= line.length) break;
+    const start = i;
+    while (i < line.length && line[i] !== ' ') {
+      if (line[i] === "'") {
+        i++;
+        while (i < line.length) {
+          if (line[i] === "'" && line[i + 1] === "'") i += 2;
+          else if (line[i] === "'") {
+            i++;
+            break;
+          } else i++;
+        }
+        continue;
+      }
+      if (line[i] === '"') {
+        i++;
+        while (i < line.length && line[i] !== '"') i++;
+        i++;
+        continue;
+      }
+      i++;
+    }
+    tokens.push(line.slice(start, i));
+  }
+  return tokens;
+}
+
+/** A fish single-quoted string literal: only `\\` and `\'` escape. */
+function fishSingleQuoted(token) {
+  assert.equal(token[0], "'", 'not a single-quoted token');
+  let value = '';
+  let i = 1;
+  for (;;) {
+    if (i >= token.length) throw new Error('unterminated single-quoted string');
+    const c = token[i];
+    if (c === "'") {
+      i++;
+      break;
+    }
+    if (c === '\\' && (token[i + 1] === '\\' || token[i + 1] === "'")) {
+      value += token[i + 1];
+      i += 2;
+      continue;
+    }
+    value += c;
+    i++;
+  }
+  assert.equal(i, token.length, 'trailing text after the closing quote');
+  return value;
+}
+
+// The values that separate one quoting rule from another: a lone quote and a
+// run of them, a trailing backslash, every expansion sigil, both history
+// forms, and a command-chaining attempt for each shell family.
+const HOSTILE = [
+  '',
+  'flexbox',
+  'two words',
+  "'",
+  "it's",
+  "''''",
+  'he said "hi"',
+  'a"b&c',
+  '$HOME',
+  '$(whoami)',
+  '`whoami`',
+  'wow!!',
+  '!important',
+  'a!b',
+  'a\\!b',
+  '%PATH%',
+  '100% done',
+  'a; echo PWNED',
+  'a && echo PWNED',
+  'a | echo PWNED',
+  '*.md ?[a-z]',
+  'a > /tmp/pwned',
+  'C:\\dir\\',
+  'a\\\\b',
+  'C:\\Users\\lars\\file.md',
+  'x^y(z)|w<v>u',
+  'café — 日本語',
+  '$(id)`id`"x"\'y\'!;&|><*~%A% \\ end',
+];
+
+describe('helpers: the parser models these tests judge by', () => {
+  // An oracle nobody checked is just a second copy of the bug. crtArgv has
+  // Microsoft's table; these four have to be pinned against worked cases of
+  // the rules they claim to implement, or the assertions built on them mean
+  // nothing. cmdSpecial carries the most weight of any of them: every
+  // `live === []` claim in the cmd suite is its word.
+  it('cmdSpecial: a caret escapes outside quotes and is literal inside', () => {
+    assert.deepStrictEqual(cmdSpecial('echo a&b').live, ['&']);
+    assert.deepStrictEqual(cmdSpecial('echo a^&b'), {
+      text: 'echo a&b',
+      live: [],
+      quoted: false,
+    });
+    // Inside a quoted region the metacharacter is inert and the caret is not
+    // an escape — it stays in the text.
+    assert.deepStrictEqual(cmdSpecial('echo "a&b"'), {
+      text: 'echo "a&b"',
+      live: [],
+      quoted: false,
+    });
+    assert.deepStrictEqual(cmdSpecial('echo "a^b"').text, 'echo "a^b"');
+    // A caret-escaped quote does not open a region, so what follows is live.
+    assert.deepStrictEqual(cmdSpecial('echo ^"a&b^"'), {
+      text: 'echo "a&b"',
+      live: ['&'],
+      quoted: false,
+    });
+    assert.equal(cmdSpecial('^^').text, '^');
+    assert.equal(cmdSpecial('echo "a').quoted, true);
+    assert.deepStrictEqual(cmdSpecial('a|b<c>d').live, ['|', '<', '>']);
+  });
+
+  it('cmdPercent: expands a defined name, leaves everything else as typed', () => {
+    const env = { PATH: 'C:\\Windows', A: '%B%', B: 'x' };
+    assert.equal(cmdPercent('%PATH%', env), 'C:\\Windows');
+    assert.equal(cmdPercent('%path%', env), 'C:\\Windows', 'names fold case');
+    assert.equal(cmdPercent('%NOPE%', env), '%NOPE%');
+    assert.equal(cmdPercent('100% done', env), '100% done');
+    assert.equal(cmdPercent('%PATH', env), '%PATH');
+    // Substituted text is not rescanned, which is why %A% stops at %B%.
+    assert.equal(cmdPercent('%A%', env), '%B%');
+    // The caret trick this module relies on: the name no longer matches.
+    assert.equal(cmdPercent('^%PATH^%', env), '^%PATH^%');
+  });
+
+  it('psSingleQuoted: doubled quotes are one quote, nothing else escapes', () => {
+    assert.equal(psSingleQuoted("''"), '');
+    assert.equal(psSingleQuoted("'a'"), 'a');
+    assert.equal(psSingleQuoted("'it''s'"), "it's");
+    assert.equal(psSingleQuoted("'$HOME`n\\'"), '$HOME`n\\');
+    assert.throws(() => psSingleQuoted("'unterminated"));
+    assert.throws(() => psSingleQuoted("'a' trailing"));
+  });
+
+  it('psTokens: quotes hold a token together, either kind', () => {
+    assert.deepStrictEqual(psTokens('& "node" cli.js'), [
+      '&',
+      '"node"',
+      'cli.js',
+    ]);
+    assert.deepStrictEqual(psTokens("a 'b c' d"), ['a', "'b c'", 'd']);
+    assert.deepStrictEqual(psTokens("'it''s here'"), ["'it''s here'"]);
+    assert.deepStrictEqual(psTokens(`'a "b" c'`), [`'a "b" c'`]);
+  });
+
+  it("fishSingleQuoted: only \\\\ and \\' escape", () => {
+    assert.equal(fishSingleQuoted("'a'"), 'a');
+    assert.equal(fishSingleQuoted("'a\\\\b'"), 'a\\b');
+    assert.equal(fishSingleQuoted("'a\\'b'"), "a'b");
+    // A backslash before anything else is literal, both characters kept.
+    assert.equal(fishSingleQuoted("'a\\nb'"), 'a\\nb');
+    assert.throws(() => fishSingleQuoted("'unterminated"));
+  });
+});
+
+describe('helpers: shellQuote refuses what it cannot represent', () => {
+  // Refusing is the whole mechanism: there is no string that means "a value
+  // with a line break in it" to csh or cmd, so returning anything at all would
+  // be returning something that runs a second command.
+  for (const flavour of ['csh', 'cmd', 'powershell']) {
+    it(`refuses a line break for ${flavour}`, () => {
+      for (const value of ['a\nb', 'a\r\nb', 'a\rb', '\n', 'x\ntouch /tmp/p']) {
+        assert.throws(
+          () => shellQuote(value, flavour),
+          (error) => {
+            assert.ok(error instanceof UnquotableValue);
+            assert.equal(error.flavour, flavour);
+            assert.match(error.message, /line break/);
+            return true;
+          },
+          JSON.stringify(value),
+        );
+      }
+    });
+  }
+
+  for (const flavour of ['posix', 'fish']) {
+    it(`carries a line break for ${flavour}, which is verified there`, () => {
+      assert.equal(typeof shellQuote('a\nb', flavour), 'string');
+      assert.ok(shellQuote('a\nb', flavour).includes('\n'));
+    });
+  }
+
+  it('refuses a null byte everywhere, since no argv entry can hold one', () => {
+    for (const flavour of ['posix', 'fish', 'csh', 'cmd', 'powershell']) {
+      assert.throws(() => shellQuote('a\0b', flavour), UnquotableValue);
+    }
+  });
+
+  it('names the value and the shell, so the author can act on it', () => {
+    const error = (() => {
+      try {
+        shellQuote('01-intro\ntouch /tmp/pwned', 'csh');
+      } catch (e) {
+        return e;
+      }
+    })();
+    assert.match(error.message, /01-intro/);
+    assert.match(error.message, /csh would run as a second command/);
+    assert.equal(error.value, '01-intro\ntouch /tmp/pwned');
+  });
+
+  it('shortens a long value rather than pasting a whole path into a popup', () => {
+    const error = (() => {
+      try {
+        shellQuote(`${'x'.repeat(200)}\n`, 'cmd');
+      } catch (e) {
+        return e;
+      }
+    })();
+    assert.ok(error.message.length < 130, error.message.length);
+    assert.match(error.message, /…/);
+  });
+
+  it('refuses a flavour it does not know instead of guessing POSIX', () => {
+    // Silently falling through to POSIX would quote for the wrong shell, which
+    // is the injection this module exists to prevent.
+    assert.throws(() => shellQuote('x', 'nushell'), /unknown shell flavour/);
+    assert.throws(() => shellQuote('x', undefined), /unknown shell flavour/);
+  });
+});
+
+describe('helpers: shellFlavour', () => {
+  it('reads the flavour off the shell name, not the platform', () => {
+    assert.equal(shellFlavour('/bin/zsh', 'darwin'), 'posix');
+    assert.equal(shellFlavour('/bin/bash', 'linux'), 'posix');
+    assert.equal(shellFlavour('/bin/dash', 'linux'), 'posix');
+    assert.equal(shellFlavour('/usr/bin/fish', 'darwin'), 'fish');
+    assert.equal(shellFlavour('/bin/tcsh', 'darwin'), 'csh');
+    assert.equal(shellFlavour('/bin/csh', 'freebsd'), 'csh');
+    assert.equal(
+      shellFlavour('C:\\Windows\\System32\\cmd.exe', 'win32'),
+      'cmd',
+    );
+    assert.equal(
+      shellFlavour('C:\\Program Files\\PowerShell\\7\\pwsh.exe', 'win32'),
+      'powershell',
+    );
+    assert.equal(
+      shellFlavour(
+        'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe',
+        'win32',
+      ),
+      'powershell',
+    );
+  });
+
+  it('keeps the POSIX shells that ship on Windows POSIX', () => {
+    assert.equal(
+      shellFlavour('C:\\Program Files\\Git\\bin\\bash.exe', 'win32'),
+      'posix',
+    );
+    assert.equal(
+      shellFlavour('C:\\Windows\\System32\\wsl.exe', 'win32'),
+      'posix',
+    );
+    assert.equal(
+      shellFlavour('C:\\msys64\\usr\\bin\\sh.exe', 'win32'),
+      'posix',
+    );
+  });
+
+  it('ignores case and accepts either separator', () => {
+    assert.equal(
+      shellFlavour('C:\\WINDOWS\\SYSTEM32\\CMD.EXE', 'win32'),
+      'cmd',
+    );
+    assert.equal(shellFlavour('C:/Windows/System32/cmd.exe', 'win32'), 'cmd');
+    assert.equal(
+      shellFlavour('C:/Program Files/pwsh.EXE', 'win32'),
+      'powershell',
+    );
+  });
+
+  it('survives a trailing space, quotes, and appended arguments', () => {
+    // Any of these used to slip past the .exe suffix and land on the platform
+    // guess, which on Windows is the unsafe direction.
+    assert.equal(
+      shellFlavour('C:\\Windows\\System32\\cmd.exe ', 'win32'),
+      'cmd',
+    );
+    assert.equal(
+      shellFlavour('"C:\\Windows\\System32\\cmd.exe"', 'win32'),
+      'cmd',
+    );
+    assert.equal(
+      shellFlavour(
+        '"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -NoLogo',
+        'win32',
+      ),
+      'powershell',
+    );
+    assert.equal(
+      shellFlavour(
+        'C:\\Program Files\\PowerShell\\7\\pwsh.exe -NoLogo -NoProfile',
+        'win32',
+      ),
+      'powershell',
+    );
+    assert.equal(shellFlavour('/bin/bash -l', 'linux'), 'posix');
+    assert.equal(shellFlavour('  /bin/zsh  ', 'darwin'), 'posix');
+    // A stray trailing quote defeated the .exe strip and sent cmd.exe to the
+    // platform guess — the unsafe direction on Windows.
+    assert.equal(
+      shellFlavour('C:\\Windows\\System32\\cmd.exe"', 'win32'),
+      'cmd',
+    );
+    assert.equal(shellFlavour('\\\\server\\share\\cmd.exe', 'win32'), 'cmd');
+    assert.equal(
+      shellFlavour('C:\\Windows\\System32\\wsl.exe -d Ubuntu', 'win32'),
+      'posix',
+    );
+  });
+
+  it('falls back on the platform for a name it does not know', () => {
+    // A shell with its own rules must not be guessed at: on win32 the likelier
+    // shell is PowerShell, and a wrong POSIX guess there is the unsafe one.
+    assert.equal(shellFlavour('C:\\tools\\nu.exe', 'win32'), 'powershell');
+    assert.equal(shellFlavour('C:\\tools\\xonsh.exe', 'win32'), 'powershell');
+    assert.equal(shellFlavour('/usr/local/bin/nu', 'darwin'), 'posix');
+    assert.equal(shellFlavour('/usr/local/bin/xonsh', 'linux'), 'posix');
+  });
+
+  it('falls back on the platform when there is no name at all', () => {
+    assert.equal(shellFlavour(undefined, 'darwin'), 'posix');
+    assert.equal(shellFlavour(undefined, 'win32'), 'powershell');
+    assert.equal(shellFlavour('', 'linux'), 'posix');
+    assert.equal(shellFlavour('   ', 'win32'), 'powershell');
+  });
+});
+
+describe('helpers: shellQuote (posix)', () => {
+  const q = (value) => shellQuote(value, 'posix');
+
+  it('single-quotes a plain value, empty string included', () => {
+    assert.equal(q(''), "''");
+    assert.equal(q('flexbox'), "'flexbox'");
+    assert.equal(q('two words'), "'two words'");
+  });
+
+  it('closes, escapes and reopens around an embedded single quote', () => {
+    assert.equal(q("it's"), "'it'\\''s'");
+    assert.equal(q("'"), "''\\'''");
+  });
+
+  it('leaves everything else to the quotes', () => {
+    assert.equal(q('he said "hi"'), '\'he said "hi"\'');
+    assert.equal(q('$HOME'), "'$HOME'");
+    assert.equal(q('`whoami`'), "'`whoami`'");
+    assert.equal(q('wow!!'), "'wow!!'");
+    assert.equal(q('a && echo PWNED'), "'a && echo PWNED'");
+    assert.equal(q('%PATH%'), "'%PATH%'");
+    assert.equal(q('C:\\dir\\'), "'C:\\dir\\'");
+    assert.equal(q('line1\nline2'), "'line1\nline2'");
+    assert.equal(q('café — 日本語'), "'café — 日本語'");
+  });
+});
+
+describe('helpers: shellQuote (csh)', () => {
+  const q = (value) => shellQuote(value, 'csh');
+
+  it('escapes the bang inside the quotes, which csh needs and POSIX does not', () => {
+    // csh runs history expansion before it parses quotes, so 'wow!!' aborts
+    // the line with "Event not found" and 'a\!b' silently loses its backslash.
+    assert.equal(q('wow!!'), "'wow\\!\\!'");
+    assert.equal(q('!important'), "'\\!important'");
+    assert.equal(q('a\\!b'), "'a\\\\!b'");
+  });
+
+  it('keeps the POSIX idiom for an embedded single quote', () => {
+    assert.equal(q("it's"), "'it'\\''s'");
+    assert.equal(q("it's a !bang"), "'it'\\''s a \\!bang'");
+  });
+
+  it('leaves the rest alone, backslashes included', () => {
+    assert.equal(q('$HOME'), "'$HOME'");
+    assert.equal(q('a && echo PWNED'), "'a && echo PWNED'");
+    assert.equal(q('C:\\dir\\'), "'C:\\dir\\'");
+  });
+});
+
+describe('helpers: shellQuote (fish)', () => {
+  const q = (value) => shellQuote(value, 'fish');
+
+  it('escapes the backslash, which POSIX single quotes do not', () => {
+    assert.equal(q('C:\\dir\\'), "'C:\\\\dir\\\\'");
+    assert.equal(q('a\\\\b'), "'a\\\\\\\\b'");
+    assert.equal(q("it's"), "'it\\'s'");
+  });
+
+  it("round-trips every hostile value through fish's quoting rule", () => {
+    // The model of fish's documented rule: inside single quotes only \\ and \'
+    // escape. Executed against a real fish below, where one is installed.
+    for (const value of HOSTILE) {
+      assert.equal(fishSingleQuoted(q(value)), value, JSON.stringify(value));
+    }
+  });
+
+  it('shows why the POSIX rule cannot be reused here', () => {
+    // A path ending in a backslash escapes fish's closing quote and hangs the
+    // line on a continuation prompt; a doubled backslash silently loses one.
+    assert.throws(() => fishSingleQuoted(shellQuote('C:\\dir\\', 'posix')));
+    assert.equal(fishSingleQuoted(shellQuote('a\\\\b', 'posix')), 'a\\b');
+  });
+});
+
+describe('helpers: shellQuote (powershell)', () => {
+  const q = (value) => shellQuote(value, 'powershell');
+
+  it('single-quotes, doubling an embedded quote', () => {
+    assert.equal(q(''), "''");
+    assert.equal(q('two words'), "'two words'");
+    assert.equal(q("it's"), "'it''s'");
+    assert.equal(q("''"), "''''''");
+    assert.equal(q('$HOME'), "'$HOME'");
+    assert.equal(q('C:\\dir\\'), "'C:\\dir\\'");
+  });
+
+  it('survives both parses on the way to node', () => {
+    // npx resolves to npm's npx.ps1 shim under PowerShell, and its interactive
+    // branch rebuilds the call from each argument's AST extent — the token's
+    // own source text — and runs Invoke-Expression on it. So the token is
+    // parsed once as typed and once more inside the shim.
+    for (const value of HOSTILE) {
+      const token = q(value);
+      assert.equal(psSingleQuoted(token), value, JSON.stringify(value));
+
+      const rebuilt = `& "node" "npx-cli.js" ${token}`;
+      const tokens = psTokens(rebuilt);
+      assert.equal(
+        tokens.length,
+        4,
+        `token split for ${JSON.stringify(value)}`,
+      );
+      assert.equal(psSingleQuoted(tokens[3]), value);
+    }
+  });
+});
+
+describe('helpers: shellQuote (cmd)', () => {
+  const q = (value) => shellQuote(value, 'cmd');
+
+  it('models the CRT parser correctly before using it as an oracle', () => {
+    // Microsoft's published "Parsing C++ command-line arguments" examples,
+    // plus the documented doubled-quote rule.
+    const cases = [
+      ['"a b c" d e', ['a b c', 'd', 'e']],
+      ['"ab\\"c" "\\\\" d', ['ab"c', '\\', 'd']],
+      ['a\\\\\\b d"e f"g h', ['a\\\\\\b', 'de fg', 'h']],
+      ['a\\\\\\"b c d', ['a\\"b', 'c', 'd']],
+      ['a\\\\\\\\"b c" d e', ['a\\\\b c', 'd', 'e']],
+      ['"a""b"', ['a"b']],
+      ['""', ['']],
+      ['x "" y', ['x', '', 'y']],
+    ];
+    for (const [line, expected] of cases) {
+      assert.deepStrictEqual(crtArgv(line), expected, line);
+    }
+  });
+
+  it('caret-escapes the quotes so cmd never enters a quoted section', () => {
+    assert.equal(q(''), '^"^"');
+    assert.equal(q('flexbox'), '^"flexbox^"');
+    assert.equal(q('two words'), '^"two words^"');
+  });
+
+  it('escapes %, which quoting alone would not stop expanding', () => {
+    assert.equal(q('%PATH%'), '^"^%PATH^%^"');
+    assert.equal(q('100% done'), '^"100^% done^"');
+  });
+
+  it('escapes every cmd metacharacter, ! and ^ included', () => {
+    assert.equal(q('wow!!'), '^"wow^!^!^"');
+    assert.equal(q('x^y(z)|w<v>u'), '^"x^^y^(z^)^|w^<v^>u^"');
+    assert.equal(q('a && echo PWNED'), '^"a ^&^& echo PWNED^"');
+  });
+
+  it('writes an embedded double quote as "" and doubles the backslashes before it', () => {
+    assert.equal(q('he said "hi"'), '^"he said ^"^"hi^"^"^"');
+    assert.equal(q('C:\\dir\\'), '^"C:\\dir\\\\^"');
+    assert.equal(q('a\\"b'), '^"a\\\\^"^"b^"');
+  });
+
+  // The oracle. Every hop a value takes between the terminal and node's argv:
+  // cmd's percent pass, cmd's caret and quote pass, the npx.cmd shim
+  // forwarding %* into a line cmd parses again, and finally the CRT.
+  function throughWindows(quoted, env) {
+    const typed = `npx course search ${quoted}`;
+    const prompt = cmdSpecial(cmdPercent(typed, env));
+    // The shim forwards its arguments verbatim through %*; substituted text is
+    // not percent-expanded a second time, so only the caret pass runs again.
+    const forwarded = prompt.text.slice('npx course search '.length);
+    const shim = cmdSpecial(`node "npx-cli.js" ${forwarded}`);
+    return {
+      live: [...prompt.live, ...shim.live],
+      argv: crtArgv(shim.text),
+    };
+  }
+
+  it('delivers every hostile value to node as exactly one argument', () => {
+    const env = { PATH: 'C:\\Windows', A: 'boom', FOO: 'x & calc' };
+    for (const value of HOSTILE) {
+      const { live, argv } = throughWindows(q(value), env);
+      assert.deepStrictEqual(
+        live,
+        [],
+        `live metacharacter for ${JSON.stringify(value)}`,
+      );
+      assert.deepStrictEqual(
+        argv,
+        ['node', 'npx-cli.js', value],
+        JSON.stringify(value),
+      );
+    }
+  });
+
+  it('catches the backslash-escaped variant this rule was chosen over', () => {
+    // `\"` is what list2cmdline and cross-spawn emit. It parses correctly in
+    // the CRT, but cmd does not know backslash escapes, so at the shim's
+    // re-parse the quoted section closes early and the `&` goes live.
+    const naive = (value) => {
+      const crt = `"${value.replace(/(\\*)"/g, '$1$1\\"').replace(/(\\+)$/, '$1$1')}"`;
+      return crt.replace(/[()%!^"<>&|]/g, '^$&');
+    };
+    const { live } = throughWindows(naive('a" & calc & "b'), {});
+    assert.ok(live.length > 0, 'the naive form should break out, and does');
+    assert.deepStrictEqual(throughWindows(q('a" & calc & "b'), {}).live, []);
+  });
+});
+
+// The POSIX and csh rules can be proved rather than modelled, so they are:
+// every value goes through a real shell and has to come back as its own argv
+// entry, byte for byte. Passing the whole corpus in one command line also
+// proves no value bleeds into its neighbour. Skipped where the shell is not
+// installed, and on Windows, where none of these is the shell being quoted for.
+describe('helpers: shellQuote survives a real shell', () => {
+  const PRINT = 'JSON.stringify(process.argv.slice(1))';
+  // tcsh aborts on some LS_COLORS values before it ever reads the line, so the
+  // colour variables are dropped for these runs.
+  const shellEnv = { ...process.env };
+  delete shellEnv.LS_COLORS;
+  delete shellEnv.LSCOLORS;
+
+  // fish is asked not to read the user's config: what is being tested is
+  // fish's parser, not whatever a developer has in config.fish.
+  const flagsFor = (shell) => (shell === 'fish' ? ['--no-config'] : []);
+
+  function available(shell) {
+    try {
+      execFileSync(shell, [...flagsFor(shell), '-c', 'exit 0'], {
+        stdio: 'ignore',
+        env: shellEnv,
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function argvThrough(shell, flavour, values) {
+    const head = [process.execPath, '-p', PRINT]
+      .map((part) => shellQuote(part, flavour))
+      .join(' ');
+    const line = `${head} ${values.map((v) => shellQuote(v, flavour)).join(' ')}`;
+    const out = execFileSync(shell, [...flagsFor(shell), '-c', line], {
+      encoding: 'utf8',
+      env: shellEnv,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const lines = out.split('\n').filter((l) => l.trim());
+    return JSON.parse(lines[lines.length - 1]);
+  }
+
+  for (const shell of ['sh', 'bash', 'zsh', 'dash', 'ksh']) {
+    it(`hands ${shell} every hostile value back unchanged`, (t) => {
+      if (process.platform === 'win32') return t.skip('POSIX shells only');
+      if (!available(shell)) return t.skip(`${shell} is not installed`);
+      const values = [...HOSTILE, 'line1\nline2'];
+      assert.deepStrictEqual(argvThrough(shell, 'posix', values), values);
+    });
+  }
+
+  for (const shell of ['csh', 'tcsh']) {
+    it(`hands ${shell} every hostile value back unchanged`, (t) => {
+      if (process.platform === 'win32') return t.skip('POSIX shells only');
+      if (!available(shell)) return t.skip(`${shell} is not installed`);
+      // No newline in the corpus: shellQuote refuses that one for csh, and the
+      // test below is why.
+      assert.deepStrictEqual(argvThrough(shell, 'csh', HOSTILE), HOSTILE);
+    });
+  }
+
+  it('hands fish every hostile value back unchanged', (t) => {
+    if (process.platform === 'win32') return t.skip('POSIX shells only');
+    if (!available('fish')) return t.skip('fish is not installed');
+    assert.deepStrictEqual(argvThrough('fish', 'fish', HOSTILE), HOSTILE);
+  });
+
+  it('needs the csh rule for csh: the POSIX rule breaks there', (t) => {
+    if (process.platform === 'win32') return t.skip('POSIX shells only');
+    if (!available('tcsh')) return t.skip('tcsh is not installed');
+    // Loud failure on a search term a CSS course types every week...
+    assert.throws(() => argvThrough('tcsh', 'posix', ['!important']));
+    // ...and silent corruption when the bang is already escaped.
+    assert.deepStrictEqual(argvThrough('tcsh', 'posix', ['a\\!b']), ['a!b']);
+  });
+
+  it('shows why a newline is refused for csh rather than quoted', (t) => {
+    if (process.platform === 'win32') return t.skip('POSIX shells only');
+    if (!available('tcsh')) return t.skip('tcsh is not installed');
+    // This is the value a module folder named with a line break produces — a
+    // real object on a POSIX filesystem, where every byte but NUL and / is a
+    // legal name. Quoted by any rule that does not refuse it, csh reports
+    // "Unmatched '" for the first line and then runs the second as a fresh
+    // command. The marker is the proof, and the reason shellQuote throws.
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ccb-csh-'));
+    const marker = path.join(dir, 'ran');
+    const value = `01-intro\ntouch ${marker}\nx`;
+
+    assert.throws(
+      () => shellQuote(value, 'csh'),
+      UnquotableValue,
+      'the refusal is the fix; the rest of this test is the reason for it',
+    );
+
+    try {
+      execFileSync('tcsh', ['-c', `echo ${shellQuote(value, 'posix')}`], {
+        encoding: 'utf8',
+        env: shellEnv,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+    } catch {
+      /* csh exits 1 on the unmatched quote — and runs line 2 regardless */
+    }
+    assert.ok(
+      fs.existsSync(marker),
+      'expected csh to run the injected line, which is why the refusal exists',
+    );
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('protects a bang from history expansion where double quotes do not', (t) => {
+    if (process.platform === 'win32') return t.skip('POSIX shells only');
+    if (!available('bash')) return t.skip('bash is not installed');
+    // History expansion is off in a non-interactive bash, so it is switched on
+    // explicitly and the history seeded — otherwise this test would pass on a
+    // shell that never expanded anything and prove nothing.
+    const run = (argument) => {
+      const script = [
+        'set -o history',
+        'set -H',
+        'echo seeded',
+        `${shellQuote(process.execPath, 'posix')} -p ${shellQuote(PRINT, 'posix')} ${argument}`,
+      ].join('\n');
+      const out = execFileSync('bash', ['-c', script], {
+        encoding: 'utf8',
+        env: shellEnv,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      const lines = out.split('\n').filter((l) => l.trim());
+      return JSON.parse(lines[lines.length - 1]);
+    };
+
+    // The control: with expansion on, a double-quoted bang is rewritten.
+    assert.notDeepStrictEqual(run('"wow!!"'), ['wow!!']);
+    // The claim: single quotes hold.
+    assert.deepStrictEqual(run(shellQuote('wow!!', 'posix')), ['wow!!']);
   });
 });

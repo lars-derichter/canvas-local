@@ -16,6 +16,8 @@ const {
   pickTerminal,
   promoteActive,
   seedsDestination,
+  shellFlavour,
+  shellQuote,
   terminalNumber,
 } = require('./helpers');
 
@@ -101,11 +103,68 @@ function terminalPoolEntry(terminal) {
   return terminalPool.find((entry) => entry.terminal === terminal);
 }
 
-function runInTerminal(commandStr) {
+/** The quoting rules for the shell a terminal opened right now would run. */
+function currentFlavour() {
+  return shellFlavour(vscode.env.shell, process.platform);
+}
+
+/**
+ * Send a command line to a pooled terminal.
+ *
+ * `build` is handed the quoting function for the shell running in the terminal
+ * that will actually receive the line, and returns the line:
+ *
+ *     runInTerminal((q) => `npx course push --module ${q(moduleName)}`);
+ *
+ * Building after the pick rather than before is the whole point. Every value
+ * interpolated into a command line has to be quoted — a search term is whatever
+ * the author typed, and a folder name is whatever the author (or a Canvas pull)
+ * created, and `01-intro; rm -rf ~` is a legal directory name on macOS and
+ * Linux — but quoted *for which shell* is only settled once the terminal is
+ * known. The pool outlives a change of default profile, so a terminal started
+ * under Command Prompt is still running cmd after the author switches the
+ * profile to PowerShell, and PowerShell's single quotes mean nothing to cmd:
+ * `'a & calc'` typed there splits on the `&`. Quoting for the current profile
+ * and then typing into a pooled terminal reopens exactly the hole this quoting
+ * exists to close. Hence the stamp, recorded when the terminal is created and
+ * used when it is reused.
+ *
+ * A terminal adopted from before a window reload has no knowable shell, so its
+ * stamp is null and the current profile is used as a guess. It is a guess: the
+ * author could have changed the profile across the reload. The alternative is
+ * refusing to reuse adopted terminals at all, which would strand them at the
+ * cap and stack up new ones.
+ *
+ * A value the target shell cannot represent at all (see `shellQuote`) makes
+ * `build` throw, and then nothing is created, shown or typed — the author gets
+ * the reason instead of a mangled command line.
+ */
+function runInTerminal(build) {
   const choice = pickTerminal(terminalPool, TERMINAL_BASE_NAME);
+  const reused = choice.action === 'reuse' ? terminalPool[choice.index] : null;
+  const flavour = reused?.flavour ?? currentFlavour();
+
+  let commandStr;
+  try {
+    commandStr = build((value) => shellQuote(value, flavour));
+  } catch (error) {
+    // The refusal names the shell, which is only a fact for a terminal this
+    // extension opened. For an adopted one the flavour is the default profile
+    // standing in for a shell nobody here knows, and the message has to say so
+    // rather than assert it.
+    const guessed =
+      reused != null && reused.flavour == null
+        ? ' (that terminal was open before this window, so its shell is a guess)'
+        : '';
+    vscode.window.showErrorMessage(
+      `Canvas Course Builder: ${error.message}${guessed}. Nothing was run.`,
+    );
+    return;
+  }
+
   let entry;
-  if (choice.action === 'reuse') {
-    entry = terminalPool[choice.index];
+  if (reused) {
+    entry = reused;
     terminalPool.splice(choice.index, 1);
     terminalPool.push(entry); // most recently used last
   } else {
@@ -117,6 +176,7 @@ function runInTerminal(commandStr) {
       name: choice.name,
       busy: false,
       awaitingStart: false,
+      flavour,
     };
     terminalPool.push(entry);
   }
@@ -422,7 +482,10 @@ function activate(context) {
   // window does not stack a second "Canvas Course Builder" beside the old
   // one. Their state is unknowable, and unknowable means busy: each rejoins
   // the pool when shell integration activates in it, when it reports a
-  // command ending, or by closing.
+  // command ending, or by closing. Which shell they run is unknowable too, so
+  // the flavour stamp stays null and a line for one of them is quoted for the
+  // current default profile — a guess, and `runInTerminal` says why it is the
+  // one taken.
   for (const terminal of vscode.window.terminals) {
     if (terminalNumber(terminal.name, TERMINAL_BASE_NAME) !== null) {
       terminalPool.push({
@@ -430,6 +493,7 @@ function activate(context) {
         name: terminal.name,
         busy: true,
         awaitingStart: false,
+        flavour: null,
       });
     }
   }
@@ -493,7 +557,7 @@ function activate(context) {
   for (const [id, cmd] of Object.entries(commands)) {
     register(id, () => {
       if (!noValidationCommands.has(id) && !validateWorkspace()) return;
-      runInTerminal(cmd);
+      runInTerminal(() => cmd);
     });
   }
 
@@ -502,14 +566,14 @@ function activate(context) {
     const moduleName = treeItem?.moduleFolderName;
     if (!moduleName) return;
     if (!validateWorkspace()) return;
-    runInTerminal(`npx course push --module ${moduleName}`);
+    runInTerminal((q) => `npx course push --module ${q(moduleName)}`);
   });
 
   register('course.pushModule', async () => {
     if (!validateWorkspace()) return;
     const picked = await pickModuleFolder('Select module to push');
     if (picked) {
-      runInTerminal(`npx course push --module ${picked}`);
+      runInTerminal((q) => `npx course push --module ${q(picked)}`);
     }
   });
 
@@ -521,7 +585,7 @@ function activate(context) {
       validateInput: (v) => (v.trim() ? null : 'Enter a search term'),
     });
     if (!keyword) return;
-    runInTerminal(`npx course search "${keyword.trim().replace(/"/g, '\\"')}"`);
+    runInTerminal((q) => `npx course search ${q(keyword.trim())}`);
   });
 
   // --- Module commands (context-aware) ---
@@ -849,6 +913,10 @@ function activate(context) {
   // Output streams in the shared terminal, where pandoc/preflight messages
   // belong. Item export supports multi-select: the second handler argument is
   // the full tree selection when several items are highlighted.
+  //
+  // Paths and folder names are quoted; `--format` is not, because `pickFormat`
+  // can only return the literal 'pdf' or 'docx'. Quoting it would suggest the
+  // value comes from somewhere it does not.
   register('course.exportItem', async (item, selected) => {
     if (!validateWorkspace()) return;
     const chosen =
@@ -867,8 +935,9 @@ function activate(context) {
     }
     const format = await pickFormat();
     if (!format) return;
-    const quoted = paths.map((p) => `"${p}"`).join(' ');
-    runInTerminal(`npx course export ${quoted} --format ${format}`);
+    runInTerminal(
+      (q) => `npx course export ${paths.map(q).join(' ')} --format ${format}`,
+    );
   });
 
   register('course.exportModule', async (treeItem) => {
@@ -880,7 +949,9 @@ function activate(context) {
     if (!folder) return;
     const format = await pickFormat();
     if (!format) return;
-    runInTerminal(`npx course export --module ${folder} --format ${format}`);
+    runInTerminal(
+      (q) => `npx course export --module ${q(folder)} --format ${format}`,
+    );
   });
 
   register('course.exportCourse', async () => {
@@ -925,7 +996,7 @@ function activate(context) {
     const format = await pickFormat();
     if (!format) return;
     const flag = scope.scope === 'flagged' ? ' --flagged' : '';
-    runInTerminal(`npx course export${flag} --format ${format}`);
+    runInTerminal(() => `npx course export${flag} --format ${format}`);
   });
 
   register('course.exportCourseToc', async () => {
@@ -933,7 +1004,8 @@ function activate(context) {
     const format = await pickFormat();
     if (!format) return;
     runInTerminal(
-      `npx course export --toc "exports/toc.md" --format ${format}`,
+      (q) =>
+        `npx course export --toc ${q('exports/toc.md')} --format ${format}`,
     );
     vscode.commands.executeCommand('setContext', 'course.tocReady', false);
   });
