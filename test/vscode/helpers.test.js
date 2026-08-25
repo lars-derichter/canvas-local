@@ -1142,22 +1142,47 @@ describe('helpers: readEnvConfig', () => {
     assert.equal(env.CANVAS_API_URL, 'https://x.test');
   });
 
-  it('reads no CRLF line at all — a known defect, pinned as it stands', () => {
+  it('reads a CRLF file the same as an LF one', () => {
     // `.` never matches a carriage return and `$` without the `m` flag does
-    // not match before one, so `KEY=value\r` matches nothing and a .env
-    // written by a Windows editor reads as empty: "Open in Canvas" reports no
-    // Canvas configuration on a workspace that has one. Only a final line
-    // without its CRLF survives. Recorded here rather than repaired, so the
-    // move out of extension.js stays a move; the repair belongs with the
-    // Windows sweep that owns every other CRLF site.
-    const env = writeEnv(
+    // not match before one, so `KEY=value\r` used to match nothing at all: a
+    // .env written on Windows read as empty, and "Open in Canvas" reported no
+    // Canvas configuration on a workspace that had one, while every CLI
+    // command read the same file through dotenv without trouble.
+    const crlf = writeEnv(
       'CANVAS_API_URL=https://x.test\r\nCANVAS_COURSE_ID=45083\r\n',
     );
-    assert.deepStrictEqual(env, {});
+    assert.deepStrictEqual(crlf, {
+      CANVAS_API_URL: 'https://x.test',
+      CANVAS_COURSE_ID: '45083',
+    });
     assert.deepStrictEqual(
-      writeEnv('CANVAS_API_URL=https://x.test\r\nCANVAS_COURSE_ID=45083'),
-      { CANVAS_COURSE_ID: '45083' },
+      writeEnv('CANVAS_API_URL=https://x.test\nCANVAS_COURSE_ID=45083\n'),
+      crlf,
     );
+  });
+
+  it('reads a file that mixes the two endings', () => {
+    // One author on Windows and one on macOS editing the same .env, or an
+    // editor that appends in its own ending: every line is read whichever way
+    // it ends, the last one included when it ends with nothing at all.
+    assert.deepStrictEqual(
+      writeEnv(
+        '# Canvas credentials\r\nCANVAS_API_URL=https://x.test\nCANVAS_API_TOKEN=abc123\r\n\r\nCANVAS_COURSE_ID=45083',
+      ),
+      {
+        CANVAS_API_URL: 'https://x.test',
+        CANVAS_API_TOKEN: 'abc123',
+        CANVAS_COURSE_ID: '45083',
+      },
+    );
+  });
+
+  it('takes the quotes off a CRLF line too', () => {
+    // The two rules meet on the line a Windows author is most likely to have
+    // both of: a quoted URL, ending in CRLF.
+    assert.deepStrictEqual(writeEnv('CANVAS_API_URL="https://x.test"\r\n'), {
+      CANVAS_API_URL: 'https://x.test',
+    });
   });
 
   it('returns nothing at all when there is no .env to read', () => {

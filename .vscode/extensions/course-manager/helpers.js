@@ -525,7 +525,11 @@ function readEnvConfig(root) {
   try {
     const content = fs.readFileSync(envPath, 'utf8');
     const vars = {};
-    for (const line of content.split('\n')) {
+    // Split on either ending, and on a file that mixes them: `.` never
+    // matches a carriage return and a non-multiline `$` does not match before
+    // one, so a `\r` left on the line made the whole line match nothing —
+    // reading a CRLF `.env` as no configuration at all.
+    for (const line of content.split(/\r?\n/)) {
       const match = line.match(/^(\w+)\s*=\s*(.+)$/);
       if (match) vars[match[1]] = unquote(match[2].trim());
     }
