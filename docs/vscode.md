@@ -89,12 +89,14 @@ through native VS Code dialogs, and the operation runs the CLI in the background
   one combined document. You then pick PDF or Word.
 
 The same commands also work from the command palette; you then pick the module
-or item from a quick-pick list instead. The two-step merge is the exception: it
-needs both right-clicks, so the palette carries **Course: Merge Items**, which
-asks for source and target. Either way the actual work is done by the
-`npx course` CLI with non-interactive flags, so renumbering and Canvas sync
-state behave exactly like the terminal commands. Full output is available in the
-**Canvas Course Builder** output channel (View → Output).
+or item from a quick-pick list instead. When the active editor's file lies
+inside a module, that module (or the file itself) is offered first, marked as
+current, so Enter confirms it. The two-step merge is the exception: it needs
+both right-clicks, so the palette carries **Course: Merge Items**, which asks
+for source and target. Either way the actual work is done by the `npx course`
+CLI with non-interactive flags, so renumbering and Canvas sync state behave
+exactly like the terminal commands. Full output is available in the **Canvas
+Course Builder** output channel (View → Output).
 
 ### Drag and Drop
 
@@ -227,7 +229,7 @@ margins.
   warning names, so firing it during a Setup run would interrupt the run that
   answers it.
 - **Push Module** presents a quick-pick list of all module folders so you can
-  select which one to push.
+  select which one to push, with the active file's module listed first.
 - **Preview** checks whether the Docusaurus dev server is already running. If
   not, it starts `npm start` in a Preview terminal and opens the browser as soon
   as the server responds.

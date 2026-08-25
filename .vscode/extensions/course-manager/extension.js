@@ -10,7 +10,14 @@ const {
   readFrontmatter,
   displayTitle,
 } = require('./CourseTreeProvider');
-const { canvasModuleUrl, pickTerminal, terminalNumber } = require('./helpers');
+const {
+  canvasModuleUrl,
+  courseLocation,
+  pickTerminal,
+  promoteActive,
+  seedsDestination,
+  terminalNumber,
+} = require('./helpers');
 
 // Long-running / streaming commands run in a shared terminal. Structural
 // commands (new/rename/move/delete) run silently via runCli and report
@@ -182,6 +189,19 @@ function runCli(args) {
 
 // --- Pickers (used when a command runs from the palette without a tree item) ---
 
+/**
+ * Where the active editor's file sits inside course/, or null. This is the
+ * seed for every palette picker below: the detected module (or file) moves to
+ * the top of its quick pick, marked, so Enter confirms it. Detection only
+ * reorders — no pick is skipped and no choice removed, and a flow answered by
+ * a tree item never reaches a picker at all.
+ */
+function activeCourseLocation() {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor || editor.document.uri.scheme !== 'file') return null;
+  return courseLocation(workspaceRoot, editor.document.uri.fsPath);
+}
+
 function listModuleFolders() {
   const courseDir = path.join(workspaceRoot, 'course');
   if (!fs.existsSync(courseDir)) return [];
@@ -192,7 +212,7 @@ function listModuleFolders() {
     .sort();
 }
 
-async function pickModuleFolder(placeHolder) {
+async function pickModuleFolder(placeHolder, { preselect = true } = {}) {
   const folders = listModuleFolders();
   if (folders.length === 0) {
     vscode.window.showErrorMessage(
@@ -200,12 +220,20 @@ async function pickModuleFolder(placeHolder) {
     );
     return null;
   }
-  const items = folders.map((f) => {
+  let items = folders.map((f) => {
     const label =
       readCategoryLabel(path.join(workspaceRoot, 'course', f)) ||
       displayTitle(f);
     return { label, description: f, folder: f };
   });
+  const location = preselect ? activeCourseLocation() : null;
+  if (location) {
+    items = promoteActive(
+      items,
+      (item) => item.folder === location.moduleFolder,
+      "current file's module",
+    );
+  }
   const picked = await vscode.window.showQuickPick(items, { placeHolder });
   return picked ? picked.folder : null;
 }
@@ -235,12 +263,23 @@ function listEntries(dir, { filesOnly = false } = {}) {
 
 /**
  * Quick-pick an item (file or subsection) inside a module, descending into
- * subsections. Returns an absolute path or null.
+ * subsections. Returns an absolute path or null. Every step seeds from the
+ * active editor: its module first, then the file itself (or the subsection
+ * on its path), each marked and confirmed with a plain Enter.
  */
-async function pickItemPath(placeHolder) {
-  const folder = await pickModuleFolder('Select module');
+async function pickItemPath(placeHolder, { preselect = true } = {}) {
+  const location = preselect ? activeCourseLocation() : null;
+  const folder = await pickModuleFolder('Select module', { preselect });
   if (!folder) return null;
   const moduleDir = path.join(workspaceRoot, 'course', folder);
+  // The picked module may not be the detected one; the item steps only seed
+  // inside the module the active file actually lies in.
+  const segments =
+    location && location.moduleFolder === folder ? location.segments : [];
+  // With the active file at module root, segments[0] is the file itself; any
+  // deeper and it is the directory holding it, which only a subsection row
+  // (never a same-named file) may match.
+  const activeIsNested = segments.length > 1;
 
   const entries = listEntries(moduleDir);
   if (entries.length === 0) {
@@ -249,25 +288,35 @@ async function pickItemPath(placeHolder) {
     );
     return null;
   }
-  const picked = await vscode.window.showQuickPick(
+  const items = promoteActive(
     entries.map((e) => ({
       label: e.name,
       description: e.isDirectory ? 'subsection' : '',
       entry: e,
     })),
-    { placeHolder },
+    (item) =>
+      item.entry.name === segments[0] &&
+      item.entry.isDirectory === activeIsNested,
+    activeIsNested ? "current file's subsection" : 'current file',
   );
+  const picked = await vscode.window.showQuickPick(items, { placeHolder });
   if (!picked) return null;
 
   if (picked.entry.isDirectory) {
     const subDir = path.join(moduleDir, picked.entry.name);
     const subEntries = listEntries(subDir, { filesOnly: true });
-    const sub = await vscode.window.showQuickPick(
+    const subItems = promoteActive(
       [
         { label: `(the subsection ${picked.entry.name} itself)`, entry: null },
       ].concat(subEntries.map((e) => ({ label: e.name, entry: e }))),
-      { placeHolder },
+      (item) =>
+        segments.length === 2 &&
+        segments[0] === picked.entry.name &&
+        item.entry != null &&
+        item.entry.name === segments[1],
+      'current file',
     );
+    const sub = await vscode.window.showQuickPick(subItems, { placeHolder });
     if (!sub) return null;
     return sub.entry ? path.join(subDir, sub.entry.name) : subDir;
   }
@@ -652,7 +701,17 @@ function activate(context) {
     if (!validateWorkspace()) return;
     const itemPath = await resolveItemPath(treeItem, 'Select item to move');
     if (!itemPath) return;
-    const destModule = await pickModuleFolder('Move to which module?');
+    // Seed the destination with the active file's module only for an item
+    // from elsewhere. For an item already in that module, Enter would run
+    // movetomodule-item onto its own module, which appends and gap-closes:
+    // a silent move to the end, not a no-op.
+    const preselect = seedsDestination(
+      courseLocation(workspaceRoot, itemPath),
+      activeCourseLocation(),
+    );
+    const destModule = await pickModuleFolder('Move to which module?', {
+      preselect,
+    });
     if (!destModule) return;
 
     const args = [
@@ -750,8 +809,11 @@ function activate(context) {
       'Source item (appended, then deleted)',
     );
     if (!sourcePath) return;
+    // No seed for the target: the active file is the natural source, and
+    // offering it first here would point Enter at merging it into itself.
     const targetPath = await pickItemPath(
       'Target item (keeps frontmatter, receives content)',
+      { preselect: false },
     );
     if (!targetPath) return;
     if (!(await confirmMerge(sourcePath, targetPath))) return;

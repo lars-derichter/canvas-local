@@ -604,6 +604,152 @@ describe('VS Code extension: pushModule command', () => {
   });
 });
 
+describe('VS Code extension: active-editor preselection', () => {
+  // The palette pickers seed from the file open in the editor: its module (or
+  // the file itself) moves to the top of the quick pick, marked, so Enter
+  // confirms it. The detection is courseLocation and the reorder is
+  // promoteActive, both pure and tested in helpers.test.js; these assertions
+  // pin that every module/item picker actually routes through them.
+
+  // A top-level function's source, from its declaration to the next top-level
+  // function declaration.
+  function functionBody(name) {
+    const match = extensionSource.match(
+      new RegExp(`(?:async )?function ${name}\\(`),
+    );
+    assert.ok(match, `${name} should exist`);
+    const start = match.index;
+    const next = extensionSource
+      .slice(start + match[0].length)
+      .search(/\n(?:async )?function \w+\(/);
+    return next === -1
+      ? extensionSource.slice(start)
+      : extensionSource.slice(start, start + match[0].length + next);
+  }
+
+  it('imports the pure detection and reorder helpers', () => {
+    const importBlock = extensionSource.slice(
+      0,
+      extensionSource.indexOf("require('./helpers')"),
+    );
+    assert.match(importBlock, /courseLocation/);
+    assert.match(importBlock, /promoteActive/);
+  });
+
+  it('reads the active editor in one place, real files only', () => {
+    const body = functionBody('activeCourseLocation');
+    assert.match(body, /vscode\.window\.activeTextEditor/);
+    assert.match(
+      body,
+      /scheme !== 'file'/,
+      'an untitled or virtual document must not seed the pickers',
+    );
+    assert.match(body, /courseLocation\(workspaceRoot,/);
+  });
+
+  it('every module/item picker seeds through promoteActive', () => {
+    // pickFormat chooses an output format, not a module or item; it is the
+    // one picker with nothing to seed. A new pick* function added without
+    // preselection fails here until it routes through promoteActive or earns
+    // a place on this allowlist.
+    const unseeded = new Set(['pickFormat']);
+    const pickers = [
+      ...extensionSource.matchAll(/(?:async )?function (pick\w+)\(/g),
+    ].map((m) => m[1]);
+    assert.ok(pickers.includes('pickModuleFolder'));
+    assert.ok(pickers.includes('pickItemPath'));
+    for (const name of pickers) {
+      if (unseeded.has(name)) continue;
+      const body = functionBody(name);
+      assert.match(
+        body,
+        /promoteActive\(/,
+        `${name} must offer the active file's entry first`,
+      );
+    }
+  });
+
+  it("marks the seeded module row as the current file's module", () => {
+    const body = functionBody('pickModuleFolder');
+    assert.match(body, /activeCourseLocation\(\)/);
+    assert.match(body, /current file's module/);
+  });
+
+  it('seeds both item steps and hands the module step its seed flag', () => {
+    const body = functionBody('pickItemPath');
+    assert.match(body, /activeCourseLocation\(\)/);
+    assert.match(
+      body,
+      /pickModuleFolder\('Select module', \{ preselect \}\)/,
+      "the module step must inherit the caller's preselect choice",
+    );
+    assert.match(body, /current file's subsection/);
+    const fileMarks = body.match(/'current file'/g) || [];
+    assert.equal(
+      fileMarks.length,
+      2,
+      'the entry pick and the subsection pick each mark the current file',
+    );
+    assert.ok(
+      body.indexOf('promoteActive') !== body.lastIndexOf('promoteActive'),
+      'both quick-pick steps must route through promoteActive',
+    );
+  });
+
+  it('keeps tree invocations untouched: resolvers seed only their fallback', () => {
+    for (const [resolver, picker] of [
+      ['resolveItemPath', 'pickItemPath'],
+      ['resolveModuleFolder', 'pickModuleFolder'],
+    ]) {
+      const body = functionBody(resolver);
+      assert.match(
+        body,
+        new RegExp(`return ${picker}\\(`),
+        `${resolver} must reach the seeded picker only without a tree item`,
+      );
+      assert.ok(
+        !body.includes('activeCourseLocation'),
+        `${resolver} must not second-guess a tree item with editor detection`,
+      );
+    }
+  });
+
+  it('leaves the merge target unseeded, and only the merge target', () => {
+    // The active file is the natural merge source; seeding the target too
+    // would point Enter at merging the file into itself.
+    const start = extensionSource.indexOf("register('course.mergeItems'");
+    assert.ok(start !== -1);
+    const next = extensionSource.indexOf("\n  register('", start);
+    const handler = extensionSource.slice(start, next);
+    const optOuts = extensionSource.match(/\{ preselect: false \}/g) || [];
+    assert.equal(optOuts.length, 1, 'exactly one pick opts out of the seed');
+    assert.match(
+      handler,
+      /Target item \(keeps frontmatter, receives content\)',\s*\{ preselect: false \}/,
+    );
+  });
+
+  it('seeds the move destination only for an item outside the active module', () => {
+    // Seeded unconditionally, Enter would run movetomodule-item onto the
+    // item's own module, which appends and gap-closes: a silent move to the
+    // end. The decision is seedsDestination (pure, helpers.test.js); this
+    // pins that the handler feeds it both locations and passes its verdict,
+    // not a literal, to the pick.
+    const start = extensionSource.indexOf("register('course.moveItemToModule'");
+    assert.ok(start !== -1);
+    const next = extensionSource.indexOf("\n  register('", start);
+    const handler = extensionSource.slice(start, next);
+    assert.match(
+      handler,
+      /seedsDestination\(\s*courseLocation\(workspaceRoot, itemPath\),\s*activeCourseLocation\(\),?\s*\)/,
+    );
+    assert.match(
+      handler,
+      /pickModuleFolder\('Move to which module\?', \{\s*preselect,?\s*\}\)/,
+    );
+  });
+});
+
 describe('VS Code extension: inline push button', () => {
   const pushEntries = packageJson.contributes.menus['view/item/context'].filter(
     (m) => m.command === 'course.pushItem',

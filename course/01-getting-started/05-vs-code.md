@@ -191,9 +191,10 @@ notification.
 
 > [!TIP]
 >
-> If you have a file open inside a module folder, the extension automatically
-> detects which module you are working in, so there is no need to select it
-> manually.
+> If you have a file open inside a module folder, the palette commands already
+> know where you are: whenever one asks for a module or an item, that file's
+> module (or the file itself) sits at the top of the list, marked as current.
+> Press Enter to confirm it, or pick any other entry as usual.
 
 ## Updating
 

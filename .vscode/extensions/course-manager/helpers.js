@@ -257,6 +257,77 @@ function validateBatchDrop(rows, dest, readDir) {
 }
 
 /**
+ * Where a file sits inside course/: `{ moduleFolder, segments }`, with
+ * segments the path parts below the module folder, or null for a file the
+ * module and item pickers have nothing to say about. Null covers a file
+ * outside the workspace or outside course/, a file directly in the course/
+ * root, and anything whose top-level folder is not a numbered module —
+ * underscore folders included. A file deeper inside a numbered module always
+ * resolves to that module, `_files/` assets and all: segments[0] may then name
+ * an entry no picker lists, which promotes nothing, and the module itself is
+ * still the answer.
+ *
+ * Comparison is `path.relative`, so a lookalike sibling (`course-notes/`, or
+ * `01-mod` against `01-mod-extra`) never matches and trailing separators do
+ * not matter. No case-folding is added here; comparisons inherit the
+ * platform's path semantics (case-sensitive on POSIX, while
+ * `path.win32.relative` compares case-insensitively).
+ */
+function courseLocation(workspaceRoot, filePath) {
+  if (!workspaceRoot || !filePath) return null;
+  const rel = path.relative(path.join(workspaceRoot, 'course'), filePath);
+  if (
+    rel === '' ||
+    rel === '..' ||
+    rel.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(rel)
+  ) {
+    return null;
+  }
+  const [moduleFolder, ...segments] = rel.split(path.sep);
+  if (!/^\d/.test(moduleFolder) || segments.length === 0) return null;
+  return { moduleFolder, segments };
+}
+
+/**
+ * The quick-pick list with the first entry `isActive` matches moved to the
+ * front, its description carrying `note` so the author can see why it leads.
+ * Detection may only reorder, never skip a pick or drop a choice: every entry
+ * stays in the list, and with no match the list comes back untouched. The
+ * input array and the matched entry are not mutated.
+ */
+function promoteActive(items, isActive, note) {
+  const index = items.findIndex(isActive);
+  if (index === -1) return items;
+  const active = items[index];
+  const marked = {
+    ...active,
+    description: active.description ? `${active.description} · ${note}` : note,
+  };
+  return [marked, ...items.slice(0, index), ...items.slice(index + 1)];
+}
+
+/**
+ * Whether a cross-module move's destination pick may seed the active file's
+ * module. Seeding says "move the picked item into the module I am editing",
+ * which only makes sense for an item known to lie outside that module: seeded
+ * with the item's own module, Enter would run `movetomodule-item` onto the
+ * module the item is already in, and that is no no-op — the CLI appends and
+ * gap-closes, silently moving the file to the end of its module. A missing
+ * location on either side never seeds: no active file gives nothing to offer,
+ * and an item that cannot be placed cannot be shown to lie outside.
+ *
+ * Both arguments are `courseLocation` results (or null).
+ */
+function seedsDestination(itemLocation, activeLocation) {
+  return (
+    itemLocation != null &&
+    activeLocation != null &&
+    itemLocation.moduleFolder !== activeLocation.moduleFolder
+  );
+}
+
+/**
  * The Canvas module id a sync state records for a local module folder, as a
  * string, or null when it holds none.
  *
@@ -368,6 +439,9 @@ module.exports = {
   batchPositions,
   sortByVisualOrder,
   validateBatchDrop,
+  courseLocation,
+  promoteActive,
+  seedsDestination,
   moduleCanvasId,
   canvasModuleUrl,
   terminalNumber,

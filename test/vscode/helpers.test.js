@@ -15,6 +15,9 @@ const {
   batchPositions,
   sortByVisualOrder,
   validateBatchDrop,
+  courseLocation,
+  promoteActive,
+  seedsDestination,
   moduleCanvasId,
   canvasModuleUrl,
   terminalNumber,
@@ -504,6 +507,173 @@ describe('helpers: batchPositions drives sequential moveEntry in dragged order',
       '07-b.md',
       '08-c.md',
     ]);
+  });
+});
+
+describe('helpers: courseLocation', () => {
+  const ws = path.join('/ws');
+  const file = (...parts) => path.join('/ws', 'course', ...parts);
+
+  it('finds the module of a file at module root', () => {
+    assert.deepStrictEqual(courseLocation(ws, file('01-mod', '03-page.md')), {
+      moduleFolder: '01-mod',
+      segments: ['03-page.md'],
+    });
+  });
+
+  it('keeps the whole path below the module for a nested subsection file', () => {
+    assert.deepStrictEqual(
+      courseLocation(ws, file('01-mod', '02-sub', '01-page.md')),
+      { moduleFolder: '01-mod', segments: ['02-sub', '01-page.md'] },
+    );
+  });
+
+  it('claims a _files asset for its module', () => {
+    // segments[0] then names an entry no picker lists, which promotes no
+    // item row, but the module answer is what the module pickers need.
+    assert.deepStrictEqual(
+      courseLocation(ws, file('01-mod', '_files', 'diagram.png')),
+      { moduleFolder: '01-mod', segments: ['_files', 'diagram.png'] },
+    );
+  });
+
+  it('returns null for a file directly in the course/ root', () => {
+    assert.equal(courseLocation(ws, file('index.md')), null);
+  });
+
+  it('returns null under an underscore or unnumbered top-level folder', () => {
+    assert.equal(courseLocation(ws, file('_shared', 'note.md')), null);
+    assert.equal(courseLocation(ws, file('drafts', 'note.md')), null);
+  });
+
+  it('returns null for a file outside the workspace', () => {
+    assert.equal(
+      courseLocation(ws, path.join('/elsewhere', 'course', '01-mod', 'a.md')),
+      null,
+    );
+  });
+
+  it('never matches on a bare path prefix', () => {
+    // 01-mod-extra is its own module, not a file inside 01-mod; and a
+    // course-extra/ sibling of course/ is outside course/ entirely.
+    assert.deepStrictEqual(courseLocation(ws, file('01-mod-extra', 'a.md')), {
+      moduleFolder: '01-mod-extra',
+      segments: ['a.md'],
+    });
+    assert.equal(
+      courseLocation(ws, path.join('/ws', 'course-extra', '01-mod', 'a.md')),
+      null,
+    );
+  });
+
+  it('shrugs off trailing separators', () => {
+    assert.deepStrictEqual(
+      courseLocation(`${ws}${path.sep}`, file('01-mod', 'a.md')),
+      { moduleFolder: '01-mod', segments: ['a.md'] },
+    );
+    // The module directory itself, trailing separator and all, is not a file
+    // inside the module.
+    assert.equal(courseLocation(ws, `${file('01-mod')}${path.sep}`), null);
+  });
+
+  it('does not fold case', () => {
+    assert.equal(
+      courseLocation(ws, path.join('/ws', 'Course', '01-m', 'a.md')),
+      null,
+    );
+  });
+
+  it('returns null when either input is missing', () => {
+    assert.equal(courseLocation(null, file('01-mod', 'a.md')), null);
+    assert.equal(courseLocation(ws, null), null);
+    assert.equal(courseLocation(ws, path.join('/ws', 'course')), null);
+  });
+});
+
+describe('helpers: promoteActive', () => {
+  const items = () => [
+    { label: 'a', description: '01-a', folder: '01-a' },
+    { label: 'b', description: '01-b', folder: '01-b' },
+    { label: 'c', description: '01-c', folder: '01-c' },
+  ];
+
+  it('moves the match to the front, marked, keeping every entry', () => {
+    const result = promoteActive(items(), (i) => i.folder === '01-c', 'here');
+    assert.deepStrictEqual(
+      result.map((i) => i.label),
+      ['c', 'a', 'b'],
+    );
+    assert.equal(result[0].description, '01-c · here');
+    assert.equal(result.length, 3);
+  });
+
+  it('marks a match that is already first', () => {
+    const result = promoteActive(items(), (i) => i.folder === '01-a', 'here');
+    assert.deepStrictEqual(
+      result.map((i) => i.label),
+      ['a', 'b', 'c'],
+    );
+    assert.equal(result[0].description, '01-a · here');
+  });
+
+  it('uses the note alone when the entry has no description', () => {
+    const result = promoteActive(
+      [{ label: 'x' }, { label: 'y', description: '' }],
+      (i) => i.label === 'y',
+      'current file',
+    );
+    assert.equal(result[0].description, 'current file');
+  });
+
+  it('returns the list untouched when nothing matches', () => {
+    const input = items();
+    assert.deepStrictEqual(
+      promoteActive(input, () => false, 'here'),
+      input,
+    );
+  });
+
+  it('mutates neither the list nor the promoted entry', () => {
+    const input = items();
+    promoteActive(input, (i) => i.folder === '01-b', 'here');
+    assert.deepStrictEqual(input, items());
+  });
+});
+
+describe('helpers: seedsDestination', () => {
+  const at = (moduleFolder, ...segments) => ({ moduleFolder, segments });
+
+  it('seeds for an item outside the active module', () => {
+    assert.equal(
+      seedsDestination(at('02-other', '01-a.md'), at('01-mod', '03-b.md')),
+      true,
+    );
+  });
+
+  it('refuses an item already in the active module', () => {
+    // Seeded, Enter would run movetomodule-item onto the item's own module,
+    // which appends and gap-closes: a silent move to the end, not a no-op.
+    assert.equal(
+      seedsDestination(at('01-mod', '01-a.md'), at('01-mod', '03-b.md')),
+      false,
+    );
+    // Same module even when the two sit in different subsections of it.
+    assert.equal(
+      seedsDestination(
+        at('01-mod', '02-sub', '01-a.md'),
+        at('01-mod', '03-b.md'),
+      ),
+      false,
+    );
+  });
+
+  it('refuses without an active file to offer', () => {
+    assert.equal(seedsDestination(at('02-other', '01-a.md'), null), false);
+  });
+
+  it('refuses an item it cannot place', () => {
+    assert.equal(seedsDestination(null, at('01-mod', '03-b.md')), false);
+    assert.equal(seedsDestination(null, null), false);
   });
 });
 
