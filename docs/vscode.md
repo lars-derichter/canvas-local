@@ -1,7 +1,12 @@
 # VS Code Integration
 
 All course commands are available in the VS Code command palette (Cmd+Shift+P /
-Ctrl+Shift+P). Type "Course:" to filter the list.
+Ctrl+Shift+P). Type "Course:" to filter the list. Four actions are kept out of
+it, because they act on the tree item you clicked and can do nothing without
+one: the inline **Push Module** and **Open in Canvas** buttons, and the two-step
+**Merge: Set as Source** / **Merge with Source**. The palette has its own
+**Course: Push Module to Canvas...** and **Course: Merge Items**, which ask
+which module or item you mean.
 
 ## Installation
 
@@ -71,8 +76,10 @@ through native VS Code dialogs, and the operation runs the CLI in the background
   one combined document. You then pick PDF or Word.
 
 The same commands also work from the command palette; you then pick the module
-or item from a quick-pick list instead. Either way the actual work is done by
-the `npx course` CLI with non-interactive flags, so renumbering and Canvas sync
+or item from a quick-pick list instead. The two-step merge is the exception: it
+needs both right-clicks, so the palette carries **Course: Merge Items**, which
+asks for source and target. Either way the actual work is done by the
+`npx course` CLI with non-interactive flags, so renumbering and Canvas sync
 state behave exactly like the terminal commands. Full output is available in the
 **Canvas Course Builder** output channel (View → Output).
 

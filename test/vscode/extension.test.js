@@ -103,6 +103,93 @@ describe('VS Code extension: command registry consistency', () => {
   });
 });
 
+describe('VS Code extension: command palette visibility', () => {
+  // A contributed command is palette-visible unless a commandPalette entry
+  // hides it, and these four do nothing there: each reads the tree item it was
+  // clicked on and returns when it is missing, silently. Every other command
+  // asks for what it needs (quick pick, input box, active editor) and works
+  // from the palette.
+  const contextOnly = [
+    'course.mergeSetSource',
+    'course.mergeWithSource',
+    'course.openInCanvas',
+    'course.pushItem',
+  ];
+  const paletteMenus = packageJson.contributes.menus.commandPalette;
+
+  // The handler body, from its register() call to the next one.
+  function handlerFor(id) {
+    const start = extensionSource.indexOf(`register('${id}'`);
+    assert.ok(start !== -1, `${id} should be registered`);
+    const next = extensionSource.indexOf("\n  register('", start);
+    return extensionSource.slice(start, next === -1 ? undefined : next);
+  }
+
+  it('declares a commandPalette menu section', () => {
+    assert.ok(
+      Array.isArray(paletteMenus),
+      'contributes.menus needs a commandPalette section',
+    );
+  });
+
+  it('hides exactly the commands that cannot run without a tree item', () => {
+    for (const entry of paletteMenus) {
+      assert.equal(
+        entry.when,
+        'false',
+        `${entry.command} should be hidden with when: "false"`,
+      );
+    }
+    assert.deepEqual(
+      paletteMenus.map((m) => m.command).sort(),
+      [...contextOnly].sort(),
+    );
+  });
+
+  it('hides only commands the manifest declares', () => {
+    const declared = packageCommands.map((c) => c.command);
+    for (const entry of paletteMenus) {
+      assert.ok(
+        declared.includes(entry.command),
+        `commandPalette hides "${entry.command}", which is not a declared command`,
+      );
+    }
+  });
+
+  it('each hidden handler really lacks a palette fallback', () => {
+    for (const id of contextOnly) {
+      const handler = handlerFor(id);
+      for (const fallback of [
+        'resolveItemPath',
+        'resolveModuleFolder',
+        'pickItemPath',
+        'pickModuleFolder',
+        'showQuickPick',
+        'showInputBox',
+      ]) {
+        assert.ok(
+          !handler.includes(fallback),
+          `${id} now falls back to ${fallback}: unhide it from the palette`,
+        );
+      }
+    }
+  });
+
+  it('leaves the commands that ask for their target visible', () => {
+    const hidden = new Set(paletteMenus.map((m) => m.command));
+    for (const id of [
+      'course.pushModule',
+      'course.mergeItems',
+      'course.renameItem',
+      'course.deleteItem',
+      'course.exportItem',
+      'course.splitItem',
+    ]) {
+      assert.ok(!hidden.has(id), `${id} works from the palette and must stay`);
+    }
+  });
+});
+
 describe('VS Code extension: commands map', () => {
   it('maps each command to a valid npx course CLI invocation', () => {
     for (const [id, cmd] of Object.entries(commandsMap)) {

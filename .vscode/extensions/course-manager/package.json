@@ -172,6 +172,24 @@
       }
     ],
     "menus": {
+      "commandPalette": [
+        {
+          "command": "course.mergeSetSource",
+          "when": "false"
+        },
+        {
+          "command": "course.mergeWithSource",
+          "when": "false"
+        },
+        {
+          "command": "course.openInCanvas",
+          "when": "false"
+        },
+        {
+          "command": "course.pushItem",
+          "when": "false"
+        }
+      ],
       "view/title": [
         {
           "command": "course.newModule",
