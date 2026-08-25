@@ -295,14 +295,18 @@ describe('VS Code extension: advanced commands', () => {
     }
   });
 
-  it('exempts only the two resets from the course/ warning', () => {
-    // Neither reset reads course/: they act on .canvas-sync.json and on
-    // Canvas. Reset Sync State is what you run when the project is broken, so
-    // a warning that course/ is missing would point away from the fix.
+  it('exempts Setup, Init and the two resets from the course/ warning', () => {
+    // None of the four reads course/. Setup writes it and is the command the
+    // warning itself names, so warning during a Setup run would interrupt the
+    // run that answers it. Init writes .env and the sync state; neither reset
+    // reads course/ either, they act on .canvas-sync.json and on Canvas. Reset
+    // Sync State is what you run when the project is broken, so a warning that
+    // course/ is missing would point away from the fix.
     assert.deepEqual(parseNoValidationCommands(extensionSource).sort(), [
       'course.init',
       'course.resetCanvas',
       'course.resetSyncState',
+      'course.setup',
     ]);
   });
 
@@ -786,6 +790,103 @@ describe('VS Code extension: activate and deactivate', () => {
   });
 });
 
+describe('VS Code extension: empty-view welcome', () => {
+  // The tree renders empty in three situations, all of them a bare panel
+  // before this: `getChildren` returns [] when no workspace folder is open,
+  // when the workspace has no course/ directory, and when course/ holds no
+  // module folders — which is exactly what Setup leaves behind when the author
+  // removes the built-in tutorial module.
+  const welcome = packageJson.contributes.viewsWelcome;
+  const treeViewId = packageJson.contributes.views['course-manager'][0].id;
+  const withFolder = () =>
+    welcome.find((e) => e.when === 'workbenchState != empty');
+  const withoutFolder = () =>
+    welcome.find((e) => e.when === 'workbenchState == empty');
+
+  it('contributes welcome content for the tree view', () => {
+    assert.ok(
+      Array.isArray(welcome),
+      'contributes needs a viewsWelcome section',
+    );
+    assert.ok(welcome.length > 0);
+    for (const entry of welcome) {
+      assert.equal(
+        entry.view,
+        treeViewId,
+        `welcome content targets "${entry.view}", not the tree view`,
+      );
+      assert.ok(
+        entry.contents && entry.contents.trim().length > 0,
+        'a welcome entry with no contents renders the blank panel again',
+      );
+    }
+  });
+
+  it('says something in both empty states', () => {
+    // VS Code cannot tell a missing course/ from an empty one, so the clauses
+    // split on the only thing it does know: whether a folder is open at all.
+    assert.ok(withoutFolder(), 'the no-folder state needs its own entry');
+    assert.ok(withFolder(), 'the folder-open states need their own entry');
+  });
+
+  it('offers Setup as a button once a folder is open', () => {
+    // A link alone on its line is what VS Code renders as a button; one inside
+    // a sentence stays an inline link.
+    const button = '[Course: Setup (First-Run Wizard)](command:course.setup)';
+    assert.ok(
+      withFolder().contents.split('\n').includes(button),
+      'the Setup command link has to sit on a line of its own to be a button',
+    );
+  });
+
+  it('links only commands the manifest declares and the extension registers', () => {
+    const linked = [
+      ...welcome
+        .map((e) => e.contents)
+        .join('\n')
+        .matchAll(/\(command:([\w.]+)\)/g),
+    ].map((m) => m[1]);
+    assert.ok(linked.includes('course.setup'));
+    for (const id of linked) {
+      assert.ok(
+        packageCommands.some((c) => c.command === id),
+        `the welcome links "${id}", which is not a declared command`,
+      );
+      assert.ok(
+        allRegisteredIds.includes(id),
+        `the welcome links "${id}", which extension.js does not register`,
+      );
+    }
+  });
+
+  it('offers no button at all when no folder is open', () => {
+    // Every command here runs `npx course` in a terminal opened at the
+    // workspace root, and in this state there is none: the run would land in
+    // whatever directory VS Code happened to hand the terminal.
+    assert.ok(
+      !withoutFolder().contents.includes('(command:'),
+      'a command button with no workspace runs the CLI somewhere unknown',
+    );
+  });
+
+  it('points at the same tutorial module Setup names when it removes it', () => {
+    // The author who deleted their copy, and the project that never had a
+    // course/ to hold one, both still need somewhere to read it.
+    const setupSource = fs.readFileSync(
+      path.resolve(__dirname, '../../cli/setup.js'),
+      'utf-8',
+    );
+    const url = setupSource.match(
+      /const TUTORIAL_UPSTREAM_URL =\s*\n?\s*'([^']+)'/,
+    );
+    assert.ok(url, 'cli/setup.js should define TUTORIAL_UPSTREAM_URL');
+    assert.ok(
+      withFolder().contents.includes(`(${url[1]})`),
+      `the welcome should link the tutorial at ${url[1]}`,
+    );
+  });
+});
+
 describe('VS Code extension: workspace validation', () => {
   it('defines validateWorkspace function', () => {
     assert.match(extensionSource, /function validateWorkspace\(\)/);
@@ -806,6 +907,43 @@ describe('VS Code extension: workspace validation', () => {
     assert.match(
       extensionSource,
       new RegExp('showWarningMessage[\\s\\S]*No course/ directory found'),
+    );
+  });
+
+  it('sends that warning to Setup, the command that creates a course', () => {
+    // Init writes .env and .canvas-sync.json and never touches course/, so
+    // "Run Course: Init first" pointed at the one command that could not help.
+    const warning = extensionSource.match(
+      /'(Canvas Course Builder: No course\/ directory found[^']*)'/,
+    );
+    assert.ok(warning, 'the missing-course/ warning should exist');
+    assert.match(warning[1], /Course: Setup \(First-Run Wizard\)/);
+    assert.ok(
+      !warning[1].includes('Course: Init'),
+      'Init configures Canvas credentials, not course/',
+    );
+  });
+
+  it('does not warn Setup about the course/ it is about to create', () => {
+    assert.ok(
+      parseNoValidationCommands(extensionSource).includes('course.setup'),
+      'the warning names Setup, so firing it during a Setup run is circular',
+    );
+  });
+
+  it('describes itself as warning, not erroring, on a missing course/', () => {
+    // The docstring claimed an error, which read as a hard gate on course/. The
+    // gate is on the workspace folder alone: a missing course/ draws a warning
+    // and the root comes back regardless, which is what lets Setup run.
+    const at = extensionSource.indexOf('function validateWorkspace()');
+    const doc = extensionSource.slice(
+      extensionSource.lastIndexOf('/**', at),
+      at,
+    );
+    assert.match(doc, /warning/i, 'the docstring has to name the warning');
+    assert.ok(
+      !/error message if not found/i.test(doc),
+      'the docstring must not promise an error for a missing course/',
     );
   });
 });

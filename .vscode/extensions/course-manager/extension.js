@@ -48,8 +48,12 @@ function getWorkspaceRoot() {
 }
 
 /**
- * Check if the workspace has a course/ directory.
- * Shows an error message if not found.
+ * The workspace root, or null when no folder is open at all — the one case in
+ * which a command cannot run and the caller has to give up.
+ *
+ * A workspace without a course/ directory is not that case. It draws a warning
+ * naming the command that sets a course up, and the root is returned anyway, so
+ * Setup and the other commands that write course/ still run.
  */
 function validateWorkspace() {
   const root = getWorkspaceRoot();
@@ -63,7 +67,7 @@ function validateWorkspace() {
   const courseDir = path.join(root, 'course');
   if (!fs.existsSync(courseDir)) {
     vscode.window.showWarningMessage(
-      'Canvas Course Builder: No course/ directory found. Run "Course: Init" first.',
+      'Canvas Course Builder: No course/ directory found. Run "Course: Setup (First-Run Wizard)" to create one.',
     );
   }
 
@@ -424,12 +428,15 @@ function activate(context) {
   }
 
   // --- Terminal-based commands (streaming output) ---
-  // The three exempt from the course/-missing warning are the three that do
-  // not read course/: Init writes .env and the sync state, and both resets
-  // operate on that state and on Canvas. Reset Sync State is precisely what
-  // you reach for when the project is in a state you cannot sync out of, so
-  // warning that it looks unfinished would be advice pointing the wrong way.
+  // The four exempt from the course/-missing warning are the four that do not
+  // read course/: Setup writes it, Init writes .env and the sync state, and
+  // both resets operate on that state and on Canvas. Setup is also the command
+  // the warning now points at, so leaving it in would have interrupted the run
+  // that was about to answer it. Reset Sync State is precisely what you reach
+  // for when the project is in a state you cannot sync out of, so warning that
+  // it looks unfinished would be advice pointing the wrong way.
   const noValidationCommands = new Set([
+    'course.setup',
     'course.init',
     'course.resetSyncState',
     'course.resetCanvas',

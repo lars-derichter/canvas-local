@@ -35,6 +35,18 @@
         }
       ]
     },
+    "viewsWelcome": [
+      {
+        "view": "courseTree",
+        "contents": "No folder is open, so there is no course to show.\nUse File > Open Folder to open your course project; the modules in its course/ folder appear here.",
+        "when": "workbenchState == empty"
+      },
+      {
+        "view": "courseTree",
+        "contents": "No course modules found.\nRun the first-run wizard to set up the course name, language and look, then add your first module.\n[Course: Setup (First-Run Wizard)](command:course.setup)\nThe [tutorial module](https://github.com/lars-derichter/canvas-course-builder/tree/main/course/01-getting-started) walks through the whole workflow.",
+        "when": "workbenchState != empty"
+      }
+    ],
     "commands": [
       {
         "command": "course.setup",

@@ -23,6 +23,12 @@ The extension adds a **Course Manager** panel to the VS Code activity bar (book
 icon on the left). It shows a tree view of all modules and items in the
 `course/` directory.
 
+When there is nothing to show, the panel carries a short welcome instead of a
+blank page. With no folder open it points at **File > Open Folder**; in a
+project with no modules yet (no `course/`, or a `course/` whose tutorial module
+was removed at setup) it offers **Course: Setup (First-Run Wizard)** as a button
+and links the tutorial module in the upstream repository.
+
 ### Tree Structure
 
 - **Modules**: shown as folders, labelled from `_category_.json` or derived from
@@ -215,10 +221,11 @@ margins.
   automatically.
 - The workspace check blocks on one thing. `validateWorkspace` stops a command
   when no workspace folder is open at all; a workspace with no `course/`
-  directory only draws a warning pointing at Init, and the command runs
-  regardless. That is what lets Setup and New Module run in a project that has
-  no `course/` yet. Init and the two reset commands are exempt from the check
-  altogether, because none of them reads `course/`.
+  directory only draws a warning pointing at Setup, and the command runs
+  regardless. Setup, Init and the two reset commands are exempt from the check
+  altogether, because none of them reads `course/`: Setup is the command the
+  warning names, so firing it during a Setup run would interrupt the run that
+  answers it.
 - **Push Module** presents a quick-pick list of all module folders so you can
   select which one to push.
 - **Preview** checks whether the Docusaurus dev server is already running. If
