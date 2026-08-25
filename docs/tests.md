@@ -10,6 +10,22 @@ The project uses the built-in
 npm test
 ```
 
+The glob in that script is double-quoted (`"test/**/*.test.js"`), and it has to
+stay that way. npm runs scripts through `cmd.exe` on Windows, and cmd does not
+strip single quotes the way `sh` does, so the single-quoted form arrives at
+`node --test` with its quote characters still attached and matches nothing. Node
+does not call that an error: its guard for a run that matched no files is
+skipped whenever the pattern contains glob magic, and the `*` still counts as
+magic inside quotes that have made the whole string literal. So the suite
+reports `tests 0`, exits 0, and passes on Windows without running a single test.
+Both shells strip double quotes, which is what makes that form the portable one.
+
+`scripts/check-test-glob.js` runs as `pretest` and holds the line: it globs the
+same pattern, checks that the `test` and `pretest` scripts still spell it
+identically, and fails the run when the pattern matches implausibly few files.
+The mistake is loud instead of silent, on a developer's machine as well as in
+CI.
+
 ## Test Structure
 
 Tests live in `test/` and mirror the layout of the source directories they
