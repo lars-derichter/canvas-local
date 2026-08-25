@@ -291,10 +291,11 @@ program
     'Regenerate module glossary pages from the canonical glossary YAML',
   )
   .option('-m, --module <name>', 'Only rebuild a specific module folder name')
+  // No commander default: an unset flag is what tells the command to read the
+  // glossary from the project root instead of from the working directory.
   .option(
     '-g, --glossary <path>',
-    'Path to the glossary YAML file',
-    'sources/reference-materials/glossary.yml',
+    'Path to the glossary YAML file (default: sources/reference-materials/glossary.yml)',
   )
   .option('--check', 'Do not write; exit non-zero if any page is out of date')
   .action(require('./build-glossary'));

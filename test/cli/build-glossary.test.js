@@ -1,5 +1,9 @@
-const { describe, it } = require('node:test');
+const { describe, it, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
+const { spawnSync } = require('node:child_process');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 
 const {
   DEFAULT_CONFIG,
@@ -167,6 +171,128 @@ describe('resolveLesson', () => {
   it('returns null when no lesson number can be resolved', () => {
     const config = { ...DEFAULT_CONFIG, module_pattern: 'les(\\d+)' };
     assert.equal(resolveLesson('99-reference', {}, config), null);
+  });
+});
+
+// The command used to resolve `course/` and the default glossary from
+// `process.cwd()`, so it was the one command in this CLI that only worked from
+// the project root. Run through a child process with its cwd inside the
+// fixture, because PROJECT_ROOT is resolved once at require time.
+describe('npx course build-glossary from a subdirectory', () => {
+  const CLI = path.resolve(__dirname, '../../cli/index.js');
+  const made = [];
+
+  afterEach(() => {
+    for (const dir of made.splice(0)) {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  /** A throwaway project with one lesson module and one glossary page. */
+  function project() {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'build-glossary-'));
+    made.push(dir);
+    fs.writeFileSync(
+      path.join(dir, 'package.json'),
+      '{ "name": "fixture", "private": true }\n',
+      'utf8',
+    );
+    fs.mkdirSync(path.join(dir, 'course', '01-loops'), { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, 'course', '01-loops', '02-glossary.md'),
+      '---\ntitle: "stale"\n---\n\nstale body\n',
+      'utf8',
+    );
+    fs.mkdirSync(path.join(dir, 'sources', 'reference-materials'), {
+      recursive: true,
+    });
+    writeGlossary(
+      path.join(dir, 'sources', 'reference-materials', 'glossary.yml'),
+      'A repeated block.',
+    );
+    return dir;
+  }
+
+  function writeGlossary(file, definition) {
+    fs.writeFileSync(
+      file,
+      `terms:\n  - term: loop\n    lesson: 1\n    kind: concept\n    definition: ${definition}\n`,
+      'utf8',
+    );
+  }
+
+  function run(dir, args = [], cwd = path.join(dir, 'course', '01-loops')) {
+    return spawnSync(process.execPath, [CLI, 'build-glossary', ...args], {
+      cwd,
+      input: '',
+      encoding: 'utf8',
+      timeout: 30000,
+    });
+  }
+
+  function page(dir) {
+    return fs.readFileSync(
+      path.join(dir, 'course', '01-loops', '02-glossary.md'),
+      'utf8',
+    );
+  }
+
+  it('rebuilds the page from the project root when run inside a module', () => {
+    const dir = project();
+
+    const built = run(dir);
+
+    assert.equal(built.status, 0, built.stderr);
+    assert.match(page(dir), /- \*\*loop\*\*: A repeated block\./);
+    assert.match(page(dir), /title: "📘 Glossary"/);
+  });
+
+  it('reports up-to-date pages under --check from inside a module', () => {
+    const dir = project();
+    assert.equal(run(dir).status, 0);
+
+    const checked = run(dir, ['--check']);
+
+    assert.equal(checked.status, 0, checked.stderr);
+    assert.match(checked.stdout, /All glossary pages are up to date/);
+  });
+
+  it('fails --check on a stale page from inside a module', () => {
+    const dir = project();
+
+    const checked = run(dir, ['--check']);
+
+    assert.equal(checked.status, 1);
+    assert.match(checked.stderr, /1 glossary page\(s\) out of date/);
+    assert.match(page(dir), /stale body/, '--check must not write');
+  });
+
+  it('still limits the run to one module with --module', () => {
+    const dir = project();
+    fs.mkdirSync(path.join(dir, 'course', '02-arrays'));
+    const other = path.join(dir, 'course', '02-arrays', '02-glossary.md');
+    fs.writeFileSync(other, '---\ntitle: "stale"\n---\n\nstale body\n', 'utf8');
+
+    const built = run(dir, ['--module', '01-loops']);
+
+    assert.equal(built.status, 0, built.stderr);
+    assert.match(page(dir), /A repeated block\./);
+    assert.match(fs.readFileSync(other, 'utf8'), /stale body/);
+  });
+
+  it('resolves an explicit --glossary from the working directory', () => {
+    const dir = project();
+    // Same filename, different content, sitting next to the cwd: only a
+    // cwd-relative resolution can pick it up.
+    writeGlossary(
+      path.join(dir, 'course', '01-loops', 'local.yml'),
+      'The local definition.',
+    );
+
+    const built = run(dir, ['--glossary', 'local.yml']);
+
+    assert.equal(built.status, 0, built.stderr);
+    assert.match(page(dir), /- \*\*loop\*\*: The local definition\./);
   });
 });
 

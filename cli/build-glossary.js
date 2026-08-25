@@ -3,12 +3,15 @@ const path = require('path');
 const yaml = require('js-yaml');
 
 const log = require('./logger');
+const { PROJECT_ROOT } = require('./project-root');
+const { COURSE_DIR } = require('./module-utils');
 const { parseFrontmatter } = require('../lib/convert/frontmatter');
 const { formatMarkdown } = require('../lib/convert/format-markdown');
 const { LABEL_SETS } = require('../lib/config/labels');
 const { loadCourseConfig } = require('../lib/config/course-config');
 
-const COURSE_DIR = path.resolve(process.cwd(), 'course');
+// Relative to the project root, not to the shell's working directory: see
+// buildGlossary below.
 const DEFAULT_GLOSSARY_PATH = 'sources/reference-materials/glossary.yml';
 
 /**
@@ -189,15 +192,22 @@ function resolveLesson(folder, pageData, config) {
  *
  * @param {object} options
  * @param {string} [options.module] - Limit to a single module folder name.
- * @param {string} [options.glossary] - Path to the glossary YAML file.
+ * @param {string} [options.glossary] - Path to the glossary YAML file,
+ *   resolved from the working directory. Defaults to
+ *   `sources/reference-materials/glossary.yml` under the project root.
  * @param {boolean} [options.check] - Do not write; exit non-zero if any page
  *   is out of date. Useful for CI and pre-push checks.
  */
 async function buildGlossary(options = {}) {
-  const glossaryPath = path.resolve(
-    process.cwd(),
-    options.glossary || DEFAULT_GLOSSARY_PATH,
-  );
+  // The default is a project path, so it resolves from the project root, the
+  // way `course/` above it does: run from `course/03-loops/` this command has
+  // to read the same glossary and rewrite the same pages as a run from the
+  // root. An explicit --glossary is whatever the author typed at a shell, and
+  // resolves from there, like every other path flag in this CLI
+  // (`export --toc`, `export --output`).
+  const glossaryPath = options.glossary
+    ? path.resolve(process.cwd(), options.glossary)
+    : path.join(PROJECT_ROOT, DEFAULT_GLOSSARY_PATH);
   if (!fs.existsSync(glossaryPath)) {
     log.error(`[build-glossary] No glossary found at ${glossaryPath}`);
     process.exit(1);
