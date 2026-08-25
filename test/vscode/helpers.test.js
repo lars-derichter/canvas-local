@@ -1167,6 +1167,97 @@ describe('helpers: readEnvConfig', () => {
   });
 });
 
+describe('helpers: readEnvConfig takes off surrounding quotes', () => {
+  // Quoting a value is ordinary .env practice, and dotenv — which every CLI
+  // command loads the same file with — unwraps it. Reading the quotes as part
+  // of the value gave the CLI the right host and "Open in Canvas" a URL
+  // starting with a quote character.
+  let root;
+
+  beforeEach(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'helpers-env-quotes-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  const value = (line) => {
+    fs.writeFileSync(path.join(root, '.env'), `${line}\n`, 'utf8');
+    return readEnvConfig(root).KEY;
+  };
+
+  it('leaves an unquoted value exactly as it is', () => {
+    assert.equal(
+      value('KEY=https://school.instructure.com/api/v1'),
+      'https://school.instructure.com/api/v1',
+    );
+  });
+
+  it('takes off a matched pair of double quotes', () => {
+    assert.equal(
+      value('KEY="https://school.instructure.com/api/v1"'),
+      'https://school.instructure.com/api/v1',
+    );
+  });
+
+  it('takes off a matched pair of single quotes', () => {
+    assert.equal(value("KEY='45083'"), '45083');
+  });
+
+  it('leaves two different quote characters alone', () => {
+    // Neither end closes the other, so nothing here is a wrapper.
+    assert.equal(value('KEY="45083\''), '"45083\'');
+    assert.equal(value('KEY=\'45083"'), '\'45083"');
+  });
+
+  it('leaves a quote at one end only alone', () => {
+    assert.equal(value('KEY="45083'), '"45083');
+    assert.equal(value('KEY=45083"'), '45083"');
+    // One quote and nothing else is a one-character value, not a wrapper.
+    assert.equal(value('KEY="'), '"');
+  });
+
+  it('leaves a quote inside the value alone', () => {
+    assert.equal(value('KEY=pa"ss'), 'pa"ss');
+    assert.equal(value("KEY=pa'ss"), "pa'ss");
+    // Only the outer pair comes off; the inner one is part of the value.
+    assert.equal(value('KEY="say "hi""'), 'say "hi"');
+  });
+
+  it('reads an empty quoted value as an empty string', () => {
+    fs.writeFileSync(path.join(root, '.env'), 'KEY=""\nOTHER=x\n', 'utf8');
+    const env = readEnvConfig(root);
+    assert.equal(env.KEY, '');
+    assert.equal(env.OTHER, 'x');
+    // Without the quotes there is nothing after the = to read, and the key
+    // stays out of the result entirely.
+    assert.equal(value('KEY='), undefined);
+  });
+
+  it('keeps a = inside a quoted value', () => {
+    assert.equal(value('KEY="abc==def"'), 'abc==def');
+  });
+
+  it('trims outside the quotes and preserves what is inside them', () => {
+    // Quotes are how a .env says the whitespace is part of the value.
+    assert.equal(value('KEY =  "  spaced  "  '), '  spaced  ');
+    assert.equal(value('KEY =   45083  '), '45083');
+  });
+
+  it('reads a quoted file whole, past comments and blank lines', () => {
+    fs.writeFileSync(
+      path.join(root, '.env'),
+      '# Canvas credentials\n\nCANVAS_API_URL="https://school.instructure.com/api/v1"\n\nCANVAS_COURSE_ID=\'45083\'\n# "not a value"\n',
+      'utf8',
+    );
+    assert.deepStrictEqual(readEnvConfig(root), {
+      CANVAS_API_URL: 'https://school.instructure.com/api/v1',
+      CANVAS_COURSE_ID: '45083',
+    });
+  });
+});
+
 describe('helpers: terminalNumber', () => {
   const BASE = 'Canvas Course Builder';
 

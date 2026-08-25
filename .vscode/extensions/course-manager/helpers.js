@@ -490,12 +490,35 @@ function canvasModuleUrl(baseUrl, courseId, canvasModuleId) {
 }
 
 /**
+ * A value with one matched pair of surrounding quotes taken off.
+ *
+ * Matched at both ends and the same character on both: a lone quote at one
+ * end, or a double at one end and a single at the other, is part of the value
+ * and stays. So is every quote inside it, `KEY="say "hi""` keeping its inner
+ * pair. A bare `"` is one character, not an empty quoted value.
+ */
+function unquote(value) {
+  const quote = value[0];
+  if (quote !== '"' && quote !== "'") return value;
+  return value.length >= 2 && value.endsWith(quote)
+    ? value.slice(1, -1)
+    : value;
+}
+
+/**
  * Every `KEY=value` pair in the workspace's `.env`, as a plain object, or an
  * empty one when there is no file to read.
  *
  * The parse is by shape, not by name, so the whole file comes back —
  * CANVAS_API_TOKEN included. `extension.js` reads two of them, CANVAS_API_URL
  * and CANVAS_COURSE_ID, to build the "Open in Canvas" address.
+ *
+ * Quoting a value is ordinary `.env` practice, and `dotenv` — which every CLI
+ * command loads this same file with (`cli/index.js`) — takes the quotes off.
+ * Reading them as part of the value made the two disagree about one file:
+ * `CANVAS_API_URL="https://school.instructure.com/api/v1"` sent every CLI
+ * command to the right host and every "Open in Canvas" click to a URL
+ * beginning with a quote character. The quotes come off here too.
  */
 function readEnvConfig(root) {
   const envPath = path.join(root, '.env');
@@ -504,7 +527,7 @@ function readEnvConfig(root) {
     const vars = {};
     for (const line of content.split('\n')) {
       const match = line.match(/^(\w+)\s*=\s*(.+)$/);
-      if (match) vars[match[1]] = match[2].trim();
+      if (match) vars[match[1]] = unquote(match[2].trim());
     }
     return vars;
   } catch {
