@@ -50,17 +50,23 @@ describe('parseTokens', () => {
 });
 
 describe('resolveThemeFile', () => {
+  // A root the host itself calls absolute. `/project` is not one on Windows —
+  // it names no drive — so `path.resolve` completes it with the drive the test
+  // happens to run from, and the path branch below would never match an
+  // expectation built by hand. A real project root always names a drive.
+  const root = path.resolve('/project');
+
   it('treats a bare name as a built-in', () => {
     assert.strictEqual(
-      resolveThemeFile('github', '/project'),
-      path.join('/project', THEMES_SUBDIR, 'github.css'),
+      resolveThemeFile('github', root),
+      path.join(root, THEMES_SUBDIR, 'github.css'),
     );
   });
 
   it('treats a path as relative to the project root', () => {
     assert.strictEqual(
-      resolveThemeFile('sources/mine.css', '/project'),
-      path.join('/project', 'sources', 'mine.css'),
+      resolveThemeFile('sources/mine.css', root),
+      path.join(root, 'sources', 'mine.css'),
     );
   });
 });

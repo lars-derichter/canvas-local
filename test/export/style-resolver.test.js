@@ -48,9 +48,14 @@ describe('resolveAsset', () => {
   });
 
   it('lets an explicit override win', () => {
+    // Absolute by the host's own reckoning: an override is resolved against the
+    // cwd, and on Windows `/tmp/mine.typ` names no drive, so resolving it
+    // returns a path with the cwd's drive grafted on rather than the string
+    // passed in. A path the platform already calls complete comes back as is.
+    const override = path.resolve('/tmp/mine.typ');
     assert.strictEqual(
-      resolveAsset('template.typ', '/tmp/mine.typ', styleDir),
-      '/tmp/mine.typ',
+      resolveAsset('template.typ', override, styleDir),
+      override,
     );
   });
 });
