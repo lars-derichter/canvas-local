@@ -247,6 +247,10 @@ program
     'Source file, appended then deleted (with --target, skips the interactive prompts)',
   )
   .option('-t, --target <path>', 'Path to target file (keeps frontmatter)')
+  .option(
+    '-y, --yes',
+    'Confirm deleting the source without prompting (required with --source and --target)',
+  )
   .action(require('./merge-items'));
 
 program

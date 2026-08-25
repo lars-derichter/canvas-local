@@ -290,6 +290,28 @@ function syncedProject({ twin = false } = {}) {
   return dir;
 }
 
+/**
+ * Run `npx course merge-items` in `dir`, with no terminal to ask questions of.
+ */
+function mergeItems(dir, args) {
+  return spawnSync(process.execPath, [CLI, 'merge-items', ...args], {
+    cwd: dir,
+    input: '',
+    encoding: 'utf8',
+    // Every run below answers from flags. The timeout is what turns a
+    // regression in that into a failure rather than a hung suite.
+    timeout: 30000,
+    env: {
+      ...process.env,
+      CANVAS_API_URL: CANVAS_URL,
+      CANVAS_COURSE_ID: COURSE_ID,
+    },
+  });
+}
+
+/** The flag-mode arguments for merging 02-alerts.md into 01-welcome.md. */
+const FLAGS = ['--source', `course/${ALERTS}`, '--target', `course/${WELCOME}`];
+
 describe('npx course merge-items and the source row it leaves behind', () => {
   const dirs = [];
   afterEach(() => {
@@ -311,28 +333,7 @@ describe('npx course merge-items and the source row it leaves behind', () => {
       fs.readFileSync(path.join(dir, '.canvas-sync.json'), 'utf8'),
     );
 
-    const run = spawnSync(
-      process.execPath,
-      [
-        CLI,
-        'merge-items',
-        '--source',
-        `course/${ALERTS}`,
-        '--target',
-        `course/${WELCOME}`,
-      ],
-      {
-        cwd: dir,
-        input: '',
-        encoding: 'utf8',
-        timeout: 30000,
-        env: {
-          ...process.env,
-          CANVAS_API_URL: CANVAS_URL,
-          CANVAS_COURSE_ID: COURSE_ID,
-        },
-      },
-    );
+    const run = mergeItems(dir, [...FLAGS, '--yes']);
 
     assert.equal(run.status, 0, run.stderr);
     assert.equal(fs.existsSync(path.join(dir, 'course', ALERTS)), false);
@@ -422,28 +423,7 @@ describe('npx course merge-items when the renumber lands on the source path', ()
     const dir = syncedProject({ twin: true });
     dirs.push(dir);
 
-    const run = spawnSync(
-      process.execPath,
-      [
-        CLI,
-        'merge-items',
-        '--source',
-        `course/${ALERTS}`,
-        '--target',
-        `course/${WELCOME}`,
-      ],
-      {
-        cwd: dir,
-        input: '',
-        encoding: 'utf8',
-        timeout: 30000,
-        env: {
-          ...process.env,
-          CANVAS_API_URL: CANVAS_URL,
-          CANVAS_COURSE_ID: COURSE_ID,
-        },
-      },
-    );
+    const run = mergeItems(dir, [...FLAGS, '--yes']);
 
     assert.equal(run.status, 0, run.stderr);
     const after = JSON.parse(
@@ -463,6 +443,52 @@ describe('npx course merge-items when the renumber lands on the source path', ()
     assert.match(
       run.stderr,
       /01-intro\/02-alerts\.md — page "Alerts" \(Canvas id 502\)/,
+    );
+  });
+});
+
+describe('npx course merge-items in flag mode, and the confirmation it needs', () => {
+  const dirs = [];
+  afterEach(() => {
+    while (dirs.length) fs.rmSync(dirs.pop(), { recursive: true, force: true });
+  });
+
+  it('refuses --source and --target without --yes, and merges nothing', () => {
+    // Flag mode skips the y/N question, so `--yes` is the whole confirmation:
+    // the same gate `delete-item --path` and `delete-module --module` stand
+    // behind, and for the same reason — this deletes a file.
+    const dir = syncedProject();
+    dirs.push(dir);
+    const target = path.join(dir, 'course', WELCOME);
+    const before = fs.readFileSync(target, 'utf8');
+
+    const run = mergeItems(dir, FLAGS);
+
+    assert.equal(run.status, 1, 'a refused run must not report success');
+    assert.match(run.stderr, /--source and --target require --yes/);
+    assert.equal(
+      fs.existsSync(path.join(dir, 'course', ALERTS)),
+      true,
+      'the source must still be there',
+    );
+    assert.equal(
+      fs.readFileSync(target, 'utf8'),
+      before,
+      'and the target must not be holding the source body',
+    );
+  });
+
+  it('merges and deletes the source once --yes is given', () => {
+    const dir = syncedProject();
+    dirs.push(dir);
+
+    const run = mergeItems(dir, [...FLAGS, '--yes']);
+
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(fs.existsSync(path.join(dir, 'course', ALERTS)), false);
+    assert.match(
+      fs.readFileSync(path.join(dir, 'course', WELCOME), 'utf8'),
+      /Mind this\./,
     );
   });
 });

@@ -81,8 +81,16 @@ async function _mergeFiles(targetPath, sourcePath, targetDir) {
 async function mergeItems(options) {
   const opts = options || {};
 
-  // Non-interactive mode (VS Code): --source and --target provided
+  // Non-interactive mode (VS Code): --source and --target provided; requires
+  // --yes since there is no prompt to confirm, and a merge deletes the source.
   if (opts.source && opts.target) {
+    if (!opts.yes) {
+      console.error(
+        '[merge-items] Error: --source and --target require --yes to confirm ' +
+          'deleting the source.',
+      );
+      process.exit(1);
+    }
     const sourcePath = path.resolve(opts.source);
     const targetPath = path.resolve(opts.target);
 
@@ -122,7 +130,7 @@ async function mergeItems(options) {
   // Interactive mode
   const rl = createRL({
     command: 'merge-items',
-    flags: '--source and --target',
+    flags: '--source, --target and --yes',
   });
 
   console.log('[merge-items] Merge two items in a module\n');
