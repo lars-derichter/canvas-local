@@ -92,9 +92,9 @@ Right-click any module or item in the sidebar to see context actions:
   because subsections are never nested)
 - **Merge items**: first right-click an item and choose **Merge: Set as
   Source**, then right-click the target item and choose **Merge with Source**
-- **Export to PDF/DOCX...**: export the selected item or items (multi-select
-  combines them into one document), or a whole module via **Export Module to
-  PDF/DOCX...**
+- **Course: Export Item to PDF/DOCX...**: export the selected item or items
+  (multi-select combines them into one document), or a whole module via
+  **Course: Export Module to PDF/DOCX...**
 
 **Split Item at Cursor** is not on this menu. It works on the file open in the
 editor and the position of your cursor, neither of which a right-click on the
@@ -141,43 +141,43 @@ menu next to them gives quick access to sync and export commands:
 ## Command Palette
 
 Open the command palette with **Cmd+Shift+P** (macOS) or **Ctrl+Shift+P**
-(Windows/Linux) and type **“Course:”** to see the whole list:
+(Windows/Linux) and type **“Course:”** to filter it down to the course commands:
 
-| Command                            | What it does                                         |
-| ---------------------------------- | ---------------------------------------------------- |
-| Course: Setup (First-Run Wizard)   | Name, language, look, templates, Canvas              |
-| Course: Init (Canvas Setup)        | Configure Canvas API credentials                     |
-| Course: Sync with Canvas           | Sync both ways in one run                            |
-| Course: Sync with Canvas (Dry Run) | Preview a sync without writing anything              |
-| Course: Push to Canvas             | Push all modules                                     |
-| Course: Push to Canvas (Dry Run)   | Preview push without making changes                  |
-| Course: Push Module to Canvas...   | Push a single module                                 |
-| Course: Pull from Canvas           | Pull content from Canvas                             |
-| Course: Status                     | Show what a sync would do, without writing anything  |
-| Course: Validate                   | Check content for errors                             |
-| Course: Search...                  | Find a word or phrase across files                   |
-| Course: New Module                 | Create a new module                                  |
-| Course: Move Module                | Reorder a module                                     |
-| Course: Rename Module              | Rename a module                                      |
-| Course: Delete Module              | Delete a module                                      |
-| Course: New Item                   | Create a new item                                    |
-| Course: Move Item                  | Reorder an item                                      |
-| Course: Move Item to Module        | Move an item to another module                       |
-| Course: Rename Item                | Rename an item                                       |
-| Course: Delete Item                | Delete an item                                       |
-| Course: Merge Items                | Combine two items into one                           |
-| Course: Split Item at Cursor       | Split the active file at the cursor                  |
-| Course: Export to PDF/DOCX...      | Export the course, flagged items, or a TOC selection |
-| Course: Export via TOC...          | Render the curated `exports/toc.md`                  |
-| Course: Preview                    | Start the dev server and open the course             |
-| Course: Refresh Tree               | Rebuild the sidebar tree by hand                     |
+| Command                              | What it does                                           |
+| ------------------------------------ | ------------------------------------------------------ |
+| Course: Setup (First-Run Wizard)     | Name, language, look, templates, Canvas                |
+| Course: Init (Canvas Setup)          | Configure Canvas API credentials                       |
+| Course: Sync with Canvas             | Sync both ways in one run                              |
+| Course: Sync with Canvas (Dry Run)   | Preview a sync without writing anything                |
+| Course: Push to Canvas               | Push all modules                                       |
+| Course: Push to Canvas (Dry Run)     | Preview push without making changes                    |
+| Course: Push Module to Canvas...     | Push a single module                                   |
+| Course: Pull from Canvas             | Pull content from Canvas                               |
+| Course: Pull from Canvas (Dry Run)   | Preview a pull without changing your files             |
+| Course: Status                       | Show what a sync would do, without writing anything    |
+| Course: Validate                     | Check content for errors                               |
+| Course: Search...                    | Find a word or phrase across files                     |
+| Course: New Module                   | Create a new module                                    |
+| Course: Move Module                  | Reorder a module                                       |
+| Course: Rename Module                | Rename a module                                        |
+| Course: Delete Module                | Delete a module                                        |
+| Course: New Item                     | Create a new item                                      |
+| Course: Move Item                    | Reorder an item                                        |
+| Course: Move Item to Module          | Move an item to another module                         |
+| Course: Rename Item                  | Rename an item                                         |
+| Course: Delete Item                  | Delete an item                                         |
+| Course: Merge Items                  | Combine two items into one                             |
+| Course: Split Item at Cursor         | Split the active file at the cursor                    |
+| Course: Export Item to PDF/DOCX...   | Export one item, or several combined into one document |
+| Course: Export Module to PDF/DOCX... | Export a whole module                                  |
+| Course: Export Course to PDF/DOCX... | Export the course, flagged items, or a TOC selection   |
+| Course: Export via TOC...            | Render the curated `exports/toc.md`                    |
+| Course: Preview                      | Start the dev server and open the course               |
+| Course: Refresh Tree                 | Rebuild the sidebar tree by hand                       |
 
-Two commands from the right-click menu are registered without the **Course:**
-prefix: **Export to PDF/DOCX...** and **Export Module to PDF/DOCX...**. Type
-part of their name instead and the palette finds them. The other tree actions
-(**Push This Module to Canvas**, **Open in Canvas**, and the two halves of the
-merge) need a selected row to work on, so the palette does not list them; use
-the hover buttons and the right-click menu.
+A few tree actions (**Push This Module to Canvas**, **Open in Canvas**, and the
+two halves of the merge) need a selected row to work on, so the palette does not
+list them; use the hover buttons and the right-click menu for those.
 
 ## How It Works
 

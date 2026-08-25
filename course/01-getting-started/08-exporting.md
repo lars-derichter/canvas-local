@@ -96,7 +96,8 @@ Use the two-step table-of-contents flow.
 
 With the Course Manager sidebar you do not have to type anything:
 
-- **Right-click a page or module** and choose **Export to PDF/DOCX**.
+- **Right-click a page or module** and choose **Course: Export Item to
+  PDF/DOCX** or **Course: Export Module to PDF/DOCX**.
 - **Select several pages first** (Ctrl-click or Shift-click in the tree), then
   right-click and export. They combine into one document.
 - **The title bar dropdown** has an **Export** option for the whole course:

@@ -172,15 +172,15 @@
       },
       {
         "command": "course.exportItem",
-        "title": "Export to PDF/DOCX..."
+        "title": "Course: Export Item to PDF/DOCX..."
       },
       {
         "command": "course.exportModule",
-        "title": "Export Module to PDF/DOCX..."
+        "title": "Course: Export Module to PDF/DOCX..."
       },
       {
         "command": "course.exportCourse",
-        "title": "Course: Export to PDF/DOCX..."
+        "title": "Course: Export Course to PDF/DOCX..."
       },
       {
         "command": "course.exportCourseToc",

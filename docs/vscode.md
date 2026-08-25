@@ -84,9 +84,10 @@ through native VS Code dialogs, and the operation runs the CLI in the background
 - **Delete**: delete an item or module, after a modal confirmation
 - **Merge: Set as Source / Merge with Source**, two-step merge: right-click the
   source item first, then right-click the target item to merge them
-- **Export to PDF/DOCX**: export the item (or module). Select several items
-  first (Ctrl/Cmd-click or Shift-click in the tree) to export them together as
-  one combined document. You then pick PDF or Word.
+- **Course: Export Item to PDF/DOCX**: export the item, or **Course: Export
+  Module to PDF/DOCX** for the whole module. Select several items first
+  (Ctrl/Cmd-click or Shift-click in the tree) to export them together as one
+  combined document. You then pick PDF or Word.
 
 The same commands also work from the command palette; you then pick the module
 or item from a quick-pick list instead. When the active editor's file lies
@@ -187,12 +188,12 @@ list for editing and reveals an **Export via TOC** action once it is ready.
 
 ### Export
 
-| Command                       | Description                                              |
-| ----------------------------- | -------------------------------------------------------- |
-| Export to PDF/DOCX...         | Export the selected item(s): multi-select combines them  |
-| Export Module to PDF/DOCX...  | Export a whole module                                    |
-| Course: Export to PDF/DOCX... | Export the full course, only flagged items, or via a TOC |
-| Course: Export via TOC...     | Render the curated `exports/toc.md` after editing it     |
+| Command                              | Description                                              |
+| ------------------------------------ | -------------------------------------------------------- |
+| Course: Export Item to PDF/DOCX...   | Export the selected item(s): multi-select combines them  |
+| Course: Export Module to PDF/DOCX... | Export a whole module                                    |
+| Course: Export Course to PDF/DOCX... | Export the full course, only flagged items, or via a TOC |
+| Course: Export via TOC...            | Render the curated `exports/toc.md` after editing it     |
 
 See [export styling](export-styling.md) for customising fonts, colours, and
 margins.

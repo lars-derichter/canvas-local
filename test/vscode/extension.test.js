@@ -193,6 +193,35 @@ describe('VS Code extension: command palette visibility', () => {
     }
   });
 
+  // Typing "Course:" has to bring up everything the palette offers, so a
+  // palette-visible command without the prefix is invisible to that search.
+  // The four hidden ones are exempt: nobody ever reads their title in a
+  // palette, only in the tree's hover buttons and right-click menu.
+  //
+  // The assertion runs on the label the palette composes, not on the raw
+  // title, because those are two different strings: the palette prepends
+  // `category` where a command declares one, while every menu renders the
+  // title alone. Declaring "category": "Course" with a short title is
+  // therefore a legitimate way to satisfy this rule, and one that would also
+  // shorten the tree menus. Pinning the composed label leaves that refactor
+  // open instead of failing it for the wrong reason.
+  it('prefixes every palette-visible label with "Course: "', () => {
+    const prefix = 'Course: ';
+    const hidden = new Set(paletteMenus.map((m) => m.command));
+    for (const cmd of packageCommands) {
+      if (hidden.has(cmd.command)) continue;
+      const label = cmd.category ? `${cmd.category}: ${cmd.title}` : cmd.title;
+      assert.ok(
+        label.startsWith(prefix),
+        `${cmd.command} reaches the palette as "${label}": prefix it with "${prefix}"`,
+      );
+      assert.ok(
+        label.slice(prefix.length).trim(),
+        `${cmd.command} reaches the palette as the bare prefix: give it a name`,
+      );
+    }
+  });
+
   it('leaves the commands that ask for their target visible', () => {
     const hidden = new Set(paletteMenus.map((m) => m.command));
     for (const id of [
