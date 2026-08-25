@@ -39,21 +39,24 @@ icon on the left). It shows a tree view of all modules and items in the
 
 Hover over a tree item to see inline action buttons:
 
-| Button        | Rows                                          | Action                            |
-| ------------- | --------------------------------------------- | --------------------------------- |
-| Cloud upload  | Modules                                       | Push that module to Canvas        |
-| External link | Modules; page, assignment, URL and file items | Open the item in Canvas (browser) |
+| Button        | Rows                               | Action                            |
+| ------------- | ---------------------------------- | --------------------------------- |
+| Cloud upload  | Modules                            | Push that module to Canvas        |
+| External link | Modules and every kind of item row | Open the item in Canvas (browser) |
 
 Push is a module-sized operation: `push --module` is the narrowest the CLI goes,
 so the cloud button sits on module rows only rather than on an item it could not
 push by itself.
 
-"Open in Canvas" requires the item to have been pushed at least once. It looks
-the id up in `.canvas-sync.json` by the file's path, and takes the Canvas URL
-from `.env`. Pages, assignments, discussions and quizzes open their own Canvas
-page, file items open the Canvas file view, and external URL items open the URL
+"Open in Canvas" takes the Canvas URL from `.env` and the ids from
+`.canvas-sync.json`: an item's by the file's path, a module's by its folder
+name. Pages, assignments, discussions and quizzes open their own Canvas page,
+file items open the Canvas file view, and external URL items open the URL
 itself. An LTI link has no page of its own, so it opens as the module item it
-is. An item with no row yet is reported as not pushed rather than guessed at.
+is, and a module row opens the course's modules page anchored at that module. A
+subheader row has no button: the Canvas text header it becomes has no URL of its
+own. An item with no row yet is reported as not pushed rather than guessed at; a
+module with no id yet opens the modules page unanchored.
 
 The sidebar's **New Item** creates pages, assignments, external URLs,
 subsections and file items. A discussion, a quiz or an LTI link is a file you

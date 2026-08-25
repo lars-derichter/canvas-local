@@ -12,6 +12,7 @@ const {
   batchPositions,
   sortByVisualOrder,
   validateBatchDrop,
+  moduleCanvasId,
 } = require('./helpers');
 
 // --- Utility functions (inlined from lib/convert/course-scanner.js and cli/) ---
@@ -71,12 +72,29 @@ function readFrontmatter(filePath) {
 }
 
 /**
- * The Canvas id recorded for a course file, or null.
+ * The parsed `.canvas-sync.json`, or null when there is none to read.
  *
- * Read from `.canvas-sync.json` on every call rather than cached: a push or a
- * pull rewrites that file while the window stays open, and an id cached from
- * before it would send the author to the wrong object — or to none at all, for
- * an item that has only just been created.
+ * Read on every call rather than cached: a push or a pull rewrites that file
+ * while the window stays open, and an id cached from before it would send the
+ * author to the wrong object — or to none at all, for an item that has only
+ * just been created. Unreadable and corrupt read as absent here; the two
+ * lookups below have nothing to vouch for either way.
+ *
+ * @param {string} workspaceRoot
+ */
+function readSyncState(workspaceRoot) {
+  if (!workspaceRoot) return null;
+  try {
+    return JSON.parse(
+      fs.readFileSync(path.join(workspaceRoot, '.canvas-sync.json'), 'utf8'),
+    );
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The Canvas id recorded for a course file, or null.
  *
  * @param {string} workspaceRoot
  * @param {string} filePath - Absolute path to the course file.
@@ -86,18 +104,25 @@ function getCanvasId(workspaceRoot, filePath) {
   const relative = path.relative(path.join(workspaceRoot, 'course'), filePath);
   if (!relative || relative.startsWith('..')) return null;
   const key = relative.split(path.sep).join('/');
-  try {
-    const state = JSON.parse(
-      fs.readFileSync(path.join(workspaceRoot, '.canvas-sync.json'), 'utf8'),
-    );
-    for (const module of Object.values(state.modules || {})) {
-      const row = (module.items || {})[key];
-      if (row && row.canvas_id != null) return String(row.canvas_id);
-    }
-  } catch {
-    // No state, unreadable or corrupt: the item has no id we can vouch for.
+  const state = readSyncState(workspaceRoot);
+  for (const module of Object.values((state && state.modules) || {})) {
+    const row = (module.items || {})[key];
+    if (row && row.canvas_id != null) return String(row.canvas_id);
   }
   return null;
+}
+
+/**
+ * The Canvas id recorded for a module folder, or null when that module has
+ * never been pushed. Keyed by the folder name, the way `.canvas-sync.json` keys
+ * modules: a module has no path row of its own for `getCanvasId` to find.
+ *
+ * @param {string} workspaceRoot
+ * @param {string} moduleFolderName - e.g. '01-introduction'.
+ */
+function getModuleCanvasId(workspaceRoot, moduleFolderName) {
+  if (!workspaceRoot || !moduleFolderName) return null;
+  return moduleCanvasId(readSyncState(workspaceRoot), moduleFolderName);
 }
 
 // --- Icon map ---
@@ -802,6 +827,7 @@ class CourseTreeProvider {
 module.exports = {
   CourseTreeProvider,
   getCanvasId,
+  getModuleCanvasId,
   readFrontmatter,
   displayTitle,
   extractPosition,

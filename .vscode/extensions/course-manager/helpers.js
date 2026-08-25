@@ -257,6 +257,44 @@ function validateBatchDrop(rows, dest, readDir) {
 }
 
 /**
+ * The Canvas module id a sync state records for a local module folder, as a
+ * string, or null when it holds none.
+ *
+ * A module's id lives on the module entry itself (`canvas_module_id`), not in
+ * any item row, so the path lookup `getCanvasId` does cannot reach it. A folder
+ * the state does not list, or lists without an id, has never been pushed.
+ *
+ * @param {object|null} state - Parsed `.canvas-sync.json`.
+ * @param {string} folderName - Local module folder, e.g. '01-introduction'.
+ */
+function moduleCanvasId(state, folderName) {
+  const entry = state && state.modules && state.modules[folderName];
+  const id = entry && entry.canvas_module_id;
+  return id == null ? null : String(id);
+}
+
+/**
+ * Where "Open in Canvas" sends a module row.
+ *
+ * Canvas gives a module no page of its own: they all live on the course's
+ * modules page, each one anchored by its id — the address `canvasItemUrl`
+ * (cli/report.js) prints for an orphaned Canvas module too. So a module that
+ * has been pushed deep-links to its own place in that list, and one that has
+ * not, with no id to anchor on, opens the list itself: still where the author
+ * was going.
+ *
+ * @param {string} baseUrl - Canvas base URL, without the /api/v1 suffix.
+ * @param {string|number} courseId
+ * @param {string|null} canvasModuleId
+ */
+function canvasModuleUrl(baseUrl, courseId, canvasModuleId) {
+  const modulesPage = `${baseUrl}/courses/${courseId}/modules`;
+  return canvasModuleId
+    ? `${modulesPage}#module_${canvasModuleId}`
+    : modulesPage;
+}
+
+/**
  * The pool number a terminal name carries: the bare base name is 1, and
  * "<base> 2" and up are their number. Any other name — another suffix like
  * ": Preview", a literal "<base> 1" (never issued: 1 is the bare name), a
@@ -330,6 +368,8 @@ module.exports = {
   batchPositions,
   sortByVisualOrder,
   validateBatchDrop,
+  moduleCanvasId,
+  canvasModuleUrl,
   terminalNumber,
   pickTerminal,
 };

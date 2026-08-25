@@ -15,6 +15,8 @@ const {
   batchPositions,
   sortByVisualOrder,
   validateBatchDrop,
+  moduleCanvasId,
+  canvasModuleUrl,
   terminalNumber,
   pickTerminal,
 } = require('../../.vscode/extensions/course-manager/helpers');
@@ -502,6 +504,76 @@ describe('helpers: batchPositions drives sequential moveEntry in dragged order',
       '07-b.md',
       '08-c.md',
     ]);
+  });
+});
+
+describe('helpers: moduleCanvasId', () => {
+  // A v4 sync state, trimmed to what the lookup reads: 01-intro has been
+  // pushed, 02-planning was created locally and never has.
+  const state = {
+    schema_version: 4,
+    modules: {
+      '01-intro': {
+        canvas_module_id: 67890,
+        name: 'Intro',
+        items: {
+          '01-intro/01-welcome.md': { canvas_type: 'page', canvas_id: 1234 },
+        },
+      },
+      '02-planning': {
+        name: 'Planning',
+        items: {
+          '02-planning/01-brief.md': { canvas_type: 'page', canvas_id: 4321 },
+        },
+      },
+    },
+  };
+
+  it('returns the module id as a string, as the URL needs it', () => {
+    assert.equal(moduleCanvasId(state, '01-intro'), '67890');
+  });
+
+  it('returns null for a module the state records without an id', () => {
+    // The row exists the moment an item is dragged into the folder; the
+    // canvas_module_id only arrives with the first push.
+    assert.equal(moduleCanvasId(state, '02-planning'), null);
+  });
+
+  it('never reads a module id out of an item row', () => {
+    // The items under 02-planning do carry Canvas ids. Mistaking one of them
+    // for the module's would anchor the modules page at a page's id.
+    assert.equal(moduleCanvasId(state, '02-planning'), null);
+    assert.notEqual(moduleCanvasId(state, '01-intro'), '4321');
+  });
+
+  it('returns null for a folder the state does not know', () => {
+    assert.equal(moduleCanvasId(state, '09-new'), null);
+  });
+
+  it('survives a missing or empty state', () => {
+    assert.equal(moduleCanvasId(null, '01-intro'), null);
+    assert.equal(moduleCanvasId({}, '01-intro'), null);
+    assert.equal(moduleCanvasId({ modules: {} }, '01-intro'), null);
+  });
+});
+
+describe('helpers: canvasModuleUrl', () => {
+  const base = 'https://school.instructure.com';
+
+  it('anchors the modules page at the module itself', () => {
+    assert.equal(
+      canvasModuleUrl(base, 12345, '67890'),
+      'https://school.instructure.com/courses/12345/modules#module_67890',
+    );
+  });
+
+  it('falls back to the plain modules page without an id', () => {
+    // A module that has never been pushed has nothing to anchor on, and the
+    // list is still where the author was heading.
+    assert.equal(
+      canvasModuleUrl(base, 12345, null),
+      'https://school.instructure.com/courses/12345/modules',
+    );
   });
 });
 

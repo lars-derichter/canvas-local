@@ -76,8 +76,10 @@ Hover over a module or item in the sidebar for quick-action buttons:
 
 - **Push This Module to Canvas** (cloud icon): push just that module to Canvas.
   Module rows only, because a module is the smallest thing a push can send.
-- **Open in Canvas** (link icon): open the item directly on Canvas in your
-  browser (works once the item has been pushed at least once)
+- **Open in Canvas** (link icon): open that module or item on Canvas in your
+  browser. A module row lands on the course's modules page, scrolled to that
+  module. An item you have not pushed yet has nothing to open, so the extension
+  tells you that instead.
 
 ### Right-Click Menu
 

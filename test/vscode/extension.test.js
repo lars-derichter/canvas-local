@@ -50,6 +50,16 @@ function parseNoValidationCommands(source) {
   return [...literal.matchAll(/'(course\.\w+)'/g)].map((m) => m[1]);
 }
 
+// Does a when-clause admit a row with this contextValue? Covers the two
+// shapes the manifest writes: `viewItem == x` and `viewItem =~ /re/`.
+function admits(when, contextValue) {
+  const equality = when.match(/viewItem == (\w+)/);
+  if (equality) return equality[1] === contextValue;
+  const pattern = when.match(/viewItem =~ \/(.+?)\//);
+  if (pattern) return new RegExp(pattern[1]).test(contextValue);
+  return false;
+}
+
 const commandsMap = parseCommandsObject(extensionSource);
 const extraRegistered = parseExtraRegisteredCommands(extensionSource);
 const allRegisteredIds = [
@@ -595,16 +605,6 @@ describe('VS Code extension: inline push button', () => {
     (m) => m.command === 'course.pushItem',
   );
 
-  // Does a when-clause admit a row with this contextValue? Covers the two
-  // shapes the manifest writes: `viewItem == x` and `viewItem =~ /re/`.
-  function admits(when, contextValue) {
-    const equality = when.match(/viewItem == (\w+)/);
-    if (equality) return equality[1] === contextValue;
-    const pattern = when.match(/viewItem =~ \/(.+?)\//);
-    if (pattern) return new RegExp(pattern[1]).test(contextValue);
-    return false;
-  }
-
   it('hangs off the tree as an inline button', () => {
     assert.ok(
       pushEntries.some((m) => m.group === 'inline'),
@@ -683,10 +683,45 @@ describe('VS Code extension: search command', () => {
 
 describe('VS Code extension: open in Canvas', () => {
   const start = extensionSource.indexOf("register('course.openInCanvas'");
-  const handler = extensionSource.slice(start, start + 2500);
+  const next = extensionSource.indexOf("\n  register('", start);
+  const handler = extensionSource.slice(start, next === -1 ? undefined : next);
+  const openEntries = packageJson.contributes.menus['view/item/context'].filter(
+    (m) => m.command === 'course.openInCanvas',
+  );
 
   it('registers the command', () => {
     assert.ok(start !== -1);
+  });
+
+  it('is offered on every row the handler can address', () => {
+    // The handler grew branches for discussions, quizzes and LTI links while
+    // the menu clause still listed the four original types, so those rows
+    // never got the button the code behind it was ready to serve.
+    assert.ok(openEntries.length > 0, 'openInCanvas needs a context entry');
+    for (const entry of openEntries) {
+      for (const row of [
+        'module',
+        'page',
+        'assignment',
+        'discussion',
+        'quiz',
+        'external_url',
+        'external_tool',
+        'file',
+      ]) {
+        assert.ok(
+          admits(entry.when, row),
+          `"${entry.when}" has to admit ${row} rows`,
+        );
+      }
+      // A subheader is a local folder, and the Canvas text header it becomes
+      // has no address of its own — the handler returns on its missing
+      // filePath, so the button would do nothing at all.
+      assert.ok(
+        !admits(entry.when, 'subheader'),
+        `"${entry.when}" offers Open in Canvas on a subheader row, which has nothing to open`,
+      );
+    }
   });
 
   it('builds a discussion_topics URL for a discussion', () => {
@@ -724,6 +759,14 @@ describe('VS Code extension: open in Canvas', () => {
       /canvasType === 'file'[\s\S]*?\/courses\/\$\{courseId\}\/files\/\$\{canvasId\}/,
     );
     assert.match(handler, /\/courses\/\$\{courseId\}\/pages\/\$\{canvasId\}/);
+  });
+
+  it('deep-links a module row to its anchor on the modules page', () => {
+    // The module row used to open the course's modules page flat, leaving the
+    // author to find the module in a list that can run to dozens.
+    assert.match(handler, /contextValue === 'module'/);
+    assert.match(handler, /getModuleCanvasId\(\s*workspaceRoot,/);
+    assert.match(handler, /canvasModuleUrl\(baseUrl, courseId, moduleId\)/);
   });
 });
 

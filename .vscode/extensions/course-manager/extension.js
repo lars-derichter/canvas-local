@@ -6,10 +6,11 @@ const http = require('http');
 const {
   CourseTreeProvider,
   getCanvasId,
+  getModuleCanvasId,
   readFrontmatter,
   displayTitle,
 } = require('./CourseTreeProvider');
-const { pickTerminal, terminalNumber } = require('./helpers');
+const { canvasModuleUrl, pickTerminal, terminalNumber } = require('./helpers');
 
 // Long-running / streaming commands run in a shared terminal. Structural
 // commands (new/rename/move/delete) run silently via runCli and report
@@ -886,8 +887,15 @@ function activate(context) {
     const baseUrl = apiUrl.replace(/\/api\/v1\/?$/, '');
 
     if (treeItem?.contextValue === 'module') {
+      // A module is keyed in the sync state by its folder name, not by a path,
+      // so its id comes from the module entry rather than from getCanvasId. A
+      // module never pushed has none, and lands on the plain modules page.
+      const moduleId = getModuleCanvasId(
+        workspaceRoot,
+        treeItem.moduleFolderName,
+      );
       vscode.env.openExternal(
-        vscode.Uri.parse(`${baseUrl}/courses/${courseId}/modules`),
+        vscode.Uri.parse(canvasModuleUrl(baseUrl, courseId, moduleId)),
       );
       return;
     }
