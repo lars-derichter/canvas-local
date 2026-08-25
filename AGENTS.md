@@ -69,10 +69,12 @@ folder.
 ## VS Code Extension
 
 `.vscode/extensions/course-manager/` contains a local VS Code extension that
-exposes the CLI in the command palette, minus three commands: the two
-destructive ones (`reset-canvas` and `reset-sync-state`) and `build-glossary`.
-Those stay in the terminal. Install with `npm run vscode:install`. See
-[`docs/vscode.md`](docs/vscode.md).
+exposes every CLI command in the command palette. Three are palette-only: the
+two destructive ones (`reset-canvas` and `reset-sync-state`) and
+`build-glossary` have no entry in the Course Manager view or its menus, so they
+can only be reached by typing their name. Both destructive ones run in a
+terminal, where the CLI's own confirmation prompts still gate them. Install with
+`npm run vscode:install`. See [`docs/vscode.md`](docs/vscode.md).
 
 ## Architecture
 

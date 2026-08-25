@@ -42,6 +42,14 @@ function parseExtraRegisteredCommands(source) {
   return ids;
 }
 
+// The command ids listed in the noValidationCommands set literal.
+function parseNoValidationCommands(source) {
+  const start = source.indexOf('const noValidationCommands = new Set(');
+  if (start === -1) return [];
+  const literal = source.slice(start, source.indexOf(');', start));
+  return [...literal.matchAll(/'(course\.\w+)'/g)].map((m) => m[1]);
+}
+
 const commandsMap = parseCommandsObject(extensionSource);
 const extraRegistered = parseExtraRegisteredCommands(extensionSource);
 const allRegisteredIds = [
@@ -210,12 +218,96 @@ describe('VS Code extension: commands map', () => {
     assert.equal(commandsMap['course.pull'], 'npx course pull');
   });
 
-  it('contains push --dry-run command', () => {
+  it('gives all three sync directions a --dry-run entry', () => {
+    assert.equal(commandsMap['course.syncDryRun'], 'npx course sync --dry-run');
     assert.equal(commandsMap['course.pushDryRun'], 'npx course push --dry-run');
+    assert.equal(commandsMap['course.pullDryRun'], 'npx course pull --dry-run');
   });
 
   it('contains status command', () => {
     assert.equal(commandsMap['course.status'], 'npx course status');
+  });
+});
+
+describe('VS Code extension: advanced commands', () => {
+  // The palette carries every CLI command, the advanced three included. What
+  // keeps them advanced is where they are *not*: no view/title entry and no
+  // context menu, so they are only ever reached by typing their name.
+  const advanced = {
+    'course.buildGlossary': {
+      cli: 'npx course build-glossary',
+      title: 'Course: Build Glossary',
+    },
+    'course.resetSyncState': {
+      cli: 'npx course reset-sync-state',
+      title: 'Course: Reset Sync State (Destructive)',
+    },
+    'course.resetCanvas': {
+      cli: 'npx course reset-canvas',
+      title: 'Course: Reset Canvas (Deletes ALL Canvas Content)',
+    },
+  };
+  const menus = packageJson.contributes.menus;
+
+  it('runs each one in the terminal, where the CLI asks its own questions', () => {
+    // reset-canvas prints an inventory and waits for y/N; reset-sync-state
+    // waits for y/N. Both gates are stdin, so the silent runCli path would
+    // hang on them or, worse, answer nothing and look cancelled.
+    for (const [id, { cli }] of Object.entries(advanced)) {
+      assert.equal(commandsMap[id], cli, `${id} must map to ${cli}`);
+    }
+  });
+
+  it('declares each one with its palette title', () => {
+    for (const [id, { title }] of Object.entries(advanced)) {
+      const cmd = packageCommands.find((c) => c.command === id);
+      assert.ok(cmd, `${id} needs a contributes.commands entry`);
+      assert.equal(cmd.title, title);
+    }
+  });
+
+  it('keeps them out of the Course Manager view and every menu', () => {
+    for (const section of Object.keys(menus)) {
+      if (section === 'commandPalette') continue;
+      for (const entry of menus[section]) {
+        assert.ok(
+          !advanced[entry.command],
+          `${entry.command} is an advanced command and must not appear in ${section}`,
+        );
+      }
+    }
+  });
+
+  it('leaves them visible in the palette', () => {
+    const hidden = new Set(menus.commandPalette.map((m) => m.command));
+    for (const id of Object.keys(advanced)) {
+      assert.ok(!hidden.has(id), `${id} is the palette's alone to offer`);
+    }
+  });
+
+  it('exempts only the two resets from the course/ warning', () => {
+    // Neither reset reads course/: they act on .canvas-sync.json and on
+    // Canvas. Reset Sync State is what you run when the project is broken, so
+    // a warning that course/ is missing would point away from the fix.
+    assert.deepEqual(parseNoValidationCommands(extensionSource).sort(), [
+      'course.init',
+      'course.resetCanvas',
+      'course.resetSyncState',
+    ]);
+  });
+
+  it('gives Build Glossary and Pull the normal workspace check', () => {
+    const exempt = parseNoValidationCommands(extensionSource);
+    for (const id of [
+      'course.buildGlossary',
+      'course.pull',
+      'course.pullDryRun',
+    ]) {
+      assert.ok(
+        !exempt.includes(id),
+        `${id} works on course/, so the missing-course/ warning applies`,
+      );
+    }
   });
 });
 
@@ -586,7 +678,9 @@ describe('VS Code extension: activate and deactivate', () => {
   });
 
   it('init command skips workspace validation', () => {
-    assert.match(extensionSource, /noValidationCommands.*course\.init/);
+    assert.ok(
+      parseNoValidationCommands(extensionSource).includes('course.init'),
+    );
   });
 });
 

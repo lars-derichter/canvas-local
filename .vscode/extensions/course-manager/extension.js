@@ -14,6 +14,14 @@ const { pickTerminal, terminalNumber } = require('./helpers');
 // Long-running / streaming commands run in a shared terminal. Structural
 // commands (new/rename/move/delete) run silently via runCli and report
 // through notifications + the output channel.
+//
+// The last three are the advanced commands: reachable from the command palette
+// and from nowhere else, with no view/title entry and no context menu, so a
+// stray click in the tree can never start one. The two resets need the terminal
+// for a second reason. It is where the CLI asks its own questions, and those
+// questions are the gate: reset-canvas prints an inventory of everything it is
+// about to delete and waits for y/N, reset-sync-state waits for y/N. An answer
+// typed there is the answer a hand-run terminal would have given.
 const commands = {
   'course.setup': 'npx course setup',
   'course.init': 'npx course init',
@@ -22,8 +30,12 @@ const commands = {
   'course.push': 'npx course push',
   'course.pushDryRun': 'npx course push --dry-run',
   'course.pull': 'npx course pull',
+  'course.pullDryRun': 'npx course pull --dry-run',
   'course.status': 'npx course status',
   'course.validate': 'npx course validate',
+  'course.buildGlossary': 'npx course build-glossary',
+  'course.resetSyncState': 'npx course reset-sync-state',
+  'course.resetCanvas': 'npx course reset-canvas',
 };
 
 let outputChannel;
@@ -411,7 +423,16 @@ function activate(context) {
   }
 
   // --- Terminal-based commands (streaming output) ---
-  const noValidationCommands = new Set(['course.init']);
+  // The three exempt from the course/-missing warning are the three that do
+  // not read course/: Init writes .env and the sync state, and both resets
+  // operate on that state and on Canvas. Reset Sync State is precisely what
+  // you reach for when the project is in a state you cannot sync out of, so
+  // warning that it looks unfinished would be advice pointing the wrong way.
+  const noValidationCommands = new Set([
+    'course.init',
+    'course.resetSyncState',
+    'course.resetCanvas',
+  ]);
   for (const [id, cmd] of Object.entries(commands)) {
     register(id, () => {
       if (!noValidationCommands.has(id) && !validateWorkspace()) return;

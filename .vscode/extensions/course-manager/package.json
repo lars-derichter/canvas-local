@@ -69,6 +69,10 @@
         "title": "Course: Pull from Canvas"
       },
       {
+        "command": "course.pullDryRun",
+        "title": "Course: Pull from Canvas (Dry Run)"
+      },
+      {
         "command": "course.status",
         "title": "Course: Status"
       },
@@ -169,6 +173,18 @@
       {
         "command": "course.exportCourseToc",
         "title": "Course: Export via TOC..."
+      },
+      {
+        "command": "course.buildGlossary",
+        "title": "Course: Build Glossary"
+      },
+      {
+        "command": "course.resetSyncState",
+        "title": "Course: Reset Sync State (Destructive)"
+      },
+      {
+        "command": "course.resetCanvas",
+        "title": "Course: Reset Canvas (Deletes ALL Canvas Content)"
       }
     ],
     "menus": {

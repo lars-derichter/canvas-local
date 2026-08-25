@@ -193,11 +193,14 @@ margins.
 
 - Long-running commands run in a shared **Canvas Course Builder** terminal so
   you can follow their output: Setup, Init, Sync, Push, Pull, Status, Validate,
-  and the two dry runs. A terminal that is still running something is never
-  reused — while Sync waits at a conflict question, a second command would be
-  typed straight into that prompt as its answer — so the next command opens
-  **Canvas Course Builder 2**, and so on up to five, before falling back to the
-  most recently used one. Idle terminals are reused, lowest number first, and a
+  Build Glossary, the two reset commands, and the three dry runs. The terminal
+  is also where the two reset commands ask their questions: Reset Canvas prints
+  an inventory of what it is about to delete and waits for y/N, Reset Sync State
+  waits for y/N. A terminal that is still running something is never reused —
+  while Sync waits at a conflict question, a second command would be typed
+  straight into that prompt as its answer — so the next command opens **Canvas
+  Course Builder 2**, and so on up to five, before falling back to the most
+  recently used one. Idle terminals are reused, lowest number first, and a
   closed terminal frees its number.
 - Structural commands (new/rename/move/delete, merge, split) run the CLI
   silently in the background; results appear as notifications and in the
@@ -207,7 +210,8 @@ margins.
   when no workspace folder is open at all; a workspace with no `course/`
   directory only draws a warning pointing at Init, and the command runs
   regardless. That is what lets Setup and New Module run in a project that has
-  no `course/` yet. Init is exempt from the check altogether.
+  no `course/` yet. Init and the two reset commands are exempt from the check
+  altogether, because none of them reads `course/`.
 - **Push Module** presents a quick-pick list of all module folders so you can
   select which one to push.
 - **Preview** checks whether the Docusaurus dev server is already running. If
