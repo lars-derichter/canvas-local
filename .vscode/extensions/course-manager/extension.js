@@ -258,6 +258,24 @@ async function pickItemPath(placeHolder) {
 }
 
 /**
+ * Confirm a merge, the way both delete commands confirm a delete.
+ *
+ * The CLI's own y/N question lives on its interactive path only; driven from
+ * here it takes `--source`/`--target`, so this modal is the whole of what
+ * stands between a click and the source file being deleted.
+ */
+async function confirmMerge(sourcePath, targetPath) {
+  const source = path.basename(sourcePath);
+  const target = path.basename(targetPath);
+  const choice = await vscode.window.showWarningMessage(
+    `Merge "${source}" into "${target}"? "${source}" will be deleted.`,
+    { modal: true },
+    'Merge',
+  );
+  return choice === 'Merge';
+}
+
+/**
  * Resolve the target path from a context-menu tree item, or fall back to a
  * quick pick when invoked from the command palette.
  */
@@ -675,6 +693,11 @@ function activate(context) {
 
     const sourcePath = mergeSource.filePath;
     const targetPath = treeItem.filePath;
+
+    // Before the source is dropped: a cancelled merge leaves it armed, so the
+    // author can go straight to another target instead of setting it again.
+    if (!(await confirmMerge(sourcePath, targetPath))) return;
+
     mergeSource = null;
     vscode.commands.executeCommand(
       'setContext',
@@ -688,6 +711,7 @@ function activate(context) {
       sourcePath,
       '--target',
       targetPath,
+      '--yes',
     ]);
   });
 
@@ -701,12 +725,14 @@ function activate(context) {
       'Target item (keeps frontmatter, receives content)',
     );
     if (!targetPath) return;
+    if (!(await confirmMerge(sourcePath, targetPath))) return;
     await runCli([
       'merge-items',
       '--source',
       sourcePath,
       '--target',
       targetPath,
+      '--yes',
     ]);
   });
 

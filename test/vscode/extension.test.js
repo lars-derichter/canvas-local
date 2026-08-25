@@ -181,6 +181,62 @@ describe('VS Code extension: context-aware commands', () => {
   });
 });
 
+describe('VS Code extension: merge confirmation', () => {
+  const start = extensionSource.indexOf('async function confirmMerge(');
+  const helper = extensionSource.slice(
+    start,
+    extensionSource.indexOf('async function resolveItemPath(', start),
+  );
+
+  it('registers both merge entry points', () => {
+    for (const id of [
+      'course.mergeSetSource',
+      'course.mergeWithSource',
+      'course.mergeItems',
+    ]) {
+      assert.ok(
+        extraRegistered.includes(id),
+        `${id} should be registered via registerCommand`,
+      );
+    }
+  });
+
+  it('confirms in a modal naming both files and the one that goes', () => {
+    // A merge deletes the source, and neither entry point used to ask
+    // anything: the CLI's own y/N question is on its interactive path, which
+    // --source/--target skips.
+    assert.ok(start !== -1, 'confirmMerge should exist');
+    assert.ok(
+      helper.includes(
+        'Merge "${source}" into "${target}"? "${source}" will be deleted.',
+      ),
+      'the modal has to name the target and, twice, the file being deleted',
+    );
+    assert.match(helper, /modal: true/);
+    assert.match(helper, /'Merge'/);
+    assert.match(
+      helper,
+      /return choice === 'Merge'/,
+      'a dismissed modal must read as a cancel',
+    );
+  });
+
+  it('gates both merge handlers on that confirmation', () => {
+    const gated =
+      extensionSource.match(/await confirmMerge\(sourcePath, targetPath\)/g) ||
+      [];
+    assert.equal(gated.length, 2, 'both handlers have to ask before merging');
+  });
+
+  it('passes --yes, which the CLI requires in flag mode', () => {
+    const calls = extensionSource.match(/'merge-items',[\s\S]*?\]/g) || [];
+    assert.equal(calls.length, 2);
+    for (const call of calls) {
+      assert.match(call, /'--yes'/);
+    }
+  });
+});
+
 describe('VS Code extension: export commands', () => {
   const itemContextMenus = packageJson.contributes.menus['view/item/context'];
   const viewTitleMenus = packageJson.contributes.menus['view/title'];
