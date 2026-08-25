@@ -155,7 +155,7 @@
       },
       {
         "command": "course.pushItem",
-        "title": "Push Module",
+        "title": "Push This Module to Canvas",
         "icon": "$(cloud-upload)"
       },
       {
@@ -263,7 +263,7 @@
       "view/item/context": [
         {
           "command": "course.pushItem",
-          "when": "view == courseTree && viewItem =~ /^(page|assignment|external_url|file|module)$/",
+          "when": "view == courseTree && viewItem == module",
           "group": "inline"
         },
         {

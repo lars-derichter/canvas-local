@@ -590,6 +590,65 @@ describe('VS Code extension: pushModule command', () => {
   });
 });
 
+describe('VS Code extension: inline push button', () => {
+  const pushEntries = packageJson.contributes.menus['view/item/context'].filter(
+    (m) => m.command === 'course.pushItem',
+  );
+
+  // Does a when-clause admit a row with this contextValue? Covers the two
+  // shapes the manifest writes: `viewItem == x` and `viewItem =~ /re/`.
+  function admits(when, contextValue) {
+    const equality = when.match(/viewItem == (\w+)/);
+    if (equality) return equality[1] === contextValue;
+    const pattern = when.match(/viewItem =~ \/(.+?)\//);
+    if (pattern) return new RegExp(pattern[1]).test(contextValue);
+    return false;
+  }
+
+  it('hangs off the tree as an inline button', () => {
+    assert.ok(
+      pushEntries.some((m) => m.group === 'inline'),
+      'course.pushItem needs an inline view/item/context entry',
+    );
+  });
+
+  it('is offered on module rows and nowhere else', () => {
+    // The handler pushes treeItem.moduleFolderName, which is the whole module
+    // whichever row was clicked, and the CLI has no smaller push than
+    // --module. On a page the button therefore promised a per-item push and
+    // uploaded every sibling with it.
+    assert.ok(pushEntries.length > 0);
+    for (const entry of pushEntries) {
+      assert.ok(
+        admits(entry.when, 'module'),
+        `"${entry.when}" has to admit module rows`,
+      );
+      for (const row of [
+        'page',
+        'assignment',
+        'discussion',
+        'quiz',
+        'external_url',
+        'external_tool',
+        'file',
+        'subheader',
+      ]) {
+        assert.ok(
+          !admits(entry.when, row),
+          `"${entry.when}" offers Push on a ${row} row, which it cannot push alone`,
+        );
+      }
+    }
+  });
+
+  it('says which module it pushes, since only the hover shows the title', () => {
+    const cmd = packageCommands.find((c) => c.command === 'course.pushItem');
+    assert.ok(cmd, 'course.pushItem needs a contributes.commands entry');
+    assert.equal(cmd.title, 'Push This Module to Canvas');
+    assert.match(cmd.icon, /cloud-upload/);
+  });
+});
+
 describe('VS Code extension: search command', () => {
   it('registers course.search as a separate command', () => {
     assert.ok(

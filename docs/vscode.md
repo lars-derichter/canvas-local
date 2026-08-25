@@ -3,10 +3,10 @@
 All course commands are available in the VS Code command palette (Cmd+Shift+P /
 Ctrl+Shift+P). Type "Course:" to filter the list. Four actions are kept out of
 it, because they act on the tree item you clicked and can do nothing without
-one: the inline **Push Module** and **Open in Canvas** buttons, and the two-step
-**Merge: Set as Source** / **Merge with Source**. The palette has its own
-**Course: Push Module to Canvas...** and **Course: Merge Items**, which ask
-which module or item you mean.
+one: the inline **Push This Module to Canvas** and **Open in Canvas** buttons,
+and the two-step **Merge: Set as Source** / **Merge with Source**. The palette
+has its own **Course: Push Module to Canvas...** and **Course: Merge Items**,
+which ask which module or item you mean.
 
 ## Installation
 
@@ -39,10 +39,14 @@ icon on the left). It shows a tree view of all modules and items in the
 
 Hover over a tree item to see inline action buttons:
 
-| Button        | Action                            |
-| ------------- | --------------------------------- |
-| Cloud upload  | Push the item's module to Canvas  |
-| External link | Open the item in Canvas (browser) |
+| Button        | Rows                                          | Action                            |
+| ------------- | --------------------------------------------- | --------------------------------- |
+| Cloud upload  | Modules                                       | Push that module to Canvas        |
+| External link | Modules; page, assignment, URL and file items | Open the item in Canvas (browser) |
+
+Push is a module-sized operation: `push --module` is the narrowest the CLI goes,
+so the cloud button sits on module rows only rather than on an item it could not
+push by itself.
 
 "Open in Canvas" requires the item to have been pushed at least once. It looks
 the id up in `.canvas-sync.json` by the file's path, and takes the Canvas URL

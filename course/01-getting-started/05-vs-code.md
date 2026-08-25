@@ -74,7 +74,8 @@ is no need to refresh manually.
 
 Hover over a module or item in the sidebar for quick-action buttons:
 
-- **Push module** (cloud icon): push just that module to Canvas
+- **Push This Module to Canvas** (cloud icon): push just that module to Canvas.
+  Module rows only, because a module is the smallest thing a push can send.
 - **Open in Canvas** (link icon): open the item directly on Canvas in your
   browser (works once the item has been pushed at least once)
 
@@ -169,20 +170,21 @@ Open the command palette with **Cmd+Shift+P** (macOS) or **Ctrl+Shift+P**
 | Course: Preview                    | Start the dev server and open the course             |
 | Course: Refresh Tree               | Rebuild the sidebar tree by hand                     |
 
-A handful of commands are registered without the **Course:** prefix, so that
-filter hides them: **Push Module** and **Open in Canvas** from the hover
-buttons, **Export to PDF/DOCX...** and **Export Module to PDF/DOCX...** from the
-right-click menu, and the two halves of the merge. Type part of the name instead
-and the palette finds them.
+Two commands from the right-click menu are registered without the **Course:**
+prefix: **Export to PDF/DOCX...** and **Export Module to PDF/DOCX...**. Type
+part of their name instead and the palette finds them. The other tree actions
+(**Push This Module to Canvas**, **Open in Canvas**, and the two halves of the
+merge) need a selected row to work on, so the palette does not list them; use
+the hover buttons and the right-click menu.
 
 ## How It Works
 
 Everything the extension does goes through the same `npx course` CLI you use in
 the terminal, so renumbering and Canvas sync state behave exactly the same
 either way. The long-running ones (setup, init, sync, push, pull, status,
-validate, and the two dry runs) run in a shared **Canvas Course Builder**
-terminal so you can follow their output; management commands (new, rename, move,
-delete, merge, split) run silently in the background and report back with a
+validate, and the dry runs) run in a shared **Canvas Course Builder** terminal
+so you can follow their output; management commands (new, rename, move, delete,
+merge, split) run silently in the background and report back with a
 notification.
 
 > [!TIP]
