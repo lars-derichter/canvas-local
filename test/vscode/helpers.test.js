@@ -580,11 +580,21 @@ describe('helpers: courseLocation', () => {
     assert.equal(courseLocation(ws, `${file('01-mod')}${path.sep}`), null);
   });
 
-  it('does not fold case', () => {
-    assert.equal(
-      courseLocation(ws, path.join('/ws', 'Course', '01-m', 'a.md')),
-      null,
-    );
+  it('folds case only where the platform does', () => {
+    // No case-folding is added here and none is taken away: the comparison is
+    // `path.relative`, which is case-sensitive on POSIX and case-insensitive on
+    // win32. So `Course/` is a directory of its own on one and the same
+    // directory as `course/` on the other, and the answer follows the platform
+    // the editor is actually running on.
+    const mixed = path.join('/ws', 'Course', '01-m', 'a.md');
+    if (process.platform === 'win32') {
+      assert.deepStrictEqual(courseLocation(ws, mixed), {
+        moduleFolder: '01-m',
+        segments: ['a.md'],
+      });
+    } else {
+      assert.equal(courseLocation(ws, mixed), null);
+    }
   });
 
   it('returns null when either input is missing', () => {
