@@ -263,12 +263,21 @@ describe('scanCourse', () => {
     assert.equal(api.title, 'REST API Reference');
   });
 
-  it('builds correct relative paths', () => {
+  it('builds relative paths with forward slashes on every platform', () => {
+    // Not path.join: the separator is part of the contract, not of the host.
+    // This value is the key `.canvas-sync.json` stores item identity under and
+    // the base every `path.posix` resolution downstream starts from (validate's
+    // link check, the link resolver's `_files/` references, the exporter's image
+    // and cross-link rewrites). A native `01-intro\01-welcome.md` reaches all of
+    // them as a path with no directory part, so they resolve from the course
+    // root instead of the item's folder.
     const modules = scanCourse(tmpDir);
-    const introItems = modules[0].items;
+    assert.equal(modules[0].items[0].relativePath, '01-intro/01-welcome.md');
+
+    const subheader = modules[1].items.find((i) => i.type === 'subheader');
     assert.equal(
-      introItems[0].relativePath,
-      path.join('01-intro', '01-welcome.md'),
+      subheader.items[0].relativePath,
+      '02-advanced/01-exercises/01-exercise-a.md',
     );
   });
 });

@@ -1,5 +1,8 @@
-const { describe, it } = require('node:test');
+const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 
 const {
   buildCombinedMarkdown,
@@ -7,6 +10,11 @@ const {
   injectAnchorOrGenerate,
   anchorFor,
 } = require('../../lib/export/assemble');
+const {
+  scanCourse,
+  flattenItems,
+} = require('../../lib/convert/course-scanner');
+const { toPosixPath } = require('../../lib/sync/state');
 
 /** Build a minimal page item carrying inline markdown. */
 function page(relativePath, title, rawMd) {
@@ -312,5 +320,59 @@ describe('buildCombinedMarkdown', () => {
     const md = buildCombinedMarkdown(groups, { regime: 'course' }, ctx);
     assert.match(md, /## Sub Section \{#sec-01-a-02-sub\}/); // subheader at item level (H2)
     assert.match(md, /### Child \{#sec-01-a-02-sub-01-c\}/); // child one deeper (H3)
+  });
+});
+
+// Every other test here hands buildCombinedMarkdown an item literal, and each
+// one spells relativePath the way the scanner is supposed to. That is the one
+// thing they cannot check. This one scans a real course tree and exports what
+// comes back, which is the seam an image path and a cross-link are resolved
+// across: `preprocess` resolves both with `path.posix` from the item's own
+// relativePath, so a native separator would leave every image resolving from
+// the course root and every cross-link matching nothing in `includedPaths`.
+// On POSIX the two spellings coincide and this only guards the wiring; on
+// Windows it is the whole defect.
+describe('buildCombinedMarkdown — items straight from the scanner', () => {
+  let courseDir;
+
+  before(() => {
+    courseDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ccb-assemble-scan-'));
+    const mod = path.join(courseDir, '01-a');
+    fs.mkdirSync(path.join(mod, '_files'), { recursive: true });
+    fs.writeFileSync(path.join(mod, '_files', 'd.png'), 'binary');
+    fs.writeFileSync(
+      path.join(mod, '01-page.md'),
+      '---\ntitle: Page\n---\n\n![Diagram](_files/d.png)\n\nSee [next](02-next.md).\n',
+    );
+    fs.writeFileSync(
+      path.join(mod, '02-next.md'),
+      '---\ntitle: Next\n---\n\nNext.\n',
+    );
+  });
+
+  after(() => {
+    fs.rmSync(courseDir, { recursive: true, force: true });
+  });
+
+  it('resolves images and cross-links from the item folder', () => {
+    const modules = scanCourse(courseDir);
+    const items = flattenItems(modules[0].items);
+    const includedPaths = new Set(
+      items.map((node) => toPosixPath(node.relativePath)),
+    );
+
+    const md = buildCombinedMarkdown(
+      [{ moduleTitle: 'A', moduleFolder: '01-a', items: modules[0].items }],
+      { regime: 'flat' },
+      { courseDir, includedPaths },
+    );
+
+    assert.ok(
+      md.includes(
+        `![Diagram](${path.join(courseDir, '01-a', '_files', 'd.png')})`,
+      ),
+      `image not resolved from the item folder:\n${md}`,
+    );
+    assert.match(md, /See \[next\]\(#sec-01-a-02-next\)/);
   });
 });

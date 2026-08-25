@@ -147,6 +147,39 @@ describe('validateModules — file items', () => {
   });
 });
 
+describe('validateModules — internal links', () => {
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'validate-links-'));
+    moduleDir = path.join(tmpDir, '01-module');
+    fs.mkdirSync(moduleDir, { recursive: true });
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  // Only broken links were pinned here, and a check that reports every link
+  // broken passes that. The resolved target is built with `path.posix` and
+  // matched against the set of scanned item paths, so the two agree only while
+  // the scanner hands over forward slashes: a native `01-module\02-next.md` in
+  // the set is a string no resolved target can equal.
+  it('says nothing about links to items that exist', () => {
+    writeItem(
+      '01-page.md',
+      '---\ntitle: Page\n---\n\nSee [next](./02-next.md) and [deep](03-sub/01-deep.md).\n',
+    );
+    writeItem('02-next.md', '---\ntitle: Next\n---\n');
+    writeItem(
+      '03-sub/01-deep.md',
+      '---\ntitle: Deep\n---\n\nBack to [the page](../01-page.md).\n',
+    );
+
+    const { errors, warnings } = run();
+    assert.deepEqual(errors, []);
+    assert.deepEqual(warnings, []);
+  });
+});
+
 describe('validateModules — raw HTML file references', () => {
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'validate-rawhtml-'));
