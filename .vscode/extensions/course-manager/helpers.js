@@ -3,6 +3,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { AsyncLocalStorage } = require('async_hooks');
 
 /**
  * The label a tree row carries for an entry name: numeric prefix off,
@@ -933,6 +934,72 @@ function cliChildEnv(env) {
   return { ...env, ELECTRON_RUN_AS_NODE: '1' };
 }
 
+/**
+ * A queue that runs one task at a time, in the order they arrive.
+ *
+ * Two structural commands that overlap both renumber a directory and both
+ * rewrite `.canvas-sync.json`, and the second reads a tree the first is halfway
+ * through rewriting. Nothing stops an author from starting the second one: a
+ * drop, a palette command and a context-menu command are three independent
+ * events, and a batch drop already fires the CLI once per dragged row.
+ *
+ * It serialises commands, not batches. A batch drop is a loop of separate
+ * commands, so two overlapping batches still interleave step by step; what
+ * keeps that honest is `_resolveRowPath`, which re-resolves each row and
+ * refuses an ambiguous one, so the outcome is a stopped batch rather than a
+ * wrong move.
+ *
+ * The hazard in a plain promise chain is a deadlock. A task that queues another
+ * task and waits for it waits forever, because its own turn is what has to end
+ * first, and a wedged queue takes every later command with it — no error, and
+ * nothing in the log. No call site does that today (each one is entered from a
+ * VS Code command or a drop handler, never from inside a run), but "today" is
+ * not a guarantee, so the queue does not rely on it: `AsyncLocalStorage` tells
+ * it when a call comes from inside one of its own tasks, and such a call runs
+ * straight through instead of queueing.
+ *
+ * The escape is scoped to the run, and the flag is what scopes it. A store is
+ * inherited by every async resource seeded while the task ran, and those
+ * outlive the task: a `.then` registered inside it and resolved later, a
+ * `setTimeout` it started, a promise it created and something else settled.
+ * Measured, not feared — before the flag, a call fired from a timer that a
+ * previous run's completion callback had started sailed past the queue, with
+ * two CLI children alive at once. The shape is one small feature away: a Retry
+ * button on the error notification is registered inside the run and pressed
+ * long after it. So the test is not "is there a store" but "is that run still
+ * going", which also settles what a leaked context reaching a later drop
+ * handler could do: nothing, because the flag it finds is already false.
+ *
+ * What the escape still costs, unchanged: a nested call is outside the queue,
+ * so it is unserialised against whatever else runs while it lasts. That is
+ * what every call had before this queue existed.
+ *
+ * One thing every task owes the queue: it must settle. The next turn waits for
+ * this one, so a task that never resolves stops every later command for the
+ * session. `execCli` is written so that each of its paths settles, the
+ * completion callback included.
+ */
+function createSerialQueue() {
+  const inTask = new AsyncLocalStorage();
+  let tail = Promise.resolve();
+
+  return function enqueue(task) {
+    if (inTask.getStore()?.active) return Promise.resolve().then(task);
+
+    const turn = { active: true };
+    const result = tail.then(() => inTask.run(turn, task));
+    // The next task waits for this one to settle, not to succeed: a task that
+    // throws must not wedge the queue, and its failure belongs to the caller
+    // holding `result` rather than to whoever is next in line. The same two
+    // handlers close the turn, so a run that failed leaks no escape either.
+    const close = () => {
+      turn.active = false;
+    };
+    tail = result.then(close, close);
+    return result;
+  };
+}
+
 module.exports = {
   displayTitle,
   safeReadJSON,
@@ -962,4 +1029,5 @@ module.exports = {
   UnquotableValue,
   cliEntryPoint,
   cliChildEnv,
+  createSerialQueue,
 };

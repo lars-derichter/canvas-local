@@ -158,9 +158,16 @@ const VALUE = '<value>';
 const MAX_VARIANTS = 16;
 
 /**
- * The functions that hand a command to the CLI. A third one added under a new
- * name — WP16 plans to put `runCli` behind a promise queue — belongs here, or
- * everything it runs goes unchecked.
+ * The functions call sites hand a command to. A third one added under a new
+ * name belongs here, or everything it runs goes unchecked.
+ *
+ * `runCli` sits behind a promise queue and passes its argv on to an inner
+ * `execCli`, which is deliberately *not* listed: the queue took no call site
+ * with it, so every invocation is still spelled out at a `runCli` call and
+ * still read here. Listing the inner name would break the scan rather than
+ * widen it, since what reaches it is a parameter and not an array this file
+ * can read. What keeps that honest is the unknown-runner sweep below: hand
+ * `execCli` a literal argv from anywhere and it is reported.
  */
 const RUNNERS = new Set(['runCli', 'runInTerminal']);
 
@@ -905,9 +912,10 @@ function scanSource(
   };
 
   // The same hole on the argv side, where there is no `npx course` text to look
-  // for. WP16 plans to put `runCli` behind a queue, and a wrapper under a new
-  // name would carry its argv straight past everything above while the floors
-  // stayed green on the invocations that remained. So anything else handed an
+  // for. A wrapper under a new name would carry its argv straight past
+  // everything above while the floors stayed green on the invocations that
+  // remained — the queue `runCli` now sits behind was written to keep every
+  // call site on the old name for exactly that reason. So anything else handed an
   // argv-shaped array — in any argument position, bare or inside an options
   // object, called or constructed — is reported until someone rules on it,
   // either into `RUNNERS` or into `NOT_RUNNERS`.

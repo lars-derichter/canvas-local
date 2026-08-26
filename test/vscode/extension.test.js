@@ -1343,13 +1343,26 @@ describe('VS Code extension: CLI runner', () => {
     );
   });
 
+  it('sends every run through the queue, never straight to execFile', () => {
+    // Two structural commands that overlap both renumber a directory and both
+    // rewrite .canvas-sync.json. A second call site for execCli would be a way
+    // around the only thing stopping that.
+    assert.match(runner, /const cliQueue = createSerialQueue\(\)/);
+    assert.match(runner, /cliQueue\(\(\) => execCli\(args\)\)/);
+    assert.equal(
+      (runner.match(/execCli\(/g) || []).length,
+      2,
+      'execCli should appear twice: its declaration and the queued call',
+    );
+  });
+
   it('kills a run that hangs instead of hanging with it', () => {
     // Nothing on this path waits for a network — none of the subcommands the
-    // silent runner invokes ever calls into the Canvas HTTP layer — so a run
-    // is local file work and node's own startup, a third of a second on this
-    // project. A child that outlasts minutes is a child that is never coming
-    // back, and without a timeout the command it belongs to waits for it
-    // forever, silently.
+    // silent runner invokes builds a Canvas client — so a run is local file
+    // work and node's own startup, under a second on this project. A child
+    // that outlasts minutes is a child that is never coming back, and without
+    // a timeout the command it belongs to waits for it forever, silently,
+    // with every queued command behind it.
     assert.match(runner, /timeout: CLI_TIMEOUT_MS/);
     const limit = extensionSource.match(
       /const CLI_TIMEOUT_MS = (\d+) \* 60 \* 1000;/,
@@ -1363,10 +1376,10 @@ describe('VS Code extension: CLI runner', () => {
   });
 
   it('settles the run even when reporting it throws', () => {
-    // A throw that skipped resolve() leaves the command waiting on a promise
-    // nothing will ever settle. Demonstrated before the guard existed: a
-    // stdout the callback could not read left the command hanging with no
-    // error and nothing in the log.
+    // The queue's next turn waits on this promise, so a throw that skipped
+    // resolve() would stop every later structural command for the session.
+    // Demonstrated before the guard existed: a stdout the callback could not
+    // read left the command after it never running at all.
     const callback = runner.slice(
       runner.indexOf('(err, stdout, stderr) => {'),
       runner.indexOf('function settle('),

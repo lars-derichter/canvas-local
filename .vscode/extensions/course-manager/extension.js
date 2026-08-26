@@ -9,6 +9,7 @@ const {
   cliChildEnv,
   cliEntryPoint,
   courseLocation,
+  createSerialQueue,
   displayTitle,
   getCanvasId,
   getModuleCanvasId,
@@ -191,8 +192,8 @@ function runInTerminal(build) {
 
 /**
  * How much output one run may produce, per stream: `execFile` applies the
- * figure to stdout and to stderr separately, so a run is bounded at twice
- * this.
+ * figure to stdout and to stderr separately, so a run is bounded at twice this,
+ * and the queue below bounds it to one run at a time.
  *
  * The default is a megabyte, and Node kills the child on the byte after it, so
  * a run past the limit reaches the author as a truncated buffer and an error,
@@ -224,17 +225,28 @@ const CLI_MAX_BUFFER = 32 * 1024 * 1024;
  * escalates. That is enough for the child this runs — the CLI installs no
  * signal handler, so the default disposition applies — but a process wedged in
  * uninterruptible I/O ignores SIGKILL as readily, so escalating would buy
- * nothing here. A child that cannot be killed is beyond this, and the command
- * waiting on it never returns.
+ * nothing here. A child that cannot be killed is beyond this, and the run
+ * behind it stays outstanding.
  */
 const CLI_TIMEOUT_MS = 5 * 60 * 1000;
+
+/** Structural commands run one at a time. See `createSerialQueue`. */
+const cliQueue = createSerialQueue();
 
 /**
  * Run `npx course <args>` without a terminal. Output goes to the
  * "Canvas Course Builder" output channel; failures surface as error notifications.
  * Returns a promise resolving to true on success.
+ *
+ * The run waits its turn: see `createSerialQueue` for why two of these must
+ * never overlap.
  */
 function runCli(args) {
+  return cliQueue(() => execCli(args));
+}
+
+/** One run of the CLI, once the queue has given it its turn. */
+function execCli(args) {
   return new Promise((resolve) => {
     const cliPath = cliEntryPoint(workspaceRoot);
     if (!cliPath) {
@@ -264,8 +276,8 @@ function runCli(args) {
           // line below the try is a call into the host — a channel that was
           // disposed, a stdout that is not the string it is read as — and a
           // throw here skips `resolve` on a promise nothing else will settle.
-          // The command would then hang with no error and nothing to notice
-          // but the work never appearing.
+          // The command would then hang with no error, and once these runs are
+          // queued the ones behind it hang too, for the rest of the session.
           //
           // False rather than true: the run may well have done its work and
           // only the reporting failed, but a caller that branches on this

@@ -34,6 +34,7 @@ const {
   UnquotableValue,
   cliEntryPoint,
   cliChildEnv,
+  createSerialQueue,
 } = require('../../.vscode/extensions/course-manager/helpers');
 const dotenv = require('dotenv');
 const { reorder } = require('../../cli/renumber');
@@ -2527,5 +2528,224 @@ describe('helpers: cliChildEnv', () => {
       PATH: '/usr/bin',
       CANVAS_API_URL: 'https://example.test',
     });
+  });
+});
+
+describe('helpers: createSerialQueue', () => {
+  /** A promise plus its settle functions, so a task can be held open. */
+  const deferred = () => {
+    const box = {};
+    box.promise = new Promise((resolve, reject) => {
+      box.resolve = resolve;
+      box.reject = reject;
+    });
+    return box;
+  };
+
+  /** Let every pending microtask and immediate run. */
+  const tick = () => new Promise((resolve) => setImmediate(resolve));
+
+  /** Fail loudly instead of hanging the suite when the queue deadlocks. */
+  const withTimeout = (promise, message) => {
+    let timer;
+    const guard = new Promise((_resolve, reject) => {
+      timer = setTimeout(() => reject(new Error(message)), 1000);
+    });
+    return Promise.race([promise, guard]).finally(() => clearTimeout(timer));
+  };
+
+  it('starts the second task only when the first has finished', async () => {
+    const queue = createSerialQueue();
+    const log = [];
+    const first = deferred();
+    const second = deferred();
+
+    const a = queue(() => {
+      log.push('a:start');
+      return first.promise.then(() => log.push('a:end'));
+    });
+    const b = queue(() => {
+      log.push('b:start');
+      return second.promise.then(() => log.push('b:end'));
+    });
+
+    await tick();
+    assert.deepStrictEqual(log, ['a:start'], 'b must not have started');
+
+    first.resolve();
+    await a;
+    await tick();
+    assert.deepStrictEqual(log, ['a:start', 'a:end', 'b:start']);
+
+    second.resolve();
+    await b;
+    assert.deepStrictEqual(log, ['a:start', 'a:end', 'b:start', 'b:end']);
+  });
+
+  it('queues a call arriving while a task is already running', async () => {
+    // The case a plain "are we busy?" flag gets wrong. Two commands the author
+    // starts seconds apart are exactly the pair that must not overlap: each
+    // renumbers a directory and rewrites .canvas-sync.json, and the second
+    // would read what the first is halfway through writing.
+    const queue = createSerialQueue();
+    const log = [];
+    const running = deferred();
+
+    const a = queue(() => {
+      log.push('a:start');
+      return running.promise;
+    });
+    await tick();
+
+    const b = queue(() => {
+      log.push('b:start');
+    });
+    await tick();
+    assert.deepStrictEqual(log, ['a:start'], 'b must wait its turn');
+
+    running.resolve();
+    await a;
+    await b;
+    assert.deepStrictEqual(log, ['a:start', 'b:start']);
+  });
+
+  it('runs the tasks in the order they arrived', async () => {
+    const queue = createSerialQueue();
+    const log = [];
+    const results = await Promise.all(
+      ['first', 'second', 'third'].map((name) =>
+        queue(async () => {
+          log.push(name);
+          return name;
+        }),
+      ),
+    );
+    assert.deepStrictEqual(log, ['first', 'second', 'third']);
+    assert.deepStrictEqual(results, ['first', 'second', 'third']);
+  });
+
+  it('hands the task result back to the caller', async () => {
+    // runCli's true/false is what half the call sites branch on.
+    const queue = createSerialQueue();
+    assert.equal(await queue(() => true), true);
+    assert.equal(await queue(async () => false), false);
+  });
+
+  it('lets a failed task through to its own caller without wedging', async () => {
+    const queue = createSerialQueue();
+    const rejected = queue(() => Promise.reject(new Error('boom')));
+    await assert.rejects(rejected, /boom/);
+
+    const thrown = queue(() => {
+      throw new Error('thrown');
+    });
+    await assert.rejects(thrown, /thrown/);
+
+    assert.equal(
+      await withTimeout(
+        queue(() => 'after'),
+        'a failed task wedged the queue: nothing after it ever ran',
+      ),
+      'after',
+      'the queue has to survive a CLI run that blew up',
+    );
+  });
+
+  it('does not deadlock on a task that queues another and waits for it', async () => {
+    // No call site does this today, and a plain promise chain would hang the
+    // extension for the rest of the session if one ever did: the inner call
+    // waits for the queue to drain, and what the queue is waiting on is the
+    // outer call that made it.
+    const queue = createSerialQueue();
+    const log = [];
+
+    const outer = queue(async () => {
+      log.push('outer:start');
+      const inner = await queue(() => {
+        log.push('inner');
+        return 'inner value';
+      });
+      log.push(`outer:got ${inner}`);
+      return 'outer value';
+    });
+
+    assert.equal(
+      await withTimeout(outer, 'the queue deadlocked on a re-entrant call'),
+      'outer value',
+    );
+    assert.deepStrictEqual(log, [
+      'outer:start',
+      'inner',
+      'outer:got inner value',
+    ]);
+  });
+
+  it('keeps queueing for everyone else while a re-entrant call runs', async () => {
+    // Re-entrancy costs the serialisation guarantee for the nested call only.
+    // A command started from the palette in the meantime still waits.
+    const queue = createSerialQueue();
+    const log = [];
+    const held = deferred();
+
+    const outer = queue(async () => {
+      log.push('outer:start');
+      await queue(() => log.push('nested'));
+      await held.promise;
+      log.push('outer:end');
+    });
+    await tick();
+
+    const other = queue(() => log.push('other'));
+    await tick();
+    assert.deepStrictEqual(log, ['outer:start', 'nested']);
+
+    held.resolve();
+    await outer;
+    await other;
+    assert.deepStrictEqual(log, [
+      'outer:start',
+      'nested',
+      'outer:end',
+      'other',
+    ]);
+  });
+
+  it('queues a call the finished task only seeded', async () => {
+    // The escape has to end when the run does. A store is inherited by every
+    // async resource started while the task ran, and those outlive it: the
+    // timer below is registered inside the run and fires after it, which is
+    // exactly the shape of a notification button handler — a Retry on the
+    // runner's own error message would be one. Left unscoped, such a call sails
+    // past the queue and a second CLI child runs beside whatever is running
+    // then. Only a call from a task that is *still going* may skip the queue.
+    const queue = createSerialQueue();
+    const log = [];
+    let seeded;
+
+    await queue(() => {
+      log.push('first');
+      seeded = new Promise((resolve) => {
+        setTimeout(() => resolve(queue(() => log.push('seeded'))), 0);
+      });
+    });
+
+    const held = deferred();
+    const slow = queue(() => {
+      log.push('slow:start');
+      return held.promise.then(() => log.push('slow:end'));
+    });
+    // Long enough for a zero-delay timer, which fires on the next turn of the
+    // loop; the seeded call has been made by now, and must be waiting.
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    assert.deepStrictEqual(
+      log,
+      ['first', 'slow:start'],
+      'the seeded call jumped the queue and ran beside the slow one',
+    );
+
+    held.resolve();
+    await slow;
+    await seeded;
+    assert.deepStrictEqual(log, ['first', 'slow:start', 'slow:end', 'seeded']);
   });
 });
