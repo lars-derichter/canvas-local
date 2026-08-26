@@ -204,6 +204,32 @@ function runInTerminal(build) {
 const CLI_MAX_BUFFER = 32 * 1024 * 1024;
 
 /**
+ * How long a run may take before Node kills it.
+ *
+ * Nothing on this path waits for a network. Eleven of the twelve subcommands
+ * the silent runner invokes do load the Canvas HTTP layer, because the CLI
+ * entry point pulls it in, but none of them ever calls into it: a request trap
+ * around a `rename-item` run counts zero. So a run is local file work plus
+ * node's own startup, and the heaviest of them — `export-toc`, which walks the
+ * whole tree — takes 0.27s wall here over three runs, most of it node starting.
+ * Five minutes is a thousand times that, and well past copying a large asset
+ * onto a slow disk, so a legitimate run cannot reach it.
+ *
+ * What can reach it is a child that never exits: a CLI that grew a prompt
+ * nobody can answer, or a loop. Without this, the command waits on it forever,
+ * silently. A killed run can leave a half-finished renumber, which is why the
+ * number is high enough that only a broken run sees it.
+ *
+ * What it does *not* promise: `execFile` kills with SIGTERM and never
+ * escalates. That is enough for the child this runs — the CLI installs no
+ * signal handler, so the default disposition applies — but a process wedged in
+ * uninterruptible I/O ignores SIGKILL as readily, so escalating would buy
+ * nothing here. A child that cannot be killed is beyond this, and the command
+ * waiting on it never returns.
+ */
+const CLI_TIMEOUT_MS = 5 * 60 * 1000;
+
+/**
  * Run `npx course <args>` without a terminal. Output goes to the
  * "Canvas Course Builder" output channel; failures surface as error notifications.
  * Returns a promise resolving to true on success.
@@ -224,58 +250,87 @@ function runCli(args) {
       cwd: workspaceRoot,
       env: cliChildEnv(process.env),
       maxBuffer: CLI_MAX_BUFFER,
+      timeout: CLI_TIMEOUT_MS,
     };
     cp.execFile(
       process.execPath,
       [cliPath, ...args],
       options,
       (err, stdout, stderr) => {
-        if (stdout) outputChannel.appendLine(stdout.trimEnd());
-        if (stderr) outputChannel.appendLine(stderr.trimEnd());
-        if (err) {
-          const firstError = (stderr || stdout || err.message)
-            .trim()
-            .split('\n')[0];
+        try {
+          settle(err, stdout, stderr);
+        } catch (error) {
+          // Reporting a run must not be able to leave the run unfinished. Every
+          // line below the try is a call into the host — a channel that was
+          // disposed, a stdout that is not the string it is read as — and a
+          // throw here skips `resolve` on a promise nothing else will settle.
+          // The command would then hang with no error and nothing to notice
+          // but the work never appearing.
+          //
+          // False rather than true: the run may well have done its work and
+          // only the reporting failed, but a caller that branches on this
+          // (`if (!ok) return`) should stop rather than build on a result
+          // nobody could read.
+          try {
+            vscode.window.showErrorMessage(
+              `Canvas Course Builder: ${error.message}`,
+            );
+          } catch {
+            /* the host itself is unreachable; settling is what is left */
+          }
+          // That inner catch is defence in depth and nothing tests it: to
+          // reach it, showErrorMessage has to throw while the host is still
+          // running this extension. It is here so that `resolve` below cannot
+          // be skipped by the reporting of a failure to report.
+          resolve(false);
+        }
+      },
+    );
+
+    /** Report one finished run and settle it. Throws only into the catch above. */
+    function settle(err, stdout, stderr) {
+      if (stdout) outputChannel.appendLine(stdout.trimEnd());
+      if (stderr) outputChannel.appendLine(stderr.trimEnd());
+      if (err) {
+        const firstError = (stderr || stdout || err.message)
+          .trim()
+          .split('\n')[0];
+        vscode.window
+          .showErrorMessage(`Canvas Course Builder: ${firstError}`, 'Show Log')
+          .then((choice) => {
+            if (choice === 'Show Log') outputChannel.show();
+          });
+        resolve(false);
+      } else {
+        // A run that succeeded and still wrote to stderr has something the
+        // author has to act on, and until this it was written where nobody
+        // looks: the output channel is only revealed behind the Show Log
+        // button on a failure, and the status bar below is built from stdout.
+        // The case that matters today is a delete whose renumber forced a sync
+        // row to be given up, which strands a Canvas object nothing in the
+        // project can reach afterwards — the CLI names each one, and a
+        // notification is what carries that across.
+        const warning = (stderr || '').trim();
+        if (warning) {
           vscode.window
-            .showErrorMessage(
-              `Canvas Course Builder: ${firstError}`,
+            .showWarningMessage(
+              `Canvas Course Builder: ${warning.split('\n')[0]}`,
               'Show Log',
             )
             .then((choice) => {
               if (choice === 'Show Log') outputChannel.show();
             });
-          resolve(false);
-        } else {
-          // A run that succeeded and still wrote to stderr has something the
-          // author has to act on, and until this it was written where nobody
-          // looks: the output channel is only revealed behind the Show Log
-          // button on a failure, and the status bar below is built from stdout.
-          // The case that matters today is a delete whose renumber forced a sync
-          // row to be given up, which strands a Canvas object nothing in the
-          // project can reach afterwards — the CLI names each one, and a
-          // notification is what carries that across.
-          const warning = (stderr || '').trim();
-          if (warning) {
-            vscode.window
-              .showWarningMessage(
-                `Canvas Course Builder: ${warning.split('\n')[0]}`,
-                'Show Log',
-              )
-              .then((choice) => {
-                if (choice === 'Show Log') outputChannel.show();
-              });
-          }
-          const lastLine = stdout.trim().split('\n').filter(Boolean).pop();
-          if (lastLine)
-            vscode.window.setStatusBarMessage(
-              `Canvas Course Builder: ${lastLine.replace(/^\[[^\]]+\]\s*/, '')}`,
-              5000,
-            );
-          courseTreeProvider.refresh();
-          resolve(true);
         }
-      },
-    );
+        const lastLine = stdout.trim().split('\n').filter(Boolean).pop();
+        if (lastLine)
+          vscode.window.setStatusBarMessage(
+            `Canvas Course Builder: ${lastLine.replace(/^\[[^\]]+\]\s*/, '')}`,
+            5000,
+          );
+        courseTreeProvider.refresh();
+        resolve(true);
+      }
+    }
   });
 }
 

@@ -1343,6 +1343,46 @@ describe('VS Code extension: CLI runner', () => {
     );
   });
 
+  it('kills a run that hangs instead of hanging with it', () => {
+    // Nothing on this path waits for a network — none of the subcommands the
+    // silent runner invokes ever calls into the Canvas HTTP layer — so a run
+    // is local file work and node's own startup, a third of a second on this
+    // project. A child that outlasts minutes is a child that is never coming
+    // back, and without a timeout the command it belongs to waits for it
+    // forever, silently.
+    assert.match(runner, /timeout: CLI_TIMEOUT_MS/);
+    const limit = extensionSource.match(
+      /const CLI_TIMEOUT_MS = (\d+) \* 60 \* 1000;/,
+    );
+    assert.ok(limit, 'CLI_TIMEOUT_MS has to be written in minutes');
+    assert.ok(
+      Number(limit[1]) >= 1,
+      `CLI_TIMEOUT_MS is ${limit[1]} minute(s), close enough to a real run to ` +
+        'kill one halfway through a renumber',
+    );
+  });
+
+  it('settles the run even when reporting it throws', () => {
+    // A throw that skipped resolve() leaves the command waiting on a promise
+    // nothing will ever settle. Demonstrated before the guard existed: a
+    // stdout the callback could not read left the command hanging with no
+    // error and nothing in the log.
+    const callback = runner.slice(
+      runner.indexOf('(err, stdout, stderr) => {'),
+      runner.indexOf('function settle('),
+    );
+    assert.ok(
+      callback.length > 0,
+      'the completion callback has to be findable',
+    );
+    assert.match(callback, /try \{/, 'the reporting has to be guarded');
+    assert.match(
+      callback,
+      /catch \(error\) \{[\s\S]*?resolve\(false\)/,
+      'and the guard has to settle the run, not merely log',
+    );
+  });
+
   it('surfaces a warning a successful run wrote to stderr', () => {
     // The silent runner drives every delete and the merge, and it used to
     // append a successful run's stderr to a channel it never reveals. That is
@@ -1352,10 +1392,10 @@ describe('VS Code extension: CLI runner', () => {
     //
     // Cut from the runner section, and from its LAST failure rather than its
     // first. The runner refuses a workspace with no CLI before it reaches
-    // execFile, so `resolve(false)` appears twice here; starting at the first
-    // would swallow the error branch, whose own notification carries a
-    // 'Show Log' button, and leave half this test passing on the branch it is
-    // not about. Whole-file offsets
+    // execFile, and settles a run whose reporting threw, so `resolve(false)`
+    // appears three times here; starting at the first would swallow the error
+    // branch, whose own notification carries a 'Show Log' button, and leave
+    // half this test passing on the branch it is not about. Whole-file offsets
     // do not work either: the preview poll further down resolves false twice
     // more. Both ends are checked, because `indexOf` answers a question it
     // could not find with -1, and `slice(start, -1)` quietly widens.
