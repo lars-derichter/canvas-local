@@ -12,6 +12,56 @@ const extensionSource = fs.readFileSync(
   path.join(extDir, 'extension.js'),
   'utf-8',
 );
+
+/**
+ * Every JavaScript file the extension ships, walked rather than listed.
+ *
+ * A hardcoded list is a hole with no bottom: a file added tomorrow is invisible
+ * and nothing says so, and the guards in this file that scan source text would
+ * go on passing over a shrinking share of the extension. `cli-contract.test.js`
+ * learned that the hard way — a planted `commands/sync.js` invoking a
+ * nonexistent subcommand left it green — so this is the same walk, kept in the
+ * same shape: it descends into subdirectories, and it takes `.mjs` and `.cjs`
+ * as readily as `.js`.
+ *
+ * Names come back with `/` separators whatever the platform, so a failure reads
+ * the same on Windows as here.
+ */
+function extensionSourceNames(dir = extDir, prefix = '') {
+  const found = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
+    const name = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) {
+      found.push(...extensionSourceNames(path.join(dir, entry.name), name));
+    } else if (/\.(js|mjs|cjs)$/.test(entry.name)) {
+      found.push(name);
+    }
+  }
+  return found.sort();
+}
+
+/** The extension is three files; a walk that finds fewer has stopped walking. */
+const MINIMUM_SOURCES = 3;
+
+const extensionSources = extensionSourceNames().map((name) => ({
+  name,
+  text: fs.readFileSync(path.join(extDir, ...name.split('/')), 'utf-8'),
+}));
+
+describe('VS Code extension: the source walk the guards below stand on', () => {
+  it('finds every JavaScript file the extension ships', () => {
+    const names = extensionSources.map((source) => source.name);
+    assert.ok(
+      names.length >= MINIMUM_SOURCES,
+      `the walk found ${names.length} files (${names.join(', ')})`,
+    );
+    assert.ok(names.includes('extension.js'));
+    assert.ok(names.includes('CourseTreeProvider.js'));
+    assert.ok(names.includes('helpers.js'));
+  });
+});
+
 const packageJson = JSON.parse(
   fs.readFileSync(path.join(extDir, 'package.json'), 'utf-8'),
 );
@@ -128,12 +178,7 @@ describe('VS Code extension: the titles the messages quote', () => {
   // the palette does, or the instruction is a search that finds nothing. The
   // one that started this: "Run \"Course: Init\" first", for a command titled
   // "Course: Init (Canvas Setup)".
-  const sources = ['extension.js', 'CourseTreeProvider.js', 'helpers.js'].map(
-    (name) => ({
-      name,
-      text: fs.readFileSync(path.join(extDir, name), 'utf-8'),
-    }),
-  );
+  const sources = extensionSources;
   const titles = packageCommands.map((command) => command.title);
   // Punctuation and case off, so "Course: Export via TOC" and the real
   // "Course: Export via TOC..." collapse onto each other and can be compared.
@@ -1657,20 +1702,27 @@ describe('VS Code extension: CLI runner', () => {
     // Not a hypothetical flag either. `cliEntryPoint`'s own comment explains
     // that Windows cannot spawn npx.cmd without a shell — the exact reasoning
     // that walks a contributor to this option.
-    const spawns = extensionAst.calls.filter(
-      (node) =>
-        node.callee.type === 'MemberExpression' &&
-        node.callee.property.type === 'Identifier' &&
-        node.callee.property.name === 'execFile',
+    //
+    // Read across every file the extension ships, for the same reason the
+    // quoting rules are: which file the spawn lives in is not part of the rule.
+    const spawns = scannedSources.flatMap((source) =>
+      source.ast.calls
+        .filter(
+          (node) =>
+            node.callee.type === 'MemberExpression' &&
+            node.callee.property.type === 'Identifier' &&
+            node.callee.property.name === 'execFile',
+        )
+        .map((node) => ({ source, node })),
     );
     assert.ok(spawns.length > 0, 'the runner has to spawn the CLI somewhere');
-    for (const node of spawns) {
+    for (const { source, node } of spawns) {
       let options = node.arguments[2];
       if (options && options.type === 'Identifier') {
         // Built just above the call and passed by name. Followed by name to
         // its declaration, and refused when the name is declared more than
         // once, because then this cannot say which object was passed.
-        const declared = extensionAst.declarators.filter(
+        const declared = source.ast.declarators.filter(
           (declarator) =>
             declarator.id.type === 'Identifier' &&
             declarator.id.name === options.name,
@@ -1678,15 +1730,16 @@ describe('VS Code extension: CLI runner', () => {
         assert.equal(
           declared.length,
           1,
-          `the execFile options are passed as \`${options.name}\`, which is ` +
-            `declared ${declared.length} times: spell them out at the call`,
+          `the execFile options in ${source.name} are passed as ` +
+            `\`${options.name}\`, which is declared ${declared.length} ` +
+            'times: spell them out at the call',
         );
         options = declared[0].init;
       }
       assert.ok(
         options && options.type === 'ObjectExpression',
-        `the execFile options at line ${node.loc.start.line} have to be ` +
-          'an object this test can read',
+        `the execFile options at ${source.name}:${node.loc.start.line} have ` +
+          'to be an object this test can read',
       );
       for (const property of options.properties) {
         assert.notEqual(
@@ -2258,11 +2311,21 @@ function sinkTemplates(calls) {
   return found;
 }
 
-const extensionAst = parseExtension(extensionSource, 'extension.js');
-
-describe('VS Code extension: terminal argument quoting', () => {
-  const code = stripComments(extensionSource);
-  const { templates: allTemplates, sums, calls } = extensionAst;
+/**
+ * One scanned source file: its syntax tree, its stripped text, and everything
+ * the shell rules read out of it.
+ *
+ * Every file the extension ships, not one of them. Until this walked, those
+ * rules read `extension.js` alone, so moving a builder, a `sendText` or the
+ * `execFile` call into a second file would have taken it out of every one of
+ * them with the whole suite green — and `cli-contract.test.js`, which does
+ * walk, would not have noticed either, because it checks subcommands and flags
+ * rather than shells and quoting.
+ */
+function scanSource(source) {
+  const code = stripComments(source.text);
+  const ast = parseExtension(source.text, source.name);
+  const { templates: allTemplates, sums, calls } = ast;
 
   // The rule, in one sentence a contributor can hold: every value a command
   // line carries is quoted, by the `q` handed to the builder.
@@ -2283,13 +2346,37 @@ describe('VS Code extension: terminal argument quoting', () => {
     ]),
   ];
   const templates = commandTemplates.map((node) =>
-    extensionSource.slice(node.range[0] + 1, node.range[1] - 1),
+    source.text.slice(node.range[0] + 1, node.range[1] - 1),
   );
 
-  const builders = callArguments(code, 'runInTerminal');
-  const interpolations = templates.flatMap(interpolationsOf);
+  return {
+    name: source.name,
+    text: source.text,
+    code,
+    ast,
+    sums,
+    templates,
+    builders: callArguments(code, 'runInTerminal'),
+    sent: callArguments(code, '.sendText'),
+    interpolations: templates
+      .flatMap(interpolationsOf)
+      .map((hole) => ({ ...hole, where: source.name })),
+  };
+}
+
+const scannedSources = extensionSources.map(scanSource);
+
+describe('VS Code extension: terminal argument quoting', () => {
+  const builders = scannedSources.flatMap((source) => source.builders);
+  const interpolations = scannedSources.flatMap(
+    (source) => source.interpolations,
+  );
 
   it('strips comments without eating the code it has to scan', () => {
+    // Asserted over the corpus rather than over one file, so that moving the
+    // runner or the command table to another file leaves this positive control
+    // standing instead of quietly turning it into a check on nothing.
+    const code = scannedSources.map((source) => source.code).join('\n');
     assert.ok(code.includes('function runInTerminal(build) {'));
     assert.ok(
       !code.includes('rm -rf ~'),
@@ -2299,6 +2386,10 @@ describe('VS Code extension: terminal argument quoting', () => {
   });
 
   it('finds the command lines it is meant to be checking', () => {
+    assert.ok(
+      scannedSources.length >= MINIMUM_SOURCES,
+      `only ${scannedSources.length} extension sources were scanned`,
+    );
     assert.ok(
       builders.length >= 8,
       `found ${builders.length} runInTerminal calls`,
@@ -2323,14 +2414,14 @@ describe('VS Code extension: terminal argument quoting', () => {
   });
 
   it('quotes every value a command line carries', () => {
-    for (const { expression } of interpolations) {
+    for (const { expression, where } of interpolations) {
       // The one multi-value form: every path quoted, then joined.
       if (/^[A-Za-z_$][\w$]*\.map\(q\)\.join\(' '\)$/.test(expression))
         continue;
       assert.ok(
         isQuoteCall(expression),
-        `\${${expression}} reaches a shell unquoted. Every value in a command ` +
-          'line goes through the q() the builder is handed: write ' +
+        `\${${expression}} reaches a shell unquoted, in ${where}. Every value ` +
+          'in a command line goes through the q() the builder is handed: write ' +
           `\${q(${expression})}. If there is no q in scope, the line is being ` +
           'built somewhere that does not know which shell will run it, and ' +
           'that is the thing to fix.',
@@ -2342,14 +2433,16 @@ describe('VS Code extension: terminal argument quoting', () => {
     // A concatenation carries values past every check here: the fixed text is
     // split across operands, so nothing reads as a command line, and there is
     // no hole for the interpolation rule to look at.
-    for (const node of sums) {
-      const text = extensionSource.slice(...node.range);
-      assert.ok(
-        !COMMAND_LINE.test(text),
-        `a command line is being built by concatenation at line ` +
-          `${node.loc.start.line}: write it as one template literal, so the ` +
-          'values in it can be seen and quoted',
-      );
+    for (const source of scannedSources) {
+      for (const node of source.sums) {
+        const text = source.text.slice(...node.range);
+        assert.ok(
+          !COMMAND_LINE.test(text),
+          `a command line is being built by concatenation at ` +
+            `${source.name}:${node.loc.start.line}: write it as one template ` +
+            'literal, so the values in it can be seen and quoted',
+        );
+      }
     }
   });
 
@@ -2359,14 +2452,14 @@ describe('VS Code extension: terminal argument quoting', () => {
     // pair as the only real ones, so cmd enters a quoted section it never
     // leaves and a `&` inside the value goes live. The quoting function decides
     // what quotes a value needs; the template contributes none.
-    for (const { expression, before, after } of interpolations) {
+    for (const { expression, before, after, where } of interpolations) {
       for (const [side, character] of [
         ['before', before],
         ['after', after],
       ]) {
         assert.ok(
           !['"', "'", '`'].includes(character),
-          `a ${character} sits ${side} \${${expression}}, quoting an already quoted value`,
+          `a ${character} sits ${side} \${${expression}} in ${where}, quoting an already quoted value`,
         );
       }
     }
@@ -2375,15 +2468,30 @@ describe('VS Code extension: terminal argument quoting', () => {
   it('quotes through the one function that knows the terminal', () => {
     // `shellQuote` is called in exactly one place, `quoterFor`, which is handed
     // the flavour stamp of the terminal that is about to receive the line. A
-    // second call site anywhere else would be a handler quoting for a shell of
-    // its own choosing, which is how a line quoted for PowerShell ends up typed
-    // into cmd.
-    const calls = [...code.matchAll(/shellQuote\(/g)];
-    assert.equal(calls.length, 1, 'shellQuote should have one call site');
-    const quoter = code.indexOf('function quoterFor(');
-    const quoterEnd = code.indexOf('\n}\n', quoter);
-    assert.ok(quoter !== -1, 'quoterFor should be findable');
-    assert.ok(calls[0].index > quoter && calls[0].index < quoterEnd);
+    // second call site anywhere else — in any file the extension ships — would
+    // be a handler quoting for a shell of its own choosing, which is how a line
+    // quoted for PowerShell ends up typed into cmd.
+    //
+    // The declaration in `helpers.js` is not a call site, and is the only thing
+    // the lookbehind takes out.
+    const sites = scannedSources.flatMap((source) =>
+      [...source.code.matchAll(/(?<!function )shellQuote\(/g)].map((match) => ({
+        source,
+        index: match.index,
+      })),
+    );
+    assert.equal(
+      sites.length,
+      1,
+      `shellQuote should have one call site, found ${sites
+        .map((site) => site.source.name)
+        .join(', ')}`,
+    );
+    const { source, index } = sites[0];
+    const quoter = source.code.indexOf('function quoterFor(');
+    const quoterEnd = source.code.indexOf('\n}\n', quoter);
+    assert.ok(quoter !== -1, `quoterFor should be findable in ${source.name}`);
+    assert.ok(index > quoter && index < quoterEnd);
   });
 
   it('sends nothing to a terminal that has not been read', () => {
@@ -2396,15 +2504,18 @@ describe('VS Code extension: terminal argument quoting', () => {
     // used to be, and it made the preview line unrefactorable: extracting a
     // helper or renaming the variable failed a test whose message named
     // neither, with no green path an ordinary change could take.
-    for (const argument of callArguments(code, '.sendText')) {
-      const namesACommandLine =
-        /^[`'"]/.test(argument) && COMMAND_LINE.test(argument);
-      assert.ok(
-        namesACommandLine || argument === 'commandStr',
-        `${argument} is typed into a terminal, and it neither spells out a ` +
-          'command line here nor comes from runInTerminal. Build the line as ' +
-          'a template literal so its values can be seen and quoted.',
-      );
+    for (const source of scannedSources) {
+      for (const argument of source.sent) {
+        const namesACommandLine =
+          /^[`'"]/.test(argument) && COMMAND_LINE.test(argument);
+        assert.ok(
+          namesACommandLine || argument === 'commandStr',
+          `${argument} is typed into a terminal in ${source.name}, and it ` +
+            'neither spells out a command line here nor comes from ' +
+            'runInTerminal. Build the line as a template literal so its ' +
+            'values can be seen and quoted.',
+        );
+      }
     }
   });
 });
