@@ -15,22 +15,29 @@ const cp = require('child_process');
 const http = require('http');
 
 /**
- * The silent CLI runner, executed rather than read.
+ * The extension, executed rather than read.
  *
- * `test/vscode/extension.test.js` matches patterns against `extension.js` as
- * text, because the file requires `vscode` and cannot be loaded outside the
+ * `test/vscode/extension.test.js` matches patterns against the extension's
+ * source as text, because it requires `vscode` and cannot be loaded outside the
  * host. That catches a line going missing and nothing else: changing
  * `if (!cliPath)` to `if (cliPath === undefined)` leaves every assertion there
  * green while sending `null` into execFile. This file loads the real
  * `extension.js` against a stub `vscode` and a stub `child_process`, calls
- * `activate`, and drives `runCli` end to end.
+ * `activate`, and drives the runner and the command handlers end to end.
+ *
+ * It began as the silent runner's own test, and the name said so. It outgrew
+ * that: `activate()` hands out its command handlers here, so the preview, the
+ * new-item flow and the TOC export are driven through the same stub, and the
+ * file is now the executed half of the extension's coverage rather than one
+ * function's.
  *
  * What it is not: proof that the extension works in VS Code. The stub is this
  * project's model of the host, not the host, and a behaviour VS Code has that
  * the stub does not is invisible here — an extension-host smoke test
  * (`@vscode/test-electron`) is a different and still-open job. What it does
- * prove is that the runner's own logic runs: the queue, the refusal, the
- * spawn options, the reporting, and what happens when reporting fails.
+ * prove is that the extension's own logic runs: the queue, the refusal, the
+ * spawn options, the reporting, what happens when reporting fails, and what
+ * each driven handler actually asks for and sends.
  *
  * The stub covers what `activate()` touches today. When the extension starts
  * touching more of the API, this file fails with a TypeError naming the member
@@ -271,7 +278,7 @@ function installExecFileStub() {
   };
 }
 
-describe('VS Code extension: the silent runner, run', () => {
+describe('VS Code extension: activated, and run', () => {
   let workspace;
   let extension;
   let runCli;
