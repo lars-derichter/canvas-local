@@ -613,6 +613,37 @@ describe('VS Code extension: the silent runner, run', () => {
     assert.deepEqual(unhandled, [], 'and nothing may reach the host unhandled');
   });
 
+  // --- New item ---
+
+  it('does not offer a subsection where one cannot go', async () => {
+    // Invoked from a subheader row. The pick used to carry Subsection, and
+    // picking it produced an error notification and nothing else.
+    await registered['course.newItem']({
+      contextValue: 'subheader',
+      moduleFolderName: '01-intro',
+      folderPath: path.join(workspace, 'course', '01-intro', '02-exercises'),
+    });
+
+    assert.equal(of('quickpick').length, 1, 'the type pick is the first ask');
+    assert.deepEqual(
+      of('quickpick')[0].items.map((item) => item.type),
+      ['page', 'assignment', 'url', 'file'],
+    );
+    assert.deepEqual(of('error'), [], 'nothing to refuse afterwards');
+  });
+
+  it('offers it at module root, where it can', async () => {
+    await registered['course.newItem']({
+      contextValue: 'module',
+      moduleFolderName: '01-intro',
+    });
+
+    assert.deepEqual(
+      of('quickpick')[0].items.map((item) => item.type),
+      ['page', 'assignment', 'url', 'subsection', 'file'],
+    );
+  });
+
   // --- The curated table of contents ---
   //
   // `course.tocReady` is what puts "Export via TOC" in the view menu and the

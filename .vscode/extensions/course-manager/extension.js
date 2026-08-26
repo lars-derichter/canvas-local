@@ -15,6 +15,7 @@ const {
   displayTitle,
   getCanvasId,
   getModuleCanvasId,
+  newItemTypes,
   pickTerminal,
   promoteActive,
   readEnvConfig,
@@ -861,28 +862,13 @@ function activate(context) {
       if (!moduleFolder) return;
     }
 
+    // Where the item lands decides which types are on offer: a subsection
+    // cannot hold another one. See `newItemTypes`.
     const type = await vscode.window.showQuickPick(
-      [
-        { label: 'Page', type: 'page' },
-        { label: 'Assignment', type: 'assignment' },
-        { label: 'External URL', type: 'url' },
-        {
-          label: 'Subsection',
-          type: 'subsection',
-          description: 'module root only',
-        },
-        { label: 'File', type: 'file' },
-      ],
+      newItemTypes({ inSubsection: subsection != null }),
       { placeHolder: 'Type of the new item' },
     );
     if (!type) return;
-
-    if (type.type === 'subsection' && subsection) {
-      vscode.window.showErrorMessage(
-        'Canvas Course Builder: Subsections can only be created at module root level.',
-      );
-      return;
-    }
 
     const args = ['new-item', '--module', moduleFolder, '--type', type.type];
     if (subsection) args.push('--subsection', subsection);

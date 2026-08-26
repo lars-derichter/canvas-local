@@ -1068,6 +1068,40 @@ function createProgressGate(schedule, show) {
 }
 
 /**
+ * The item types `new-item` can create where it is being run, as quick-pick
+ * rows in the order they are offered.
+ *
+ * Only one of them depends on the place. A subsection is a folder of items,
+ * and the CLI will not put one inside another: `--type subsection` together
+ * with `--subsection` exits 1 (cli/new-item.js). Offering the row from a
+ * subheader row and refusing it afterwards asked a question with a wrong
+ * answer in it, and the wrong answer is the one a reader picks precisely when
+ * they do not know the rule. The row keeps its "module root only" note where
+ * it is offered, so its absence lower down reads as the rule rather than as
+ * something missing.
+ *
+ * The `type` values are what goes to `--type`, so they have to be the CLI's
+ * own spellings; helpers.test.js holds them against its VALID_TYPES.
+ */
+function newItemTypes({ inSubsection = false } = {}) {
+  return [
+    { label: 'Page', type: 'page' },
+    { label: 'Assignment', type: 'assignment' },
+    { label: 'External URL', type: 'url' },
+    ...(inSubsection
+      ? []
+      : [
+          {
+            label: 'Subsection',
+            type: 'subsection',
+            description: 'module root only',
+          },
+        ]),
+    { label: 'File', type: 'file' },
+  ];
+}
+
+/**
  * Where `export-toc` writes the curated table of contents, or null when no
  * folder is open to write it in.
  *
@@ -1104,6 +1138,7 @@ module.exports = {
   getModuleCanvasId,
   canvasModuleUrl,
   readEnvConfig,
+  newItemTypes,
   curatedTocPath,
   terminalNumber,
   pickTerminal,

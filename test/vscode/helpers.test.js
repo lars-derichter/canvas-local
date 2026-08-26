@@ -27,6 +27,7 @@ const {
   getModuleCanvasId,
   canvasModuleUrl,
   readEnvConfig,
+  newItemTypes,
   curatedTocPath,
   terminalNumber,
   pickTerminal,
@@ -1534,6 +1535,67 @@ describe('helpers: readEnvConfig agrees with dotenv', () => {
       );
     });
   }
+});
+
+describe('helpers: newItemTypes', () => {
+  const typesOf = (options) => newItemTypes(options).map((row) => row.type);
+
+  it('offers all five at module root', () => {
+    assert.deepEqual(typesOf(), [
+      'page',
+      'assignment',
+      'url',
+      'subsection',
+      'file',
+    ]);
+    assert.deepEqual(typesOf({ inSubsection: false }), typesOf());
+  });
+
+  it('drops the subsection inside a subsection, and nothing else', () => {
+    // The CLI exits 1 on `--type subsection --subsection X`, so offering the
+    // row there was a question with a wrong answer in it.
+    assert.deepEqual(typesOf({ inSubsection: true }), [
+      'page',
+      'assignment',
+      'url',
+      'file',
+    ]);
+  });
+
+  it('keeps the order the same in both places', () => {
+    const root = typesOf().filter((type) => type !== 'subsection');
+    assert.deepEqual(typesOf({ inSubsection: true }), root);
+  });
+
+  it('marks the subsection row as the one with a place rule', () => {
+    const row = newItemTypes().find((item) => item.type === 'subsection');
+    assert.equal(row.label, 'Subsection');
+    assert.match(
+      row.description,
+      /module root/i,
+      'its absence lower down has to read as a rule, not as a gap',
+    );
+    for (const item of newItemTypes({ inSubsection: true })) {
+      assert.equal(
+        item.description,
+        undefined,
+        `${item.type} carries a note that only the subsection row needs`,
+      );
+    }
+  });
+
+  it('spells every type the way the CLI does', () => {
+    // These go straight to `--type`, and the CLI matches them against a list
+    // of its own. A rename on either side is a command that exits 1.
+    const source = fs.readFileSync(
+      path.join(__dirname, '../../cli/new-item.js'),
+      'utf8',
+    );
+    const declared = source.match(/const VALID_TYPES = \[([^\]]+)\]/);
+    assert.ok(declared, 'cli/new-item.js should declare VALID_TYPES');
+    const validTypes = [...declared[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+    assert.deepEqual([...typesOf()].sort(), [...validTypes].sort());
+  });
 });
 
 describe('helpers: curatedTocPath', () => {
