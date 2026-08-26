@@ -254,6 +254,13 @@
           "when": "false"
         }
       ],
+      "editor/context": [
+        {
+          "command": "course.splitItem",
+          "when": "resourceExtname == .md && resourcePath =~ /[\\\\/]course[\\\\/]/",
+          "group": "1_modification"
+        }
+      ],
       "view/title": [
         {
           "command": "course.newModule",

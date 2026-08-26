@@ -602,6 +602,97 @@ describe('VS Code extension: export commands', () => {
   });
 });
 
+describe('VS Code extension: split at cursor, from the editor', () => {
+  const editorMenus = packageJson.contributes.menus['editor/context'] || [];
+  const entry = editorMenus.find((m) => m.command === 'course.splitItem');
+
+  /**
+   * The regex out of a `=~` clause, extracted the way VS Code extracts it:
+   * everything between the opening delimiter and the last `/` in the lexeme.
+   * Retyping the pattern here would test a copy rather than the clause the
+   * host will actually compile.
+   */
+  function matcherOf(clause, key) {
+    const at = clause.indexOf(`${key} =~ `);
+    assert.notEqual(at, -1, `${key} =~ … should be part of the clause`);
+    const lexeme = clause.slice(at + `${key} =~ `.length).trim();
+    assert.ok(lexeme.startsWith('/'), 'a =~ operand is a regex literal');
+    return new RegExp(lexeme.slice(1, lexeme.lastIndexOf('/')));
+  }
+
+  it('offers Split Item at Cursor in the editor context menu', () => {
+    assert.ok(entry, 'course.splitItem needs an editor/context entry');
+    assert.equal(entry.group, '1_modification');
+  });
+
+  it('offers it for markdown only', () => {
+    // The handler refuses anything else out loud; the menu should not have
+    // asked in the first place.
+    assert.match(entry.when, /resourceExtname == \.md/);
+  });
+
+  it('offers it under course/ and nowhere else', () => {
+    const matches = matcherOf(entry.when, 'resourcePath');
+    for (const inside of [
+      '/home/lars/project/course/01-intro/02-page.md',
+      '/home/lars/project/course/01-intro/03-sub/01-page.md',
+      'C:\\Users\\lars\\project\\course\\01-intro\\02-page.md',
+    ]) {
+      assert.ok(matches.test(inside), `${inside} should offer the split`);
+    }
+    for (const outside of [
+      '/home/lars/project/sources/lessons/01-intro.md',
+      '/home/lars/project/README.md',
+      // The trap this clause exists to avoid: the project is called
+      // canvas-course-builder, so a plain `course` search matches every file
+      // in it. Separators on both sides are what make it a folder.
+      '/home/lars/canvas-course-builder/docs/vscode.md',
+      'C:\\Users\\lars\\canvas-course-builder\\docs\\vscode.md',
+      '/home/lars/project/coursework/notes.md',
+    ]) {
+      assert.ok(!matches.test(outside), `${outside} should not offer it`);
+    }
+  });
+
+  it('accepts two false positives, knowingly', () => {
+    // What a path pattern cannot know is where the workspace root is: VS Code
+    // has no context key for a path relative to it. So `course/` anywhere on
+    // the path counts, and these two are the cost. Both are harmless — the
+    // handler saves the file and hands it to `split-item`, which refuses a
+    // file it cannot place — and both are cheaper than a context key
+    // maintained from onDidChangeActiveTextEditor for one menu entry.
+    const matches = matcherOf(entry.when, 'resourcePath');
+    for (const accepted of [
+      // A course/ folder that is not THE course/: nothing in this template
+      // creates one, but nothing stops an author either.
+      '/home/lars/project/sources/course/notes.md',
+      // The whole project checked out inside a folder called course.
+      '/home/lars/course/other-project/docs/x.md',
+    ]) {
+      assert.ok(
+        matches.test(accepted),
+        `${accepted} is a known false positive and should still match; if it ` +
+          'no longer does, this note is out of date',
+      );
+    }
+  });
+
+  it('matches the separator of the platform the editor runs on', () => {
+    // `resourcePath` is the URI's fsPath for a file: backslashes on Windows.
+    // A forward-slash-only pattern would make this a macOS and Linux feature.
+    const matches = matcherOf(entry.when, 'resourcePath');
+    assert.ok(matches.test('\\course\\a.md'));
+    assert.ok(matches.test('/course/a.md'));
+  });
+
+  it('stays in the palette too, where it needs no path at all', () => {
+    const hidden = new Set(
+      packageJson.contributes.menus.commandPalette.map((m) => m.command),
+    );
+    assert.ok(!hidden.has('course.splitItem'));
+  });
+});
+
 describe('VS Code extension: the preview port setting', () => {
   const setting =
     packageJson.contributes.configuration?.properties?.[
