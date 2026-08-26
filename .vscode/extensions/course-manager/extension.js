@@ -7,6 +7,7 @@ const { CourseTreeProvider } = require('./CourseTreeProvider');
 const {
   canvasModuleUrl,
   cliChildEnv,
+  cliEntryPoint,
   courseLocation,
   displayTitle,
   getCanvasId,
@@ -209,10 +210,14 @@ const CLI_MAX_BUFFER = 32 * 1024 * 1024;
  */
 function runCli(args) {
   return new Promise((resolve) => {
-    const cliPath = path.join(workspaceRoot, 'cli', 'index.js');
-    const useNode = fs.existsSync(cliPath);
-    const cmd = useNode ? process.execPath : 'npx';
-    const cmdArgs = useNode ? [cliPath, ...args] : ['course', ...args];
+    const cliPath = cliEntryPoint(workspaceRoot);
+    if (!cliPath) {
+      vscode.window.showErrorMessage(
+        'Canvas Course Builder: No cli/index.js in this workspace, so there is no course CLI to run. Open the course project folder itself.',
+      );
+      resolve(false);
+      return;
+    }
 
     outputChannel.appendLine(`$ course ${args.join(' ')}`);
     const options = {
@@ -220,49 +225,57 @@ function runCli(args) {
       env: cliChildEnv(process.env),
       maxBuffer: CLI_MAX_BUFFER,
     };
-    cp.execFile(cmd, cmdArgs, options, (err, stdout, stderr) => {
-      if (stdout) outputChannel.appendLine(stdout.trimEnd());
-      if (stderr) outputChannel.appendLine(stderr.trimEnd());
-      if (err) {
-        const firstError = (stderr || stdout || err.message)
-          .trim()
-          .split('\n')[0];
-        vscode.window
-          .showErrorMessage(`Canvas Course Builder: ${firstError}`, 'Show Log')
-          .then((choice) => {
-            if (choice === 'Show Log') outputChannel.show();
-          });
-        resolve(false);
-      } else {
-        // A run that succeeded and still wrote to stderr has something the
-        // author has to act on, and until this it was written where nobody
-        // looks: the output channel is only revealed behind the Show Log
-        // button on a failure, and the status bar below is built from stdout.
-        // The case that matters today is a delete whose renumber forced a sync
-        // row to be given up, which strands a Canvas object nothing in the
-        // project can reach afterwards — the CLI names each one, and a
-        // notification is what carries that across.
-        const warning = (stderr || '').trim();
-        if (warning) {
+    cp.execFile(
+      process.execPath,
+      [cliPath, ...args],
+      options,
+      (err, stdout, stderr) => {
+        if (stdout) outputChannel.appendLine(stdout.trimEnd());
+        if (stderr) outputChannel.appendLine(stderr.trimEnd());
+        if (err) {
+          const firstError = (stderr || stdout || err.message)
+            .trim()
+            .split('\n')[0];
           vscode.window
-            .showWarningMessage(
-              `Canvas Course Builder: ${warning.split('\n')[0]}`,
+            .showErrorMessage(
+              `Canvas Course Builder: ${firstError}`,
               'Show Log',
             )
             .then((choice) => {
               if (choice === 'Show Log') outputChannel.show();
             });
+          resolve(false);
+        } else {
+          // A run that succeeded and still wrote to stderr has something the
+          // author has to act on, and until this it was written where nobody
+          // looks: the output channel is only revealed behind the Show Log
+          // button on a failure, and the status bar below is built from stdout.
+          // The case that matters today is a delete whose renumber forced a sync
+          // row to be given up, which strands a Canvas object nothing in the
+          // project can reach afterwards — the CLI names each one, and a
+          // notification is what carries that across.
+          const warning = (stderr || '').trim();
+          if (warning) {
+            vscode.window
+              .showWarningMessage(
+                `Canvas Course Builder: ${warning.split('\n')[0]}`,
+                'Show Log',
+              )
+              .then((choice) => {
+                if (choice === 'Show Log') outputChannel.show();
+              });
+          }
+          const lastLine = stdout.trim().split('\n').filter(Boolean).pop();
+          if (lastLine)
+            vscode.window.setStatusBarMessage(
+              `Canvas Course Builder: ${lastLine.replace(/^\[[^\]]+\]\s*/, '')}`,
+              5000,
+            );
+          courseTreeProvider.refresh();
+          resolve(true);
         }
-        const lastLine = stdout.trim().split('\n').filter(Boolean).pop();
-        if (lastLine)
-          vscode.window.setStatusBarMessage(
-            `Canvas Course Builder: ${lastLine.replace(/^\[[^\]]+\]\s*/, '')}`,
-            5000,
-          );
-        courseTreeProvider.refresh();
-        resolve(true);
-      }
-    });
+      },
+    );
   });
 }
 

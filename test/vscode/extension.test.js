@@ -1293,6 +1293,30 @@ describe('VS Code extension: CLI runner', () => {
     assert.match(extensionSource, /cp\.execFile\(/);
   });
 
+  it('runs node on the CLI in the workspace, and nothing else', () => {
+    // The fallback that used to sit here spawned `npx` when cli/index.js was
+    // missing. On Windows that program is npx.cmd, which libuv will not
+    // resolve from PATH and Node will not run without a shell, so the fallback
+    // could only ever produce an ENOENT naming a program the author never
+    // typed. The extension ships inside the template, so the CLI is either
+    // right there or the open folder is not a course project.
+    assert.match(runner, /cliEntryPoint\(workspaceRoot\)/);
+    assert.match(runner, /cp\.execFile\(\s*process\.execPath/);
+    assert.ok(
+      !runner.includes("'npx'"),
+      'the silent runner must not shell out to npx',
+    );
+    assert.ok(
+      runner.indexOf('cliEntryPoint(') < runner.indexOf('cp.execFile('),
+      'the missing-CLI refusal has to come before the spawn',
+    );
+    assert.match(
+      runner,
+      /showErrorMessage\(\s*'[^']*cli\/index\.js[^']*'/,
+      'the refusal has to name the file it could not find',
+    );
+  });
+
   it('tells the child to behave as node, rather than hoping it was told', () => {
     // process.execPath in a desktop extension host is the Electron helper
     // binary the host itself runs as, and it only behaves as node when
@@ -1325,17 +1349,43 @@ describe('VS Code extension: CLI runner', () => {
     // where `delete-item` and `delete-module` name the Canvas objects a
     // renumber collision put out of reach, so the one warning in this tool
     // that cannot be recovered from was the one nobody saw.
-    const success = extensionSource.slice(
-      extensionSource.indexOf('resolve(false);'),
-      extensionSource.indexOf('resolve(true);'),
+    //
+    // Cut from the runner section, and from its LAST failure rather than its
+    // first. The runner refuses a workspace with no CLI before it reaches
+    // execFile, so `resolve(false)` appears twice here; starting at the first
+    // would swallow the error branch, whose own notification carries a
+    // 'Show Log' button, and leave half this test passing on the branch it is
+    // not about. Whole-file offsets
+    // do not work either: the preview poll further down resolves false twice
+    // more. Both ends are checked, because `indexOf` answers a question it
+    // could not find with -1, and `slice(start, -1)` quietly widens.
+    const failureAt = runner.lastIndexOf('resolve(false);');
+    const successAt = runner.indexOf('resolve(true);');
+    assert.ok(
+      failureAt !== -1 && successAt !== -1 && failureAt < successAt,
+      'the runner has to fail before it succeeds for this slice to be the ' +
+        'success branch',
     );
+    const success = runner.slice(failureAt, successAt);
     assert.match(
       success,
       /showWarningMessage/,
       'the success branch has to surface stderr, not only log it',
     );
+
+    // The button, not the text. The handler under the call compares
+    // `choice === 'Show Log'`, so a plain search of the branch passes on that
+    // comparison with the button gone — measured, it did. Reading the call's
+    // own argument list instead is what tells them apart, and it survives
+    // prettier collapsing the call onto one line.
+    const callAt = success.indexOf('showWarningMessage(');
+    const argumentsEnd = success.indexOf('.then(', callAt);
+    assert.ok(
+      callAt !== -1 && argumentsEnd !== -1,
+      'the warning call and the handler that follows it have to be findable',
+    );
     assert.match(
-      success,
+      success.slice(callAt, argumentsEnd),
       /'Show Log'/,
       'and offer the channel, because the CLI lists one object per line',
     );

@@ -32,6 +32,7 @@ const {
   shellFlavour,
   shellQuote,
   UnquotableValue,
+  cliEntryPoint,
   cliChildEnv,
 } = require('../../.vscode/extensions/course-manager/helpers');
 const dotenv = require('dotenv');
@@ -2448,6 +2449,52 @@ describe('helpers: shellQuote survives a real shell', () => {
     assert.notDeepStrictEqual(run('"wow!!"'), ['wow!!']);
     // The claim: single quotes hold.
     assert.deepStrictEqual(run(shellQuote('wow!!', 'posix')), ['wow!!']);
+  });
+});
+
+describe('helpers: cliEntryPoint', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'helpers-cli-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('finds the CLI the template ships beside course/', () => {
+    fs.mkdirSync(path.join(tmpDir, 'cli'));
+    fs.writeFileSync(path.join(tmpDir, 'cli', 'index.js'), '', 'utf8');
+    assert.equal(
+      cliEntryPoint(tmpDir),
+      path.join(tmpDir, 'cli', 'index.js'),
+      'the runner needs the absolute path it will hand to node',
+    );
+  });
+
+  it('returns null rather than a second way to fail', () => {
+    // What used to happen here was `execFile('npx', ['course', ...])`, which
+    // on Windows cannot work at all: the program is npx.cmd, libuv resolves no
+    // .cmd from PATH, and Node refuses to run one without a shell. The author
+    // got an ENOENT naming a program they never typed. Null is the runner's
+    // cue to say which file is missing instead.
+    assert.equal(cliEntryPoint(tmpDir), null, 'no cli/ at all');
+    fs.mkdirSync(path.join(tmpDir, 'cli'));
+    assert.equal(cliEntryPoint(tmpDir), null, 'a cli/ with no index.js in it');
+  });
+
+  it('takes a missing workspace root without throwing', () => {
+    // Defence, not a live path, and worth being exact about which. No call
+    // site can reach it today: every palette command checks the workspace
+    // first, and with no folder open the tree draws no rows at all, so a drop
+    // has nothing to land on. What it replaces is not a crash either —
+    // path.join(undefined, …) throws inside a promise executor, which rejects
+    // the promise, so the author gets a bare "command failed". The guard is
+    // here to make the answer total: a root or nothing, never a TypeError.
+    assert.equal(cliEntryPoint(undefined), null);
+    assert.equal(cliEntryPoint(null), null);
+    assert.equal(cliEntryPoint(''), null);
   });
 });
 

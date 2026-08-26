@@ -886,6 +886,25 @@ function shellQuote(value, flavour) {
 }
 
 /**
+ * Where the CLI this extension drives lives inside `workspaceRoot`, or null
+ * when the open folder carries none.
+ *
+ * The extension ships inside the template, beside the `cli/` it runs and the
+ * `course/` tree it edits, so this is the only place worth looking. The runner
+ * used to fall back on `npx`, which cost more than it bought: on Windows the
+ * program is `npx.cmd`, libuv resolves no `.cmd` from PATH, and Node 24 refuses
+ * to run one without a shell at all (the CVE-2024-27980 fix), so the fallback
+ * could only ever fail there — with an ENOENT naming a program the author never
+ * typed. A workspace with no `cli/index.js` is not a course project, and saying
+ * that plainly is worth more than a second way to fail.
+ */
+function cliEntryPoint(workspaceRoot) {
+  if (!workspaceRoot) return null;
+  const entry = path.join(workspaceRoot, 'cli', 'index.js');
+  return fs.existsSync(entry) ? entry : null;
+}
+
+/**
  * The environment the CLI child runs with: this process's, plus
  * `ELECTRON_RUN_AS_NODE`.
  *
@@ -941,5 +960,6 @@ module.exports = {
   shellFlavour,
   shellQuote,
   UnquotableValue,
+  cliEntryPoint,
   cliChildEnv,
 };
