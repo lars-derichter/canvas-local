@@ -1000,6 +1000,73 @@ function createSerialQueue() {
   };
 }
 
+/**
+ * Call `announce` when `work` has not settled inside the window `schedule`
+ * opens, and never once it has.
+ *
+ * `schedule(fn)` opens the window and returns the function that closes it —
+ * `setTimeout`/`clearTimeout` in the extension, something deterministic in the
+ * tests. Both settle paths close it, so a run that fails fast stays as quiet as
+ * one that succeeds fast; handling the rejection here is also what keeps a
+ * failed run from reaching the host as an unhandled rejection.
+ */
+function announceIfSlow(work, announce, schedule) {
+  const close = schedule(announce);
+  const stop = () => close();
+  work.then(stop, stop);
+}
+
+/**
+ * One indicator for however many runs are outstanding.
+ *
+ * `track(work, title)` per run: the indicator opens when some run has been
+ * outstanding longer than the window `schedule` defines, and closes when the
+ * last outstanding run settles. `show(title)` opens it and returns the function
+ * that closes it.
+ *
+ * The counting is the whole point, and a drop is what proves it. Ten rows
+ * dropped on a module are ten separate runs, queued; a window armed per run
+ * opens one indicator for every row still waiting when its own window expires.
+ * Measured on the version before this: a ten-row drop stacked eight
+ * simultaneous indicators and unwound them one at a time — the same
+ * one-per-rename nuisance the delay was there to prevent, moved rather than
+ * removed. So the window arms per run, because a run that waits its turn is
+ * exactly the one nobody has been told about, but what it opens is shared.
+ *
+ * The title is the one belonging to the run that opened the indicator. For the
+ * ordinary single command that is its name; for a batch it is the name of the
+ * command that was slow first, which is what is running.
+ *
+ * Both settle paths count, so a run that fails or is rejected releases the
+ * indicator like any other. A rejected run reaching the host is what would
+ * otherwise leave a spinner turning with nothing behind it.
+ */
+function createProgressGate(schedule, show) {
+  let outstanding = 0;
+  let close = null;
+
+  return function track(work, title) {
+    outstanding += 1;
+    const settled = () => {
+      outstanding -= 1;
+      if (outstanding === 0 && close) {
+        const finish = close;
+        close = null;
+        finish();
+      }
+    };
+    work.then(settled, settled);
+    announceIfSlow(
+      work,
+      () => {
+        if (close) return;
+        close = show(title);
+      },
+      schedule,
+    );
+  };
+}
+
 module.exports = {
   displayTitle,
   safeReadJSON,
@@ -1030,4 +1097,6 @@ module.exports = {
   cliEntryPoint,
   cliChildEnv,
   createSerialQueue,
+  announceIfSlow,
+  createProgressGate,
 };

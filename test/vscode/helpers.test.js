@@ -35,6 +35,8 @@ const {
   cliEntryPoint,
   cliChildEnv,
   createSerialQueue,
+  announceIfSlow,
+  createProgressGate,
 } = require('../../.vscode/extensions/course-manager/helpers');
 const dotenv = require('dotenv');
 const { reorder } = require('../../cli/renumber');
@@ -2747,5 +2749,217 @@ describe('helpers: createSerialQueue', () => {
     await slow;
     await seeded;
     assert.deepStrictEqual(log, ['first', 'slow:start', 'slow:end', 'seeded']);
+  });
+});
+
+describe('helpers: announceIfSlow', () => {
+  /** A scheduler with the clock taken out: nothing fires until fire() says so. */
+  const manual = () => {
+    const windows = [];
+    return {
+      windows,
+      schedule(fn) {
+        const entry = { fn, closed: false };
+        windows.push(entry);
+        return () => {
+          entry.closed = true;
+        };
+      },
+      fire() {
+        for (const entry of windows) if (!entry.closed) entry.fn();
+      },
+    };
+  };
+
+  const tick = () => new Promise((resolve) => setImmediate(resolve));
+
+  it('says nothing about a run that finished inside the window', async () => {
+    const clock = manual();
+    let announced = 0;
+    announceIfSlow(Promise.resolve(true), () => announced++, clock.schedule);
+    await tick();
+
+    clock.fire();
+    assert.equal(announced, 0, 'a fast rename must not flash a spinner');
+    assert.equal(clock.windows[0].closed, true, 'the window has to be closed');
+  });
+
+  it('announces a run still going when the window expires', async () => {
+    const clock = manual();
+    let announced = 0;
+    let finish;
+    const work = new Promise((resolve) => {
+      finish = resolve;
+    });
+    announceIfSlow(work, () => announced++, clock.schedule);
+
+    clock.fire();
+    assert.equal(announced, 1);
+
+    finish(true);
+    await tick();
+    assert.equal(announced, 1, 'once, not once per settle path');
+  });
+
+  it('closes the window on a failed run too', async () => {
+    // The spinner comes down whichever way the run ended, and attaching the
+    // rejection handler is also what keeps a failed run from reaching the
+    // extension host as an unhandled rejection — which is what this test
+    // reports if that handler is ever dropped, since nothing else here
+    // catches it.
+    const clock = manual();
+    let announced = 0;
+    announceIfSlow(
+      Promise.reject(new Error('the CLI blew up')),
+      () => announced++,
+      clock.schedule,
+    );
+    await tick();
+
+    clock.fire();
+    assert.equal(announced, 0);
+    assert.equal(clock.windows[0].closed, true);
+  });
+});
+
+describe('helpers: createProgressGate', () => {
+  /** A gate with the clock and the indicator taken out. */
+  const rig = () => {
+    const windows = [];
+    const titles = [];
+    let live = 0;
+    let peak = 0;
+    return {
+      titles,
+      get live() {
+        return live;
+      },
+      get peak() {
+        return peak;
+      },
+      schedule(fn) {
+        const window = { fn, closed: false };
+        windows.push(window);
+        return () => {
+          window.closed = true;
+        };
+      },
+      /** Expire every window still open, once each, the way timers fire. */
+      fire() {
+        for (const window of windows) {
+          if (window.closed) continue;
+          window.closed = true;
+          window.fn();
+        }
+      },
+      show(title) {
+        titles.push(title);
+        live += 1;
+        peak = Math.max(peak, live);
+        return () => {
+          live -= 1;
+        };
+      },
+    };
+  };
+
+  const deferred = () => {
+    const box = {};
+    box.promise = new Promise((resolve, reject) => {
+      box.resolve = resolve;
+      box.reject = reject;
+    });
+    return box;
+  };
+
+  const tick = () => new Promise((resolve) => setImmediate(resolve));
+
+  it('opens one indicator for a queue of runs, not one per run', async () => {
+    // Ten rows dropped on a module are ten runs, nine of them waiting. Before
+    // the gate they opened eight spinners at once and unwound them one at a
+    // time.
+    const gate = rig();
+    const track = createProgressGate(gate.schedule, gate.show);
+    const runs = [deferred(), deferred(), deferred(), deferred()];
+    runs.forEach((run, i) => track(run.promise, `run ${i}`));
+
+    gate.fire();
+    assert.equal(gate.peak, 1, 'one indicator, however many runs are waiting');
+    assert.deepStrictEqual(
+      gate.titles,
+      ['run 0'],
+      'titled by whoever opened it',
+    );
+
+    for (const run of runs) run.resolve();
+    await tick();
+    assert.equal(gate.live, 0, 'and it comes down when the last one settles');
+  });
+
+  it('holds the indicator until the last run settles, not the first', async () => {
+    const gate = rig();
+    const track = createProgressGate(gate.schedule, gate.show);
+    const first = deferred();
+    const last = deferred();
+    track(first.promise, 'first');
+    track(last.promise, 'last');
+
+    gate.fire();
+    assert.equal(gate.live, 1);
+
+    first.resolve();
+    await tick();
+    assert.equal(gate.live, 1, 'work is still going: the spinner stays');
+
+    last.resolve();
+    await tick();
+    assert.equal(gate.live, 0);
+  });
+
+  it('lets a failed run take the indicator down like any other', async () => {
+    // A run can reject — execFile validates its arguments and throws where the
+    // run starts. Counting only fulfilment would leave a spinner turning with
+    // nothing behind it, for the rest of the session.
+    const gate = rig();
+    const track = createProgressGate(gate.schedule, gate.show);
+    const failing = deferred();
+    track(failing.promise, 'failing');
+    gate.fire();
+    assert.equal(gate.live, 1);
+
+    failing.reject(new Error('spawn threw'));
+    await tick();
+    assert.equal(gate.live, 0, 'a rejected run has to release the indicator');
+    await failing.promise.catch(() => {});
+  });
+
+  it('says nothing about runs that finish inside the window', async () => {
+    const gate = rig();
+    const track = createProgressGate(gate.schedule, gate.show);
+    track(Promise.resolve(true), 'quick');
+    await tick();
+
+    gate.fire();
+    assert.equal(gate.peak, 0, 'a fast rename must not flash a spinner');
+  });
+
+  it('opens again for a run that comes after the quiet', async () => {
+    const gate = rig();
+    const track = createProgressGate(gate.schedule, gate.show);
+    const first = deferred();
+    track(first.promise, 'first');
+    gate.fire();
+    first.resolve();
+    await tick();
+    assert.equal(gate.live, 0);
+
+    const second = deferred();
+    track(second.promise, 'second');
+    gate.fire();
+    assert.equal(gate.live, 1, 'the gate has to rearm');
+    assert.deepStrictEqual(gate.titles, ['first', 'second']);
+    second.resolve();
+    await tick();
+    assert.equal(gate.live, 0);
   });
 });

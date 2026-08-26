@@ -9,6 +9,7 @@ const {
   cliChildEnv,
   cliEntryPoint,
   courseLocation,
+  createProgressGate,
   createSerialQueue,
   displayTitle,
   getCanvasId,
@@ -230,8 +231,40 @@ const CLI_MAX_BUFFER = 32 * 1024 * 1024;
  */
 const CLI_TIMEOUT_MS = 5 * 60 * 1000;
 
+/** How long a run may take before it says so. */
+const PROGRESS_AFTER_MS = 750;
+
 /** Structural commands run one at a time. See `createSerialQueue`. */
 const cliQueue = createSerialQueue();
+
+/**
+ * Feedback for runs slow enough to look like nothing happening. Queueing makes
+ * that likelier, not rarer: a command waiting its turn has not started at all.
+ *
+ * The window location keeps it to a spinner in the status bar, where the result
+ * line lands afterwards; a notification per rename would be a nuisance, and so
+ * would ten spinners for a ten-row drop, which is why the gate shares one. The
+ * promise handed to withProgress is resolved by the gate when the last
+ * outstanding run settles, and never rejected: a failed run has to take the
+ * spinner down, not carry its failure into the host.
+ */
+const trackProgress = createProgressGate(
+  (announce) => {
+    const timer = setTimeout(announce, PROGRESS_AFTER_MS);
+    return () => clearTimeout(timer);
+  },
+  (title) => {
+    let finish;
+    const held = new Promise((resolve) => {
+      finish = resolve;
+    });
+    vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Window, title },
+      () => held,
+    );
+    return finish;
+  },
+);
 
 /**
  * Run `npx course <args>` without a terminal. Output goes to the
@@ -242,7 +275,9 @@ const cliQueue = createSerialQueue();
  * never overlap.
  */
 function runCli(args) {
-  return cliQueue(() => execCli(args));
+  const run = cliQueue(() => execCli(args));
+  trackProgress(run, `Canvas Course Builder: course ${args[0]}`);
+  return run;
 }
 
 /** One run of the CLI, once the queue has given it its turn. */

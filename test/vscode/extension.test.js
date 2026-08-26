@@ -1396,6 +1396,32 @@ describe('VS Code extension: CLI runner', () => {
     );
   });
 
+  it('shows progress for a slow run, and only for a slow one', () => {
+    // A queued command has not started at all, and a batch drop runs one CLI
+    // per dragged row, so the wait is exactly when an author needs telling.
+    // A spinner on every rename would be noise, hence the delay; ten spinners
+    // for a ten-row drop would be the same noise, hence the shared gate.
+    assert.match(runner, /const trackProgress = createProgressGate\(/);
+    assert.match(runner, /trackProgress\(run, /);
+    assert.match(runner, /vscode\.window\.withProgress\(/);
+    assert.match(runner, /location: vscode\.ProgressLocation\.Window/);
+    assert.match(runner, /setTimeout\(announce, PROGRESS_AFTER_MS\)/);
+    assert.match(runner, /return \(\) => clearTimeout\(timer\)/);
+
+    // The delay needs a floor as much as the buffer needs a ceiling. At zero
+    // the call is still there, the spinner still opens and closes, and every
+    // rename flashes one — the noise the delay exists to prevent, with nothing
+    // above failing. A real run is a few hundred milliseconds, so the floor
+    // sits above that.
+    const delay = extensionSource.match(/const PROGRESS_AFTER_MS = (\d+);/);
+    assert.ok(delay, 'PROGRESS_AFTER_MS has to be a plain number');
+    assert.ok(
+      Number(delay[1]) >= 250,
+      `PROGRESS_AFTER_MS is ${delay[1]}ms, short enough to flash a spinner on ` +
+        'commands that finish immediately',
+    );
+  });
+
   it('surfaces a warning a successful run wrote to stderr', () => {
     // The silent runner drives every delete and the merge, and it used to
     // append a successful run's stderr to a channel it never reveals. That is
