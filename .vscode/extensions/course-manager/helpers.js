@@ -1068,6 +1068,53 @@ function createProgressGate(schedule, show) {
 }
 
 /**
+ * What is wrong with a typed points-possible value, or null when nothing is.
+ * The shape `showInputBox`'s `validateInput` wants.
+ *
+ * What counts as valid is the CLI's answer, not Canvas's: the value goes to
+ * `--points`, and `cli/new-item.js` reads it with `parseInt(value, 10)`. So
+ * anything parseInt would take a bite out of has to be stopped here, where the
+ * author is still looking at what they typed:
+ *
+ *   - `abc` parses to NaN, and NaN is not null, so it lands in the frontmatter
+ *     as `points_possible: .nan`.
+ *   - `2.5` parses to 2 and `1e5` parses to 1. Canvas itself is happy with
+ *     fractional points, and a `points_possible: 2.5` written into the file by
+ *     hand pushes fine (lib/sync/canvas-write.js passes it through), so the
+ *     refusal says where to put one rather than pretending the number is
+ *     impossible.
+ *   - Past 2^53 the digits stop being kept at all.
+ *
+ * Empty is valid and means 100, which is what the CLI's own interactive prompt
+ * defaults to and what the box is pre-filled with. Zero is valid: an
+ * assignment worth no points is an ordinary Canvas assignment.
+ *
+ * Some spellings are refused although parseInt would have read them back
+ * whole: a sign (`-5`, `+5`, `-0`), a decimal point over a whole number
+ * (`5.`, `5.0`), an exponent that resolves to one (`0e2`). What they have in
+ * common is that none of them is a plain string of digits, and a plain string
+ * of digits is never refused for the way it is written — only for being too
+ * long to keep. The minus is the one that matters: commander hands
+ * `--points -5` through as a value, and the CLI writes `points_possible: -5`
+ * without a word, and nothing is worth minus five points. The rest are slips
+ * rather than shorthands, and go the same way.
+ */
+function validatePoints(value) {
+  const typed = String(value ?? '').trim();
+  if (typed === '') return null;
+  if (typed.includes('.')) {
+    return 'Whole points only. For a fraction, set points_possible in the frontmatter afterwards.';
+  }
+  if (!/^\d+$/.test(typed)) {
+    return 'Points must be a whole number, 0 or more';
+  }
+  if (!Number.isSafeInteger(Number(typed))) {
+    return 'That is more points than a number can hold';
+  }
+  return null;
+}
+
+/**
  * The item types `new-item` can create where it is being run, as quick-pick
  * rows in the order they are offered.
  *
@@ -1139,6 +1186,7 @@ module.exports = {
   canvasModuleUrl,
   readEnvConfig,
   newItemTypes,
+  validatePoints,
   curatedTocPath,
   terminalNumber,
   pickTerminal,

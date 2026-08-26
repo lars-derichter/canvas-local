@@ -61,7 +61,10 @@ let registered = {};
  * `quickPick` is the same problem one step earlier: a command that gives up at
  * its first question never reaches the work it exists to do, so everything past
  * that question is unpinned. It is handed the items the command offered and
- * returns the one that was picked, or undefined to dismiss.
+ * returns the one that was picked, or undefined to dismiss. `inputBox` does the
+ * same for a typed answer, and is handed the options, `validateInput`
+ * included — the host runs that function, so a test that wants to know whether
+ * a box really validates has to run it too.
  */
 let answers = {};
 
@@ -168,7 +171,12 @@ const vscodeStub = {
         answers.quickPick ? answers.quickPick(items, options) : undefined,
       );
     },
-    showInputBox: () => Promise.resolve(undefined),
+    showInputBox: (options) => {
+      events.push({ kind: 'inputbox', options });
+      return Promise.resolve(
+        answers.inputBox ? answers.inputBox(options) : undefined,
+      );
+    },
     activeTextEditor: undefined,
     onDidCloseTerminal: () => disposable(),
     onDidStartTerminalShellExecution: () => disposable(),
@@ -642,6 +650,56 @@ describe('VS Code extension: the silent runner, run', () => {
       of('quickpick')[0].items.map((item) => item.type),
       ['page', 'assignment', 'url', 'subsection', 'file'],
     );
+  });
+
+  it('puts a validator on the points box, and passes what it took', async () => {
+    // The host is what enforces validateInput, so this drives both halves: the
+    // function the box was given, and the value that reaches the command line.
+    answers.quickPick = (items) =>
+      items.find((item) => item.type === 'assignment');
+    answers.inputBox = (options) =>
+      options.prompt.startsWith('Points') ? ' 40 ' : 'Week one';
+
+    await registered['course.newItem']({
+      contextValue: 'module',
+      moduleFolderName: '01-intro',
+    });
+
+    const points = of('inputbox').find((box) =>
+      box.options.prompt.startsWith('Points'),
+    );
+    assert.ok(points, 'an assignment has to ask for its points');
+    assert.equal(
+      typeof points.options.validateInput,
+      'function',
+      'and the box has to be able to refuse an answer',
+    );
+    assert.equal(points.options.validateInput('2.5') === null, false);
+    assert.equal(points.options.validateInput('abc') === null, false);
+    assert.equal(points.options.validateInput('40'), null);
+
+    assert.equal(spawns.length, 1);
+    const args = spawns[0].args.slice(1);
+    assert.deepEqual(
+      args.slice(args.indexOf('--points')),
+      ['--points', '40'],
+      'the value goes out trimmed',
+    );
+  });
+
+  it('reads a cleared points box as the default, not as nothing', async () => {
+    answers.quickPick = (items) =>
+      items.find((item) => item.type === 'assignment');
+    answers.inputBox = (options) =>
+      options.prompt.startsWith('Points') ? '' : 'Week two';
+
+    await registered['course.newItem']({
+      contextValue: 'module',
+      moduleFolderName: '01-intro',
+    });
+
+    const args = spawns[0].args.slice(1);
+    assert.deepEqual(args.slice(args.indexOf('--points')), ['--points', '100']);
   });
 
   // --- The curated table of contents ---

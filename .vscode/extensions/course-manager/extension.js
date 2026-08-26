@@ -24,6 +24,7 @@ const {
   shellFlavour,
   shellQuote,
   terminalNumber,
+  validatePoints,
 } = require('./helpers');
 
 // Long-running / streaming commands run in a shared terminal. Structural
@@ -906,9 +907,12 @@ function activate(context) {
         const points = await vscode.window.showInputBox({
           prompt: 'Points possible',
           value: '100',
+          validateInput: validatePoints,
         });
         if (points === undefined) return;
-        args.push('--points', points || '100');
+        // Cleared box means the pre-filled default, the way the CLI's own
+        // prompt reads an empty answer.
+        args.push('--points', points.trim() || '100');
       }
     }
 

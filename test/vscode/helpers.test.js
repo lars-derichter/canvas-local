@@ -28,6 +28,7 @@ const {
   canvasModuleUrl,
   readEnvConfig,
   newItemTypes,
+  validatePoints,
   curatedTocPath,
   terminalNumber,
   pickTerminal,
@@ -1535,6 +1536,174 @@ describe('helpers: readEnvConfig agrees with dotenv', () => {
       );
     });
   }
+});
+
+describe('helpers: validatePoints', () => {
+  const accepts = (value) =>
+    assert.equal(
+      validatePoints(value),
+      null,
+      `${JSON.stringify(value)} should be accepted`,
+    );
+  const refuses = (value) => {
+    const message = validatePoints(value);
+    assert.equal(
+      typeof message,
+      'string',
+      `${JSON.stringify(value)} should be refused`,
+    );
+    assert.ok(message.length > 0, 'a refusal has to say something');
+    return message;
+  };
+
+  it('takes a whole number of points', () => {
+    accepts('100');
+    accepts('1');
+    accepts('007');
+    accepts(' 50 ');
+  });
+
+  it('takes zero: an assignment worth no points is an ordinary one', () => {
+    accepts('0');
+  });
+
+  it('takes an empty box as the default the CLI would use', () => {
+    // The box is pre-filled with 100 and the CLI's own prompt defaults to 100
+    // on an empty answer. Refusing here would be stricter than the tool behind
+    // it for no gain.
+    accepts('');
+    accepts('   ');
+    accepts(undefined);
+  });
+
+  it('refuses what parseInt would turn into NaN', () => {
+    // `--points abc` reaches the frontmatter as `points_possible: .nan`.
+    refuses('abc');
+    refuses('100 points');
+    refuses('1,5');
+  });
+
+  it('refuses a decimal, and says where a fraction goes instead', () => {
+    // Canvas takes fractional points; `parseInt('2.5', 10)` is 2, so this path
+    // cannot carry one. The refusal has to name the path that can.
+    assert.match(refuses('2.5'), /frontmatter/i);
+    assert.match(refuses('0.5'), /frontmatter/i);
+    assert.match(refuses('.5'), /frontmatter/i);
+    // The same mistake spelled three more ways. They used to draw two
+    // different sentences: a decimal point is a decimal point.
+    assert.match(refuses('5.'), /frontmatter/i);
+    assert.match(refuses('5.0'), /frontmatter/i);
+    assert.match(refuses('1.2.3'), /frontmatter/i);
+  });
+
+  it('refuses exponent notation, which parseInt reads as its first digit', () => {
+    refuses('1e5');
+  });
+
+  it('refuses a negative, which is not a number of points at all', () => {
+    refuses('-5');
+    refuses('-0');
+  });
+
+  it('refuses more digits than a number keeps', () => {
+    accepts(String(Number.MAX_SAFE_INTEGER));
+    refuses(String(Number.MAX_SAFE_INTEGER) + '0');
+    refuses('9'.repeat(30));
+  });
+
+  it('accepts every value the CLI would then read back unchanged', () => {
+    // The rule in one sentence: what this lets through, `parseInt(v, 10)` has
+    // to give back whole. Looser than that is silent data loss (2.5 becoming
+    // 2); stricter than that refuses a value the CLI would have handled.
+    //
+    // With the deliberate exceptions listed here rather than folded into the
+    // rule: each parses back whole at the CLI and is refused anyway, for the
+    // way it is spelled. The minus is the one that matters — commander passes
+    // `--points -5` through as a value and the CLI writes `points_possible: -5`
+    // unexamined. The rest are slips, not shorthands.
+    const refusedAnyway = new Set(['-5', '-0', '+5', '5.', '5.0', '0e2']);
+    const corpus = [
+      '0',
+      '1',
+      '007',
+      ' 50 ',
+      '100',
+      '2.5',
+      '.5',
+      '1e5',
+      '-5',
+      '-0',
+      '+5',
+      '5.',
+      '5.0',
+      '0e2',
+      'abc',
+      '100 points',
+      '1,5',
+      '9'.repeat(30),
+      '',
+    ];
+    for (const value of corpus) {
+      const typed = value.trim();
+      const parsed = parseInt(typed, 10);
+      const survivesTheCli =
+        typed === '' ||
+        (Number.isSafeInteger(parsed) &&
+          String(parsed) === String(Number(typed)));
+      assert.equal(
+        validatePoints(value) === null,
+        survivesTheCli && !refusedAnyway.has(typed),
+        `${JSON.stringify(value)}: parseInt gives ${parsed}`,
+      );
+    }
+  });
+
+  it('never turns away a plain count the CLI would have taken', () => {
+    // A list of exceptions cannot prove it is complete, so this states the
+    // boundary from the other side, over every spelling it can build: what is
+    // refused despite surviving the CLI is always written with something other
+    // than digits — a sign, a decimal point, an exponent. Nothing anyone would
+    // type as a number of points is turned away for its spelling.
+    //
+    // Written this way after the sweep caught two the hand-written list above
+    // had missed: `5.0` and `0e2` both parse back whole, and both are refused.
+    const built = [];
+    for (const sign of ['', '-', '+']) {
+      for (const digits of ['0', '5', '07', '12', '100']) {
+        for (const tail of ['', '.', '.0', '.5', 'e2', ' ', 'x', '_0']) {
+          built.push(`${sign}${digits}${tail}`);
+        }
+      }
+    }
+    built.push('0x10', '1_000', '5 5', ' 5 ', '1e5', '9'.repeat(30));
+
+    let plain = 0;
+    let divergences = 0;
+    for (const value of built) {
+      const typed = value.trim();
+      const parsed = parseInt(typed, 10);
+      if (/^\d+$/.test(typed) && Number.isSafeInteger(parsed)) {
+        plain++;
+        assert.equal(
+          validatePoints(value),
+          null,
+          `${JSON.stringify(value)} is a plain count and was refused`,
+        );
+        continue;
+      }
+      const survivesTheCli =
+        Number.isSafeInteger(parsed) &&
+        String(parsed) === String(Number(typed));
+      if (!survivesTheCli || validatePoints(value) === null) continue;
+      divergences++;
+      assert.match(
+        typed,
+        /\D/,
+        `${JSON.stringify(value)} is refused although the CLI would have taken it`,
+      );
+    }
+    assert.ok(plain > 0 && divergences > 0, 'the sweep found nothing to check');
+  });
 });
 
 describe('helpers: newItemTypes', () => {
