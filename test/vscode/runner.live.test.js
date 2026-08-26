@@ -1,10 +1,18 @@
-const { describe, it, before, after, beforeEach } = require('node:test');
+const {
+  describe,
+  it,
+  before,
+  after,
+  beforeEach,
+  afterEach,
+} = require('node:test');
 const assert = require('node:assert/strict');
 const Module = require('module');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const cp = require('child_process');
+const http = require('http');
 
 /**
  * The silent CLI runner, executed rather than read.
@@ -67,6 +75,9 @@ let registered = {};
  * a box really validates has to run it too.
  */
 let answers = {};
+
+/** The workspace's settings, keyed `section.key`, as `getConfiguration` reads them. */
+let settings = {};
 
 /**
  * What the next child does: a test sets this to
@@ -153,8 +164,12 @@ const vscodeStub = {
     withProgress: (options, task) => {
       progressOpen++;
       progressPeak = Math.max(progressPeak, progressOpen);
-      events.push({ kind: 'progress', ...options });
-      return Promise.resolve(task({ report() {} })).then(
+      // Recorded before the task runs, so the order of the events is the order
+      // they happened in; `done` is attached after, for the callers that fire
+      // one of these and do not await it.
+      const event = { kind: 'progress', ...options };
+      events.push(event);
+      event.done = Promise.resolve(task({ report() {} })).then(
         (value) => {
           progressOpen--;
           return value;
@@ -164,6 +179,7 @@ const vscodeStub = {
           throw error;
         },
       );
+      return event.done;
     },
     showQuickPick: (items, options) => {
       events.push({ kind: 'quickpick', items, options });
@@ -185,6 +201,12 @@ const vscodeStub = {
   },
   workspace: {
     workspaceFolders: undefined, // set in `before`, once the temp root exists
+    getConfiguration: (section) => ({
+      get: (key, fallback) => {
+        const value = settings[`${section}.${key}`];
+        return value === undefined ? fallback : value;
+      },
+    }),
     createFileSystemWatcher: () => ({
       onDidCreate: () => disposable(),
       onDidDelete: () => disposable(),
@@ -203,7 +225,13 @@ const vscodeStub = {
       return Promise.resolve();
     },
   },
-  env: { shell: '/bin/bash', openExternal: () => Promise.resolve(true) },
+  env: {
+    shell: '/bin/bash',
+    openExternal: (uri) => {
+      events.push({ kind: 'open', uri });
+      return Promise.resolve(true);
+    },
+  },
 };
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -236,6 +264,7 @@ describe('VS Code extension: the silent runner, run', () => {
   let extension;
   let runCli;
   let realExecFile;
+  let realHttpGet;
   let realResolve;
   let unhandled;
   let collectUnhandled;
@@ -262,6 +291,7 @@ describe('VS Code extension: the silent runner, run', () => {
     };
 
     realExecFile = cp.execFile;
+    realHttpGet = http.get;
     installExecFileStub();
 
     // The extension hands runCli to the tree provider; that is the only place
@@ -291,6 +321,7 @@ describe('VS Code extension: the silent runner, run', () => {
   after(() => {
     process.off('unhandledRejection', collectUnhandled);
     cp.execFile = realExecFile;
+    http.get = realHttpGet;
     Module._resolveFilename = realResolve;
     fs.rmSync(workspace, { recursive: true, force: true });
   });
@@ -302,8 +333,25 @@ describe('VS Code extension: the silent runner, run', () => {
     progressPeak = 0;
     plan = () => ({ stdout: 'ok\n' });
     answers = {};
+    settings = {};
     unhandled.length = 0;
+    http.get = realHttpGet;
     installExecFileStub();
+  });
+
+  // The preview polls for two minutes before it gives up, and it is fired
+  // without being awaited. A test that starts one and then fails an assertion
+  // would leave that loop running long after the suite has finished — a
+  // regression would look like a hung suite instead of a red one. Answering
+  // whatever it polls ends the loop at its next tick, whatever the test did.
+  afterEach(async () => {
+    const outstanding = of('progress').map((event) => event.done);
+    if (outstanding.length === 0) return;
+    http.get = (url, callback) => {
+      callback({ resume() {} });
+      return { on() {}, setTimeout() {}, destroy() {} };
+    };
+    await Promise.all(outstanding.map((done) => done.catch(() => {})));
   });
 
   it('runs one command at a time', async () => {
@@ -619,6 +667,167 @@ describe('VS Code extension: the silent runner, run', () => {
       'the command behind a thrown spawn must still run',
     );
     assert.deepEqual(unhandled, [], 'and nothing may reach the host unhandled');
+  });
+
+  // --- Preview ---
+  //
+  // The port decides two things at once: which address is polled to see whether
+  // a server is already running, and which one the browser is sent to. A
+  // hardcoded 3000 with Docusaurus on 3001 opened whatever else answered on
+  // 3000, or waited two minutes for a preview that had been up the whole time.
+
+  /**
+   * Bind a server, resolving when it is up and REJECTING when it cannot be.
+   * A `listen` with only a success callback never settles when the bind fails,
+   * and `node --test` has no default timeout, so a port taken from under the
+   * test would hang the suite instead of failing it.
+   */
+  function listen(server, options) {
+    return new Promise((resolve, reject) => {
+      const failed = (error) => reject(error);
+      server.once('error', failed);
+      server.listen(options, () => {
+        server.removeListener('error', failed);
+        resolve();
+      });
+    });
+  }
+
+  /**
+   * An http server on a free port, and the port it got.
+   *
+   * Bound on every localhost address rather than on 127.0.0.1, because the
+   * extension polls the NAME `localhost`, which resolves to ::1 first on a
+   * dual-stack host. Node's Happy Eyeballs papers over the mismatch today; the
+   * dual bind means the test does not depend on it.
+   *
+   * The fallback is not an IPv4 bind by request: `listen({ port: 0 })` asks for
+   * the wildcard, which is `::` wherever IPv6 exists and 0.0.0.0 where it does
+   * not. It is there for the host that refuses `::` outright, and on that host
+   * 0.0.0.0 is what `localhost` resolves to anyway.
+   */
+  async function serverOnAFreePort() {
+    const server = http.createServer((req, res) => {
+      res.end('preview');
+    });
+    await listen(server, { port: 0, host: '::', ipv6Only: false }).catch(() =>
+      listen(server, { port: 0 }),
+    );
+    return { server, port: server.address().port };
+  }
+
+  it('opens the port the setting names, and re-reads it every time', async () => {
+    const first = await serverOnAFreePort();
+    const second = await serverOnAFreePort();
+    try {
+      settings['courseManager.previewPort'] = first.port;
+      await registered['course.preview']();
+      assert.deepEqual(
+        of('open').map((event) => event.uri.fsPath),
+        [`http://localhost:${first.port}`],
+      );
+      assert.deepEqual(
+        of('terminal.create'),
+        [],
+        'a server that is already up needs no terminal',
+      );
+
+      // Changed while the window stays open, which is the whole point of a
+      // setting read at use time.
+      events = [];
+      settings['courseManager.previewPort'] = second.port;
+      await registered['course.preview']();
+      assert.deepEqual(
+        of('open').map((event) => event.uri.fsPath),
+        [`http://localhost:${second.port}`],
+      );
+    } finally {
+      first.server.close();
+      second.server.close();
+    }
+  });
+
+  it('starts the dev server on the configured port', async () => {
+    const { server, port } = await serverOnAFreePort();
+    // Free again, so the command finds nothing there and starts one.
+    await new Promise((resolve) => server.close(resolve));
+
+    settings['courseManager.previewPort'] = port;
+    await registered['course.preview']();
+
+    assert.deepEqual(
+      of('terminal.send').map((event) => event.text),
+      [`npm start -- --port '${port}'`],
+    );
+    assert.deepEqual(of('open'), [], 'nothing to open until it answers');
+
+    // Now let it answer, and let the poll behind the progress indicator find
+    // it, so the test does not leave a two-minute timer running. Answered
+    // rather than bound: re-taking the port the command was told about is a
+    // race with whatever else is on this machine, and losing it would hang the
+    // suite rather than fail it.
+    http.get = (url, callback) => {
+      events.push({ kind: 'http.get', url });
+      callback({ resume() {} });
+      return { on() {}, setTimeout() {}, destroy() {} };
+    };
+    await of('progress')[0].done;
+    assert.deepEqual(
+      of('http.get').map((event) => event.url),
+      [`http://localhost:${port}`],
+      'and it polls the port it started, not another',
+    );
+    assert.deepEqual(
+      of('open').map((event) => event.uri.fsPath),
+      [`http://localhost:${port}`],
+    );
+  });
+
+  it('says so when the configured port is not one, and uses the default', async () => {
+    settings['courseManager.previewPort'] = 70000;
+    // Answer whatever it polls. The point here is the fallback and the
+    // sentence about it, and a real 3000 is neither this test's to bind nor
+    // its to leave polling for two minutes.
+    http.get = (url, callback) => {
+      events.push({ kind: 'http.get', url });
+      callback({ resume() {} });
+      return { on() {}, setTimeout() {}, destroy() {} };
+    };
+    await registered['course.preview']();
+
+    assert.equal(of('warning').length, 1);
+    assert.match(of('warning')[0].text, /previewPort/);
+    assert.match(of('warning')[0].text, /70000/);
+    assert.ok(
+      !of('warning')[0].text.includes('null'),
+      'the value has to be shown as itself: JSON renders NaN and Infinity as ' +
+        'null, which reads as though nothing had been set',
+    );
+    assert.deepEqual(
+      of('http.get').map((event) => event.url),
+      ['http://localhost:3000'],
+      'the refused value must not reach the address it polls',
+    );
+    assert.deepEqual(
+      of('open').map((event) => event.uri.fsPath),
+      ['http://localhost:3000'],
+    );
+  });
+
+  it('shows a value JSON cannot render, rather than showing null', async () => {
+    // A settings file cannot hold NaN, but `"previewPort": 3e999` parses to
+    // Infinity, and JSON.stringify turns both into `null` — a sentence saying
+    // the setting is `null` reads as though nothing had been set at all.
+    settings['courseManager.previewPort'] = Infinity;
+    http.get = (url, callback) => {
+      events.push({ kind: 'http.get', url });
+      callback({ resume() {} });
+      return { on() {}, setTimeout() {}, destroy() {} };
+    };
+    await registered['course.preview']();
+
+    assert.equal(of('warning').length, 1);
+    assert.match(of('warning')[0].text, /is Infinity, which is not a port/);
   });
 
   // --- New item ---

@@ -27,6 +27,9 @@ const {
   getModuleCanvasId,
   canvasModuleUrl,
   readEnvConfig,
+  DEFAULT_PREVIEW_PORT,
+  previewPort,
+  previewTerminalEntry,
   directoryReadError,
   newItemTypes,
   validatePoints,
@@ -1537,6 +1540,135 @@ describe('helpers: readEnvConfig agrees with dotenv', () => {
       );
     });
   }
+});
+
+describe('helpers: previewPort', () => {
+  it('falls back to 3000 when nothing is configured', () => {
+    assert.deepEqual(previewPort(undefined), {
+      port: DEFAULT_PREVIEW_PORT,
+      rejected: null,
+    });
+    assert.deepEqual(previewPort(null), {
+      port: DEFAULT_PREVIEW_PORT,
+      rejected: null,
+    });
+    assert.equal(DEFAULT_PREVIEW_PORT, 3000);
+  });
+
+  it('takes a configured port', () => {
+    assert.deepEqual(previewPort(3001), { port: 3001, rejected: null });
+    assert.deepEqual(previewPort(1), { port: 1, rejected: null });
+    assert.deepEqual(previewPort(65535), { port: 65535, rejected: null });
+  });
+
+  it('takes the digits-only string a settings file invites', () => {
+    // The manifest says integer; settings.json is a text file and VS Code
+    // hands over what it finds there regardless.
+    assert.deepEqual(previewPort('3001'), { port: 3001, rejected: null });
+    assert.deepEqual(previewPort(' 3001 '), { port: 3001, rejected: null });
+  });
+
+  it('hands back what it refused, so the author can be told', () => {
+    // Falling back silently is how someone ends up watching a preview on 3000
+    // while their setting says 3001.
+    for (const bad of [
+      0,
+      -1,
+      70000,
+      3000.5,
+      '',
+      'abc',
+      '3001x',
+      true,
+      {},
+      NaN,
+      Infinity,
+    ]) {
+      const resolved = previewPort(bad);
+      assert.equal(
+        resolved.port,
+        DEFAULT_PREVIEW_PORT,
+        `${JSON.stringify(bad)} should fall back`,
+      );
+      assert.notEqual(
+        resolved.rejected,
+        null,
+        `${JSON.stringify(bad)} should be reported, not swallowed`,
+      );
+    }
+  });
+
+  it('refuses a leading zero rather than reading it as a smaller port', () => {
+    // `"007"` in a settings file is a typo. Read as 7 it would put the preview
+    // on a privileged port, silently, and the author would be looking for it
+    // on 7 without knowing.
+    assert.equal(previewPort('007').port, DEFAULT_PREVIEW_PORT);
+    assert.equal(previewPort('007').rejected, '007');
+    assert.equal(previewPort('0700').rejected, '0700');
+    assert.deepEqual(previewPort('700'), { port: 700, rejected: null });
+  });
+
+  it('refuses 0, which means something else entirely to a server', () => {
+    // Port 0 asks the OS for any free port. Whatever it picks, the poller has
+    // no way to learn it.
+    assert.equal(previewPort(0).port, DEFAULT_PREVIEW_PORT);
+    assert.equal(previewPort(0).rejected, 0);
+  });
+});
+
+describe('helpers: previewTerminalEntry', () => {
+  const NAME = 'Canvas Course Builder: Preview';
+  const terminal = (name) => ({ name });
+
+  it('answers null when there is nothing open under that name', () => {
+    // The caller opens one, and stamps it with the shell it opened in.
+    assert.equal(previewTerminalEntry([], NAME, null), null);
+    assert.equal(previewTerminalEntry([terminal('bash')], NAME, null), null);
+  });
+
+  it('keeps the stamp of the terminal it stamped', () => {
+    const ours = terminal(NAME);
+    const known = { terminal: ours, flavour: 'posix' };
+    assert.equal(previewTerminalEntry([ours], NAME, known), known);
+  });
+
+  it('will not put its stamp on somebody else’s terminal', () => {
+    // The case that matters, and the one the pool already gets right: a
+    // terminal under that name this extension did not open. Its shell is not
+    // knowable, so the stamp is null and quoterFor falls back to a guess.
+    // Carrying the old stamp over would turn that guess into a claim, and a
+    // line quoted for the wrong shell is the whole reason any of this exists.
+    const ours = terminal(NAME);
+    const theirs = terminal(NAME);
+    const known = { terminal: ours, flavour: 'posix' };
+    assert.deepEqual(previewTerminalEntry([theirs], NAME, known), {
+      terminal: theirs,
+      flavour: null,
+    });
+  });
+
+  it('has no stamp for one adopted across a window reload', () => {
+    // Nothing survives the reload but the terminal itself.
+    const survivor = terminal(NAME);
+    assert.deepEqual(previewTerminalEntry([survivor], NAME, null), {
+      terminal: survivor,
+      flavour: null,
+    });
+  });
+
+  it('takes the first terminal of that name, and no other', () => {
+    const first = terminal(NAME);
+    const second = terminal(NAME);
+    assert.equal(
+      previewTerminalEntry([terminal('other'), first, second], NAME, null)
+        .terminal,
+      first,
+    );
+  });
+
+  it('survives a host that hands over no terminals at all', () => {
+    assert.equal(previewTerminalEntry(undefined, NAME, null), null);
+  });
 });
 
 describe('helpers: directoryReadError', () => {

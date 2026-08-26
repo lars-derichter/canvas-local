@@ -15,6 +15,7 @@ const extensionSource = fs.readFileSync(
 const packageJson = JSON.parse(
   fs.readFileSync(path.join(extDir, 'package.json'), 'utf-8'),
 );
+const { DEFAULT_PREVIEW_PORT } = require(path.join(extDir, 'helpers'));
 
 // Extract the commands object from extension.js source using a regex.
 // Captures the block: const commands = { ... };
@@ -598,6 +599,77 @@ describe('VS Code extension: export commands', () => {
       /setTocReady\(false\)/,
       'and puts the menu straight when it finds the file gone',
     );
+  });
+});
+
+describe('VS Code extension: the preview port setting', () => {
+  const setting =
+    packageJson.contributes.configuration?.properties?.[
+      'courseManager.previewPort'
+    ];
+
+  it('is contributed, or nobody can set it from the settings UI', () => {
+    assert.ok(setting, 'contributes.configuration needs previewPort');
+    assert.equal(setting.type, 'integer');
+    assert.equal(setting.minimum, 1);
+    assert.equal(setting.maximum, 65535);
+    assert.ok(
+      setting.description || setting.markdownDescription,
+      'a setting with no description is a setting nobody can act on',
+    );
+  });
+
+  it('declares the same default the extension falls back to', () => {
+    // Two places have to agree: the manifest default is what the settings UI
+    // shows and what `get()` returns in the host, and DEFAULT_PREVIEW_PORT is
+    // what a value the host cannot supply falls back to.
+    assert.equal(setting.default, DEFAULT_PREVIEW_PORT);
+  });
+
+  it('reads the setting when the command runs, not when the window opens', () => {
+    // Captured at activation, a change would need a reload to take effect —
+    // which is the same wait the setting exists to avoid.
+    const start = extensionSource.indexOf("register('course.preview'");
+    assert.ok(start !== -1, 'the preview handler has to be findable');
+    const handler = extensionSource.slice(
+      start,
+      extensionSource.indexOf('\n  });', start),
+    );
+    assert.match(handler, /getConfiguration\('courseManager'\)/);
+    assert.match(handler, /\.get\('previewPort'\)/);
+  });
+
+  it('puts the port in the URL it polls and in the command it sends', () => {
+    // The address and the shape, not the name of the variable: the point is
+    // that the port polled is the port configured, and a rename that keeps
+    // that is not a regression.
+    assert.match(extensionSource, /const url = `http:\/\/localhost:\$\{\w+\}`/);
+    // Quoted, like every other value a command line carries. The port is an
+    // integer today and quoting it costs nothing; what it buys is that the
+    // line stays safe if previewPort ever returns something else.
+    //
+    // The flag and the shape of the value, not the name of the variable: what
+    // the value must go through is the rule above, and pinning the spelling
+    // here would fail an extraction that kept both.
+    assert.match(extensionSource, /`npm start -- --port \$\{q\(\w+\)\}`/);
+    assert.ok(
+      !/localhost:3000/.test(extensionSource),
+      'no hardcoded 3000 may survive next to the setting',
+    );
+  });
+
+  it('quotes for the shell the preview terminal is actually running', () => {
+    // The preview terminal is outside the pool, so it keeps a stamp of its
+    // own. Quoting for the current default profile instead would mean a line
+    // quoted for PowerShell typed into the cmd this window opened last time.
+    //
+    // The property, not the spelling: the quoting function the preview line is
+    // built with comes from the preview terminal's own stamp, and which stamp
+    // that is comes from `previewTerminalEntry`, whose rule is pinned by its
+    // own tests rather than by a pattern here.
+    assert.match(extensionSource, /previewTerminalEntry\(/);
+    assert.match(extensionSource, /flavour: currentFlavour\(\)/);
+    assert.match(extensionSource, /quoterFor\(previewEntry\.flavour\)/);
   });
 });
 

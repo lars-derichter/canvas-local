@@ -17,6 +17,8 @@ const {
   getModuleCanvasId,
   newItemTypes,
   pickTerminal,
+  previewPort,
+  previewTerminalEntry,
   promoteActive,
   readEnvConfig,
   readFrontmatter,
@@ -104,6 +106,22 @@ const TERMINAL_BASE_NAME = 'Canvas Course Builder';
 // until closed; the pickTerminal cap bounds how many such terminals can
 // accumulate.
 let terminalPool = [];
+
+/** The name the preview terminal is opened and found under. */
+const PREVIEW_TERMINAL_NAME = 'Canvas Course Builder: Preview';
+
+/**
+ * The preview terminal and the shell it is running: `{ terminal, flavour }`.
+ *
+ * The preview keeps a terminal of its own, outside the pool: it is named, it
+ * holds one long-running command, and nothing else may be typed into it. It
+ * still needs its shell known for the same reason the pool entries do — the
+ * command line typed into it carries a value — so it carries the same kind of
+ * stamp, bound to the terminal object rather than to the name. See
+ * `previewTerminalEntry` for what happens when the name belongs to somebody
+ * else's terminal.
+ */
+let previewEntry = null;
 
 function terminalPoolEntry(terminal) {
   return terminalPool.find((entry) => entry.terminal === terminal);
@@ -1315,23 +1333,53 @@ function activate(context) {
   register('course.preview', async () => {
     if (!validateWorkspace()) return;
 
-    const url = 'http://localhost:3000';
+    // Read here rather than at activation: a setting changed to get out of a
+    // port clash has to work on the next preview, not after a reload.
+    const { port, rejected } = previewPort(
+      vscode.workspace.getConfiguration('courseManager').get('previewPort'),
+    );
+    if (rejected !== null) {
+      // A number is shown as itself: JSON renders NaN and Infinity as `null`,
+      // which reads as though nothing had been set at all.
+      const shown =
+        typeof rejected === 'number'
+          ? String(rejected)
+          : JSON.stringify(rejected);
+      vscode.window.showWarningMessage(
+        `Canvas Course Builder: courseManager.previewPort is ${shown}, which is not a port number. Using ${port}.`,
+      );
+    }
+
+    const url = `http://localhost:${port}`;
     if (await isServerUp(url)) {
       vscode.env.openExternal(vscode.Uri.parse(url));
       return;
     }
 
-    let previewTerminal = vscode.window.terminals.find(
-      (t) => t.name === 'Canvas Course Builder: Preview',
+    previewEntry = previewTerminalEntry(
+      vscode.window.terminals,
+      PREVIEW_TERMINAL_NAME,
+      previewEntry,
     );
-    if (!previewTerminal) {
-      previewTerminal = vscode.window.createTerminal({
-        name: 'Canvas Course Builder: Preview',
-        cwd: workspaceRoot,
-      });
+    if (!previewEntry) {
+      previewEntry = {
+        terminal: vscode.window.createTerminal({
+          name: PREVIEW_TERMINAL_NAME,
+          cwd: workspaceRoot,
+        }),
+        flavour: currentFlavour(),
+      };
     }
+    const previewTerminal = previewEntry.terminal;
     previewTerminal.show();
-    previewTerminal.sendText('npm start');
+    // The preview terminal is not in the pool, so it carries a stamp of its
+    // own: this extension knows the shell of a terminal it created, and knows
+    // nothing about one that outlived a window reload, where the current
+    // default profile stands in as a guess (see `runInTerminal`). The port is
+    // quoted like any other value a command line carries, so that nothing here
+    // depends on what `previewPort` happens to return.
+    const q = quoterFor(previewEntry.flavour);
+    previewTerminal.sendText(`npm start -- --port ${q(port)}`);
 
     // Poll until the dev server answers (cold starts take a while), then open
     vscode.window.withProgress(

@@ -1068,6 +1068,71 @@ function createProgressGate(schedule, show) {
 }
 
 /**
+ * Which terminal the preview should type into, and what is known about its
+ * shell: `{ terminal, flavour }`, or null when there is none to adopt and the
+ * caller has to open one.
+ *
+ * The same rule the terminal pool follows, and it has to be the same rule for
+ * the same reason: a stamp is a fact about one terminal object, not about a
+ * name. A terminal already open under that name is either the one this
+ * extension opened and stamped — `known`, whose stamp still holds — or somebody
+ * else's, whose shell is not knowable and whose stamp is therefore null, so
+ * `quoterFor` falls back to the current profile as a guess rather than quoting
+ * for a shell it was never told about.
+ *
+ * Held apart from the command so it can be tested: the case that matters is one
+ * where two terminals share a name, and driving that through a live editor is
+ * not something a test can do.
+ */
+function previewTerminalEntry(terminals, name, known) {
+  const found = (terminals || []).find((terminal) => terminal.name === name);
+  if (!found) return null;
+  if (known && known.terminal === found) return known;
+  return { terminal: found, flavour: null };
+}
+
+/** Where the preview server runs when nothing says otherwise. */
+const DEFAULT_PREVIEW_PORT = 3000;
+
+/**
+ * The port the preview command should use, as `{ port, rejected }`.
+ *
+ * `rejected` is the configured value when it could not be used, so the caller
+ * can say so: silently falling back would leave an author who set 3001 looking
+ * at a preview on 3000 with nothing to explain it.
+ *
+ * The port is not cosmetic here. It goes into the URL that decides whether a
+ * server is already running, so a wrong one either polls whatever else answers
+ * on 3000 and opens that, or waits two minutes for a Docusaurus that is
+ * answering happily on another port.
+ *
+ * A number reaches this straight from the settings file, where nothing enforces
+ * the manifest's schema: VS Code reports a type mismatch in the editor and
+ * hands the value over anyway. A digits-only string is taken, because that is
+ * the mistake a settings file invites (`"previewPort": "3001"`); anything else,
+ * including a boolean, a float and 0 (which means "any free port" to a server
+ * and nothing at all to a poller), is refused. A leading zero is refused with
+ * them: `"007"` is a typo, and reading it as 7 would put the preview on a
+ * privileged port without a word.
+ */
+function previewPort(configured) {
+  if (configured === undefined || configured === null) {
+    return { port: DEFAULT_PREVIEW_PORT, rejected: null };
+  }
+  const port =
+    typeof configured === 'number'
+      ? configured
+      : typeof configured === 'string' &&
+          /^(?:0|[1-9]\d*)$/.test(configured.trim())
+        ? Number(configured.trim())
+        : NaN;
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    return { port: DEFAULT_PREVIEW_PORT, rejected: configured };
+  }
+  return { port, rejected: null };
+}
+
+/**
  * What to tell the author about a directory listing that threw, or null when
  * there is nothing to tell.
  *
@@ -1213,6 +1278,9 @@ module.exports = {
   getModuleCanvasId,
   canvasModuleUrl,
   readEnvConfig,
+  DEFAULT_PREVIEW_PORT,
+  previewPort,
+  previewTerminalEntry,
   directoryReadError,
   newItemTypes,
   validatePoints,

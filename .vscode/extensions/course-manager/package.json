@@ -18,6 +18,18 @@
   "activationEvents": [],
   "main": "./extension.js",
   "contributes": {
+    "configuration": {
+      "title": "Course Manager",
+      "properties": {
+        "courseManager.previewPort": {
+          "type": "integer",
+          "default": 3000,
+          "minimum": 1,
+          "maximum": 65535,
+          "markdownDescription": "Port the preview runs on. `Course: Preview` starts the Docusaurus dev server with `npm start -- --port <port>` and opens this port in the browser, so set it to match when something else on this machine already uses 3000."
+        }
+      }
+    },
     "viewsContainers": {
       "activitybar": [
         {
