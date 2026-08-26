@@ -1392,9 +1392,14 @@ describe('VS Code extension: module-scoped sync family', () => {
   it('builds a --module line with the folder name quoted', () => {
     // A module folder name is whatever the author (or a Canvas pull) created,
     // so it reaches the terminal through the builder's q(), never raw.
-    for (const { line } of Object.values(family)) {
+    //
+    // Read out of each handler, not out of the source at large. Deleting
+    // `--module` from the Push handler used to leave this green, because
+    // `runInTerminal`'s own doc comment shows that exact line as its example
+    // and a search of the whole source found the example instead of the code.
+    for (const [id, { line }] of Object.entries(family)) {
       assert.match(
-        allSource,
+        handlerSource(id),
         new RegExp(
           `runInTerminal\\(\\(q\\) => \`${line} \\$\\{q\\(moduleName\\)\\}\`\\)`,
         ),
@@ -1409,9 +1414,7 @@ describe('VS Code extension: module-scoped sync family', () => {
     // default is `ask`, and the silent runner would hang on that question
     // where nobody could see it.
     for (const id of Object.keys(family)) {
-      const start = allSource.indexOf(`register('${id}'`);
-      const next = allSource.indexOf("\n  register('", start);
-      const handler = allSource.slice(start, next);
+      const handler = handlerSource(id);
       assert.match(handler, /runInTerminal\(/, `${id} must stream its output`);
       assert.ok(
         !handler.includes('runCli('),
