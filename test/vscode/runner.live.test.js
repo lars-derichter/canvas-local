@@ -46,6 +46,11 @@ const EXT_DIR = path.join(
   'course-manager',
 );
 
+/** The manifest, which is what the palette offers and therefore what has to work. */
+const packageJson = JSON.parse(
+  fs.readFileSync(path.join(EXT_DIR, 'package.json'), 'utf8'),
+);
+
 /** Everything the extension told the host about, in order. */
 let events = [];
 let progressOpen = 0;
@@ -135,7 +140,14 @@ const vscodeStub = {
     }),
     createTreeView: () => ({ dispose() {} }),
     createTerminal: (options = {}) => {
-      events.push({ kind: 'terminal.create', name: options.name });
+      // `cwd` is recorded, not just the name: it is the only observable the
+      // workspace root reaches from the terminal module, so it is what says
+      // whether that module was handed a root at all.
+      events.push({
+        kind: 'terminal.create',
+        name: options.name,
+        cwd: options.cwd,
+      });
       return {
         name: options.name,
         show: () => events.push({ kind: 'terminal.show', name: options.name }),
@@ -352,6 +364,78 @@ describe('VS Code extension: the silent runner, run', () => {
       return { on() {}, setTimeout() {}, destroy() {} };
     };
     await Promise.all(outstanding.map((done) => done.catch(() => {})));
+  });
+
+  it('registers exactly the commands the manifest declares', () => {
+    // `activate()` is a list of `register*(wiring)` calls, and a list is a
+    // thing that silently loses an entry. Dropping `registerStreamingCommands`
+    // takes nineteen of these out of the palette — setup, init, all four sync
+    // directions, validate, search, the four module-scoped Canvas actions,
+    // build-glossary and both resets — and every source-text check still
+    // passes, because the handlers are still written down in
+    // `commands/streaming.js`. They are just never registered, and each one is
+    // a live "command not found" for whoever clicks it.
+    //
+    // Before the split that list was `activate()`'s own body, so a scan for
+    // `register('id'` in the source meant what it looked like. It does not any
+    // more, and this is what replaces it: what the host was actually told,
+    // after activation, against what the manifest promises.
+    const declared = packageJson.contributes.commands
+      .map((command) => command.command)
+      .sort();
+    assert.deepEqual(
+      Object.keys(registered).sort(),
+      declared,
+      'every declared command has to be registered, and nothing else',
+    );
+  });
+
+  it('hands the workspace root to the pickers and to the terminals', async () => {
+    // The three `init*` lines are the same kind of list, one level down, and
+    // each drops a different thing on the floor. Without the root the pickers
+    // throw ERR_INVALID_ARG_TYPE out of `path.join` at the first quick pick,
+    // and the terminal module opens its terminals in the host's cwd instead of
+    // in the project. `initRunner` is pinned by the spawn-options test below.
+    //
+    // Driven rather than read: asserting that the three calls appear in the
+    // source is the same text scan that let a missing registration through.
+    // Push This Module goes through both — a module quick pick, then a line
+    // typed into a pooled terminal — so one flow answers for two of them.
+    const moduleDir = path.join(workspace, 'course', '01-seeded');
+    fs.mkdirSync(moduleDir, { recursive: true });
+    try {
+      answers.quickPick = (items) => items[0];
+      await registered['course.pushModule']();
+    } finally {
+      fs.rmSync(moduleDir, { recursive: true, force: true });
+    }
+
+    const offered = of('quickpick');
+    assert.equal(offered.length, 1, 'the module pick has to have happened');
+    assert.deepEqual(
+      offered[0].items.map((item) => item.folder),
+      ['01-seeded'],
+      'the pickers read course/ under the root they were handed',
+    );
+
+    const created = of('terminal.create');
+    assert.ok(
+      created.length > 0,
+      'no pooled terminal was created, so nothing here saw a cwd. The pool is ' +
+        'module state shared by this whole file, and at the pickTerminal cap a ' +
+        'run reuses rather than creates',
+    );
+    for (const create of created) {
+      assert.equal(
+        create.cwd,
+        workspace,
+        'a pooled terminal has to open in the workspace',
+      );
+    }
+    assert.deepEqual(
+      of('terminal.send').map((event) => event.text),
+      ["npx course push --module '01-seeded'"],
+    );
   });
 
   it('runs one command at a time', async () => {

@@ -163,11 +163,14 @@ at all.
 - The test runner discovers all `test/**/*.test.js` files automatically.
 
 `test/vscode/extension.test.js` is the odd one out: the extension cannot be
-loaded outside VS Code, so it reads `extension.js` as text and matches patterns
-against the source. Prettier decides where those lines wrap, so any pattern
-there has to span newlines: use `[\s\S]*?` rather than `.*` or `[^\n]*`, and
-allow for a trailing comma inside a wrapped call. Assert on what the extension
-does, never on how it is laid out.
+loaded outside VS Code, so it reads its source as text and matches patterns
+against it. It walks the extension directory rather than naming files, so a new
+one is covered the day it is added, and most assertions run over every source
+joined together — which of the extension's files a line lives in is not what
+they are about. Prettier decides where those lines wrap, so any pattern there
+has to span newlines: use `[\s\S]*?` rather than `.*` or `[^\n]*`, and allow for
+a trailing comma inside a wrapped call. Assert on what the extension does, never
+on how it is laid out.
 
 ## The Extension and CLI Contract Test
 

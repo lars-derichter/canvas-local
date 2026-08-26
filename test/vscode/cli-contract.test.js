@@ -1024,8 +1024,24 @@ const MINIMUM_COMMAND_LINES = 20;
 const MINIMUM_ARGV = 18;
 const MINIMUM_PAIRS = 36;
 
-/** The extension is three files; a walk that finds fewer has stopped walking. */
-const MINIMUM_SOURCES = 3;
+/**
+ * The extension is thirteen files across two directories; a walk that finds
+ * many fewer has stopped walking.
+ *
+ * It was three when this was written, and the number stayed at three through
+ * the split that made it thirteen — a floor with four times the slack it looks
+ * like it has. Ten is the shape it actually guards now: dropping `commands/`,
+ * which is where nearly every invocation this file reads has moved, takes the
+ * count to seven and under the floor, with headroom for a file being merged
+ * into another.
+ *
+ * The guarantee here has not changed either way. The recursion is already
+ * load-bearing without this: removing it fails "finds every CLI invocation the
+ * extension makes" and "reports the contract it checked", because both shapes'
+ * per-shape floors go to nearly zero when `commands/` stops being read. This is
+ * bookkeeping catching up with the tree, not a new promise.
+ */
+const MINIMUM_SOURCES = 10;
 
 // --- Tests -------------------------------------------------------------------
 
@@ -1083,6 +1099,11 @@ describe('the VS Code extension and the CLI agree', () => {
     );
     assert.ok(ext.sources.includes('extension.js'));
     assert.ok(ext.sources.includes('CourseTreeProvider.js'));
+    assert.ok(
+      ext.sources.some((name) => name.includes('/')),
+      `the walk has to descend, or every commands/ file goes unscanned ` +
+        `(${ext.sources.join(', ')})`,
+    );
   });
 
   it('finds every CLI invocation the extension makes', () => {

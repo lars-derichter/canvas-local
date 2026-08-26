@@ -8,11 +8,6 @@ const extDir = path.resolve(
   __dirname,
   '../../.vscode/extensions/course-manager',
 );
-const extensionSource = fs.readFileSync(
-  path.join(extDir, 'extension.js'),
-  'utf-8',
-);
-
 /**
  * Every JavaScript file the extension ships, walked rather than listed.
  *
@@ -41,13 +36,55 @@ function extensionSourceNames(dir = extDir, prefix = '') {
   return found.sort();
 }
 
-/** The extension is three files; a walk that finds fewer has stopped walking. */
-const MINIMUM_SOURCES = 3;
+/**
+ * The extension is thirteen files across two directories; a walk that finds
+ * many fewer has stopped walking.
+ *
+ * Ten, not thirteen: high enough that dropping `commands/` (six files, and
+ * where most of what the rules below check now lives) takes the count under it,
+ * with headroom for the ordinary case of a file being merged into another. The
+ * descent is pinned by name as well, because a count alone would be satisfied
+ * by the seven top-level files.
+ */
+const MINIMUM_SOURCES = 10;
 
 const extensionSources = extensionSourceNames().map((name) => ({
   name,
   text: fs.readFileSync(path.join(extDir, ...name.split('/')), 'utf-8'),
 }));
+
+/**
+ * Every source, end to end, for the assertions that are about the extension
+ * rather than about which of its files a line ended up in.
+ *
+ * Most of them are. `extension.js` was one 1400-line file when they were
+ * written, so they read one file; the split moved almost every line they match
+ * into `terminal.js`, `runner.js`, `pickers.js` or `commands/`, and none of
+ * those moves changed what any of them is asserting. Reading the corpus keeps
+ * them pinned to the code instead of to a filename, so the next ordinary move
+ * stays an ordinary move. Where a rule genuinely is about one file — the runner
+ * spawning no shell, the pool bookkeeping — the file is named.
+ *
+ * Joining is safe for matching and for a search that lands on a unique
+ * construct; it is not safe for slicing a region that runs to "the next one of
+ * these", which would run off the end of its file and into the next. Those go
+ * through `sourceHolding` below.
+ */
+const allSource = extensionSources.map((source) => source.text).join('\n');
+
+/** The one file holding `needle`, for a region that has to stay inside a file. */
+function sourceHolding(needle) {
+  const holding = extensionSources.filter((source) =>
+    source.text.includes(needle),
+  );
+  assert.equal(
+    holding.length,
+    1,
+    `${needle} should be in exactly one extension source, found ` +
+      `${holding.length} (${holding.map((s) => s.name).join(', ') || 'none'})`,
+  );
+  return holding[0].text;
+}
 
 describe('VS Code extension: the source walk the guards below stand on', () => {
   it('finds every JavaScript file the extension ships', () => {
@@ -59,6 +96,11 @@ describe('VS Code extension: the source walk the guards below stand on', () => {
     assert.ok(names.includes('extension.js'));
     assert.ok(names.includes('CourseTreeProvider.js'));
     assert.ok(names.includes('helpers.js'));
+    assert.ok(
+      names.some((name) => name.includes('/')),
+      'the walk has to descend, or every commands/ file is invisible to the ' +
+        `rules that read these sources (${names.join(', ')})`,
+    );
   });
 });
 
@@ -103,7 +145,8 @@ function parseNoValidationCommands(source) {
 }
 
 /**
- * One command handler's source: from its `register()` call to the next one.
+ * One command handler's source: from its `register()` call to the next one,
+ * inside the file that holds it.
  *
  * A handler is bounded by the next registration, and a section by the next
  * section marker, so both of these read a region the file itself delimits.
@@ -111,19 +154,24 @@ function parseNoValidationCommands(source) {
  * 1200 — which pinned the wrong thing: adding an ordinary comment to a handler
  * pushed the line under test past the end of the window and failed a test whose
  * message mentioned neither comments nor lengths.
+ *
+ * Both read one file rather than the corpus, because both run to "the next one
+ * of these": on a joined corpus the last handler of `commands/items.js` would
+ * swallow the first of `commands/export.js`, which is a fixed offset again by
+ * another name.
  */
 function handlerSource(id) {
-  const start = extensionSource.indexOf(`register('${id}'`);
-  assert.notEqual(start, -1, `${id} should be registered`);
-  const next = extensionSource.indexOf("\n  register('", start);
-  return extensionSource.slice(start, next === -1 ? undefined : next);
+  const source = sourceHolding(`register('${id}'`);
+  const start = source.indexOf(`register('${id}'`);
+  const next = source.indexOf("\n  register('", start);
+  return source.slice(start, next === -1 ? undefined : next);
 }
 
-/** One `// --- Name ---` section, up to the next section marker. */
+/** One `// --- Name ---` section, up to the next section marker in its file. */
 function sectionSource(name) {
-  const start = extensionSource.indexOf(`// --- ${name}`);
-  assert.notEqual(start, -1, `the "${name}" section should be findable`);
-  const rest = extensionSource.slice(start + 1);
+  const source = sourceHolding(`// --- ${name}`);
+  const start = source.indexOf(`// --- ${name}`);
+  const rest = source.slice(start + 1);
   const next = rest.indexOf('// --- ');
   return next === -1 ? rest : rest.slice(0, next);
 }
@@ -138,8 +186,8 @@ function admits(when, contextValue) {
   return false;
 }
 
-const commandsMap = parseCommandsObject(extensionSource);
-const extraRegistered = parseExtraRegisteredCommands(extensionSource);
+const commandsMap = parseCommandsObject(allSource);
+const extraRegistered = parseExtraRegisteredCommands(allSource);
 const allRegisteredIds = [
   ...Object.keys(commandsMap),
   ...extraRegistered.filter((id) => !commandsMap[id]),
@@ -505,7 +553,7 @@ describe('VS Code extension: advanced commands', () => {
     // reads course/ either, they act on .canvas-sync.json and on Canvas. Reset
     // Sync State is what you run when the project is broken, so a warning that
     // course/ is missing would point away from the fix.
-    assert.deepEqual(parseNoValidationCommands(extensionSource).sort(), [
+    assert.deepEqual(parseNoValidationCommands(allSource).sort(), [
       'course.init',
       'course.resetCanvas',
       'course.resetSyncState',
@@ -514,7 +562,7 @@ describe('VS Code extension: advanced commands', () => {
   });
 
   it('gives Build Glossary and Pull the normal workspace check', () => {
-    const exempt = parseNoValidationCommands(extensionSource);
+    const exempt = parseNoValidationCommands(allSource);
     for (const id of [
       'course.buildGlossary',
       'course.pull',
@@ -559,17 +607,17 @@ describe('VS Code extension: context-aware commands', () => {
   });
 
   it('structural commands run through the silent CLI runner with flags', () => {
-    assert.match(extensionSource, /'rename-item',\s*'--path'/);
-    assert.match(extensionSource, /'move-item',\s*'--path'/);
-    assert.match(extensionSource, /'movetomodule-item',\s*'--path'/);
-    assert.match(extensionSource, /'delete-item',\s*'--path'/);
-    assert.match(extensionSource, /'delete-module',\s*'--module'/);
-    assert.match(extensionSource, /'rename-module',\s*'--module'/);
+    assert.match(allSource, /'rename-item',\s*'--path'/);
+    assert.match(allSource, /'move-item',\s*'--path'/);
+    assert.match(allSource, /'movetomodule-item',\s*'--path'/);
+    assert.match(allSource, /'delete-item',\s*'--path'/);
+    assert.match(allSource, /'delete-module',\s*'--module'/);
+    assert.match(allSource, /'rename-module',\s*'--module'/);
   });
 
   it('deletes require explicit confirmation dialogs', () => {
     assert.match(
-      extensionSource,
+      allSource,
       new RegExp(
         "showWarningMessage\\([\\s\\S]{0,200}modal: true[\\s\\S]{0,100}'Delete'",
       ),
@@ -578,10 +626,10 @@ describe('VS Code extension: context-aware commands', () => {
 });
 
 describe('VS Code extension: merge confirmation', () => {
-  const start = extensionSource.indexOf('async function confirmMerge(');
-  const helper = extensionSource.slice(
+  const start = allSource.indexOf('async function confirmMerge(');
+  const helper = allSource.slice(
     start,
-    extensionSource.indexOf('async function resolveItemPath(', start),
+    allSource.indexOf('async function resolveItemPath(', start),
   );
 
   it('registers both merge entry points', () => {
@@ -619,13 +667,12 @@ describe('VS Code extension: merge confirmation', () => {
 
   it('gates both merge handlers on that confirmation', () => {
     const gated =
-      extensionSource.match(/await confirmMerge\(sourcePath, targetPath\)/g) ||
-      [];
+      allSource.match(/await confirmMerge\(sourcePath, targetPath\)/g) || [];
     assert.equal(gated.length, 2, 'both handlers have to ask before merging');
   });
 
   it('passes --yes, which the CLI requires in flag mode', () => {
-    const calls = extensionSource.match(/'merge-items',[\s\S]*?\]/g) || [];
+    const calls = allSource.match(/'merge-items',[\s\S]*?\]/g) || [];
     assert.equal(calls.length, 2);
     for (const call of calls) {
       assert.match(call, /'--yes'/);
@@ -652,22 +699,19 @@ describe('VS Code extension: export commands', () => {
   });
 
   it('streams export output through the shared terminal', () => {
+    assert.match(allSource, /runInTerminal\(\s*\(q\) => `npx course export /);
     assert.match(
-      extensionSource,
-      /runInTerminal\(\s*\(q\) => `npx course export /,
-    );
-    assert.match(
-      extensionSource,
+      allSource,
       /npx course export --module \$\{q\(folder\)\} --format/,
     );
   });
 
   it('exportItem supports multi-select via the second handler argument', () => {
     assert.match(
-      extensionSource,
+      allSource,
       /register\('course\.exportItem',\s*async \(item, selected\)/,
     );
-    assert.match(extensionSource, /Array\.isArray\(selected\)/);
+    assert.match(allSource, /Array\.isArray\(selected\)/);
   });
 
   it('offers Export on item and module context menus', () => {
@@ -689,7 +733,7 @@ describe('VS Code extension: export commands', () => {
     );
     assert.ok(tocEntry, 'course.exportCourseToc needs a view/title entry');
     assert.match(tocEntry.when, /course\.tocReady/);
-    assert.match(extensionSource, /setTocReady\(true\)/);
+    assert.match(allSource, /setTocReady\(true\)/);
   });
 
   it('writes that key from one place, so it cannot disagree with itself', () => {
@@ -697,14 +741,14 @@ describe('VS Code extension: export commands', () => {
     // clearing it from a watcher only hold together while every write goes
     // through the same function: a second raw setContext elsewhere is how the
     // menu and the disk start telling different stories.
-    const writes = extensionSource.match(/'course\.tocReady'/g) || [];
+    const writes = allSource.match(/'course\.tocReady'/g) || [];
     assert.equal(
       writes.length,
       1,
       'course.tocReady should be named once, inside setTocReady',
     );
     assert.match(
-      extensionSource,
+      allSource,
       /const setTocReady = \(ready\) =>\s*vscode\.commands\.executeCommand\(\s*'setContext',\s*'course\.tocReady',\s*ready,?\s*\)/,
     );
   });
@@ -713,32 +757,29 @@ describe('VS Code extension: export commands', () => {
     // A context key dies with the window. The curated TOC does not, so a
     // reload used to hide the only command that consumes it.
     assert.match(
-      extensionSource,
+      allSource,
       /setTocReady\(fs\.existsSync\(curatedTocPath\(workspaceRoot\)\)\)/,
     );
   });
 
   it('keeps the key with the file for as long as the window is open', () => {
     assert.match(
-      extensionSource,
+      allSource,
       /createFileSystemWatcher\(\s*new vscode\.RelativePattern\(workspaceRoot, 'exports\/toc\.md'\)/,
       'the pattern is rooted at the workspace: exports/ may not exist yet',
     );
-    assert.match(extensionSource, /onDidCreate\(\(\) => setTocReady\(true\)\)/);
-    assert.match(
-      extensionSource,
-      /onDidDelete\(\(\) => setTocReady\(false\)\)/,
-    );
+    assert.match(allSource, /onDidCreate\(\(\) => setTocReady\(true\)\)/);
+    assert.match(allSource, /onDidDelete\(\(\) => setTocReady\(false\)\)/);
   });
 
   it('does not clear the key over a TOC that is still on disk', () => {
     // Exporting the curated list to PDF leaves the list exactly where it was,
     // and exporting it to DOCX as well is the ordinary next step. Clearing the
     // key there made the key mean two things at once.
-    const start = extensionSource.indexOf("register('course.exportCourseToc'");
-    const handler = extensionSource.slice(
+    const start = allSource.indexOf("register('course.exportCourseToc'");
+    const handler = allSource.slice(
       start,
-      extensionSource.indexOf("\n  register('", start),
+      allSource.indexOf("\n  register('", start),
     );
     assert.ok(start !== -1, 'the TOC export handler has to be findable');
     assert.ok(
@@ -876,12 +917,9 @@ describe('VS Code extension: the preview port setting', () => {
   it('reads the setting when the command runs, not when the window opens', () => {
     // Captured at activation, a change would need a reload to take effect —
     // which is the same wait the setting exists to avoid.
-    const start = extensionSource.indexOf("register('course.preview'");
+    const start = allSource.indexOf("register('course.preview'");
     assert.ok(start !== -1, 'the preview handler has to be findable');
-    const handler = extensionSource.slice(
-      start,
-      extensionSource.indexOf('\n  });', start),
-    );
+    const handler = allSource.slice(start, allSource.indexOf('\n  });', start));
     assert.match(handler, /getConfiguration\('courseManager'\)/);
     assert.match(handler, /\.get\('previewPort'\)/);
   });
@@ -890,7 +928,7 @@ describe('VS Code extension: the preview port setting', () => {
     // The address and the shape, not the name of the variable: the point is
     // that the port polled is the port configured, and a rename that keeps
     // that is not a regression.
-    assert.match(extensionSource, /const url = `http:\/\/localhost:\$\{\w+\}`/);
+    assert.match(allSource, /const url = `http:\/\/localhost:\$\{\w+\}`/);
     // Quoted, like every other value a command line carries. The port is an
     // integer today and quoting it costs nothing; what it buys is that the
     // line stays safe if previewPort ever returns something else.
@@ -898,9 +936,9 @@ describe('VS Code extension: the preview port setting', () => {
     // The flag and the shape of the value, not the name of the variable: what
     // the value must go through is the rule above, and pinning the spelling
     // here would fail an extraction that kept both.
-    assert.match(extensionSource, /`npm start -- --port \$\{q\(\w+\)\}`/);
+    assert.match(allSource, /`npm start -- --port \$\{q\(\w+\)\}`/);
     assert.ok(
-      !/localhost:3000/.test(extensionSource),
+      !/localhost:3000/.test(allSource),
       'no hardcoded 3000 may survive next to the setting',
     );
   });
@@ -914,9 +952,9 @@ describe('VS Code extension: the preview port setting', () => {
     // built with comes from the preview terminal's own stamp, and which stamp
     // that is comes from `previewTerminalEntry`, whose rule is pinned by its
     // own tests rather than by a pattern here.
-    assert.match(extensionSource, /previewTerminalEntry\(/);
-    assert.match(extensionSource, /flavour: currentFlavour\(\)/);
-    assert.match(extensionSource, /quoterFor\(previewEntry\.flavour\)/);
+    assert.match(allSource, /previewTerminalEntry\(/);
+    assert.match(allSource, /flavour: currentFlavour\(\)/);
+    assert.match(allSource, /quoterFor\(previewEntry\.flavour\)/);
   });
 });
 
@@ -941,10 +979,10 @@ describe('VS Code extension: subsection move support', () => {
     // The moveItemToModule handler must not offer destination subsections for a
     // directory source — subsections cannot be nested.
     assert.match(
-      extensionSource,
+      allSource,
       /isSubsection\s*=[\s\S]*?statSync\([^)]*\)\.isDirectory\(\)/,
     );
-    assert.match(extensionSource, /isSubsection\s*\?\s*\[\]\s*:/);
+    assert.match(allSource, /isSubsection\s*\?\s*\[\]\s*:/);
   });
 });
 
@@ -1033,7 +1071,7 @@ describe('VS Code extension: pushModule command', () => {
   });
 
   it('pushModule builds the correct CLI command with --module flag', () => {
-    assert.match(extensionSource, /npx course push --module \$\{q\(picked\)\}/);
+    assert.match(allSource, /npx course push --module \$\{q\(picked\)\}/);
   });
 });
 
@@ -1045,25 +1083,27 @@ describe('VS Code extension: active-editor preselection', () => {
   // pin that every module/item picker actually routes through them.
 
   // A top-level function's source, from its declaration to the next top-level
-  // function declaration.
+  // function declaration in the same file. Bounded by the file, because "the
+  // next declaration" run over the corpus would spill into the file after it.
   function functionBody(name) {
-    const match = extensionSource.match(
-      new RegExp(`(?:async )?function ${name}\\(`),
-    );
-    assert.ok(match, `${name} should exist`);
+    const declaration = new RegExp(`(?:async )?function ${name}\\(`);
+    const source = extensionSources.find((file) => declaration.test(file.text));
+    assert.ok(source, `${name} should exist`);
+    const match = source.text.match(declaration);
     const start = match.index;
-    const next = extensionSource
+    const next = source.text
       .slice(start + match[0].length)
       .search(/\n(?:async )?function \w+\(/);
     return next === -1
-      ? extensionSource.slice(start)
-      : extensionSource.slice(start, start + match[0].length + next);
+      ? source.text.slice(start)
+      : source.text.slice(start, start + match[0].length + next);
   }
 
   it('imports the pure detection and reorder helpers', () => {
-    const importBlock = extensionSource.slice(
+    const pickers = sourceHolding('function activeCourseLocation(');
+    const importBlock = pickers.slice(
       0,
-      extensionSource.indexOf("require('./helpers')"),
+      pickers.indexOf("require('./helpers')"),
     );
     assert.match(importBlock, /courseLocation/);
     assert.match(importBlock, /promoteActive/);
@@ -1081,13 +1121,14 @@ describe('VS Code extension: active-editor preselection', () => {
   });
 
   it('every module/item picker seeds through promoteActive', () => {
-    // pickFormat chooses an output format, not a module or item; it is the
-    // one picker with nothing to seed. A new pick* function added without
-    // preselection fails here until it routes through promoteActive or earns
-    // a place on this allowlist.
-    const unseeded = new Set(['pickFormat']);
+    // Two pickers have nothing to seed from the open editor: pickFormat
+    // chooses an output format, and pickTerminal chooses which of the shared
+    // terminals a command line goes into. Neither is a module or an item. A new
+    // pick* function added without preselection fails here until it routes
+    // through promoteActive or earns a place on this allowlist.
+    const unseeded = new Set(['pickFormat', 'pickTerminal']);
     const pickers = [
-      ...extensionSource.matchAll(/(?:async )?function (pick\w+)\(/g),
+      ...allSource.matchAll(/(?:async )?function (pick\w+)\(/g),
     ].map((m) => m[1]);
     assert.ok(pickers.includes('pickModuleFolder'));
     assert.ok(pickers.includes('pickItemPath'));
@@ -1150,11 +1191,11 @@ describe('VS Code extension: active-editor preselection', () => {
   it('leaves the merge target unseeded, and only the merge target', () => {
     // The active file is the natural merge source; seeding the target too
     // would point Enter at merging the file into itself.
-    const start = extensionSource.indexOf("register('course.mergeItems'");
+    const start = allSource.indexOf("register('course.mergeItems'");
     assert.ok(start !== -1);
-    const next = extensionSource.indexOf("\n  register('", start);
-    const handler = extensionSource.slice(start, next);
-    const optOuts = extensionSource.match(/\{ preselect: false \}/g) || [];
+    const next = allSource.indexOf("\n  register('", start);
+    const handler = allSource.slice(start, next);
+    const optOuts = allSource.match(/\{ preselect: false \}/g) || [];
     assert.equal(optOuts.length, 1, 'exactly one pick opts out of the seed');
     assert.match(
       handler,
@@ -1168,10 +1209,10 @@ describe('VS Code extension: active-editor preselection', () => {
     // end. The decision is seedsDestination (pure, helpers.test.js); this
     // pins that the handler feeds it both locations and passes its verdict,
     // not a literal, to the pick.
-    const start = extensionSource.indexOf("register('course.moveItemToModule'");
+    const start = allSource.indexOf("register('course.moveItemToModule'");
     assert.ok(start !== -1);
-    const next = extensionSource.indexOf("\n  register('", start);
-    const handler = extensionSource.slice(start, next);
+    const next = allSource.indexOf("\n  register('", start);
+    const handler = allSource.slice(start, next);
     assert.match(
       handler,
       /seedsDestination\(\s*courseLocation\(workspaceRoot, itemPath\),\s*activeCourseLocation\(\),?\s*\)/,
@@ -1353,7 +1394,7 @@ describe('VS Code extension: module-scoped sync family', () => {
     // so it reaches the terminal through the builder's q(), never raw.
     for (const { line } of Object.values(family)) {
       assert.match(
-        extensionSource,
+        allSource,
         new RegExp(
           `runInTerminal\\(\\(q\\) => \`${line} \\$\\{q\\(moduleName\\)\\}\`\\)`,
         ),
@@ -1368,9 +1409,9 @@ describe('VS Code extension: module-scoped sync family', () => {
     // default is `ask`, and the silent runner would hang on that question
     // where nobody could see it.
     for (const id of Object.keys(family)) {
-      const start = extensionSource.indexOf(`register('${id}'`);
-      const next = extensionSource.indexOf("\n  register('", start);
-      const handler = extensionSource.slice(start, next);
+      const start = allSource.indexOf(`register('${id}'`);
+      const next = allSource.indexOf("\n  register('", start);
+      const handler = allSource.slice(start, next);
       assert.match(handler, /runInTerminal\(/, `${id} must stream its output`);
       assert.ok(
         !handler.includes('runCli('),
@@ -1411,9 +1452,9 @@ describe('VS Code extension: search command', () => {
 });
 
 describe('VS Code extension: open in Canvas', () => {
-  const start = extensionSource.indexOf("register('course.openInCanvas'");
-  const next = extensionSource.indexOf("\n  register('", start);
-  const handler = extensionSource.slice(start, next === -1 ? undefined : next);
+  const start = allSource.indexOf("register('course.openInCanvas'");
+  const next = allSource.indexOf("\n  register('", start);
+  const handler = allSource.slice(start, next === -1 ? undefined : next);
   const openEntries = packageJson.contributes.menus['view/item/context'].filter(
     (m) => m.command === 'course.openInCanvas',
   );
@@ -1501,17 +1542,15 @@ describe('VS Code extension: open in Canvas', () => {
 
 describe('VS Code extension: activate and deactivate', () => {
   it('exports activate function', () => {
-    assert.match(extensionSource, /module\.exports\s*=\s*\{[^}]*activate/);
+    assert.match(allSource, /module\.exports\s*=\s*\{[^}]*activate/);
   });
 
   it('exports deactivate function', () => {
-    assert.match(extensionSource, /module\.exports\s*=\s*\{[^}]*deactivate/);
+    assert.match(allSource, /module\.exports\s*=\s*\{[^}]*deactivate/);
   });
 
   it('init command skips workspace validation', () => {
-    assert.ok(
-      parseNoValidationCommands(extensionSource).includes('course.init'),
-    );
+    assert.ok(parseNoValidationCommands(allSource).includes('course.init'));
   });
 });
 
@@ -1614,23 +1653,20 @@ describe('VS Code extension: empty-view welcome', () => {
 
 describe('VS Code extension: workspace validation', () => {
   it('defines validateWorkspace function', () => {
-    assert.match(extensionSource, /function validateWorkspace\(\)/);
+    assert.match(allSource, /function validateWorkspace\(\)/);
   });
 
   it('checks for course/ directory existence', () => {
-    assert.match(extensionSource, /path\.join\(workspaceRoot,\s*'course'\)/);
+    assert.match(allSource, /path\.join\(workspaceRoot,\s*'course'\)/);
   });
 
   it('shows error when no workspace folder is open', () => {
-    assert.match(
-      extensionSource,
-      /showErrorMessage[\s\S]*?No workspace folder open/,
-    );
+    assert.match(allSource, /showErrorMessage[\s\S]*?No workspace folder open/);
   });
 
   it('shows warning when course/ directory is missing', () => {
     assert.match(
-      extensionSource,
+      allSource,
       new RegExp('showWarningMessage[\\s\\S]*No course/ directory found'),
     );
   });
@@ -1638,7 +1674,7 @@ describe('VS Code extension: workspace validation', () => {
   it('sends that warning to Setup, the command that creates a course', () => {
     // Init writes .env and .canvas-sync.json and never touches course/, so
     // "Run Course: Init first" pointed at the one command that could not help.
-    const warning = extensionSource.match(
+    const warning = allSource.match(
       /'(Canvas Course Builder: No course\/ directory found[^']*)'/,
     );
     assert.ok(warning, 'the missing-course/ warning should exist');
@@ -1651,7 +1687,7 @@ describe('VS Code extension: workspace validation', () => {
 
   it('does not warn Setup about the course/ it is about to create', () => {
     assert.ok(
-      parseNoValidationCommands(extensionSource).includes('course.setup'),
+      parseNoValidationCommands(allSource).includes('course.setup'),
       'the warning names Setup, so firing it during a Setup run is circular',
     );
   });
@@ -1660,11 +1696,8 @@ describe('VS Code extension: workspace validation', () => {
     // The docstring claimed an error, which read as a hard gate on course/. The
     // gate is on the workspace folder alone: a missing course/ draws a warning
     // and the root comes back regardless, which is what lets Setup run.
-    const at = extensionSource.indexOf('function validateWorkspace()');
-    const doc = extensionSource.slice(
-      extensionSource.lastIndexOf('/**', at),
-      at,
-    );
+    const at = allSource.indexOf('function validateWorkspace()');
+    const doc = allSource.slice(allSource.lastIndexOf('/**', at), at);
     assert.match(doc, /warning/i, 'the docstring has to name the warning');
     assert.ok(
       !/error message if not found/i.test(doc),
@@ -1674,19 +1707,17 @@ describe('VS Code extension: workspace validation', () => {
 });
 
 describe('VS Code extension: CLI runner', () => {
-  // The runner section, between its own heading and the next one. The
-  // extension quotes `npx course …` command lines all over the file, so the
-  // assertions below about what the runner does *not* spawn only mean
-  // anything against the section itself.
-  const runner = extensionSource.slice(
-    extensionSource.indexOf('// --- Silent CLI runner'),
-    extensionSource.indexOf('// --- Pickers'),
-  );
+  // The runner file. It used to be a section between two headings inside
+  // extension.js, delimited the same way and read for the same reason: the
+  // extension quotes `npx course …` command lines all over the place, so the
+  // assertions below about what the runner does *not* spawn only mean anything
+  // against the runner itself.
+  const runner = sourceHolding('function execCli(');
 
   it('defines a silent runCli helper using execFile', () => {
     assert.ok(runner.length > 0, 'the runner section has to be findable');
-    assert.match(extensionSource, /function runCli\(/);
-    assert.match(extensionSource, /cp\.execFile\(/);
+    assert.match(allSource, /function runCli\(/);
+    assert.match(allSource, /cp\.execFile\(/);
   });
 
   it('never asks execFile for a shell', () => {
@@ -1803,7 +1834,7 @@ describe('VS Code extension: CLI runner', () => {
     // truncated buffer and an error over a command that had already renamed
     // half a directory.
     assert.match(runner, /maxBuffer: CLI_MAX_BUFFER/);
-    const size = extensionSource.match(
+    const size = allSource.match(
       /const CLI_MAX_BUFFER = (\d+) \* 1024 \* 1024;/,
     );
     assert.ok(size, 'CLI_MAX_BUFFER has to be written in megabytes');
@@ -1834,7 +1865,7 @@ describe('VS Code extension: CLI runner', () => {
     // a timeout the command it belongs to waits for it forever, silently,
     // with every queued command behind it.
     assert.match(runner, /timeout: CLI_TIMEOUT_MS/);
-    const limit = extensionSource.match(
+    const limit = allSource.match(
       /const CLI_TIMEOUT_MS = (\d+) \* 60 \* 1000;/,
     );
     assert.ok(limit, 'CLI_TIMEOUT_MS has to be written in minutes');
@@ -1883,7 +1914,7 @@ describe('VS Code extension: CLI runner', () => {
     // rename flashes one — the noise the delay exists to prevent, with nothing
     // above failing. A real run is a few hundred milliseconds, so the floor
     // sits above that.
-    const delay = extensionSource.match(/const PROGRESS_AFTER_MS = (\d+);/);
+    const delay = allSource.match(/const PROGRESS_AFTER_MS = (\d+);/);
     assert.ok(delay, 'PROGRESS_AFTER_MS has to be a plain number');
     assert.ok(
       Number(delay[1]) >= 250,
@@ -1957,25 +1988,19 @@ describe('VS Code extension: terminal pool', () => {
   it('chooses the terminal through pickTerminal, never by bare name lookup', () => {
     // The whole pool, unfiltered: the line is quoted for whichever terminal
     // comes back, so none of them has to be held out of the running.
-    assert.match(
-      extensionSource,
-      /pickTerminal\(terminalPool, TERMINAL_BASE_NAME\)/,
-    );
+    assert.match(allSource, /pickTerminal\(terminalPool, TERMINAL_BASE_NAME\)/);
     assert.ok(
-      !extensionSource.includes('getSharedTerminal'),
+      !allSource.includes('getSharedTerminal'),
       'the by-name shared-terminal lookup must be gone',
     );
   });
 
   it('marks the terminal busy before showing it and sending the text', () => {
-    const start = extensionSource.indexOf('function runInTerminal(');
+    const start = allSource.indexOf('function runInTerminal(');
     assert.ok(start !== -1);
     // The whole function, not a fixed window: it grows, and a window that ran
     // out before the send turned this into a test of nothing.
-    const handler = extensionSource.slice(
-      start,
-      extensionSource.indexOf('\n}\n', start),
-    );
+    const handler = allSource.slice(start, allSource.indexOf('\n}\n', start));
     const busyAt = handler.indexOf('entry.busy = true');
     const awaitingAt = handler.indexOf('entry.awaitingStart = true');
     const showAt = handler.indexOf('.show()');
@@ -1990,37 +2015,31 @@ describe('VS Code extension: terminal pool', () => {
   });
 
   it('moves the chosen terminal to the most-recently-used end of the pool', () => {
-    assert.match(extensionSource, /terminalPool\.splice\(choice\.index, 1\)/);
-    assert.match(extensionSource, /terminalPool\.push\(entry\)/);
+    assert.match(allSource, /terminalPool\.splice\(choice\.index, 1\)/);
+    assert.match(allSource, /terminalPool\.push\(entry\)/);
   });
 
   it('flips busy on the shell integration execution events', () => {
-    assert.match(
-      extensionSource,
-      /onDidStartTerminalShellExecution\(\(event\)/,
-    );
-    assert.match(extensionSource, /onDidEndTerminalShellExecution\(\(event\)/);
-    assert.match(
-      extensionSource,
-      /onDidChangeTerminalShellIntegration\(\(event\)/,
-    );
+    assert.match(allSource, /onDidStartTerminalShellExecution\(\(event\)/);
+    assert.match(allSource, /onDidEndTerminalShellExecution\(\(event\)/);
+    assert.match(allSource, /onDidChangeTerminalShellIntegration\(\(event\)/);
   });
 
   it('guards the 1.93 events so an older host degrades instead of crashing', () => {
     assert.match(
-      extensionSource,
+      allSource,
       /typeof vscode\.window\.onDidStartTerminalShellExecution === 'function'/,
     );
     assert.match(
-      extensionSource,
+      allSource,
       /typeof vscode\.window\.onDidChangeTerminalShellIntegration === 'function'/,
     );
   });
 
   it('prunes closed terminals from the pool', () => {
-    assert.match(extensionSource, /onDidCloseTerminal\(\(terminal\)/);
+    assert.match(allSource, /onDidCloseTerminal\(\(terminal\)/);
     assert.match(
-      extensionSource,
+      allSource,
       /terminalPool\.filter\(\(e\) => e\.terminal !== terminal\)/,
     );
   });
@@ -2530,12 +2549,9 @@ describe('VS Code extension: runInTerminal quotes for the terminal it picks', ()
     // where the flavour meets the value, so a copy written here would be a
     // copy under test.
     const lift = (name) => {
-      const start = extensionSource.indexOf(`function ${name}(`);
+      const start = allSource.indexOf(`function ${name}(`);
       assert.notEqual(start, -1, `${name} should be findable in the source`);
-      return extensionSource.slice(
-        start,
-        extensionSource.indexOf('\n}\n', start) + 2,
-      );
+      return allSource.slice(start, allSource.indexOf('\n}\n', start) + 2);
     };
     const source = `${lift('quoterFor')}\n${lift('runInTerminal')}`;
     const typed = [];
@@ -2718,9 +2734,9 @@ describe('VS Code extension: the flavour the quoting is done for', () => {
   // process stubbed. Without this, `return 'posix'` would be a green suite and
   // POSIX single quotes typed into PowerShell or cmd.
   function currentFlavourWith(shell, platform) {
-    const start = extensionSource.indexOf('function currentFlavour(');
-    const end = extensionSource.indexOf('\n}\n', start) + 2;
-    const source = extensionSource.slice(start, end);
+    const start = allSource.indexOf('function currentFlavour(');
+    const end = allSource.indexOf('\n}\n', start) + 2;
+    const source = allSource.slice(start, end);
     const deps = {
       vscode: { env: { shell } },
       shellFlavour,
