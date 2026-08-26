@@ -2,6 +2,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { Linter } = require('eslint');
 
 const extDir = path.resolve(
   __dirname,
@@ -1371,6 +1372,72 @@ describe('VS Code extension: CLI runner', () => {
     assert.match(extensionSource, /cp\.execFile\(/);
   });
 
+  it('never asks execFile for a shell', () => {
+    // This path is safe for one reason: there is no shell on it. Every module
+    // name, item title, `--points` and path the author typed goes to the CLI as
+    // one argv entry, whatever characters are in it, and nothing needs quoting
+    // because nothing is parsed. `shell: true` turns all twelve silent
+    // subcommands into shell lines in a single word, and none of the quoting
+    // rules in this file would notice, because there is no command line written
+    // down anywhere to read. Measured: a module named `01-intro; touch FILE`
+    // creates the file with that option and does not without it.
+    //
+    // Not a hypothetical flag either. `cliEntryPoint`'s own comment explains
+    // that Windows cannot spawn npx.cmd without a shell — the exact reasoning
+    // that walks a contributor to this option.
+    const spawns = extensionAst.calls.filter(
+      (node) =>
+        node.callee.type === 'MemberExpression' &&
+        node.callee.property.type === 'Identifier' &&
+        node.callee.property.name === 'execFile',
+    );
+    assert.ok(spawns.length > 0, 'the runner has to spawn the CLI somewhere');
+    for (const node of spawns) {
+      let options = node.arguments[2];
+      if (options && options.type === 'Identifier') {
+        // Built just above the call and passed by name. Followed by name to
+        // its declaration, and refused when the name is declared more than
+        // once, because then this cannot say which object was passed.
+        const declared = extensionAst.declarators.filter(
+          (declarator) =>
+            declarator.id.type === 'Identifier' &&
+            declarator.id.name === options.name,
+        );
+        assert.equal(
+          declared.length,
+          1,
+          `the execFile options are passed as \`${options.name}\`, which is ` +
+            `declared ${declared.length} times: spell them out at the call`,
+        );
+        options = declared[0].init;
+      }
+      assert.ok(
+        options && options.type === 'ObjectExpression',
+        `the execFile options at line ${node.loc.start.line} have to be ` +
+          'an object this test can read',
+      );
+      for (const property of options.properties) {
+        assert.notEqual(
+          property.type,
+          'SpreadElement',
+          'a spread into the execFile options could carry a shell in from ' +
+            'anywhere: spell the options out',
+        );
+        const key =
+          property.key.type === 'Identifier'
+            ? property.key.name
+            : String(property.key.value);
+        assert.notEqual(
+          key,
+          'shell',
+          'a shell here would parse every value the author typed. If a ' +
+            'program cannot be spawned without one, spawn a different ' +
+            'program, or quote the line the way runInTerminal does.',
+        );
+      }
+    }
+  });
+
   it('runs node on the CLI in the workspace, and nothing else', () => {
     // The fallback that used to sit here spawned `npx` when cli/index.js was
     // missing. On Windows that program is npx.cmd, which libuv will not
@@ -1788,22 +1855,168 @@ function isQuoteCall(expression) {
   return false;
 }
 
+/**
+ * The extension's own syntax tree, and the two node kinds a command line can be
+ * built out of.
+ *
+ * Parsed through the linter, which is the route `cli-contract.test.js` takes to
+ * the same object. Going through a parser at all is the point: a command line
+ * has to be found by what it says, not by the name of the function it is handed
+ * to. `previewTerminal.sendText(...)`, `previewTerminal['sendText'](...)` and
+ * `previewTerminal.shellIntegration.executeCommand(...)` all reach a shell, and
+ * a scan that knows only the first spelling reports the other two as clean.
+ */
+function parseExtension(source, filename) {
+  const templates = [];
+  const sums = [];
+  const calls = [];
+  const declarators = [];
+  let sourceCode = null;
+  const messages = new Linter().verify(
+    source,
+    {
+      plugins: {
+        quoting: {
+          rules: {
+            capture: {
+              create(context) {
+                sourceCode = context.sourceCode;
+                return {
+                  TemplateLiteral(node) {
+                    templates.push(node);
+                  },
+                  BinaryExpression(node) {
+                    if (node.operator === '+') sums.push(node);
+                  },
+                  CallExpression(node) {
+                    calls.push(node);
+                  },
+                  VariableDeclarator(node) {
+                    declarators.push(node);
+                  },
+                };
+              },
+            },
+          },
+        },
+      },
+      rules: { 'quoting/capture': 'error' },
+      languageOptions: { ecmaVersion: 'latest', sourceType: 'commonjs' },
+    },
+    filename,
+  );
+  const fatal = messages.find((message) => message.fatal);
+  assert.ok(!fatal, `${filename} did not parse: ${fatal && fatal.message}`);
+  assert.ok(sourceCode, `${filename} produced no source code object`);
+  return { templates, sums, calls, declarators };
+}
+
+/** What a command line says, whoever ends up running it. */
+const COMMAND_LINE = /npx course |npm start/;
+
+/**
+ * Does this template say a command line out loud?
+ *
+ * Deliberately eager. Over-selecting costs nothing: a template that is not a
+ * command line passes the rules below without noticing them. Under-selecting
+ * costs everything, because a template this does not pick is never examined at
+ * all — not for quoting, not for hand-written quotes, not for anything.
+ *
+ * Whitespace runs are collapsed first, so `npx  course` and a tab between the
+ * words read the same as one space; both were spellings that hid a sink. The
+ * quasis are read joined tightly as well as spaced, so a hole in the middle of
+ * the name (`npx cours${x}e ...`) is put back together by the tight join.
+ *
+ * What this cannot do is see a name whose missing piece is inside the hole
+ * itself: `npx cours${e} search` says only "npx cours" out loud, and no reading
+ * of the fixed text recovers the rest. That is what the sink selector below is
+ * for, and why there are two.
+ */
+function namesACommandLine(node) {
+  const parts = node.quasis.map((quasi) => quasi.value.cooked ?? '');
+  return [parts.join(''), parts.join(' ')].some((text) =>
+    COMMAND_LINE.test(text.replace(/\s+/g, ' ')),
+  );
+}
+
+/** Terminal APIs that run whatever they are given. */
+const TERMINAL_METHODS = new Set(['sendText', 'executeCommand']);
+
+/** The name a callee reaches for, however it is written. */
+function calleeMember(node) {
+  if (node.callee.type !== 'MemberExpression') return null;
+  const property = node.callee.property;
+  if (property.type === 'Identifier' && !node.callee.computed) {
+    return property.name;
+  }
+  return property.type === 'Literal' ? String(property.value) : null;
+}
+
+/**
+ * Every template handed to something that runs it, whatever the template says.
+ *
+ * The other half of the selection, and the half that does not care about
+ * spelling: a line typed into a terminal is examined because of where it is
+ * going, not because of what it managed to spell. Computed access counts
+ * (`t['sendText']`), because it reaches the same method.
+ *
+ * Neither selector is complete on its own. This one misses a command line
+ * handed to a helper of one's own devising; the content one misses a command
+ * name assembled out of pieces. Between them, a line has to be both unspoken
+ * and unsent to go unread, and the two fail differently enough that a change
+ * papering over one tends to be caught by the other.
+ */
+function sinkTemplates(calls) {
+  const found = [];
+  for (const node of calls) {
+    const member = calleeMember(node);
+    const isSink =
+      (member && TERMINAL_METHODS.has(member)) ||
+      (node.callee.type === 'Identifier' &&
+        node.callee.name === 'runInTerminal');
+    if (!isSink) continue;
+    for (const argument of node.arguments) {
+      if (argument.type === 'TemplateLiteral') found.push(argument);
+      if (
+        argument.type === 'ArrowFunctionExpression' &&
+        argument.body.type === 'TemplateLiteral'
+      ) {
+        found.push(argument.body);
+      }
+    }
+  }
+  return found;
+}
+
+const extensionAst = parseExtension(extensionSource, 'extension.js');
+
 describe('VS Code extension: terminal argument quoting', () => {
   const code = stripComments(extensionSource);
+  const { templates: allTemplates, sums, calls } = extensionAst;
 
-  // Names that may appear unquoted, each with the assignment that proves it
-  // carries a literal this file wrote. The name proves nothing on its own: a
-  // future `format = await showInputBox(...)` has to fail here.
-  const provenLiterals = {
-    format: /^(?:const |let |var )?format = await pickFormat\(\);$/,
-    flag: /^(?:const |let |var )?flag = scope\.scope === 'flagged' \? ' --flagged' : '';$/,
-  };
+  // The rule, in one sentence a contributor can hold: every value a command
+  // line carries is quoted, by the `q` handed to the builder.
+  //
+  // There is no list of names that may go unquoted. The previous shape of this
+  // file kept one, and the proof behind it was walked around twice: once by a
+  // parameter of the same name, which is a binding a search for assignments
+  // cannot see, and once by an unanchored pattern, which exempts whatever is
+  // appended to the line it matched. A list of exemptions has to be proved, a
+  // proof has to be maintained, and neither is something a contributor can
+  // hold in their head while making an ordinary change. Quoting travels with
+  // the value instead, so extracting a helper or renaming a variable stays an
+  // ordinary refactor.
+  const commandTemplates = [
+    ...new Set([
+      ...allTemplates.filter(namesACommandLine),
+      ...sinkTemplates(calls),
+    ]),
+  ];
+  const templates = commandTemplates.map((node) =>
+    extensionSource.slice(node.range[0] + 1, node.range[1] - 1),
+  );
 
   const builders = callArguments(code, 'runInTerminal');
-  const templates = builders.flatMap((argument) => {
-    const body = argument.replace(/^\((?:q)?\)\s*=>\s*/, '');
-    return body.startsWith('`') ? [body.slice(1, -1)] : [];
-  });
   const interpolations = templates.flatMap(interpolationsOf);
 
   it('strips comments without eating the code it has to scan', () => {
@@ -1839,15 +2052,33 @@ describe('VS Code extension: terminal argument quoting', () => {
     }
   });
 
-  it('quotes every interpolated value that is not a proven literal', () => {
+  it('quotes every value a command line carries', () => {
     for (const { expression } of interpolations) {
-      if (Object.hasOwn(provenLiterals, expression)) continue;
       // The one multi-value form: every path quoted, then joined.
       if (/^[A-Za-z_$][\w$]*\.map\(q\)\.join\(' '\)$/.test(expression))
         continue;
       assert.ok(
         isQuoteCall(expression),
-        `${expression} reaches a terminal without being exactly one q() call`,
+        `\${${expression}} reaches a shell unquoted. Every value in a command ` +
+          'line goes through the q() the builder is handed: write ' +
+          `\${q(${expression})}. If there is no q in scope, the line is being ` +
+          'built somewhere that does not know which shell will run it, and ' +
+          'that is the thing to fix.',
+      );
+    }
+  });
+
+  it('builds a command line as a template, never by adding strings', () => {
+    // A concatenation carries values past every check here: the fixed text is
+    // split across operands, so nothing reads as a command line, and there is
+    // no hole for the interpolation rule to look at.
+    for (const node of sums) {
+      const text = extensionSource.slice(...node.range);
+      assert.ok(
+        !COMMAND_LINE.test(text),
+        `a command line is being built by concatenation at line ` +
+          `${node.loc.start.line}: write it as one template literal, so the ` +
+          'values in it can be seen and quoted',
       );
     }
   });
@@ -1871,47 +2102,40 @@ describe('VS Code extension: terminal argument quoting', () => {
     }
   });
 
-  it('proves each unquoted name really is a literal this file wrote', () => {
-    for (const [name, assignment] of Object.entries(provenLiterals)) {
-      // Every assignment, not merely one: `format` is assigned at four export
-      // sites, and one of them turning into an input box has to fail. `let`,
-      // `var` and a bare reassignment all count.
-      const pattern = new RegExp(
-        `(?:^|[^.\\w])((?:const |let |var )?${name} = [^\\n]*)`,
-        'g',
-      );
-      const assignments = [...code.matchAll(pattern)].map((m) => m[1]);
-      assert.ok(assignments.length > 0, `${name} is never assigned`);
-      for (const line of assignments) {
-        assert.match(
-          line,
-          assignment,
-          `${name} is exempt from quoting but this assignment does not prove it`,
-        );
-      }
-    }
-    const start = code.indexOf('async function pickFormat(');
-    assert.deepStrictEqual(
-      [...code.slice(start, start + 400).matchAll(/format: '(\w+)'/g)].map(
-        (m) => m[1],
-      ),
-      ['pdf', 'docx'],
-    );
-  });
-
   it('quotes through the one function that knows the terminal', () => {
-    // shellQuote is called exactly once, inside runInTerminal, so no handler
-    // can quote for a shell of its own choosing.
+    // `shellQuote` is called in exactly one place, `quoterFor`, which is handed
+    // the flavour stamp of the terminal that is about to receive the line. A
+    // second call site anywhere else would be a handler quoting for a shell of
+    // its own choosing, which is how a line quoted for PowerShell ends up typed
+    // into cmd.
     const calls = [...code.matchAll(/shellQuote\(/g)];
     assert.equal(calls.length, 1, 'shellQuote should have one call site');
-    const runner = code.indexOf('function runInTerminal(');
-    const runnerEnd = code.indexOf('\n}\n', runner);
-    assert.ok(calls[0].index > runner && calls[0].index < runnerEnd);
+    const quoter = code.indexOf('function quoterFor(');
+    const quoterEnd = code.indexOf('\n}\n', quoter);
+    assert.ok(quoter !== -1, 'quoterFor should be findable');
+    assert.ok(calls[0].index > quoter && calls[0].index < quoterEnd);
   });
 
-  it('lets nothing else reach either terminal sink', () => {
-    const sendTextArgs = callArguments(code, '.sendText').sort();
-    assert.deepStrictEqual(sendTextArgs, ["'npm start'", 'commandStr']);
+  it('sends nothing to a terminal that has not been read', () => {
+    // The second layer, and it is about the shape of the argument rather than
+    // its text. The rules above check the values inside a command line; this
+    // one refuses a `sendText(answer)` that carries no command line at all,
+    // which they would have nothing to look at.
+    //
+    // Deliberately not a list of the exact strings in the file. That is what it
+    // used to be, and it made the preview line unrefactorable: extracting a
+    // helper or renaming the variable failed a test whose message named
+    // neither, with no green path an ordinary change could take.
+    for (const argument of callArguments(code, '.sendText')) {
+      const namesACommandLine =
+        /^[`'"]/.test(argument) && COMMAND_LINE.test(argument);
+      assert.ok(
+        namesACommandLine || argument === 'commandStr',
+        `${argument} is typed into a terminal, and it neither spells out a ` +
+          'command line here nor comes from runInTerminal. Build the line as ' +
+          'a template literal so its values can be seen and quoted.',
+      );
+    }
   });
 });
 
@@ -1921,9 +2145,18 @@ describe('VS Code extension: runInTerminal quotes for the terminal it picks', ()
   // the file and run against the real pickTerminal and the real shellQuote,
   // with only vscode and the pool stubbed.
   function loadRunInTerminal(overrides = {}) {
-    const start = extensionSource.indexOf('function runInTerminal(');
-    const end = extensionSource.indexOf('\n}\n', start) + 2;
-    const source = extensionSource.slice(start, end);
+    // Both functions are lifted, not just the one under test: `quoterFor` is
+    // where the flavour meets the value, so a copy written here would be a
+    // copy under test.
+    const lift = (name) => {
+      const start = extensionSource.indexOf(`function ${name}(`);
+      assert.notEqual(start, -1, `${name} should be findable in the source`);
+      return extensionSource.slice(
+        start,
+        extensionSource.indexOf('\n}\n', start) + 2,
+      );
+    };
+    const source = `${lift('quoterFor')}\n${lift('runInTerminal')}`;
     const typed = [];
     const created = [];
     const errors = [];
@@ -1968,6 +2201,21 @@ describe('VS Code extension: runInTerminal quotes for the terminal it picks', ()
     busy,
     awaitingStart: false,
     flavour,
+  });
+
+  it('quotes a value that would have been safe bare', () => {
+    // The obvious optimisation inside `quoterFor` is a fast path: leave a value
+    // of ordinary characters alone and quote only what needs it. It is refused
+    // deliberately, because "every value is quoted" is a rule a reader can
+    // check by looking, and "every value that needs it" is one they cannot.
+    //
+    // Stated here rather than left to luck. Such a fast path did fail the suite
+    // before this test existed, but only because two other tests happened to
+    // assert on `3000` and `exports/toc.md`, which it would have let through —
+    // a fixture choice, not a decision.
+    const { run, typed } = loadRunInTerminal();
+    run((q) => `npx course export --format ${q('pdf')}`);
+    assert.deepEqual(typed, ["npx course export --format 'pdf'"]);
   });
 
   it('stamps a new terminal with the flavour it was created under', () => {

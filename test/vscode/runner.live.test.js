@@ -782,7 +782,13 @@ describe('VS Code extension: the silent runner, run', () => {
     assert.equal(of('quickpick').length, 1, 'it asks for a format, once');
     const sent = of('terminal.send');
     assert.equal(sent.length, 1, 'and streams the export into a terminal');
-    assert.match(sent[0].text, /^npx course export --toc .*--format pdf$/);
+    // Quoted, because it is a value: the `q` the builder is handed is the
+    // quoting function of the terminal that receives the line, and the stub
+    // shell here is bash.
+    assert.equal(
+      sent[0].text,
+      "npx course export --toc 'exports/toc.md' --format 'pdf'",
+    );
     assert.deepEqual(
       tocKeyWrites(),
       [],

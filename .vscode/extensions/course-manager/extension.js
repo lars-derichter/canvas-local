@@ -115,6 +115,20 @@ function currentFlavour() {
 }
 
 /**
+ * The `q` a command line is built with: quoting for the shell running in the
+ * terminal that is about to receive the line.
+ *
+ * The single call site of `shellQuote` in this file, so that no handler can
+ * quote for a shell of its own choosing. A null stamp means the terminal's
+ * shell is not knowable — one adopted from before a window reload — and the
+ * current default profile stands in for it, which `runInTerminal` explains and
+ * says out loud when it costs anything.
+ */
+function quoterFor(flavour) {
+  return (value) => shellQuote(value, flavour ?? currentFlavour());
+}
+
+/**
  * Send a command line to a pooled terminal.
  *
  * `build` is handed the quoting function for the shell running in the terminal
@@ -152,7 +166,7 @@ function runInTerminal(build) {
 
   let commandStr;
   try {
-    commandStr = build((value) => shellQuote(value, flavour));
+    commandStr = build(quoterFor(flavour));
   } catch (error) {
     // The refusal names the shell, which is only a fact for a terminal this
     // extension opened. For an adopted one the flavour is the default profile
@@ -1124,7 +1138,8 @@ function activate(context) {
     const format = await pickFormat();
     if (!format) return;
     runInTerminal(
-      (q) => `npx course export ${paths.map(q).join(' ')} --format ${format}`,
+      (q) =>
+        `npx course export ${paths.map(q).join(' ')} --format ${q(format)}`,
     );
   });
 
@@ -1138,7 +1153,7 @@ function activate(context) {
     const format = await pickFormat();
     if (!format) return;
     runInTerminal(
-      (q) => `npx course export --module ${q(folder)} --format ${format}`,
+      (q) => `npx course export --module ${q(folder)} --format ${q(format)}`,
     );
   });
 
@@ -1185,8 +1200,16 @@ function activate(context) {
 
     const format = await pickFormat();
     if (!format) return;
-    const flag = scope.scope === 'flagged' ? ' --flagged' : '';
-    runInTerminal(() => `npx course export${flag} --format ${format}`);
+    // Two whole command lines rather than one with a fragment spliced in. The
+    // rule this file follows is that every value a command line carries is
+    // quoted, and `--flagged` is not a value: writing it as one would need an
+    // exemption from the rule, and an exemption is something a reader has to
+    // prove rather than read.
+    if (scope.scope === 'flagged') {
+      runInTerminal((q) => `npx course export --flagged --format ${q(format)}`);
+    } else {
+      runInTerminal((q) => `npx course export --format ${q(format)}`);
+    }
   });
 
   register('course.exportCourseToc', async () => {
@@ -1207,7 +1230,7 @@ function activate(context) {
     if (!format) return;
     runInTerminal(
       (q) =>
-        `npx course export --toc ${q('exports/toc.md')} --format ${format}`,
+        `npx course export --toc ${q('exports/toc.md')} --format ${q(format)}`,
     );
     // The key is not cleared here: the file is still on disk, and exporting the
     // same curated list to the other format as well is the ordinary next step.
