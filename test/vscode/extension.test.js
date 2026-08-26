@@ -1304,6 +1304,21 @@ describe('VS Code extension: CLI runner', () => {
     assert.match(runner, /env: cliChildEnv\(process\.env\)/);
   });
 
+  it('gives the run more room than the one-megabyte default', () => {
+    // Past maxBuffer Node kills the child, so the overflow arrives as a
+    // truncated buffer and an error over a command that had already renamed
+    // half a directory.
+    assert.match(runner, /maxBuffer: CLI_MAX_BUFFER/);
+    const size = extensionSource.match(
+      /const CLI_MAX_BUFFER = (\d+) \* 1024 \* 1024;/,
+    );
+    assert.ok(size, 'CLI_MAX_BUFFER has to be written in megabytes');
+    assert.ok(
+      Number(size[1]) > 1,
+      `CLI_MAX_BUFFER is ${size[1]} MB, which is no better than the default`,
+    );
+  });
+
   it('surfaces a warning a successful run wrote to stderr', () => {
     // The silent runner drives every delete and the merge, and it used to
     // append a successful run's stderr to a channel it never reveals. That is

@@ -189,6 +189,20 @@ function runInTerminal(build) {
 // --- Silent CLI runner (for structural commands) ---
 
 /**
+ * How much output one run may produce, per stream: `execFile` applies the
+ * figure to stdout and to stderr separately, so a run is bounded at twice
+ * this.
+ *
+ * The default is a megabyte, and Node kills the child on the byte after it, so
+ * a run past the limit reaches the author as a truncated buffer and an error,
+ * over a command that had already renamed half a directory. No structural
+ * command comes near a megabyte today, which makes this insurance rather than a
+ * fix — but the premium is a number in an options object and the claim is a
+ * half-finished renumber.
+ */
+const CLI_MAX_BUFFER = 32 * 1024 * 1024;
+
+/**
  * Run `npx course <args>` without a terminal. Output goes to the
  * "Canvas Course Builder" output channel; failures surface as error notifications.
  * Returns a promise resolving to true on success.
@@ -204,6 +218,7 @@ function runCli(args) {
     const options = {
       cwd: workspaceRoot,
       env: cliChildEnv(process.env),
+      maxBuffer: CLI_MAX_BUFFER,
     };
     cp.execFile(cmd, cmdArgs, options, (err, stdout, stderr) => {
       if (stdout) outputChannel.appendLine(stdout.trimEnd());
