@@ -27,6 +27,7 @@ const {
   getModuleCanvasId,
   canvasModuleUrl,
   readEnvConfig,
+  curatedTocPath,
   terminalNumber,
   pickTerminal,
   shellFlavour,
@@ -1533,6 +1534,34 @@ describe('helpers: readEnvConfig agrees with dotenv', () => {
       );
     });
   }
+});
+
+describe('helpers: curatedTocPath', () => {
+  it('names the file export-toc writes, under the workspace root', () => {
+    assert.equal(
+      curatedTocPath(path.join('/tmp', 'course-project')),
+      path.join('/tmp', 'course-project', 'exports', 'toc.md'),
+    );
+  });
+
+  it('builds the path with the separator of the platform it runs on', () => {
+    // The value goes to fs.existsSync and to openTextDocument, both of which
+    // want a native path: a hardcoded 'exports/toc.md' would be a Windows bug
+    // waiting for a Windows author.
+    const built = curatedTocPath(path.join('C:', 'work'));
+    assert.ok(
+      built.endsWith(path.join('exports', 'toc.md')),
+      `curatedTocPath produced ${built}`,
+    );
+  });
+
+  it('answers null without a workspace, rather than throwing', () => {
+    // activate() runs with no folder open, and path.join(undefined, …) throws
+    // where a null lets the caller skip the whole restore.
+    assert.equal(curatedTocPath(undefined), null);
+    assert.equal(curatedTocPath(null), null);
+    assert.equal(curatedTocPath(''), null);
+  });
 });
 
 describe('helpers: terminalNumber', () => {

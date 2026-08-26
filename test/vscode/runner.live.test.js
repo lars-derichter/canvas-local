@@ -47,10 +47,21 @@ let progressPeak = 0;
 let spawns = [];
 
 /**
+ * The command handlers `activate` registered, by id. The palette and the menus
+ * are the only callers in the host; here they are what lets a test invoke one.
+ */
+let registered = {};
+
+/**
  * What the viewer clicks. A stub that always answered `undefined` made
  * `if (choice === 'Show Log') outputChannel.show()` dead code: rewriting the
  * comparison to a string nothing matches passed the whole suite. Tests that
  * care set the answer for the kind of message they expect.
+ *
+ * `quickPick` is the same problem one step earlier: a command that gives up at
+ * its first question never reaches the work it exists to do, so everything past
+ * that question is unpinned. It is handed the items the command offered and
+ * returns the one that was picked, or undefined to dismiss.
  */
 let answers = {};
 
@@ -109,7 +120,16 @@ const vscodeStub = {
       dispose() {},
     }),
     createTreeView: () => ({ dispose() {} }),
-    createTerminal: () => ({ show() {}, sendText() {}, dispose() {} }),
+    createTerminal: (options = {}) => {
+      events.push({ kind: 'terminal.create', name: options.name });
+      return {
+        name: options.name,
+        show: () => events.push({ kind: 'terminal.show', name: options.name }),
+        sendText: (text) =>
+          events.push({ kind: 'terminal.send', name: options.name, text }),
+        dispose() {},
+      };
+    },
     terminals: [],
     showErrorMessage: (text, ...items) => {
       events.push({ kind: 'error', text, items });
@@ -142,7 +162,12 @@ const vscodeStub = {
         },
       );
     },
-    showQuickPick: () => Promise.resolve(undefined),
+    showQuickPick: (items, options) => {
+      events.push({ kind: 'quickpick', items, options });
+      return Promise.resolve(
+        answers.quickPick ? answers.quickPick(items, options) : undefined,
+      );
+    },
     showInputBox: () => Promise.resolve(undefined),
     activeTextEditor: undefined,
     onDidCloseTerminal: () => disposable(),
@@ -161,8 +186,14 @@ const vscodeStub = {
     openTextDocument: () => Promise.resolve({}),
   },
   commands: {
-    registerCommand: () => disposable(),
-    executeCommand: () => Promise.resolve(),
+    registerCommand: (id, handler) => {
+      registered[id] = handler;
+      return disposable();
+    },
+    executeCommand: (...args) => {
+      events.push({ kind: 'command', args });
+      return Promise.resolve();
+    },
   },
   env: { shell: '/bin/bash', openExternal: () => Promise.resolve(true) },
 };
@@ -194,6 +225,7 @@ function installExecFileStub() {
 
 describe('VS Code extension: the silent runner, run', () => {
   let workspace;
+  let extension;
   let runCli;
   let realExecFile;
   let realResolve;
@@ -235,7 +267,8 @@ describe('VS Code extension: the silent runner, run', () => {
       }
     };
 
-    require(path.join(EXT_DIR, 'extension.js')).activate({ subscriptions: [] });
+    extension = require(path.join(EXT_DIR, 'extension.js'));
+    extension.activate({ subscriptions: [] });
     assert.ok(runCli, 'activate() must hand runCli to the tree provider');
 
     // Deliberate, and it has a cost worth naming: while this listener is
@@ -578,6 +611,95 @@ describe('VS Code extension: the silent runner, run', () => {
       'the command behind a thrown spawn must still run',
     );
     assert.deepEqual(unhandled, [], 'and nothing may reach the host unhandled');
+  });
+
+  // --- The curated table of contents ---
+  //
+  // `course.tocReady` is what puts "Export via TOC" in the view menu and the
+  // palette, and a context key dies with the window while exports/toc.md does
+  // not. These drive `activate` itself, because that is where the key is
+  // restored, and the command, because the menu can be one event behind.
+
+  /** Every setContext this run made for the TOC key, newest last. */
+  const tocKeyWrites = () =>
+    events
+      .filter(
+        (event) =>
+          event.kind === 'command' &&
+          event.args[0] === 'setContext' &&
+          event.args[1] === 'course.tocReady',
+      )
+      .map((event) => event.args[2]);
+
+  it('restores the TOC-ready state from the file, on activation', () => {
+    const fresh = fs.mkdtempSync(path.join(os.tmpdir(), 'ccb-toc-'));
+    fs.mkdirSync(path.join(fresh, 'course'));
+    const original = vscodeStub.workspace.workspaceFolders;
+    try {
+      vscodeStub.workspace.workspaceFolders = [{ uri: { fsPath: fresh } }];
+
+      events = [];
+      extension.activate({ subscriptions: [] });
+      assert.deepEqual(
+        tocKeyWrites(),
+        [false],
+        'with no exports/toc.md the key must not be armed',
+      );
+
+      fs.mkdirSync(path.join(fresh, 'exports'));
+      fs.writeFileSync(path.join(fresh, 'exports', 'toc.md'), '- one\n');
+      events = [];
+      extension.activate({ subscriptions: [] });
+      assert.deepEqual(
+        tocKeyWrites(),
+        [true],
+        'a curated TOC on disk has to survive the reload that forgot the key',
+      );
+    } finally {
+      // Put the module back on the workspace the rest of this file runs in.
+      vscodeStub.workspace.workspaceFolders = original;
+      extension.activate({ subscriptions: [] });
+      fs.rmSync(fresh, { recursive: true, force: true });
+    }
+  });
+
+  it('refuses the TOC export when the file is gone, and un-arms the menu', async () => {
+    // The shape a watcher misses: `exports/` removed wholesale is one folder
+    // event, not a delete of the file inside it. Without this the command
+    // asked for a format and then failed in the terminal.
+    await registered['course.exportCourseToc']();
+
+    assert.equal(of('error').length, 1);
+    assert.match(of('error')[0].text, /exports\/toc\.md/);
+    assert.deepEqual(of('quickpick'), [], 'and it asks for nothing first');
+    assert.deepEqual(tocKeyWrites(), [false]);
+  });
+
+  it('exports the curated list, and leaves the key as it found it', async () => {
+    // Run all the way through, format and all. Stopping at the format pick
+    // would leave everything past it unpinned — including the disarm this
+    // command used to do, whose absence is the point of the test.
+    answers.quickPick = (items) => items.find((item) => item.format === 'pdf');
+    const exportsDir = path.join(workspace, 'exports');
+    fs.mkdirSync(exportsDir, { recursive: true });
+    fs.writeFileSync(path.join(exportsDir, 'toc.md'), '- one\n');
+    try {
+      await registered['course.exportCourseToc']();
+    } finally {
+      fs.rmSync(exportsDir, { recursive: true, force: true });
+    }
+
+    assert.deepEqual(of('error'), [], 'the file is there: nothing to refuse');
+    assert.equal(of('quickpick').length, 1, 'it asks for a format, once');
+    const sent = of('terminal.send');
+    assert.equal(sent.length, 1, 'and streams the export into a terminal');
+    assert.match(sent[0].text, /^npx course export --toc .*--format pdf$/);
+    assert.deepEqual(
+      tocKeyWrites(),
+      [],
+      'exporting the list does not remove it: the key has to stay armed, or ' +
+        'the same list cannot be exported to the other format as well',
+    );
   });
 
   it('settles a run whose reporting throws, and keeps the queue moving', async () => {

@@ -167,6 +167,19 @@ describe('VS Code extension: command palette visibility', () => {
     );
   });
 
+  it('leaves the TOC export ungated here, on purpose', () => {
+    // The view menu gates it on course.tocReady so the button is not offered
+    // over a TOC that does not exist. The palette deliberately does not: the
+    // command checks the file itself and refuses with a sentence, so gating
+    // buys nothing, while gating BOTH routes would make a key that missed its
+    // create event unreachable until a window reload. The palette is the way
+    // back in.
+    assert.ok(
+      !paletteMenus.some((m) => m.command === 'course.exportCourseToc'),
+      'gating the palette too would leave no route back from a stale key',
+    );
+  });
+
   it('hides only commands the manifest declares', () => {
     const declared = packageCommands.map((c) => c.command);
     for (const entry of paletteMenus) {
@@ -518,7 +531,72 @@ describe('VS Code extension: export commands', () => {
     );
     assert.ok(tocEntry, 'course.exportCourseToc needs a view/title entry');
     assert.match(tocEntry.when, /course\.tocReady/);
-    assert.match(extensionSource, /setContext', 'course\.tocReady', true/);
+    assert.match(extensionSource, /setTocReady\(true\)/);
+  });
+
+  it('writes that key from one place, so it cannot disagree with itself', () => {
+    // The key means "exports/toc.md is there". Restoring it on activation and
+    // clearing it from a watcher only hold together while every write goes
+    // through the same function: a second raw setContext elsewhere is how the
+    // menu and the disk start telling different stories.
+    const writes = extensionSource.match(/'course\.tocReady'/g) || [];
+    assert.equal(
+      writes.length,
+      1,
+      'course.tocReady should be named once, inside setTocReady',
+    );
+    assert.match(
+      extensionSource,
+      /const setTocReady = \(ready\) =>\s*vscode\.commands\.executeCommand\(\s*'setContext',\s*'course\.tocReady',\s*ready,?\s*\)/,
+    );
+  });
+
+  it('restores the key from the file at activation', () => {
+    // A context key dies with the window. The curated TOC does not, so a
+    // reload used to hide the only command that consumes it.
+    assert.match(
+      extensionSource,
+      /setTocReady\(fs\.existsSync\(curatedTocPath\(workspaceRoot\)\)\)/,
+    );
+  });
+
+  it('keeps the key with the file for as long as the window is open', () => {
+    assert.match(
+      extensionSource,
+      /createFileSystemWatcher\(\s*new vscode\.RelativePattern\(workspaceRoot, 'exports\/toc\.md'\)/,
+      'the pattern is rooted at the workspace: exports/ may not exist yet',
+    );
+    assert.match(extensionSource, /onDidCreate\(\(\) => setTocReady\(true\)\)/);
+    assert.match(
+      extensionSource,
+      /onDidDelete\(\(\) => setTocReady\(false\)\)/,
+    );
+  });
+
+  it('does not clear the key over a TOC that is still on disk', () => {
+    // Exporting the curated list to PDF leaves the list exactly where it was,
+    // and exporting it to DOCX as well is the ordinary next step. Clearing the
+    // key there made the key mean two things at once.
+    const start = extensionSource.indexOf("register('course.exportCourseToc'");
+    const handler = extensionSource.slice(
+      start,
+      extensionSource.indexOf("\n  register('", start),
+    );
+    assert.ok(start !== -1, 'the TOC export handler has to be findable');
+    assert.ok(
+      !/setTocReady\(true\)/.test(handler),
+      'the consuming command does not arm the key either',
+    );
+    assert.match(
+      handler,
+      /if \(!fs\.existsSync\(curatedTocPath\(workspaceRoot\)\)\)/,
+      'it checks the file itself, because a menu can be one event behind',
+    );
+    assert.match(
+      handler,
+      /setTocReady\(false\)/,
+      'and puts the menu straight when it finds the file gone',
+    );
   });
 });
 

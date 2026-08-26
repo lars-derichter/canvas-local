@@ -1067,6 +1067,21 @@ function createProgressGate(schedule, show) {
   };
 }
 
+/**
+ * Where `export-toc` writes the curated table of contents, or null when no
+ * folder is open to write it in.
+ *
+ * One fact, three readers that have to agree on it: the command that generates
+ * the file and opens it for editing, the activation check that restores the
+ * context key gating "Course: Export via TOC...", and the watcher that clears
+ * that key when the file goes away. The CLI's own `--output` can put the file
+ * somewhere else; the extension never asks it to, so this is the path it means.
+ */
+function curatedTocPath(root) {
+  if (!root) return null;
+  return path.join(root, 'exports', 'toc.md');
+}
+
 module.exports = {
   displayTitle,
   safeReadJSON,
@@ -1089,6 +1104,7 @@ module.exports = {
   getModuleCanvasId,
   canvasModuleUrl,
   readEnvConfig,
+  curatedTocPath,
   terminalNumber,
   pickTerminal,
   shellFlavour,

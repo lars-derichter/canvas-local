@@ -11,6 +11,7 @@ const {
   courseLocation,
   createProgressGate,
   createSerialQueue,
+  curatedTocPath,
   displayTitle,
   getCanvasId,
   getModuleCanvasId,
@@ -610,6 +611,33 @@ function activate(context) {
     context.subscriptions.push(watcher);
   }
 
+  // --- The curated table of contents ---
+  //
+  // `course.tocReady` gates "Course: Export via TOC..." wherever it is offered.
+  // The key says one thing: exports/toc.md is there to be exported. Nothing
+  // else may write it, or the menu starts disagreeing with the disk.
+  //
+  // Context keys do not survive a window reload, which is what this restores:
+  // the file sat there while the only command that consumes it had vanished
+  // from the menu. The watcher is the other half — a TOC deleted by hand takes
+  // the command away with it, rather than leaving an entry that fails in the
+  // terminal. Neither is load-bearing on its own: `course.exportCourseToc`
+  // checks the file itself, because a menu can always be one event behind.
+  const setTocReady = (ready) =>
+    vscode.commands.executeCommand('setContext', 'course.tocReady', ready);
+  if (workspaceRoot) {
+    setTocReady(fs.existsSync(curatedTocPath(workspaceRoot)));
+    // Relative to the workspace root rather than to exports/, which may not
+    // exist yet: a pattern rooted at a missing folder has nothing to watch,
+    // and the file being created is exactly the event that matters.
+    const tocWatcher = vscode.workspace.createFileSystemWatcher(
+      new vscode.RelativePattern(workspaceRoot, 'exports/toc.md'),
+    );
+    tocWatcher.onDidCreate(() => setTocReady(true));
+    tocWatcher.onDidDelete(() => setTocReady(false));
+    context.subscriptions.push(tocWatcher);
+  }
+
   // --- Terminal pool bookkeeping ---
 
   // Adopt pool-named terminals that survived a window reload, so a fresh
@@ -1149,14 +1177,16 @@ function activate(context) {
       // "Export via TOC" action (view menu) behind a context key.
       const ok = await runCli(['export-toc']);
       if (!ok) return;
-      const tocPath = path.join(workspaceRoot, 'exports', 'toc.md');
+      const tocPath = curatedTocPath(workspaceRoot);
       try {
         const doc = await vscode.workspace.openTextDocument(tocPath);
         await vscode.window.showTextDocument(doc);
       } catch {
         /* the file was written; opening is best-effort */
       }
-      vscode.commands.executeCommand('setContext', 'course.tocReady', true);
+      // The watcher would arm the key too, on its own schedule. This says so
+      // now, so the entry is there by the time the author has finished editing.
+      setTocReady(true);
       vscode.window.showInformationMessage(
         'Canvas Course Builder: Delete the item lines you do not want, then run "Course: Export via TOC" from the view menu.',
       );
@@ -1171,13 +1201,26 @@ function activate(context) {
 
   register('course.exportCourseToc', async () => {
     if (!validateWorkspace()) return;
+    // The menu entry can be one event behind the disk — a TOC deleted while
+    // the window is open, or an `exports/` removed wholesale, which a watcher
+    // reports as one folder event rather than as the file inside it. Checking
+    // here turns that into a sentence instead of a CLI error in the terminal,
+    // and puts the menu straight on the way past.
+    if (!fs.existsSync(curatedTocPath(workspaceRoot))) {
+      setTocReady(false);
+      vscode.window.showErrorMessage(
+        'Canvas Course Builder: There is no exports/toc.md to export. Run "Course: Export Course to PDF/DOCX..." and pick the table-of-contents option to make one.',
+      );
+      return;
+    }
     const format = await pickFormat();
     if (!format) return;
     runInTerminal(
       (q) =>
         `npx course export --toc ${q('exports/toc.md')} --format ${format}`,
     );
-    vscode.commands.executeCommand('setContext', 'course.tocReady', false);
+    // The key is not cleared here: the file is still on disk, and exporting the
+    // same curated list to the other format as well is the ordinary next step.
   });
 
   // --- Open in Canvas ---
