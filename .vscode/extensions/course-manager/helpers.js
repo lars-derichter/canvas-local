@@ -885,6 +885,35 @@ function shellQuote(value, flavour) {
   return `'${text.replace(/'/g, "'\\''")}'`;
 }
 
+/**
+ * The environment the CLI child runs with: this process's, plus
+ * `ELECTRON_RUN_AS_NODE`.
+ *
+ * The runner starts the CLI as `process.execPath <cli/index.js>`, and in a
+ * desktop VS Code `process.execPath` is not node: it is the Electron helper
+ * binary the extension host itself runs as. That binary behaves as node only
+ * when `ELECTRON_RUN_AS_NODE` is set in its environment. Without it, it boots
+ * as an Electron app instead and the CLI never runs.
+ *
+ * It works today without this line, and not for a reason worth leaning on. The
+ * extension host's own OS-level environment does *not* carry the variable —
+ * `ps eww` on a live host shows it absent, while every language server the host
+ * spawns has it, because each of those sets it explicitly. What supplies it is
+ * VS Code's own extension-host bootstrap, which assigns
+ * `process.env.ELECTRON_RUN_AS_NODE = '1'` at runtime, so a child inheriting
+ * `process.env` picks it up. That assignment is an implementation detail inside
+ * a minified bundle, with no API promising it and nothing in the process
+ * environment showing it, and it stops reaching the child the moment a caller
+ * passes a filtered environment. Setting it here makes the child's behaviour a
+ * property of this code instead.
+ *
+ * A remote or server extension host runs on plain node, where the variable
+ * means nothing and setting it is inert.
+ */
+function cliChildEnv(env) {
+  return { ...env, ELECTRON_RUN_AS_NODE: '1' };
+}
+
 module.exports = {
   displayTitle,
   safeReadJSON,
@@ -912,4 +941,5 @@ module.exports = {
   shellFlavour,
   shellQuote,
   UnquotableValue,
+  cliChildEnv,
 };

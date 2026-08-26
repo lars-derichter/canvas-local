@@ -32,6 +32,7 @@ const {
   shellFlavour,
   shellQuote,
   UnquotableValue,
+  cliChildEnv,
 } = require('../../.vscode/extensions/course-manager/helpers');
 const dotenv = require('dotenv');
 const { reorder } = require('../../cli/renumber');
@@ -2447,5 +2448,37 @@ describe('helpers: shellQuote survives a real shell', () => {
     assert.notDeepStrictEqual(run('"wow!!"'), ['wow!!']);
     // The claim: single quotes hold.
     assert.deepStrictEqual(run(shellQuote('wow!!', 'posix')), ['wow!!']);
+  });
+});
+
+describe('helpers: cliChildEnv', () => {
+  it('sets ELECTRON_RUN_AS_NODE, which decides whether the CLI runs at all', () => {
+    // process.execPath in a desktop extension host is the Electron helper
+    // binary, not node; it behaves as node only for a child whose environment
+    // carries this. Measured on a live host: the variable is absent from the
+    // extension host's own OS-level environment, and present only because
+    // VS Code's bootstrap assigns it to process.env at runtime.
+    assert.equal(cliChildEnv({}).ELECTRON_RUN_AS_NODE, '1');
+    assert.equal(cliChildEnv({ PATH: '/usr/bin' }).ELECTRON_RUN_AS_NODE, '1');
+  });
+
+  it('wins over a value already in the environment', () => {
+    assert.equal(
+      cliChildEnv({ ELECTRON_RUN_AS_NODE: '0' }).ELECTRON_RUN_AS_NODE,
+      '1',
+    );
+  });
+
+  it('keeps the rest of the environment and copies rather than mutates', () => {
+    // The child needs PATH, HOME and the rest to behave like a hand-run
+    // command, and process.env itself must not be edited on the way past.
+    const source = { PATH: '/usr/bin', CANVAS_API_URL: 'https://example.test' };
+    const child = cliChildEnv(source);
+    assert.equal(child.PATH, '/usr/bin');
+    assert.equal(child.CANVAS_API_URL, 'https://example.test');
+    assert.deepStrictEqual(source, {
+      PATH: '/usr/bin',
+      CANVAS_API_URL: 'https://example.test',
+    });
   });
 });

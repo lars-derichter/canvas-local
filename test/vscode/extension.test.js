@@ -1278,9 +1278,30 @@ describe('VS Code extension: workspace validation', () => {
 });
 
 describe('VS Code extension: CLI runner', () => {
+  // The runner section, between its own heading and the next one. The
+  // extension quotes `npx course …` command lines all over the file, so the
+  // assertions below about what the runner does *not* spawn only mean
+  // anything against the section itself.
+  const runner = extensionSource.slice(
+    extensionSource.indexOf('// --- Silent CLI runner'),
+    extensionSource.indexOf('// --- Pickers'),
+  );
+
   it('defines a silent runCli helper using execFile', () => {
+    assert.ok(runner.length > 0, 'the runner section has to be findable');
     assert.match(extensionSource, /function runCli\(/);
     assert.match(extensionSource, /cp\.execFile\(/);
+  });
+
+  it('tells the child to behave as node, rather than hoping it was told', () => {
+    // process.execPath in a desktop extension host is the Electron helper
+    // binary the host itself runs as, and it only behaves as node when
+    // ELECTRON_RUN_AS_NODE is in its environment. Measured on a live host:
+    // that variable is not in the extension host's OS-level environment. What
+    // supplies it is VS Code's own bootstrap writing it into process.env at
+    // runtime — an implementation detail of a minified bundle, which a
+    // filtered environment would drop without a word.
+    assert.match(runner, /env: cliChildEnv\(process\.env\)/);
   });
 
   it('surfaces a warning a successful run wrote to stderr', () => {

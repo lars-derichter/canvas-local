@@ -6,6 +6,7 @@ const http = require('http');
 const { CourseTreeProvider } = require('./CourseTreeProvider');
 const {
   canvasModuleUrl,
+  cliChildEnv,
   courseLocation,
   displayTitle,
   getCanvasId,
@@ -200,7 +201,11 @@ function runCli(args) {
     const cmdArgs = useNode ? [cliPath, ...args] : ['course', ...args];
 
     outputChannel.appendLine(`$ course ${args.join(' ')}`);
-    cp.execFile(cmd, cmdArgs, { cwd: workspaceRoot }, (err, stdout, stderr) => {
+    const options = {
+      cwd: workspaceRoot,
+      env: cliChildEnv(process.env),
+    };
+    cp.execFile(cmd, cmdArgs, options, (err, stdout, stderr) => {
       if (stdout) outputChannel.appendLine(stdout.trimEnd());
       if (stderr) outputChannel.appendLine(stderr.trimEnd());
       if (err) {
