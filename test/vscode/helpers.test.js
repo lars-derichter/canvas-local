@@ -19,6 +19,7 @@ const {
   batchPositions,
   sortByVisualOrder,
   validateBatchDrop,
+  leavesCourse,
   courseLocation,
   promoteActive,
   seedsDestination,
@@ -981,6 +982,96 @@ describe('helpers: getCanvasId and getModuleCanvasId', () => {
       getCanvasId(root, path.join(root, 'course-extra', '01-intro', 'a.md')),
       null,
     );
+  });
+
+  it('draws the course/ boundary where courseLocation draws it', () => {
+    // Both lookups turn an absolute path into a place inside course/, and they
+    // used to decide "inside" two different ways four screens apart: this one
+    // with `relative.startsWith('..')`, the other with the whole test. A folder
+    // whose name begins with two dots is the case where the shortcut is wrong
+    // on this platform — `..archive` is a legal directory name, and a file in
+    // it is as much inside course/ as any other. The other half of the
+    // divergence is Windows-only and pinned below.
+    fs.writeFileSync(
+      path.join(root, '.canvas-sync.json'),
+      JSON.stringify({
+        schema_version: 4,
+        modules: {
+          '..archive': {
+            name: 'Archive',
+            items: {
+              '..archive/01-old.md': { canvas_type: 'page', canvas_id: 'old' },
+            },
+          },
+        },
+      }),
+      'utf8',
+    );
+    assert.equal(getCanvasId(root, inCourse('..archive', '01-old.md')), 'old');
+    // And the pickers' side of the same boundary agrees it is inside, even
+    // though its own numbered-module rule then declines to place it.
+    assert.equal(
+      courseLocation(root, inCourse('..archive', '01-old.md')),
+      null,
+    );
+    assert.deepStrictEqual(
+      courseLocation(root, inCourse('01-mod', '..archive', 'a.md')),
+      { moduleFolder: '01-mod', segments: ['..archive', 'a.md'] },
+    );
+  });
+
+  it('refuses a path on a drive of its own, which only Windows produces', () => {
+    // The other half of the divergence, and the half that cannot be driven
+    // through `getCanvasId` here: `path.relative` answers with an absolute path
+    // only when there is no walk between the two at all, and on POSIX there
+    // always is one. So the rule is exercised at the flavour it exists for.
+    // Hardcoding `path` inside it would leave the leg written for Windows
+    // testable only on Windows, which is a leg nobody here can break on purpose
+    // and therefore nobody here can keep.
+    const foreign = path.win32.relative('C:\\ws\\course', 'D:\\other\\x.md');
+    assert.equal(foreign, 'D:\\other\\x.md');
+    assert.ok(
+      !foreign.startsWith('..'),
+      'the old shortcut read a second drive as a course file and keyed it',
+    );
+    assert.ok(
+      leavesCourse(foreign, path.win32),
+      'a path on another drive is outside course/, whatever it starts with',
+    );
+    // And the same answer is inside on POSIX, where `D:\other\x.md` is one
+    // ordinary filename: the rule follows the flavour rather than the string.
+    assert.equal(leavesCourse(foreign, path.posix), false);
+    assert.equal(leavesCourse('', path.win32), true);
+    assert.equal(leavesCourse('..', path.win32), true);
+    assert.equal(leavesCourse('..\\up.md', path.win32), true);
+    assert.equal(leavesCourse('01-mod\\a.md', path.win32), false);
+  });
+
+  it('never keys a path the boundary refused', () => {
+    // The end the rule exists for: a refused path must not reach the state as a
+    // key. Seeded with the row a missing `isAbsolute` leg would find on Windows,
+    // so the branch below is a real lookup rather than a null that would have
+    // come back anyway.
+    fs.writeFileSync(
+      path.join(root, '.canvas-sync.json'),
+      JSON.stringify({
+        schema_version: 4,
+        modules: {
+          m: {
+            name: 'M',
+            items: {
+              'D:/other/x.md': { canvas_type: 'page', canvas_id: 'foreign' },
+              '../outside.md': { canvas_type: 'page', canvas_id: 'escaped' },
+            },
+          },
+        },
+      }),
+      'utf8',
+    );
+    assert.equal(getCanvasId(root, path.join(root, 'outside.md')), null);
+    if (process.platform === 'win32') {
+      assert.equal(getCanvasId('C:\\ws', 'D:\\other\\x.md'), null);
+    }
   });
 
   it('returns null without a workspace root', () => {

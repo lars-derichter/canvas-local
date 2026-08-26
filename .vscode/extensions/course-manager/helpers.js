@@ -328,6 +328,46 @@ function validateBatchDrop(rows, dest, readDir) {
 }
 
 /**
+ * Does this `path.relative` answer mean "not from inside `course/`"?
+ *
+ * Three of its answers do: the empty string is `course/` itself, `..` and
+ * anything under it climbs back out, and an absolute result is a path it could
+ * not express as a walk at all.
+ *
+ * `getCanvasId` used to ask this as `relative.startsWith('..')`, which is wrong
+ * in both directions. It rejects `course/..hidden/01-x.md`, a legal directory
+ * on macOS and Linux that is genuinely inside course/; and it accepts
+ * `D:\elsewhere\x.md` against a workspace on `C:`, because that answer starts
+ * with a drive letter rather than with dots, so a file on another drive was
+ * keyed and looked up as though it were a course file. Two functions four
+ * screens apart answering the same question two ways is how that survived.
+ *
+ * The flavour is a parameter for the same reason `shellQuote` takes one: the
+ * last of the three is the win32 answer to a second drive letter, and on POSIX
+ * `path.relative` cannot produce it, so with `path` hardcoded the leg that
+ * exists for Windows could only ever be exercised on Windows. Callers pass
+ * nothing and get the platform.
+ */
+function leavesCourse(rel, flavour = path) {
+  return (
+    rel === '' ||
+    rel === '..' ||
+    rel.startsWith(`..${flavour.sep}`) ||
+    flavour.isAbsolute(rel)
+  );
+}
+
+/**
+ * Where `filePath` sits below `course/`, or null when it does not sit below it
+ * at all. The containment test, in the one place both course lookups reach for
+ * it.
+ */
+function courseRelative(workspaceRoot, filePath) {
+  const rel = path.relative(path.join(workspaceRoot, 'course'), filePath);
+  return leavesCourse(rel) ? null : rel;
+}
+
+/**
  * Where a file sits inside course/: `{ moduleFolder, segments }`, with
  * segments the path parts below the module folder, or null for a file the
  * module and item pickers have nothing to say about. Null covers a file
@@ -346,15 +386,8 @@ function validateBatchDrop(rows, dest, readDir) {
  */
 function courseLocation(workspaceRoot, filePath) {
   if (!workspaceRoot || !filePath) return null;
-  const rel = path.relative(path.join(workspaceRoot, 'course'), filePath);
-  if (
-    rel === '' ||
-    rel === '..' ||
-    rel.startsWith(`..${path.sep}`) ||
-    path.isAbsolute(rel)
-  ) {
-    return null;
-  }
+  const rel = courseRelative(workspaceRoot, filePath);
+  if (rel === null) return null;
   const [moduleFolder, ...segments] = rel.split(path.sep);
   if (!/^\d/.test(moduleFolder) || segments.length === 0) return null;
   return { moduleFolder, segments };
@@ -428,8 +461,8 @@ function readSyncState(workspaceRoot) {
  */
 function getCanvasId(workspaceRoot, filePath) {
   if (!workspaceRoot) return null;
-  const relative = path.relative(path.join(workspaceRoot, 'course'), filePath);
-  if (!relative || relative.startsWith('..')) return null;
+  const relative = courseRelative(workspaceRoot, filePath);
+  if (relative === null) return null;
   const key = relative.split(path.sep).join('/');
   const state = readSyncState(workspaceRoot);
   for (const module of Object.values((state && state.modules) || {})) {
@@ -1270,6 +1303,7 @@ module.exports = {
   batchPositions,
   sortByVisualOrder,
   validateBatchDrop,
+  leavesCourse,
   courseLocation,
   promoteActive,
   seedsDestination,
