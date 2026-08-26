@@ -97,6 +97,97 @@ describe('VS Code extension: package.json', () => {
   });
 });
 
+describe('VS Code extension: the titles the messages quote', () => {
+  // A message that tells the reader to run a command has to name it the way
+  // the palette does, or the instruction is a search that finds nothing. The
+  // one that started this: "Run \"Course: Init\" first", for a command titled
+  // "Course: Init (Canvas Setup)".
+  const sources = ['extension.js', 'CourseTreeProvider.js', 'helpers.js'].map(
+    (name) => ({
+      name,
+      text: fs.readFileSync(path.join(extDir, name), 'utf-8'),
+    }),
+  );
+  const titles = packageCommands.map((command) => command.title);
+  // Punctuation and case off, so "Course: Export via TOC" and the real
+  // "Course: Export via TOC..." collapse onto each other and can be compared.
+  const bare = (text) => text.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const titleByBare = new Map(titles.map((title) => [bare(title), title]));
+
+  /** Every double-quoted span in a source, which is how a title is quoted. */
+  function quotedSpans(text) {
+    return [...text.matchAll(/"([^"\n]+)"/g)].map((match) => match[1]);
+  }
+
+  it('finds the quoted titles it is meant to be checking', () => {
+    const found = sources.flatMap(({ text }) =>
+      quotedSpans(text).filter((span) => span.startsWith('Course: ')),
+    );
+    assert.ok(
+      found.length >= 4,
+      `only ${found.length} quoted "Course: …" titles found; the scan has ` +
+        'most likely stopped seeing them',
+    );
+  });
+
+  it('quotes a "Course: …" title exactly as the manifest declares it', () => {
+    for (const { name, text } of sources) {
+      for (const span of quotedSpans(text)) {
+        if (!span.startsWith('Course: ')) continue;
+        assert.ok(
+          titles.includes(span),
+          `${name} quotes "${span}", which no command is called. ` +
+            `Closest: ${JSON.stringify(titleByBare.get(bare(span)) ?? titles.filter((t) => t.startsWith(span)))}`,
+        );
+      }
+    }
+  });
+
+  it('spells a title it names in full down to the punctuation', () => {
+    // The trailing "..." is part of the title, and the two commands with a
+    // "Merge:" prefix have no "Course: " to catch them above.
+    for (const { name, text } of sources) {
+      for (const span of quotedSpans(text)) {
+        const title = titleByBare.get(bare(span));
+        if (!title || title === span) continue;
+        assert.fail(`${name} quotes "${span}" for the command "${title}"`);
+      }
+    }
+  });
+
+  it('does not drop the "Course: " a title carries', () => {
+    // The comment shorthand this started as: "Export via TOC" for a command
+    // called "Course: Export via TOC...". A general substring search for
+    // near-misses is too noisy to keep — it flags every quoted word that
+    // happens to sit inside some title — but this one shape is exact: a span
+    // that becomes a real title once the prefix is put back is the prefix
+    // having been dropped. Zero false positives over all 80 double-quoted
+    // spans in these three files, measured.
+    for (const { name, text } of sources) {
+      for (const span of quotedSpans(text)) {
+        if (titles.includes(span)) continue;
+        assert.ok(
+          !titles.includes(`Course: ${span}`),
+          `${name} quotes "${span}" for the command "Course: ${span}"`,
+        );
+      }
+    }
+  });
+
+  it('labels a welcome-view button with the title of its command', () => {
+    // The welcome view runs the command from a markdown link, and the link
+    // text is what the reader will go looking for in the palette afterwards.
+    const byId = new Map(packageCommands.map((c) => [c.command, c.title]));
+    const links = packageJson.contributes.viewsWelcome.flatMap((entry) => [
+      ...entry.contents.matchAll(/\[([^\]]+)\]\(command:([\w.]+)\)/g),
+    ]);
+    assert.ok(links.length > 0, 'the welcome view should offer a button');
+    for (const [, label, id] of links) {
+      assert.equal(label, byId.get(id), `the button for ${id} is mislabelled`);
+    }
+  });
+});
+
 describe('VS Code extension: command registry consistency', () => {
   const packageCommandIds = packageCommands.map((c) => c.command).sort();
 

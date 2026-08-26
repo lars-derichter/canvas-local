@@ -1196,8 +1196,8 @@ function activate(context) {
     if (!scope) return;
 
     if (scope.scope === 'toc') {
-      // Two-step flow: generate the TOC, open it for editing, then gate the
-      // "Export via TOC" action (view menu) behind a context key.
+      // Two-step flow: generate the TOC, open it for editing, then arm the key
+      // that offers "Course: Export via TOC..." in the view menu.
       const ok = await runCli(['export-toc']);
       if (!ok) return;
       const tocPath = curatedTocPath(workspaceRoot);
@@ -1211,7 +1211,7 @@ function activate(context) {
       // now, so the entry is there by the time the author has finished editing.
       setTocReady(true);
       vscode.window.showInformationMessage(
-        'Canvas Course Builder: Delete the item lines you do not want, then run "Course: Export via TOC" from the view menu.',
+        'Canvas Course Builder: Delete the item lines you do not want, then run "Course: Export via TOC..." from the view menu.',
       );
       return;
     }
@@ -1263,7 +1263,7 @@ function activate(context) {
 
     if (!apiUrl || !courseId) {
       vscode.window.showWarningMessage(
-        'Canvas Course Builder: No Canvas API configuration found. Run "Course: Init" first.',
+        'Canvas Course Builder: No Canvas API configuration found. Run "Course: Init (Canvas Setup)" first.',
       );
       return;
     }
