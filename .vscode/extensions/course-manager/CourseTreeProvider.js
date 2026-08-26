@@ -2,6 +2,7 @@ const vscode = require('vscode');
 const fs = require('fs');
 const path = require('path');
 const {
+  directoryReadError,
   displayTitle,
   safeReadJSON,
   readFrontmatter,
@@ -64,6 +65,17 @@ class CourseTreeItem extends vscode.TreeItem {
 
 const TREE_MIME = 'application/vnd.code.tree.coursetree';
 
+/**
+ * How long unreadable-directory reports are held so one burst becomes one
+ * notification.
+ *
+ * Short on purpose. It has to cover one refresh, whose listings land within
+ * milliseconds of each other, and it must not reach as far as the next thing
+ * the author does: two folders that fail because two separate actions broke
+ * them are two pieces of news.
+ */
+const UNREADABLE_BURST_MS = 50;
+
 /** Tell the author why a drop could not be handed to the CLI. */
 function refuseDrop(message) {
   vscode.window.showInformationMessage(`Canvas Course Builder: ${message}`);
@@ -84,6 +96,25 @@ class CourseTreeProvider {
     this._onDidChangeTreeData = new vscode.EventEmitter();
     this.onDidChangeTreeData = this._onDidChangeTreeData.event;
 
+    // Which failures each directory has already been reported for, by error
+    // code. The tree redraws on every file change in course/ and after every
+    // CLI run, so reporting every time would fire a notification per refresh
+    // for the rest of the session — but remembering the directory alone
+    // silences it for good, including a different failure later, and one that
+    // comes back after the folder had recovered. The code is part of the key,
+    // and a successful read clears the entry. Keyed by code rather than by the
+    // message: a message carries the directory and the code and nothing else
+    // today, but a message that varied would defeat the whole thing.
+    this._reportedUnreadable = new Map();
+
+    // Failures waiting to be reported together. One notification per burst,
+    // because the codes worth reporting arrive in bursts: EMFILE is the host
+    // running out of descriptors, and every directory in the refresh fails at
+    // once. Thirteen notifications for one event is the noise this exists to
+    // prevent, moved rather than removed.
+    this._pendingUnreadable = [];
+    this._unreadableTimer = null;
+
     // TreeDragAndDropController properties
     this.dropMimeTypes = [TREE_MIME, 'text/uri-list'];
     this.dragMimeTypes = [TREE_MIME];
@@ -91,6 +122,69 @@ class CourseTreeProvider {
 
   refresh() {
     this._onDidChangeTreeData.fire();
+  }
+
+  /**
+   * One directory listing, for a tree that has to keep drawing either way.
+   *
+   * Every read here races the author and the CLI (see `directoryReadError`),
+   * and a throw out of `getChildren` is not a missing row: the root listing
+   * takes the whole view with it, and a module listing takes the module. So a
+   * failed read is an empty listing, and the one failure an empty listing would
+   * misrepresent — the folder is there and unreadable — says so out loud, once
+   * per code, and again once the folder has read in between.
+   */
+  _listDir(dir) {
+    try {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      // A directory that reads has nothing outstanding against it any more, so
+      // whatever happens to it next is news again.
+      this._reportedUnreadable.delete(dir);
+      return entries;
+    } catch (error) {
+      const message = directoryReadError(dir, error);
+      if (message) {
+        this._reportUnreadable(
+          dir,
+          (error && error.code) || 'unknown',
+          message,
+        );
+      }
+      return [];
+    }
+  }
+
+  /**
+   * Queue one unreadable directory for reporting: at most once per code while
+   * it stays unreadable, and at most one notification per burst.
+   */
+  _reportUnreadable(dir, code, message) {
+    const reported = this._reportedUnreadable.get(dir) ?? new Set();
+    if (reported.has(code)) return;
+    reported.add(code);
+    this._reportedUnreadable.set(dir, reported);
+
+    this._pendingUnreadable.push({ dir, message });
+    if (this._unreadableTimer) return;
+    this._unreadableTimer = setTimeout(() => {
+      const pending = this._pendingUnreadable;
+      this._pendingUnreadable = [];
+      this._unreadableTimer = null;
+
+      const [first] = pending;
+      const others = new Set(pending.map((entry) => entry.dir));
+      others.delete(first.dir);
+      const rest =
+        others.size === 0
+          ? ''
+          : ` ${others.size} other folder${others.size === 1 ? '' : 's'} could not be read either.`;
+      vscode.window.showWarningMessage(
+        `Canvas Course Builder: ${first.message}${rest}`,
+      );
+    }, UNREADABLE_BURST_MS);
+    // A pending notification is not a reason to keep the host alive, and in a
+    // test run it is not a reason to keep the process alive either.
+    this._unreadableTimer.unref?.();
   }
 
   getTreeItem(element) {
@@ -110,7 +204,7 @@ class CourseTreeProvider {
   }
 
   _getModules(courseDir) {
-    const entries = fs.readdirSync(courseDir, { withFileTypes: true });
+    const entries = this._listDir(courseDir);
     const modules = [];
 
     for (const entry of entries) {
@@ -143,7 +237,7 @@ class CourseTreeProvider {
 
   _getModuleItems(moduleNode) {
     const folderPath = moduleNode.folderPath;
-    const entries = fs.readdirSync(folderPath, { withFileTypes: true });
+    const entries = this._listDir(folderPath);
     const items = [];
 
     for (const entry of entries) {
@@ -182,7 +276,7 @@ class CourseTreeProvider {
 
   _getSubfolderItems(subheaderNode) {
     const folderPath = subheaderNode.folderPath;
-    const entries = fs.readdirSync(folderPath, { withFileTypes: true });
+    const entries = this._listDir(folderPath);
     const items = [];
 
     for (const entry of entries) {
@@ -583,13 +677,10 @@ class CourseTreeProvider {
   }
 
   _readDirEntries(dir) {
-    let entries;
-    try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
-    } catch {
-      entries = [];
-    }
-    return entries.map((e) => ({ name: e.name, isDirectory: e.isDirectory() }));
+    return this._listDir(dir).map((e) => ({
+      name: e.name,
+      isDirectory: e.isDirectory(),
+    }));
   }
 
   async _handleSubsectionDrop(dragged, target, runCli) {

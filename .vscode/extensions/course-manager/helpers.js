@@ -1068,6 +1068,34 @@ function createProgressGate(schedule, show) {
 }
 
 /**
+ * What to tell the author about a directory listing that threw, or null when
+ * there is nothing to tell.
+ *
+ * The tree lists a directory each time it draws a row, and every one of those
+ * listings races the author: a folder can be renamed, moved or deleted between
+ * the refresh being scheduled and the read happening, and the CLI's own
+ * renumbering renames folders under the tree by design. A throw there takes out
+ * whatever the caller was building, up to and including the whole view.
+ *
+ * Catching it is not enough on its own, because "gone" and "unreadable" are not
+ * the same event and an empty tree is a plausible answer to only one of them:
+ *
+ *   - ENOENT and ENOTDIR mean the folder is not there any more, or is not a
+ *     folder. The refresh that follows the change will draw the truth, so
+ *     saying nothing is right.
+ *   - Everything else — EACCES on a folder whose permissions changed, EMFILE
+ *     when the host has run out of descriptors — means the content is there and
+ *     this process cannot see it. Answering [] silently would draw an empty
+ *     module and call it the truth.
+ */
+function directoryReadError(dir, error) {
+  const code = error && error.code;
+  if (code === 'ENOENT' || code === 'ENOTDIR') return null;
+  const reason = code || (error && error.message) || 'unknown error';
+  return `${dir} could not be read (${reason}), so the tree is showing it empty.`;
+}
+
+/**
  * What is wrong with a typed points-possible value, or null when nothing is.
  * The shape `showInputBox`'s `validateInput` wants.
  *
@@ -1185,6 +1213,7 @@ module.exports = {
   getModuleCanvasId,
   canvasModuleUrl,
   readEnvConfig,
+  directoryReadError,
   newItemTypes,
   validatePoints,
   curatedTocPath,

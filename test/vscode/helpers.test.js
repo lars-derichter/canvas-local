@@ -27,6 +27,7 @@ const {
   getModuleCanvasId,
   canvasModuleUrl,
   readEnvConfig,
+  directoryReadError,
   newItemTypes,
   validatePoints,
   curatedTocPath,
@@ -1536,6 +1537,49 @@ describe('helpers: readEnvConfig agrees with dotenv', () => {
       );
     });
   }
+});
+
+describe('helpers: directoryReadError', () => {
+  const thrown = (code) =>
+    Object.assign(new Error(`${code}: readdir`), { code });
+
+  it('says nothing about a folder that is simply not there', () => {
+    // The refresh behind the change draws the truth a moment later, so a
+    // notification would be noise about something already fixed.
+    assert.equal(directoryReadError('/course/03-week', thrown('ENOENT')), null);
+  });
+
+  it('says nothing about a folder that is not a folder any more', () => {
+    assert.equal(
+      directoryReadError('/course/03-week', thrown('ENOTDIR')),
+      null,
+    );
+  });
+
+  it('reports a folder that is there and cannot be read', () => {
+    // The case an empty listing misrepresents: the module still has its items,
+    // and the tree is about to draw it empty.
+    const message = directoryReadError('/course/03-week', thrown('EACCES'));
+    assert.match(message, /\/course\/03-week/, 'it has to name the folder');
+    assert.match(message, /EACCES/, 'and why, or there is nothing to act on');
+    assert.match(message, /empty/, 'and what the tree did instead');
+  });
+
+  it('reports the other read failures too, not only permissions', () => {
+    for (const code of ['EPERM', 'EMFILE', 'ENFILE', 'ELOOP', 'EIO']) {
+      const message = directoryReadError('/course', thrown(code));
+      assert.ok(message, `${code} left the tree empty with nothing said`);
+      assert.match(message, new RegExp(code));
+    }
+  });
+
+  it('falls back to the message, and then to a word, for a code-less error', () => {
+    assert.match(
+      directoryReadError('/course', new Error('something odd')),
+      /something odd/,
+    );
+    assert.match(directoryReadError('/course', undefined), /unknown error/);
+  });
 });
 
 describe('helpers: validatePoints', () => {
