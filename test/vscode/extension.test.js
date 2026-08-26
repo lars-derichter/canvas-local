@@ -52,6 +52,32 @@ function parseNoValidationCommands(source) {
   return [...literal.matchAll(/'(course\.\w+)'/g)].map((m) => m[1]);
 }
 
+/**
+ * One command handler's source: from its `register()` call to the next one.
+ *
+ * A handler is bounded by the next registration, and a section by the next
+ * section marker, so both of these read a region the file itself delimits.
+ * They replace three slices of a fixed number of characters — 600, 900 and
+ * 1200 — which pinned the wrong thing: adding an ordinary comment to a handler
+ * pushed the line under test past the end of the window and failed a test whose
+ * message mentioned neither comments nor lengths.
+ */
+function handlerSource(id) {
+  const start = extensionSource.indexOf(`register('${id}'`);
+  assert.notEqual(start, -1, `${id} should be registered`);
+  const next = extensionSource.indexOf("\n  register('", start);
+  return extensionSource.slice(start, next === -1 ? undefined : next);
+}
+
+/** One `// --- Name ---` section, up to the next section marker. */
+function sectionSource(name) {
+  const start = extensionSource.indexOf(`// --- ${name}`);
+  assert.notEqual(start, -1, `the "${name}" section should be findable`);
+  const rest = extensionSource.slice(start + 1);
+  const next = rest.indexOf('// --- ');
+  return next === -1 ? rest : rest.slice(0, next);
+}
+
 // Does a when-clause admit a row with this contextValue? Covers the two
 // shapes the manifest writes: `viewItem == x` and `viewItem =~ /re/`.
 function admits(when, contextValue) {
@@ -231,13 +257,7 @@ describe('VS Code extension: command palette visibility', () => {
   ];
   const paletteMenus = packageJson.contributes.menus.commandPalette;
 
-  // The handler body, from its register() call to the next one.
-  function handlerFor(id) {
-    const start = extensionSource.indexOf(`register('${id}'`);
-    assert.ok(start !== -1, `${id} should be registered`);
-    const next = extensionSource.indexOf("\n  register('", start);
-    return extensionSource.slice(start, next === -1 ? undefined : next);
-  }
+  const handlerFor = handlerSource;
 
   it('declares a commandPalette menu section', () => {
     assert.ok(
@@ -1339,9 +1359,7 @@ describe('VS Code extension: search command', () => {
   });
 
   it('prompts for a keyword and streams the search through the terminal', () => {
-    const start = extensionSource.indexOf("register('course.search'");
-    assert.ok(start !== -1);
-    const handler = extensionSource.slice(start, start + 600);
+    const handler = handlerSource('course.search');
     assert.match(handler, /showInputBox/);
     assert.match(handler, /npx course search \$\{q\(keyword\.trim\(\)\)\}/);
   });
@@ -1955,9 +1973,7 @@ describe('VS Code extension: terminal pool', () => {
   });
 
   it('adopts pool-named terminals from before a window reload as busy', () => {
-    const start = extensionSource.indexOf('Terminal pool bookkeeping');
-    assert.ok(start !== -1);
-    const wiring = extensionSource.slice(start, start + 900);
+    const wiring = sectionSource('Terminal pool bookkeeping');
     assert.match(
       wiring,
       /terminalNumber\(terminal\.name, TERMINAL_BASE_NAME\) !== null/,
@@ -2630,8 +2646,7 @@ describe('VS Code extension: the flavour the quoting is done for', () => {
   it('leaves an adopted terminal unstamped, which the guess depends on', () => {
     // Stamping these with the current profile at activation would turn a guess
     // into a claim, and runInTerminal could no longer tell the two apart.
-    const start = extensionSource.indexOf('Terminal pool bookkeeping');
-    const wiring = extensionSource.slice(start, start + 1200);
+    const wiring = sectionSource('Terminal pool bookkeeping');
     assert.match(wiring, /flavour: null/);
     assert.ok(
       !/flavour: currentFlavour\(\)/.test(wiring),
