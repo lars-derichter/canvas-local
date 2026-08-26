@@ -8,6 +8,7 @@ const os = require('os');
 const {
   displayTitle,
   safeReadJSON,
+  readCategoryLabel,
   readFrontmatter,
   extractPosition,
   cliSiblings,
@@ -140,12 +141,69 @@ describe('helpers: safeReadJSON', () => {
   });
 
   it('honours the caller fallback, null included', () => {
-    // The tree passes null and then reads `cat?.label`, so an empty object
-    // would be a label-less category rather than no category at all.
+    // The fallback is the caller's to choose: `readCategoryLabel` asks for
+    // null, so a folder with no readable `_category_.json` reads as no
+    // category rather than as a category holding nothing.
     assert.equal(safeReadJSON(path.join(tmpDir, 'absent.json'), null), null);
     assert.deepStrictEqual(safeReadJSON(write('bad.json', '{oops'), { a: 1 }), {
       a: 1,
     });
+  });
+});
+
+describe('helpers: readCategoryLabel', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'helpers-category-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  const withCategory = (text) => {
+    const folder = fs.mkdtempSync(path.join(tmpDir, 'folder-'));
+    if (text !== null) {
+      fs.writeFileSync(path.join(folder, '_category_.json'), text, 'utf8');
+    }
+    return folder;
+  };
+
+  it('reads the label a category file names', () => {
+    assert.equal(
+      readCategoryLabel(withCategory('{"label": "Intro", "position": 1}')),
+      'Intro',
+    );
+  });
+
+  it('returns null when there is no label to read', () => {
+    // Every way a folder can fail to name itself, and they are all ordinary
+    // states of a course being edited rather than corruption.
+    assert.equal(readCategoryLabel(withCategory(null)), null, 'no file');
+    assert.equal(readCategoryLabel(withCategory('{oops')), null, 'half-typed');
+    assert.equal(
+      readCategoryLabel(withCategory('null')),
+      null,
+      'null document',
+    );
+    assert.equal(readCategoryLabel(withCategory('{"position": 1}')), null);
+    assert.equal(readCategoryLabel(withCategory('{"label": ""}')), null);
+  });
+
+  it('refuses a label that is not a name', () => {
+    // The divergence this reader exists to close. The tree took any truthy
+    // label, so `42` was a tree row reading "42" while the module picker,
+    // which demanded a string, read the folder name instead; an object label
+    // drew a row with no text in it at all. A label is a name or it is nothing,
+    // and the caller falls back on `displayTitle` either way.
+    assert.equal(readCategoryLabel(withCategory('{"label": 42}')), null);
+    assert.equal(readCategoryLabel(withCategory('{"label": true}')), null);
+    assert.equal(readCategoryLabel(withCategory('{"label": ["Intro"]}')), null);
+    assert.equal(
+      readCategoryLabel(withCategory('{"label": {"value": "Intro"}}')),
+      null,
+    );
   });
 });
 

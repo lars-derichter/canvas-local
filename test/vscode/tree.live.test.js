@@ -15,7 +15,7 @@ const os = require('os');
  * builds real folders on disk, so `getChildren` runs against real reads.
  *
  * The stub is deliberately the small one: what the provider itself touches, and
- * no more. `runner.live.test.js` carries the whole-extension stub, and the two
+ * no more. `extension.live.test.js` carries the whole-extension stub, and the two
  * files run in separate processes, so neither has to make room for the other's
  * needs.
  */
@@ -156,6 +156,31 @@ describe('VS Code extension: the tree, read', () => {
     const [subheader] = items.filter((i) => i.contextValue === 'subheader');
     assert.equal(tree.getChildren(subheader).length, 1);
     assert.deepEqual(of('warning'), []);
+  });
+
+  it('labels a row from _category_.json, and only from a real name', () => {
+    // The tree and the module picker read this file two different ways, and
+    // this is where they disagreed: the tree took any truthy label, so a
+    // `_category_.json` holding a number drew a row reading "42" while the
+    // picker, which demanded a string, offered "Week two". Both go through
+    // `readCategoryLabel` now, and a label that is not a name is no label.
+    const label = (name, category) => {
+      const dir = seedModule(name);
+      fs.writeFileSync(path.join(dir, '_category_.json'), category, 'utf8');
+      const rows = new CourseTreeProvider(workspace).getChildren();
+      return rows.find((row) => row.moduleFolderName === name).label;
+    };
+
+    assert.equal(
+      label('01-week-one', '{"label": "Opening Week"}'),
+      'Opening Week',
+    );
+    assert.equal(label('02-week-two', '{"label": 42}'), 'Week two');
+    assert.equal(
+      label('03-week-three', '{"label": {"value": "x"}}'),
+      'Week three',
+    );
+    assert.equal(label('04-week-four', '{oops'), 'Week four');
   });
 
   it('survives a module folder that vanishes between two reads', () => {

@@ -20,6 +20,7 @@ const {
   previewPort,
   previewTerminalEntry,
   promoteActive,
+  readCategoryLabel,
   readEnvConfig,
   readFrontmatter,
   seedsDestination,
@@ -465,19 +466,6 @@ async function pickModuleFolder(placeHolder, { preselect = true } = {}) {
   }
   const picked = await vscode.window.showQuickPick(items, { placeHolder });
   return picked ? picked.folder : null;
-}
-
-function readCategoryLabel(folderPath) {
-  try {
-    const cat = JSON.parse(
-      fs.readFileSync(path.join(folderPath, '_category_.json'), 'utf8'),
-    );
-    return typeof cat.label === 'string' && cat.label.length > 0
-      ? cat.label
-      : null;
-  } catch {
-    return null;
-  }
 }
 
 function listEntries(dir, { filesOnly = false } = {}) {

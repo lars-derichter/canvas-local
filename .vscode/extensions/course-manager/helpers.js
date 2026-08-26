@@ -37,6 +37,26 @@ function safeReadJSON(filePath, fallback = {}) {
 }
 
 /**
+ * The name a folder's Docusaurus `_category_.json` gives it, or null when it
+ * gives it none. Callers fall back on `displayTitle` of the folder name.
+ *
+ * One reader, because there were two: the tree took `safeReadJSON(…)?.label`,
+ * the module picker parsed the same file itself and demanded a non-empty
+ * string. They disagreed on a label that is not a string — `{"label": 42}` was
+ * a tree row reading `42` and a picker row reading "Intro", and an object label
+ * drew a row with no text in it at all. The strict reading is the one kept: a
+ * label is a name, and a `_category_.json` that does not hold one has not named
+ * the folder, whoever is asking.
+ */
+function readCategoryLabel(folderPath) {
+  const label = safeReadJSON(
+    path.join(folderPath, '_category_.json'),
+    null,
+  )?.label;
+  return typeof label === 'string' && label.length > 0 ? label : null;
+}
+
+/**
  * Read frontmatter fields from a markdown file without a YAML dependency.
  * Returns { canvasType, title, externalUrl }. The Canvas id is deliberately
  * not among them: identity lives in `.canvas-sync.json`, keyed by path, and a
@@ -1292,6 +1312,7 @@ function curatedTocPath(root) {
 module.exports = {
   displayTitle,
   safeReadJSON,
+  readCategoryLabel,
   readFrontmatter,
   extractPosition,
   cliSiblings,

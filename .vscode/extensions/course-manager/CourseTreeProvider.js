@@ -4,7 +4,7 @@ const path = require('path');
 const {
   directoryReadError,
   displayTitle,
-  safeReadJSON,
+  readCategoryLabel,
   readFrontmatter,
   extractPosition,
   cliSiblings,
@@ -212,8 +212,7 @@ class CourseTreeProvider {
       if (entry.name.startsWith('_')) continue;
 
       const folderPath = path.join(courseDir, entry.name);
-      const cat = safeReadJSON(path.join(folderPath, '_category_.json'), null);
-      const label = cat?.label || displayTitle(entry.name);
+      const label = readCategoryLabel(folderPath) || displayTitle(entry.name);
       const position = extractPosition(entry.name);
 
       const item = new CourseTreeItem(
@@ -245,8 +244,7 @@ class CourseTreeProvider {
       const fullPath = path.join(folderPath, entry.name);
 
       if (entry.isDirectory()) {
-        const cat = safeReadJSON(path.join(fullPath, '_category_.json'), null);
-        const label = cat?.label || displayTitle(entry.name);
+        const label = readCategoryLabel(fullPath) || displayTitle(entry.name);
         const item = new CourseTreeItem(
           label,
           vscode.TreeItemCollapsibleState.Collapsed,
