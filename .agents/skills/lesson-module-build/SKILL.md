@@ -78,8 +78,8 @@ with one sentence if the source is not a `.md` under `sources/lessons/`.
    scratchpad, then **copy** the archive into
    `course/NN-<slug>/_files/<project>.zip`. Never let `zip` write directly into
    a cloud-synced folder (a rename inside such a mount can fail with "Operation
-   not permitted"); same for PNGs. Verify with `unzip -l` that each archive
-   holds only the intended files; stop with a clear error if not.
+   not permitted"). Verify with `unzip -l` that each archive holds only the
+   intended files; stop with a clear error if not.
 
 5. **Image placeholders.** Per placeholder, a 1x1 transparent PNG (kebab-case,
    ASCII, `.png`), written in the scratchpad and copied into `_files/`:
@@ -90,12 +90,13 @@ with one sentence if the source is not a `.md` under `sources/lessons/`.
    ```
 
 6. **Markdown pages.** Student-facing register per `context/writing-style.md`
-   (voice, punctuation, page-title emoji, callouts), frontmatter per
+   (voice, punctuation, page-title emoji, callouts). Frontmatter per
    `docs/frontmatter.md`: homework becomes `canvas_type: assignment`; mirror the
-   worked example's homework page or ask for the values once. Mirror the worked
-   examples, not the lesson plan. Use the canonical glossary's base terms: a
-   term's listed synonyms may be named once at first use; never standardise on a
-   synonym or invent one. Cross-links are relative: `./0X-<slug>.md`,
+   worked example's homework page or ask for the values once. Conventions and
+   formatting mirror the worked examples and `course-context.md`; content comes
+   from the plan alone. Use the canonical glossary's base terms: a term's listed
+   synonyms may be named once at first use; never standardise on a synonym or
+   invent one. Cross-links are relative: `./0X-<slug>.md`,
    `../NN-<module>/0X-<slug>.md`, `./_files/<name>.zip`. Embed images where they
    belong; each page with images gets one HTML-comment TODO block at the bottom
    listing what each must show.

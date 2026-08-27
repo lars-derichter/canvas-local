@@ -1,6 +1,6 @@
 ---
 name: issue-fix
-description: Work through the open issues in sources/issues.md. Phase A verifies and groups every entry, checks wider implications (same defect elsewhere, style-rule drift, glossary, course context, lesson plans, evaluations), bundles all clarifying questions into one round, and presents one fix plan; Phase B applies the fixes only after approval and moves entries to Resolved. Never fixes style preferences silently, never commits. Use for "fix issues", "work the issue queue", "fix the queue", "issues afwerken", "werk de foutenlijst af", "los de issues op".
+description: Work through the open issues in sources/issues.md. Phase A verifies and groups every entry, checks wider implications, bundles all clarifying questions into one round, and presents one fix plan; Phase B applies the fixes only after approval and moves entries to Resolved. Never fixes style preferences silently, never commits. Use for "fix issues", "work the issue queue", "fix the queue", "issues afwerken", "werk de foutenlijst af", "los de issues op".
 ---
 
 # Issue Fix
@@ -63,14 +63,15 @@ entries. Empty means every entry under `## Open`.
 5. **Bundle every clarifying question into one question round**: unverifiable
    locations, entries that are really author decisions rather than defects,
    whether an approved fix should extend to the same-defect-elsewhere hits. A
-   question that surfaces later goes into a plan revision, never a second ad-hoc
-   round.
+   question that surfaces later goes into a revised plan presented the same way,
+   never a second ad-hoc round.
 
 6. **Present one fix plan in chat**, per group and numbered entry: the proposed
-   action (fix as described / already fixed, move only / not a defect, close as
-   author decision / route to `/writing-style-update`, `/course-context-update`
-   or `/lesson-retro` / defer), the files it touches, and the follow-ups from
-   step 4. Add a separate list of what will _not_ be fixed and why.
+   action, the files it touches, and the follow-ups from step 4. The actions:
+   fix as described; already fixed, move only; not a defect, close as author
+   decision; route to `/writing-style-update`, `/course-context-update` or
+   `/lesson-retro`; defer. Add a separate list of what will _not_ be fixed and
+   why.
 
 7. Adjust the plan on request and stay in Phase A. Stop. Wait for explicit
    approval before starting Phase B.
@@ -108,12 +109,8 @@ entries. Empty means every entry under `## Open`.
 - **Language.** Write everything in the language `context/writing-style.md`
   states the course uses; `course.config.yml`'s `language` key only picks the
   generated labels. Reply in chat in the language the author writes in.
-- Never fix silently: `[style]` preferences route through the
-  `/writing-style-update` offer, design decisions and scope changes go back to
-  the author, anything unclear goes into the question round.
 - Fix only what the queue and the approved plan cover: no drive-by rewrites of
   surrounding prose.
-- Every Resolved move states what changed, or why nothing had to.
 - Course specifics (glossary path, conventions) come from `course-context.md` at
   runtime; hardcode nothing.
 - No commits, no pushes, no staging; never run `npx course push`.

@@ -20,8 +20,8 @@ all of `course/`.
 ## Steps
 
 1. **Find placeholder PNGs.** `/lesson-module-build` writes a fixed 1x1
-   transparent PNG. Decode the known bytes to a temp file and compare checksums
-   against every PNG under `course/**/_files/`:
+   transparent PNG. Decode the known bytes to a file in the session scratchpad
+   and compare checksums against every PNG under `course/**/_files/`:
 
    ```bash
    P="<session scratchpad>/image-todos-placeholder.png"
@@ -35,11 +35,12 @@ all of `course/`.
    200 bytes as a _suspected_ placeholder (a hand-edited or differently
    generated stub) and label it as suspected in the report.
 
-2. **Find TODO blocks.** Grep the pages under `course/` for HTML comments
-   containing `TODO` (`grep -rn 'TODO' course --include='*.md'`, then keep only
-   hits inside `<!-- … -->`). `/lesson-module-build` puts one block at the
-   bottom of each page with images, listing each placeholder and what it must
-   show; other image-related TODO comments count too.
+2. **Find TODO blocks.** Grep the pages under `course/` for `TODO`
+   (`grep -rn 'TODO' course --include='*.md'`), then read each hit's surrounding
+   lines and keep only those inside an HTML comment. `/lesson-module-build` puts
+   one block at the bottom of each page with images, listing each placeholder
+   and what it must show; a TODO comment that names or sits beside an image
+   reference counts too.
 
 3. **Find embeds.** For each placeholder from step 1, grep the pages for a
    reference to its filename (markdown image syntax or `src=`), and record which
@@ -71,8 +72,6 @@ all of `course/`.
   as it stands, whatever language that is.
 - Pure report. Write nothing under the repo; the decoded reference PNG goes to
   the scratchpad only.
-- A placeholder is only _confirmed_ by checksum; size-based hits stay labelled
-  as suspected.
 - Course-agnostic: no hardcoded module names or image lists; everything comes
   from the filesystem at runtime.
 - No commits, no pushes, no staging.

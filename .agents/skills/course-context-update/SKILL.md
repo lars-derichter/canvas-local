@@ -11,22 +11,26 @@ the lesson skills work from them instead of asking the same question next
 session. The session-sized counterpart to `/course-context-init`, which fills
 the whole document from the repo and an interview.
 
+## Input
+
+`$ARGUMENTS` may hold the decision to record; treat it as a signal alongside the
+conversation. Empty means scan the conversation alone.
+
 ## Steps
 
-1. **Scan the conversation** for course-design signals: learning goals and the
-   notation used to reference them, assessment rules ("every goal is tested at
-   least once", weights, allowed aids), teaching methods the author named,
-   lesson-plan or module conventions they corrected, code and download rules,
-   glossary decisions, and scope calls ("that belongs in the follow-up course").
-   Separate a durable course fact from a one-off decision about the artefact in
-   hand: only the first belongs in the document.
+1. **Scan the conversation** for course-design signals: learning goals and their
+   reference notation, assessment rules, teaching methods, corrected lesson-plan
+   or module conventions, code and download rules, glossary decisions, and scope
+   calls ("that belongs in the follow-up course"). Keep only durable course
+   facts: a one-off decision about the artefact in hand does not belong in the
+   document.
 
 2. **Cluster the findings by the actual current headings of
    `course-context.md`**: read them at runtime, never assume the section list or
-   its language. A Dutch course has Dutch headings and its own goal notation;
-   the set of sections is fixed and ordered, the names are not. Each finding
-   lands in one of two cases: a section still on `TODO` that the conversation
-   now answers, or a filled section a new fact contradicts or sharpens.
+   its language. A Dutch course has Dutch headings; the set of sections is
+   fixed, the names are not. Each finding lands in one of two cases: a section
+   still on `TODO` that the conversation now answers, or a filled section a new
+   fact contradicts or sharpens.
 
 3. **Propose the edits**: a concise list with the reason and the source in the
    conversation for each. For a `TODO` section, replace the `TODO` and drop that

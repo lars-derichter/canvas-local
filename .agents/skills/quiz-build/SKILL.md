@@ -6,9 +6,8 @@ description: Turn a question list into a QTI 1.2 package that Canvas can import 
 # Quiz Build
 
 Convert a list of questions into a QTI 1.2 `.zip` that imports into Canvas as a
-quiz, written under `evaluations/<year>/<slug>/`. No Canvas API is involved.
-Import happens through the Canvas UI, and the instructions land in the companion
-file.
+quiz, written under `evaluations/<year>/<slug>/`. Import happens through the
+Canvas UI, and the instructions land in the companion file.
 
 ## Input
 
@@ -19,24 +18,6 @@ holds short descriptions, not question text); questions drafted earlier in the
 conversation; or nothing yet, then draft questions from the lesson plans in
 scope as part of Phase A, after reading
 [`context/course-context.md`](../../../context/course-context.md).
-
-## Supported Question Types
-
-Canvas's QTI 1.2 import understands these `question_type` values; map every
-question to one:
-
-| Type                          | `question_type`             |
-| ----------------------------- | --------------------------- |
-| Multiple choice (one correct) | `multiple_choice_question`  |
-| Multiple answers              | `multiple_answers_question` |
-| True/false                    | `true_false_question`       |
-| Short answer (exact text)     | `short_answer_question`     |
-| Numerical answer              | `numerical_question`        |
-| Essay (manually graded)       | `essay_question`            |
-
-A question that fits none of these (matching, ordering, hotspot, code execution)
-is flagged in Phase A: propose a rephrasing into a supported type or a downgrade
-to `essay_question`, and let the author choose.
 
 ## Steps
 
@@ -53,10 +34,24 @@ to `essay_question`, and let the author choose.
    propose one in the two-plus-two form, `2526` for 2025–2026) and the slug from
    the quiz title.
 
-3. **Propose in chat**: quiz title; per question a numbered row with the
-   (shortened) text, the mapped `question_type`, the correct answer(s), and
-   points (for multiple choice, all options with the correct one marked); the
-   total; and the flag list from the type mapping above.
+3. **Map every question to a supported type and propose in chat**: quiz title;
+   per question a numbered row with the (shortened) text, the mapped
+   `question_type`, the correct answer(s), and points (for multiple choice, all
+   options with the correct one marked); the total; and the flag list from the
+   mapping. Canvas's QTI 1.2 import understands six `question_type` values:
+
+   | Type                          | `question_type`             |
+   | ----------------------------- | --------------------------- |
+   | Multiple choice (one correct) | `multiple_choice_question`  |
+   | Multiple answers              | `multiple_answers_question` |
+   | True/false                    | `true_false_question`       |
+   | Short answer (exact text)     | `short_answer_question`     |
+   | Numerical answer              | `numerical_question`        |
+   | Essay (manually graded)       | `essay_question`            |
+
+   A question that fits none of these (matching, ordering, hotspot, code
+   execution) gets a flag: propose a rephrasing into a supported type or a
+   downgrade to `essay_question`, and let the author choose.
 
    Add the **learning goal** each question serves, in the course's own notation,
    as a column on that same row. Questions that arrived from an
@@ -113,17 +108,17 @@ to `essay_question`, and let the author choose.
 
 8. **Report in chat**: every path written, question count, total points, a
    pointer to the import section in `questions.md`, and a reminder that a
-   re-import creates a second quiz. Delete the old one in Canvas after replacing
-   it.
+   re-import creates a second quiz, so the author deletes the old one in Canvas
+   after replacing it.
 
 ## Rules
 
 - **Language.** Write everything in the language `context/writing-style.md`
   states the course uses; `course.config.yml`'s `language` key only picks the
   generated labels. Reply in chat in the language the author writes in.
-- QTI only, and no Canvas API calls from here: Canvas has no API for a QTI
-  import, so the package goes in by hand. Sync does track quizzes, but only as a
-  reference: which quiz sits where in a module, never its questions
+- No Canvas API calls from here: Canvas has no API for a QTI import, so the
+  package goes in by hand. Sync tracks quizzes only as a reference: which quiz
+  sits where in a module, never its questions
   ([Limitations](../../../docs/limitations.md#quiz-questions-never-sync)).
 - Every non-essay question needs a correct answer on record before Phase B.
   Never guess a correct answer; ask.

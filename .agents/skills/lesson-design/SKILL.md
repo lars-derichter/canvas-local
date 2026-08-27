@@ -30,18 +30,20 @@ logical lesson". Three modes, combinable:
 
 ### Phase A: Design (Writes Nothing)
 
-1. **Read the fixed inputs**: `course-context.md` (pedagogy, learning-goal
-   scheme, lesson-plan conventions, scope boundaries); follow the documents it
-   points to, and for a needed section still `TODO`, infer the answer from the
-   repo or ask, offering `/course-context-update` at the end to record it;
-   `context/writing-style.md` (shared rules plus the colleague-facing section);
-   all existing files in `sources/lessons/` in full, tracking which learning
-   goals are actively practised versus only seeded and the running context
-   (project, storyline, case) at each point; the structural template (the lesson
-   plan named in `course-context.md`, else the lowest-numbered existing lesson).
-   If the folder is empty, propose a structure (goals, preparation, timed
-   blocks, deliberate exclusions, notes-to-self), confirm it, and note it as a
-   candidate for `course-context.md`.
+1. **Read the fixed inputs**:
+   - `course-context.md`: pedagogy, learning-goal scheme, lesson-plan
+     conventions, scope boundaries; follow the documents it points to. For a
+     needed section still `TODO`, infer the answer from the repo or ask,
+     offering `/course-context-update` at the end to record it.
+   - `context/writing-style.md`: shared rules plus the colleague-facing section.
+   - All existing files in `sources/lessons/`, in full, tracking which learning
+     goals are actively practised versus only seeded and the running context
+     (project, storyline, case) at each point.
+   - The structural template: the lesson plan named in `course-context.md`, else
+     the lowest-numbered existing lesson. If the folder is empty, propose a
+     structure (goals, preparation, timed blocks, deliberate exclusions,
+     notes-to-self), confirm it, and note it as a candidate for
+     `course-context.md`.
 
 2. **Confirm the lesson number** (from `$ARGUMENTS`, else the next free slot)
    with the author in one sentence.
@@ -52,8 +54,8 @@ logical lesson". Three modes, combinable:
      learning-goal scheme in its reference notation. Say how each lesson goal
      concretises the course goal it serves. The goals are what the rest of the
      design answers to. If the course has no scheme, write plain goals and say
-     so in one line, offering `/course-context-init` to define one; propose,
-     never insist, and never block the design on it.
+     so in one line, offering `/course-context-init` to define one; never block
+     the design on it.
    - **Place in the course**: two sentences (the concrete moment in the running
      context, and what students bring from earlier lessons).
    - **Block structure in broad strokes**: blocks with activity and time budget;
@@ -109,7 +111,6 @@ logical lesson". Three modes, combinable:
 - **Language.** Write everything in the language `context/writing-style.md`
   states the course uses; `course.config.yml`'s `language` key only picks the
   generated labels. Reply in chat in the language the author writes in.
-- Mirror the template lesson plan's conventions, not `course/`'s.
 - Do not invent learning goals or activities that follow from neither the
   author's input nor the course context; your own initiative belongs under _Pros
   and cons: my suggestions_.

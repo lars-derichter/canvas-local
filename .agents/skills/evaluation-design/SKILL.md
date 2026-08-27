@@ -25,18 +25,19 @@ sentence.
 
 ### Phase A: Blueprint (Writes Nothing)
 
-1. **Read the fixed inputs**: `course-context.md`, the Learning goals section
-   (the goals and their reference notation), the Assessment section (evaluation
-   moments, weights, question formats, allowed aids, and the course's alignment
-   rule), pedagogy, scope boundaries; for a needed section still `TODO`, infer
-   the answer from the repo or ask, offering `/course-context-update` at the end
-   to record it; `context/writing-style.md` (shared rules plus the
-   student-facing section); every lesson plan in scope, in full, tracking per
-   lesson which learning goals were actively practised versus only seeded and
-   how much lesson time each goal received; existing evaluations under
-   `evaluations/` as worked examples (the most recent is the structural
-   template). If none exist, the Phase A proposal doubles as a proposal for the
-   evaluation format. Confirm it explicitly.
+1. **Read the fixed inputs**:
+   - `course-context.md`: the Learning goals section (the goals and their
+     reference notation), the Assessment section (evaluation moments, weights,
+     question formats, allowed aids, the course's alignment rule), pedagogy, and
+     scope boundaries. For a needed section still `TODO`, infer the answer from
+     the repo or ask, offering `/course-context-update` at the end to record it.
+   - `context/writing-style.md`: shared rules plus the student-facing section.
+   - Every lesson plan in scope, in full, tracking per lesson which learning
+     goals were actively practised versus only seeded and how much lesson time
+     each goal received.
+   - Existing evaluations under `evaluations/` as worked examples; the most
+     recent is the structural template. If none exist, the Phase A proposal
+     doubles as a proposal for the evaluation format. Confirm it explicitly.
 
 2. **Confirm the destination** in one sentence: the highest-numbered
    academic-year folder under `evaluations/` (e.g. `2526/`) unless the author

@@ -30,8 +30,7 @@ still verified.
 
    [`context/writing-style.md`](../../../context/writing-style.md): the language
    and regional variety the course prose is written in. It is the authority on
-   that; do not assume a language it does not state, and do not take it from
-   `course.config.yml`, whose `language` key sets the generated **label**
+   that: `course.config.yml`'s `language` key only sets the generated **label**
    language and cannot express a variety. Note the language before running step
    6, which greps prose.
 
@@ -50,8 +49,8 @@ still verified.
    and say so in the report.
    - **Terms before their lesson**: for each glossary term with a lesson number,
      grep the modules numbered _before_ that lesson for the term (and its
-     synonyms) in prose. Filter hits inside code blocks and inline code. A term
-     casually used before the lesson that introduces it is a finding.
+     synonyms) in prose. A term casually used before the lesson that introduces
+     it is a finding.
    - **Missing lemmas**: technical terms that recur across pages, look
      glossary-worthy, and have no entry in the canonical glossary file.
      Judgement-based; keep it to clear cases.
@@ -92,11 +91,10 @@ still verified.
    ("the previous lesson", "the previous module", "we saw earlier") and the
    number-bearing forms ("lesson 3", "module 2", "chapter 4").
 
-   Build the patterns, do not recall them. Translate those forms into the
-   language step 1 established, then confirm the wording against the pages
-   themselves: a course has one habitual word for a lesson and one for a module,
-   and it is the pages that show which. Grep for what this course writes, not
-   for what the language could write.
+   Derive the grep terms from the pages, not from memory: translate those forms
+   into the language step 1 established, then confirm the wording against the
+   pages themselves, which show the course's one habitual word for a lesson and
+   for a module.
 
    A page pointing at lesson 3 for material that now lives in lesson 4, or
    linking to a renamed module, is a finding.
@@ -133,10 +131,7 @@ still verified.
   alike. Step 6 needs this most: a module or lesson number inside a command, a
   path or sample output is not a prerequisite reference, and any course that
   shows commands will carry them. Link extraction uses the raw file.
-- Course specifics come from the repo at runtime; hardcode nothing. Glossary
-  path and module conventions come from `course-context.md`, the prose language
-  and its variety from `writing-style.md`, and the phrasing this course actually
-  uses from the pages themselves.
+- Course specifics come from the repo at runtime; hardcode nothing.
 - No commits, no pushes, no staging.
 - Run `npm run format` on what you edited; Prettier owns markdown wrapping.
 

@@ -5,18 +5,13 @@ description: Debrief a lesson right after teaching it, in a conversational inter
 
 # Lesson Retro
 
-Capture how a lesson actually went while the author still remembers, and turn
-that into durable improvements: timing corrections and notes-to-self in the
-lesson plan, insights that hold for every lesson in
+Capture how a lesson actually went while the author still remembers, and turn it
+into durable improvements: timing corrections and notes-to-self in the lesson
+plan, course-wide insights in
 [`context/course-context.md`](../../../context/course-context.md), content fixes
-for the student material in the issue queue, and a dated section in the lesson's
-retro report under `sources/retros/`, the record of the run. This is the
-teaching counterpart of `/writing-style-update`: the self-improvement loop
-closed at the level of the lesson, not the writing.
-
-The interview is a conversation, not a form. Ask **one question at a time** and
-follow up on what they say before moving on. Never bundle the whole interview
-into one question round.
+in the issue queue, and a dated section in the lesson's retro report under
+`sources/retros/`, the record of the run. The interview is a conversation, not a
+form: one question at a time, following up before moving on.
 
 ## Input
 
@@ -90,14 +85,13 @@ plausibly recent, propose it in the same breath.
    - **Writing-style corrections**: do not fold these in here; point the author
      at `/writing-style-update`.
    - **Retro report `sources/retros/<year>/lesson-NN.md`**: always, whatever
-     else an observation touches. One dated section per run recording the retro:
-     one to three sentences on how the lesson went, in the author's words, then
-     short bullets for timing deltas, what worked, what confused, changes
-     applied (with file pointers) and fixes logged. When the course has more
-     than one class group, the group joins the heading
-     (`## 2026-02-12 · groep A`). A dozen lines in the colleague-facing
-     register, not a transcript; a thin retro yields a short section. Show the
-     proposed section in full.
+     else an observation touches. One dated section per run: one to three
+     sentences on how the lesson went, in the author's words, then short bullets
+     for timing deltas, what worked, what confused, changes applied (with file
+     pointers) and fixes logged. When the course has more than one class group,
+     the group joins the heading (`## 2026-02-12 · groep A`). A dozen lines in
+     the colleague-facing register, not a transcript. Show the proposed section
+     in full.
 
    Mark anything you are unsure about as a question, not a proposal.
 
@@ -111,12 +105,13 @@ plausibly recent, propose it in the same breath.
    rewrite blocks wholesale. Append the issue entries to `## Open` in
    `sources/issues.md` (creating the file with `/issue-report`'s documented
    structure on first use), and the report section after the last section in
-   `sources/retros/<year>/lesson-NN.md`. First retro of a lesson in a year:
-   create the file, and the year folder if needed, with an H1 naming the lesson
-   and the academic year (`# Retro lesson 3 (2025–2026)`). The year folder takes
-   the two-plus-two form `evaluations/` uses (`2526`); when the date could
-   belong to either academic year (late summer), confirm the year with the
-   author before creating a new folder.
+   `sources/retros/<year>/lesson-NN.md`.
+
+   First retro of a lesson in a year: create the file, and the year folder if
+   needed, with an H1 naming the lesson and the academic year
+   (`# Retro lesson 3 (2025–2026)`). The year folder takes the two-plus-two form
+   `evaluations/` uses (`2526`); when a late-summer date could belong to either
+   academic year, confirm which with the author before creating a new folder.
 
 7. **Report.** Say what changed where: the plan and context edits, the report
    section, and the issues logged for `/issue-fix`. If the author corrected the

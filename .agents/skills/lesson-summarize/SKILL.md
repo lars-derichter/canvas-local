@@ -5,16 +5,14 @@ description: Generate a concise class version (one-page teaching reminder) of a 
 
 # Lesson Summarize
 
-Turn a full lesson design under `sources/lessons/` into a class version under
+Turn a lesson plan under `sources/lessons/` into a class version under
 `sources/lesson-plans/`: one page (think A5) with learning goals, content, and
-timeline in telegram style: a teaching reminder for in the classroom, nothing
-more. It writes without an approval phase: the class version is a low-stakes
-derivation of an already-approved lesson plan.
-
-Conventions come from the Class versions section of
-[`context/course-context.md`](../../../context/course-context.md); the
+timeline in telegram style, a teaching reminder for in the classroom. It writes
+without an approval phase: the class version is a low-stakes derivation of an
+already-approved lesson plan. Conventions come from the Class versions section
+of [`context/course-context.md`](../../../context/course-context.md); the
 lowest-numbered file under `sources/lesson-plans/` (if any) is the worked
-example to mirror. Where both are silent, use the defaults below.
+example to mirror; where both are silent, use step 4's default structure.
 
 ## Input
 
@@ -30,8 +28,8 @@ not a `.md` under `sources/lessons/`.
 
 2. **Read**: the source lesson in full; `course-context.md`, the Class versions
    section (grouping labels) and the Learning goals section (the goal-reference
-   notation); if Class versions is still `TODO`, use the defaults below and
-   offer at the end to record the choices made;
+   notation); if Class versions is still `TODO`, use step 4's default structure
+   and offer `/course-context-update` at the end to record the choices made;
    [`context/writing-style.md`](../../../context/writing-style.md), shared rules
    plus the colleague-facing section; the worked example, if any.
 
@@ -72,15 +70,14 @@ not a `.md` under `sources/lessons/`.
    write the destination file and report the path.
 
 7. **Offer follow-ups, do not run them**: a print preview to confirm the page
-   fits, `/proofread` on the result, recording any grouping or heading choices
-   `course-context.md` did not cover.
+   fits, `/proofread` on the result, `/course-context-update` for any grouping
+   or heading choices `course-context.md` did not cover.
 
 ## Rules
 
 - **Language.** Write everything in the language `context/writing-style.md`
   states the course uses; `course.config.yml`'s `language` key only picks the
   generated labels. Reply in chat in the language the author writes in.
-- Mirror the worked example under `sources/lesson-plans/`, not `course/`.
 - Never invent activities or goals not in the source; if something belongs on
   the page but is missing from the source, surface the gap and stop.
 - Do not modify the source lesson. No commits, no pushes, no staging.

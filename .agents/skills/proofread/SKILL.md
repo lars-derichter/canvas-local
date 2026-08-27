@@ -13,9 +13,8 @@ picks them from the report (step 7).
 
 ## Input
 
-`$ARGUMENTS` may hold a path. If empty, use the file open in the IDE when it is
-visible in the context; otherwise ask. Only proceed for `.md` files. For other
-extensions, stop and explain.
+`$ARGUMENTS` may hold a path. If empty, use the file open in the IDE; otherwise
+ask. Only proceed for `.md` files. For other extensions, stop and explain.
 
 ## Steps
 
@@ -33,9 +32,9 @@ extensions, stop and explain.
 2. **Read `context/writing-style.md` in full.** Apply the shared rules plus the
    section matching the register. writing-style.md is the authoritative ruleset:
    do not invent rules it does not contain, and do not assume a language it does
-   not state. Note what it says about heading case, address form, and regional
-   variety before running any check below; those differ per guide, and the
-   shipped baselines disagree with each other on all three.
+   not state. The mechanical checks below name the usual suspects; run each
+   against what the guide actually says, noting its heading case, address form,
+   and regional variety first (the shipped baselines disagree on all three).
 
 3. **Mechanical checks** with `grep -n` on the file; discard hits inside code
    blocks, inline code, URLs, frontmatter, and HTML comments (they are not the

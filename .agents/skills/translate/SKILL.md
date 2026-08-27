@@ -7,16 +7,14 @@ description: Translate a document, a passage, or text pasted with the call from 
 
 Render one document, passage, or pasted fragment in another language. The
 information content matches the original one to one; the wording, rhythm, and
-idiom are those of someone writing in the target language, not those of the
-source carried across. A reader who never sees the original should not be able
-to tell there was one.
+idiom are those of someone writing in the target language. A reader who never
+sees the original should not be able to tell there was one.
 
 ## Input
 
 `$ARGUMENTS` may hold a path, a target language, the text itself, or nothing.
 Text pasted with the call is the source. Empty: use the file open in the IDE
-when the request plausibly concerns it, otherwise ask what to translate. That
-intake question is free.
+when the request plausibly concerns it, otherwise ask what to translate.
 
 ## Steps
 

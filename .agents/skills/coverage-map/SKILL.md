@@ -79,15 +79,10 @@ the whole course.
 
 - **Language.** Report in the language the author writes in; goal references and
   quoted material keep the wording the course uses.
-- Read-only by default. The only file this skill may ever write is the report
-  under `sources/reports/`, and only on explicit request.
 - The four gap lists are the whole verdict. Whether a gap or an imbalance is a
   _problem_ is the author's call; state the numbers and do not editorialise
   about the course design beyond them.
-- Every claim cites file(s). A cell in the matrix without evidence is an empty
-  cell, not a guess.
-- Mark inferred goal mappings (step 4) explicitly; do not present them with the
-  same confidence as explicit references.
+- A cell in the matrix without cited evidence stays empty; never guess.
 - No commits, no pushes, no staging.
 - Run `npm run format` on any report you wrote; Prettier owns markdown wrapping.
 

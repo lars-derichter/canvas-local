@@ -10,6 +10,12 @@ entries in [`context/writing-style.md`](../../../context/writing-style.md), so
 the author does not have to repeat the same feedback next time the assistant
 drafts material.
 
+## Input
+
+`$ARGUMENTS` may hold the preference to record ("never use _leuk_"); treat it as
+a style signal alongside the conversation. Empty means scan the conversation
+alone.
+
 ## Steps
 
 1. **Scan the conversation** for style signals: direct corrections ("don't use

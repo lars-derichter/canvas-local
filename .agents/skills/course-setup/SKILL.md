@@ -7,13 +7,11 @@ description: Turn a fresh copy of the Coursewright template into a real course (
 
 Configure a new course end to end. `npx course setup` owns the mechanical part
 (writing `course.config.yml` without disturbing its comments, copying the
-language-matched templates into place, removing the built-in tutorial module)
-and this skill owns the judgement around it: working out the answers from the
-repo and the author, and then writing the README prose that no command can
-generate.
-
-Re-running is expected. On a re-run, treat what is already configured as
-confirmed and change only what the author asks for.
+language-matched templates into place, removing the built-in tutorial module);
+this skill owns the judgement around it: working out the answers from the repo
+and the author, then writing the README prose no command can generate.
+Re-running is expected: treat what is already configured as confirmed and change
+only what the author asks for.
 
 ## Steps
 
@@ -45,11 +43,11 @@ confirmed and change only what the author asks for.
    - Theme and export style, from what `src/css/themes/` and `export-styles/`
      actually contain.
    - Whether to replace the course home page (`course/index.md`) with the
-     language-matched template. Upstream that file is the project's own landing
-     page (this repo publishes its `course/` as the project site), so a course
-     that keeps it markets the tooling to its own students. Under `--yes` the
-     command leaves the file alone unless `--course-home copy` says otherwise,
-     so the answer only counts once it reaches the invocation in step 3.
+     language-matched template, carrying the answer into step 3's flags: under
+     `--yes` the command leaves the file alone unless `--course-home copy` says
+     otherwise. Upstream that file is the project's own landing page (this repo
+     publishes its `course/` as the project site), so a course that keeps it
+     markets the tooling to its own students.
    - Whether to remove `course/01-getting-started/`. Say what it is (a
      walkthrough of the project and a worked example of every content type) and
      that it publishes to students on the first `npx course push` if it stays.

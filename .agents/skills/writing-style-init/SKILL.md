@@ -9,13 +9,18 @@ Adapt [`context/writing-style.md`](../../../context/writing-style.md) (the
 writing-style guide your AI assistant follows when drafting course content) to
 the course author's own voice and audience.
 
+## Input
+
+`$ARGUMENTS` may hold paths to writing samples or notes about the wanted voice;
+treat paths as the step 1 samples. Empty means ask for samples.
+
 ## Steps
 
 1. **Ask for writing samples**: 1–3 file paths or pasted texts representative of
-   the voice the author wants imitated (course material, blog posts, handouts).
-   Samples reveal habits the author may not articulate. Without samples, proceed
-   interview-only and warn explicitly that the resulting `writing-style.md` is a
-   best guess, refinable later via `/writing-style-update` or direct edits.
+   the voice the author wants imitated (course material, blog posts, handouts);
+   samples reveal habits the author may not articulate. Without samples, proceed
+   interview-only and warn that the result is a best guess, refinable later via
+   `/writing-style-update` or direct edits.
 
 2. **Analyse the samples, then interview only what they did not answer** (ask
    the author, bundling related questions into one round). Dimensions for both:
@@ -34,9 +39,9 @@ the course author's own voice and audience.
    - Instruction style for exercises and exams: same voice as explanations, or
      strictly neutral.
    - AI tells the author particularly dislikes: prime with examples from the
-     current `writing-style.md` and from the AI-tells section of whichever
-     baseline in [`templates/`](../../../templates/) matches the course
-     language.
+     current `writing-style.md` and from the AI-tells section of the
+     [`templates/`](../../../templates/) baseline matching the course language
+     (the same baseline step 4 starts from).
 
 3. **Summarise and confirm** the intended changes before writing anything.
 

@@ -39,9 +39,9 @@ not a markdown file under `course/` or `evaluations/`.
 2. **Settle the grading model.** From `$ARGUMENTS`, the worked example, or one
    bundled question round: analytic (criteria × levels, the default) or
    holistic; number of levels and their labels (default four: the worked
-   example's if there is one, otherwise insufficient / sufficient / good /
-   excellent, in the course language); point total and whether points sit per
-   criterion or per cell.
+   example's if there is one, otherwise a set you propose in the course
+   language, e.g. insufficient / sufficient / good / excellent); point total and
+   whether points sit per criterion or per cell.
 
 3. **Derive the criteria.** Each criterion traces to a requirement in the
    assignment text or to a learning goal it practises; a criterion you add on

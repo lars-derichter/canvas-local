@@ -28,20 +28,22 @@ source is not a document, URL, or stylesheet.
 
 ### Phase A: Inspect and Propose (Writes Nothing)
 
-1. **Read first**: [`docs/export-styling.md`](../../../docs/export-styling.md),
-   what `template.typ` (PDF via Typst) and `reference.docx` (DOCX via Word
-   styles) each control, and how `--var` variables map into the template;
-   [`export-styles/generic/template.typ`](../../../export-styles/generic/template.typ),
-   the default you will fork; note the `conf(...)` signature (font, codefont,
-   fontsize, margin, paper, logo), the `pick(...)` helper that reads theme
-   colours, and the `alert-colors` map. Also read the active theme for the
-   `--ccb-*` colour tokens: the file `theme:` in `course.config.yml` selects,
-   e.g. [`src/css/themes/github.css`](../../../src/css/themes/github.css). The
-   custom paragraph styles inside the style's `reference.docx` (the six per-kind
-   `AlertTitle<Kind>`/`AlertBody<Kind>` pairs, one per alert kind: Note, Tip,
-   Important, Warning, Caution, Check; plus `LinkCard`, `LinkCardTitle`,
-   `Attachment`, and `SourceCode`) are mapped by the Lua filter and **must
-   survive** any edit to the DOCX.
+1. **Read first**:
+   - [`docs/export-styling.md`](../../../docs/export-styling.md): what
+     `template.typ` (PDF via Typst) and `reference.docx` (DOCX via Word styles)
+     each control, and how `--var` variables map into the template.
+   - [`export-styles/generic/template.typ`](../../../export-styles/generic/template.typ),
+     the default you will fork: the `conf(...)` signature (font, codefont,
+     fontsize, margin, paper, logo), the `pick(...)` helper that reads theme
+     colours, and the `alert-colors` map.
+   - The active theme, for the `--ccb-*` colour tokens: the file `theme:` in
+     `course.config.yml` selects, e.g.
+     [`src/css/themes/github.css`](../../../src/css/themes/github.css).
+   - The custom paragraph styles inside the style's `reference.docx`: the six
+     per-kind `AlertTitle<Kind>`/`AlertBody<Kind>` pairs (Note, Tip, Important,
+     Warning, Caution, Check) plus `LinkCard`, `LinkCardTitle`, `Attachment`,
+     and `SourceCode`. The Lua filter maps them by name, so they **must
+     survive** any edit to the DOCX.
 
 2. **Extract the visual decisions** from the reference:
    - `.docx`: unzip into a fresh directory in the session scratchpad; read
@@ -150,11 +152,11 @@ source is not a document, URL, or stylesheet.
   alternative.
 - **Never copy a font file into the repository unless its licence permits
   redistribution.** Retail and corporate fonts almost never do, and a course
-  repository is often public. Name it first in the font list so machines that
-  have it use it, bundle a free lookalike behind it, and record whatever you do
-  bundle in `THIRD-PARTY.md` with its licence file alongside it. On macOS the
-  exporter already finds Microsoft Office's own fonts inside the Office
-  application bundles, so an Office typeface needs no bundling at all.
+  repository is often public. Name the licensed font first in the font list so
+  machines that have it use it, and bundle a free lookalike behind it. Record
+  whatever you do bundle in `THIRD-PARTY.md`, with its licence file alongside.
+  On macOS the exporter already finds Microsoft Office's own fonts inside the
+  Office application bundles, so an Office typeface needs no bundling.
 - A `sources/export-style/logo.png` overrides the selected style's cover logo;
   with neither present the cover simply has no logo.
 - Colours in `reference.docx` cannot read the theme. When you change a theme
