@@ -6,48 +6,55 @@ it straight into Canvas LMS, whichever you need. Bundled AI skills pitch in on
 lesson design, module building and proofreading when you ask. Both the AI and
 Canvas are optional: your course is plain files, and it works without either.
 
-The Canvas web editor is fine for a page or two. It gets painful when you
-maintain a whole course: no history, no search and replace, no offline work, no
-way to review changes before students see them. Coursewright moves the source of
-truth to plain markdown files on your computer and makes Canvas one publishing
-target among three.
+Course material tends to live wherever it was last edited: an LMS editor, a Word
+file, a slide deck. Maintaining a whole course that way means losing history,
+search and replace, and any review of changes before students see them.
+Coursewright moves the source of truth to plain markdown files on your computer,
+and every output is built from that one source: the website, the handout, the
+Canvas modules.
 
 The suggested workflow has a didactic backbone: backward design and constructive
 alignment. Learning goals come first, then the assessment that evidences them,
 then the lessons; the skills read that chain from one file, check your material
 against it, and a retro folds what happened in class back into next year's plan.
-It is a proven base, not a straitjacket: every structure is a default your own
-conventions override. The reasoning is in
+It is a proven base that never becomes a straitjacket: every structure is a
+default your own conventions override. The reasoning is in
 [didactic foundations](docs/didactics.md).
 
 ## What You Get
 
 - **Your own tools.** Write in VS Code or any editor, keep everything in git,
   and review every change before it goes live.
-- **Instant preview.** A local website ([Docusaurus](https://docusaurus.io/))
-  shows your course as you write, in the same structure students will see.
+- **Instant preview, publishable.** A local website
+  ([Docusaurus](https://docusaurus.io/)) shows your course as you write, in the
+  same structure students will see. One GitHub setting
+  [publishes it](docs/hosting.md) as a public course website, and any static
+  host can serve the same build.
+- **PDF and DOCX export.** Hand out a styled course text or a single chapter,
+  with your institution's branding. See [exporting](docs/exporting.md).
 - **One-command Canvas sync.** `npx course sync` reconciles modules, pages,
   assignments, discussions and files with
   [Canvas LMS](https://www.instructure.com/canvas) in both directions, and
   deletes nothing unless you ask. `push` and `pull` are the same run with the
   direction pinned, and `status` shows what a sync would do without doing it.
-- **PDF and DOCX export.** Hand out a styled course text or a single chapter,
-  with your institution's branding.
 - **A VS Code extension.** The sidebar and command palette cover everything but
   the two destructive commands and the glossary builder, so daily work needs no
   terminal.
-- **AI-assisted authoring.** Bundled skills help design lessons, build student
-  modules, generate Canvas quizzes, proofread, and check course consistency,
-  with any AI coding agent that reads `AGENTS.md`. The
-  [lesson workflow](docs/lesson-workflow.md) shows how they chain from idea to
-  published module.
+- **AI-assisted authoring on didactically sound foundations.** Bundled skills
+  help design lessons, build student modules, generate Canvas quizzes,
+  proofread, and check course consistency, with any AI coding agent that reads
+  `AGENTS.md`. The [lesson workflow](docs/lesson-workflow.md) shows how they
+  chain from idea to published module.
 - **A template that stays updatable.** Create your course from this template and
   keep pulling tooling improvements later; your course content is never
   overwritten.
 
 ## What It Does Not Do
 
-Worth knowing before you commit a semester to it:
+Worth knowing before you commit a semester to it. Every entry here is about the
+Canvas sync, because that is where the surprises live; the website and the
+export have far less small print, and [limitations](docs/limitations.md) opens
+with their short list.
 
 - **Not every type syncs as content.** Pages, assignments, discussions and files
   live in your markdown and are rebuilt from it. A quiz and an external tool
@@ -72,15 +79,17 @@ has content, read [backups](docs/backups.md).
 
 ## Who It's For
 
-Lecturers and teaching teams who maintain course material in Canvas and want the
-comfort of files, folders and version control. You don't need to be technical:
-the [user guide](docs/user-guide.md) starts from zero, and there is a
-[git and GitHub guide](docs/git-and-github.md) for complete beginners.
+Lecturers and teaching teams who want course material in files, folders and
+version control, whatever it ends up published to: a course website, a printed
+reader, Canvas, or all three. You don't need to be technical:
+[your first course](docs/first-course.md) starts from a computer with nothing
+installed, and there is a [git and GitHub guide](docs/git-and-github.md) for
+complete beginners.
 
 ## Quick Start
 
 **New to this?** [Your first course, step by step](docs/first-course.md) goes
-from a computer with nothing installed to a published Canvas module, assuming no
+from a computer with nothing installed to a published course, assuming no
 experience with VS Code, the terminal, or git.
 
 The short version, if you have done this sort of thing before:
@@ -91,16 +100,26 @@ The short version, if you have done this sort of thing before:
 3. Make it your course with `npx course setup`: it asks for the language, the
    name and the look, and puts the matching templates in place (see
    [customisation](docs/customisation.md)).
-4. Back up the Canvas course ([how](docs/backups.md)), connect it with
-   `npx course init` (see the [Canvas setup guide](docs/canvas-setup.md)), and
-   push your first module.
+4. Publish, to whichever of the three targets you need:
+   - **Website**: switch on [GitHub Pages](docs/hosting.md); publishing is one
+     repository setting.
+   - **PDF or Word**: [export](docs/exporting.md) an item, a module, or the
+     whole course.
+   - **Canvas**: back up the Canvas course ([how](docs/backups.md)), connect it
+     with `npx course init` ([Canvas setup](docs/canvas-setup.md)), and push
+     your first module.
 
 ## Documentation
 
 The [docs folder](docs/README.md) has the full map. Start with:
 
-- [Your first course](docs/first-course.md): the complete beginner walkthrough
+- [Your first course](docs/first-course.md): the complete beginner tutorial, and
+  a demo of everything the tool can publish
 - [User guide](docs/user-guide.md): course structure and every daily command
+- [Markdown guide](docs/markdown.md): supported syntax, links, and alerts
+- [Hosting](docs/hosting.md): the course website on GitHub Pages
+- [Exporting](docs/exporting.md): PDF and DOCX handouts and course texts
+- [Canvas setup](docs/canvas-setup.md): connecting a Canvas course
 - [Limitations](docs/limitations.md): what the tool does not do
 - [Backups](docs/backups.md): protecting a Canvas course before you sync
 - [Customisation](docs/customisation.md): README, language, branding, and
