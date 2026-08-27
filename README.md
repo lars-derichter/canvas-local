@@ -12,6 +12,14 @@ way to review changes before students see them. Coursewright moves the source of
 truth to plain markdown files on your computer and makes Canvas one publishing
 target among three.
 
+The suggested workflow has a didactic backbone: backward design and constructive
+alignment. Learning goals come first, then the assessment that evidences them,
+then the lessons; the skills read that chain from one file, check your material
+against it, and a retro folds what happened in class back into next year's plan.
+It is a proven base, not a straitjacket: every structure is a default your own
+conventions override. The reasoning is in
+[didactic foundations](docs/didactics.md).
+
 ## What You Get
 
 - **Your own tools.** Write in VS Code or any editor, keep everything in git,
@@ -30,7 +38,9 @@ target among three.
   terminal.
 - **AI-assisted authoring.** Bundled skills help design lessons, build student
   modules, generate Canvas quizzes, proofread, and check course consistency,
-  with any AI coding agent that reads `AGENTS.md`.
+  with any AI coding agent that reads `AGENTS.md`. The
+  [lesson workflow](docs/lesson-workflow.md) shows how they chain from idea to
+  published module.
 - **A template that stays updatable.** Create your course from this template and
   keep pulling tooling improvements later; your course content is never
   overwritten.
@@ -97,6 +107,8 @@ The [docs folder](docs/README.md) has the full map. Start with:
   licence
 - [AI assistants](docs/ai-assistants.md): the bundled skills and how to add your
   own
+- [Didactic foundations](docs/didactics.md): the course-design ideas the
+  workflow is built on
 - [Troubleshooting](docs/troubleshooting.md): common issues and fixes
 
 ## Licensing
