@@ -250,7 +250,7 @@ It is not part of `npm test`. The first run downloads about 130MB of VS Code
 into `.vscode-test/` (gitignored, and cached in CI); after that a run is about
 ten seconds.
 
-Four things about how it is put together are load-bearing, and all four are easy
+Five things about how it is put together are load-bearing, and all five are easy
 to undo by accident.
 
 **It runs against the `.vsix`, not the source folder.** `npm run test:vscode`
@@ -278,6 +278,23 @@ macOS 1.93.
 window into extension development mode — VS Code runs `--extensionTestsPath`
 only there. Pointing that at the real extension would load it as a development
 extension instead of an installed one, which is the thing being avoided.
+
+**It reaches the extension's modules through the require cache, never by
+rebuilding their paths.** Two cases wrap a method on
+`CourseTreeProvider.prototype` to watch what the live provider does, and that
+only works on the module object the host actually loaded. `ext.extensionPath` is
+VS Code's spelling of that path, out of a URI; the require cache is keyed by
+Node's, out of module resolution; and the two are not guaranteed to agree. On
+macOS they already disagree — `/var/folders/…` against `/private/var/folders/…`
+— and it works anyway only because Node resolves symlinks on the way in, so both
+land on one entry. Windows offers two spelling axes with no such reconciliation:
+the drive letter, which VS Code lower-cases and Node does not, and 8.3 short
+names, which `os.tmpdir()` hands back on a GitHub runner. A `require` built from
+`extensionPath` there produced a second module object with a second prototype,
+and both cases failed in 2ms saying they could not reach the provider. Asking
+the cache what is already loaded sidesteps the question and adds no entry of its
+own. Note that a revert to the path-built form passes on macOS and on Linux: the
+Windows CI leg is the only thing that catches it.
 
 **The launcher scrubs the environment before it spawns.** Every VS Code process
 sets `ELECTRON_RUN_AS_NODE=1` and a wall of `VSCODE_*` variables in its

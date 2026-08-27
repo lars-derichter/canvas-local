@@ -127,6 +127,67 @@ function extension() {
   return extensionUnderTest;
 }
 
+/**
+ * One of the extension's own modules: the object the host loaded, not a second
+ * copy of the same file.
+ *
+ * This is a cache lookup rather than a `require` of a path built from
+ * `ext.extensionPath`, and the difference is the whole point. Two cases here
+ * wrap a method on `CourseTreeProvider.prototype` to watch what the live
+ * provider does; wrap a prototype on a *different* module object and the
+ * wrapper sits there catching nothing.
+ *
+ * That is not hypothetical. `ext.extensionPath` is VS Code's spelling of the
+ * path, out of a URI, and the require cache is keyed by Node's, out of module
+ * resolution, and nothing guarantees the two agree. On macOS they disagree
+ * already — `/var/folders/…` from VS Code against `/private/var/folders/…` in
+ * the cache — and it works anyway, purely because Node resolves symlinks on
+ * the way in, so both spellings land on one entry. Windows has two spelling
+ * axes with no such reconciliation, drive-letter case (VS Code lower-cases it,
+ * Node does not) and 8.3 short names (`os.tmpdir()` hands back `RUNNER~1` on a
+ * GitHub runner), and there the path-built `require` produced a second module
+ * object, a second prototype, and two cases that failed in 2ms saying they
+ * could not reach the provider.
+ *
+ * Asking the cache what is already loaded sidesteps every spelling question:
+ * whatever the host called it, that entry is the one the extension is using.
+ * It also loads nothing, so it cannot add the second entry it is avoiding.
+ */
+function extensionModule(basename) {
+  const ext = extension();
+  const loaded = Object.values(require.cache || {}).filter(
+    (entry) => entry && path.basename(entry.filename) === basename,
+  );
+  assert.ok(
+    loaded.length > 0,
+    `the host has not loaded ${basename}. The extension is ` +
+      `${ext.isActive ? 'active' : 'NOT active'}, so either activation does ` +
+      'not reach that module or this is being asked too early.',
+  );
+
+  // One is the ordinary answer and the answer this expects. More than one
+  // means the same file has been loaded twice under two spellings — the
+  // failure this function exists to prevent — so it says which, rather than
+  // picking one and hoping.
+  if (loaded.length > 1) {
+    const folder = path.basename(ext.extensionPath).toLowerCase();
+    const mine = loaded.filter((entry) =>
+      entry.filename.toLowerCase().includes(folder),
+    );
+    assert.equal(
+      mine.length,
+      1,
+      `${basename} is in the require cache ${loaded.length} times and ` +
+        `${mine.length} of them are under the installed extension: ` +
+        `${loaded.map((entry) => entry.filename).join(', ')}. Two spellings ` +
+        'of one path are two module objects with two prototypes, and a ' +
+        'wrapper on one of them watches the other do nothing.',
+    );
+    return mine[0].exports;
+  }
+  return loaded[0].exports;
+}
+
 check('the packaged extension is installed and its manifest parsed', () => {
   extensionUnderTest = vscode.extensions.getExtension(EXTENSION_ID);
   assert.ok(
@@ -230,16 +291,11 @@ check('contributes the tree view and its container', async () => {
 });
 
 check('the tree returns the tutorial module', async () => {
-  const ext = extension();
-  // The same module object the extension itself loaded: it was required out of
-  // this path when the host activated it, so this is its own require cache.
-  // What a second instance cannot borrow is the view, so the provider is built
-  // here rather than reached for — and the point stands either way, since the
-  // items come back as the host's real TreeItem, ThemeIcon and Uri rather than
-  // the stub's stand-ins.
-  const { CourseTreeProvider } = require(
-    path.join(ext.extensionPath, 'CourseTreeProvider.js'),
-  );
+  // The extension's own module, so the provider built here is an instance of
+  // the class the extension is using. What a second instance cannot borrow is
+  // the view — that is the next two cases — but the items still come back as
+  // the host's real TreeItem, ThemeIcon and Uri rather than the stub's.
+  const { CourseTreeProvider } = extensionModule('CourseTreeProvider.js');
   const root = vscode.workspace.workspaceFolders[0].uri.fsPath;
   const provider = new CourseTreeProvider(root, {});
 
@@ -285,10 +341,7 @@ check('the tree returns the tutorial module', async () => {
  * object goes through here.
  */
 async function liveTreeProvider() {
-  const ext = extension();
-  const { CourseTreeProvider } = require(
-    path.join(ext.extensionPath, 'CourseTreeProvider.js'),
-  );
+  const { CourseTreeProvider } = extensionModule('CourseTreeProvider.js');
   const original = CourseTreeProvider.prototype.refresh;
   let instance;
   CourseTreeProvider.prototype.refresh = function refresh() {

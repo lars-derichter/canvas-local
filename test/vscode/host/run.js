@@ -275,17 +275,20 @@ async function main() {
       // activated at all, and every case below would fail for that reason
       // rather than any real one.
       '--disable-workspace-trust',
-      // An attempt at the one thing that does not work on a Windows runner,
-      // and labelled as an attempt because it has never been observed to
-      // help. Chromium decides on Windows whether a window is covered by
-      // other windows and stops painting the ones that are; a session with no
-      // desktop to draw on can look that way from the inside, and a window
-      // that never paints never lays out the sidebar, which is exactly the
-      // case that failed there. Linux is unaffected because xvfb gives it a
-      // real if virtual display. If the next Windows run reports the sidebar
-      // case as run rather than skipped, this is why and the comment should
-      // say so plainly; if it still skips, this line bought nothing and can
-      // go.
+      // An attempt at the one thing that has never worked on a Windows
+      // runner, and still labelled an attempt because no run has yet told us
+      // whether it helps. Chromium decides on Windows whether a window is
+      // covered by other windows and stops painting the ones that are; a
+      // session with no desktop to draw on can look that way from the inside,
+      // and a window that never paints never lays out the sidebar, which is
+      // the case that failed there. Linux is unaffected because xvfb gives it
+      // a real if virtual display.
+      //
+      // The run that would have answered this could not: both sidebar cases
+      // failed before reaching the reveal, on a require-cache problem that had
+      // nothing to do with painting. So the question is still open, and the
+      // answer is one Windows log away — the sidebar case reporting `ok` means
+      // this line did it, `skip` means it bought nothing and can go.
       ...(process.platform === 'win32'
         ? ['--disable-features=CalculateNativeWinOcclusion']
         : []),
