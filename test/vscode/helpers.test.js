@@ -1600,10 +1600,21 @@ describe('helpers: readEnvConfig agrees with dotenv', () => {
     ],
   ];
 
-  // Shapes left to dotenv alone, each because nothing writes it here: this
-  // project's keys are the three CANVAS_* names that `npx course init` writes.
-  // Listed rather than ignored, so a later reader sees the edge was considered
-  // and an implementation that closes one of them fails this test on purpose.
+  // Shapes left to dotenv alone. Listed rather than ignored, so a later reader
+  // sees the edge was considered and an implementation that closes one of them
+  // fails this test on purpose.
+  //
+  // Almost all of them are here because nothing writes them: this project's
+  // keys are the three CANVAS_* names that `npx course init` writes. One is
+  // not. Since init began quoting what it writes, a value holding a line break
+  // goes out as `K="a\nb"`, which is the `escape inside double quotes` row
+  // below, and this reader gives back the backslash and the n rather than the
+  // line break. It stays a divergence rather than a defect because of which
+  // keys reach this reader: the extension reads CANVAS_API_URL and
+  // CANVAS_COURSE_ID, and init refuses a course id that is not a positive
+  // integer and a URL that does not survive `normaliseBaseUrl`, so neither can
+  // hold a line break by the time it is written. The token, which could, is
+  // never read here.
   //
   // Both sides are spelled out. Asserting only that the two differ would pass
   // for any difference at all, including one where the reader has started
