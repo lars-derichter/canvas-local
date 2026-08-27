@@ -190,6 +190,78 @@ describe('buildCombinedMarkdown', () => {
     assert.match(md, /::: \{\.attachment name="workflow\.svg"\}/);
   });
 
+  // Image file items embed above their attachment block, so the export shows
+  // the picture and not just the filename. Only when the binary exists: the
+  // tests run against a real fixture course dir.
+  describe('file item image embeds', () => {
+    let fixtureCourseDir;
+
+    before(() => {
+      fixtureCourseDir = fs.mkdtempSync(path.join(os.tmpdir(), 'assemble-'));
+      fs.mkdirSync(path.join(fixtureCourseDir, '01-a', '_files'), {
+        recursive: true,
+      });
+      for (const name of ['pic.png', 'clip.mp4', 'photo.webp']) {
+        fs.writeFileSync(
+          path.join(fixtureCourseDir, '01-a', '_files', name),
+          'x',
+        );
+      }
+    });
+
+    after(() => {
+      fs.rmSync(fixtureCourseDir, { recursive: true, force: true });
+    });
+
+    /** Build a file item in module 01-a referencing _files/<name>. */
+    function fileItem(name) {
+      return {
+        type: 'item',
+        canvasType: 'file',
+        relativePath: '01-a/03-media.md',
+        title: 'Media',
+        file: '03-media.md',
+        frontmatter: { file_ref: `_files/${name}` },
+        indent: 0,
+      };
+    }
+
+    /** Render one file item with the fixture course dir. */
+    function render(name) {
+      return buildCombinedMarkdown(
+        [{ moduleTitle: 'A', moduleFolder: '01-a', items: [fileItem(name)] }],
+        { regime: 'flat' },
+        { courseDir: fixtureCourseDir, includedPaths: new Set() },
+      );
+    }
+
+    it('embeds an existing image above the attachment block', () => {
+      const md = render('pic.png');
+      const image = md.indexOf('![](<');
+      const attachment = md.indexOf('::: {.attachment name="pic.png"}');
+      assert.match(md, /!\[\]\(<.*pic\.png>\)/);
+      assert.ok(image !== -1 && attachment !== -1 && image < attachment);
+    });
+
+    it('renders the attachment alone when the binary is missing', () => {
+      const md = render('gone.png');
+      assert.doesNotMatch(md, /!\[/);
+      assert.match(md, /::: \{\.attachment name="gone\.png"\}/);
+    });
+
+    it('renders the attachment alone for video', () => {
+      const md = render('clip.mp4');
+      assert.doesNotMatch(md, /!\[/);
+      assert.match(md, /::: \{\.attachment name="clip\.mp4"\}/);
+    });
+
+    it('renders the attachment alone for formats outside the print allowlist', () => {
+      const md = render('photo.webp');
+      assert.doesNotMatch(md, /!\[/);
+      assert.match(md, /::: \{\.attachment name="photo\.webp"\}/);
+    });
+  });
+
   // Reference items (quiz, external_tool) have no body of their own: rendering
   // them must never reach the filesystem, which `ctx` guarantees by pointing at
   // a course dir that does not exist.
