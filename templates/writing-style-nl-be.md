@@ -261,7 +261,7 @@ een andere; keert die terug, zet hem dan hier in de lijst met zijn betekenis.
 - 🧩 extra oefening
 - 📘 uitleg / referentie
 - 🎬 video
-- 🅿️ presentatie
+- 📽 presentatie
 - 📕 samenvatting
 - ⚠️ belangrijk
 - 💣 opgepast / gevaarlijk

@@ -257,7 +257,7 @@ recurs, add it here with its meaning.
 - 🧩 extra exercise
 - 📘 explanation / reference
 - 🎬 video
-- 🅿️ presentation
+- 📽 presentation
 - 📕 summary
 - ⚠️ important
 - 💣 danger
