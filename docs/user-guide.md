@@ -96,7 +96,8 @@ course/
   from (path from the repository root). The questions never sync
 - File item frontmatter requires: `file_ref` pointing to the binary in `_files/`
   (e.g. `file_ref: _files/report.pdf`). The binary is uploaded to Canvas as a
-  module item. In Docusaurus, a styled file card with a download link is shown
+  module item. In Docusaurus, a styled file card with a download link is shown;
+  an image, video or audio file also shows the media itself above the card
 - Images and files in `_files/` can also be referenced from markdown content
   (`![Alt](_files/image.png)`): these are embedded in page content, not added as
   separate module items

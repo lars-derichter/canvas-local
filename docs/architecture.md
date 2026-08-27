@@ -469,8 +469,14 @@ are stored as markdown wrappers with `canvas_type: file` frontmatter and a
 `file_ref` field pointing to the actual binary in `_files/`. The
 `remark-file-item` plugin (`src/plugins/remark-file-item.js`) intercepts these
 during rendering and replaces the document body with a styled file card showing
-a download link. This way file items appear in the Docusaurus sidebar at the
-correct position, matching the Canvas module structure.
+a download link. When the binary is an image, video or audio file (classified by
+`lib/convert/media-types.js`, the same table the Canvas upload stamps its
+content types from), the media itself renders above the card: an image inline,
+video and audio with a `<video controls>` / `<audio controls>` player. This way
+file items appear in the Docusaurus sidebar at the correct position, matching
+the Canvas module structure. PDF/DOCX exports embed images the same way: the
+picture sits above the item's attachment line (`lib/export/assemble.js`), while
+video and audio keep the attachment line alone.
 
 **Inline `.html` links**: Docusaurus's built-in `transformLinks` remark plugin
 deliberately skips relative links ending in `.md`, `.mdx`, or `.html`, assuming

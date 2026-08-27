@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **File items that hold media now show the media.** An image, video or audio
+  file item used to render as a bare download card in the preview; the media
+  itself now sits above the card, an image inline and video or audio with a
+  player. PDF and DOCX exports embed image file items the same way, above the
+  attachment line, while video and audio stay attachment-only in print.
+  Detection lives in one shared table (`lib/convert/media-types.js`), which also
+  means Canvas uploads of `.webm`, `.ogg`, `.m4a`, `.avif`, `.bmp` and `.mov`
+  files now carry a real content type instead of a generic one. See
+  [Docusaurus Content Filtering](docs/architecture.md#docusaurus-content-filtering).
 - **`npx course sync` reconciles both directions in one run.** Push regenerated
   and pull imported, and neither looked at what the other side had done since,
   so the two were never a round trip. Sync compares three things instead of two:

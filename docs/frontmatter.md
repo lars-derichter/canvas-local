@@ -262,9 +262,11 @@ file_ref: _files/syllabus.pdf
 | `file_ref` | string | **Required.** Path to the binary, relative to the wrapper file, usually inside the module's `_files/` folder. |
 
 On Canvas the item links straight to the uploaded file; in the local preview the
-wrapper renders as a download card. Because the wrapper is a normal markdown
-file, it supports `title`, ordering via the filename prefix, and the `export`
-flag like any other item.
+wrapper renders as a download card, with the media itself embedded above the
+card when the file is an image, video or audio file. A PDF or DOCX export embeds
+an image file item the same way, above its attachment line. Because the wrapper
+is a normal markdown file, it supports `title`, ordering via the filename
+prefix, and the `export` flag like any other item.
 
 Non-markdown files dropped directly into a module folder also work: the scanner
 detects them as file items automatically, with the filename as title. They carry

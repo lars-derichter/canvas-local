@@ -60,6 +60,10 @@ These references work across all three layers:
   Canvas's copy rather than pointing at a local file that was never fetched. See
   [`(git-dirty)` under Skipped](troubleshooting.md#git-dirty-under-skipped).
 
+An image can also be its own module item instead of part of a page: a file-item
+wrapper with `file_ref` (see [Frontmatter](frontmatter.md#file-item)) renders
+the image above its download card in the preview.
+
 ### Linking to `.html` Files
 
 Inline links to `.html` files are a special case. Docusaurus treats `.html`
