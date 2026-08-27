@@ -53,7 +53,7 @@ const EXTENSION_DIR = path.join(
   'extensions',
   'course-manager',
 );
-const VSIX = path.join(EXTENSION_DIR, 'canvas-course-builder.vsix');
+const VSIX = path.join(EXTENSION_DIR, 'coursewright.vsix');
 
 /**
  * The downloaded VS Code. Inside the repository, gitignored, and the one thing

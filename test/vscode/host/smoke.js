@@ -48,7 +48,7 @@ const path = require('path');
  */
 
 /** The identifier the packaged extension installs under: publisher.name. */
-const EXTENSION_ID = 'local.canvas-course-builder';
+const EXTENSION_ID = 'local.coursewright';
 
 /** The module the welcome view, the README and `docs/first-course.md` point at. */
 const TUTORIAL_MODULE = '01-getting-started';

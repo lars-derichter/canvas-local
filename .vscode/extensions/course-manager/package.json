@@ -1,13 +1,13 @@
 {
-  "name": "canvas-course-builder",
-  "displayName": "Canvas Course Builder",
-  "description": "VS Code sidebar and palette commands for Canvas Course Builder CLI",
+  "name": "coursewright",
+  "displayName": "Coursewright",
+  "description": "VS Code sidebar and palette commands for the Coursewright CLI",
   "version": "1.0.0",
   "publisher": "local",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/lars-derichter/canvas-course-builder"
+    "url": "https://github.com/lars-derichter/coursewright"
   },
   "engines": {
     "vscode": "^1.93.0"
@@ -55,7 +55,7 @@
       },
       {
         "view": "courseTree",
-        "contents": "No course modules found.\nRun the first-run wizard to set up the course name, language and look, then add your first module.\n[Course: Setup (First-Run Wizard)](command:course.setup)\nThe [tutorial module](https://github.com/lars-derichter/canvas-course-builder/tree/main/course/01-getting-started) walks through the whole workflow.",
+        "contents": "No course modules found.\nRun the first-run wizard to set up the course name, language and look, then add your first module.\n[Course: Setup (First-Run Wizard)](command:course.setup)\nThe [tutorial module](https://github.com/lars-derichter/coursewright/tree/main/course/01-getting-started) walks through the whole workflow.",
         "when": "workbenchState != empty"
       }
     ],

@@ -1,17 +1,17 @@
 {
-  "name": "canvas-course-builder",
+  "name": "coursewright",
   "version": "1.0.0",
   "private": true,
-  "description": "Write course materials locally, sync to Canvas LMS",
+  "description": "Write your course in markdown; publish it as a website, PDF or DOCX handouts, or straight into Canvas LMS",
   "license": "MIT",
   "author": "Lars De Richter",
   "repository": {
     "type": "git",
-    "url": "https://github.com/lars-derichter/canvas-course-builder"
+    "url": "https://github.com/lars-derichter/coursewright"
   },
-  "homepage": "https://github.com/lars-derichter/canvas-course-builder#readme",
+  "homepage": "https://github.com/lars-derichter/coursewright#readme",
   "bugs": {
-    "url": "https://github.com/lars-derichter/canvas-course-builder/issues"
+    "url": "https://github.com/lars-derichter/coursewright/issues"
   },
   "bin": {
     "course": "./cli/index.js"
@@ -36,7 +36,7 @@
     "item:movetomodule": "node cli/index.js movetomodule-item",
     "item:rename": "node cli/index.js rename-item",
     "item:delete": "node cli/index.js delete-item",
-    "vscode:package": "cd .vscode/extensions/course-manager && npx @vscode/vsce package -o canvas-course-builder.vsix",
+    "vscode:package": "cd .vscode/extensions/course-manager && npx @vscode/vsce package -o coursewright.vsix",
     "pretest": "node scripts/check-test-glob.js \"test/**/*.test.js\"",
     "test": "node --test \"test/**/*.test.js\"",
     "test:vscode": "npm run vscode:package && node test/vscode/host/run.js",
@@ -44,7 +44,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "vscode:install": "npm run vscode:package && code --install-extension .vscode/extensions/course-manager/canvas-course-builder.vsix"
+    "vscode:install": "npm run vscode:package && code --install-extension .vscode/extensions/course-manager/coursewright.vsix"
   },
   "dependencies": {
     "@docusaurus/core": "^3.7.0",
