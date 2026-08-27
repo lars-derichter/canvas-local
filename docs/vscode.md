@@ -132,8 +132,8 @@ Sync with Canvas**, **Course: Push to Canvas**, **Course: Pull from Canvas** and
 **Course: Status**, and a single module with **Course: Push Module to
 Canvas...**. Either way the actual work is done by the `npx course` CLI, so
 renumbering and Canvas sync state behave exactly like the terminal commands.
-Full output of the background commands is available in the **Canvas Course
-Builder** output channel (View → Output).
+Full output of the background commands is available in the **Coursewright**
+output channel (View → Output).
 
 Three row types carry less than the rest. Rename, move and delete are
 contributed for pages, assignments, external URLs, files and subheaders, and
@@ -295,20 +295,20 @@ invites.
 
 ## How It Works
 
-- Commands whose output is a report to read run in a shared **Canvas Course
-  Builder** terminal: Setup, Init, Sync, Push, Pull, Status, Validate, Build
-  Glossary, the two reset commands, the three dry runs, Search, Push Module, the
-  four module-scoped Canvas actions on a module row, and all four export
-  commands. One step inside Export Course is the exception: choosing the
-  table-of-contents option writes `exports/toc.md` through the silent runner and
-  opens it for editing, and only the render that follows it, from **Course:
-  Export via TOC...**, reaches the terminal. The terminal is also where the two
-  reset commands ask their questions: Reset Canvas prints an inventory of what
-  it is about to delete and waits for y/N, Reset Sync State waits for y/N. A
-  terminal that is still running something is never reused (while Sync waits for
-  an answer about a reordering both sides made, a second command would be typed
-  straight into that prompt as its answer), so the next command opens **Canvas
-  Course Builder 2**, and so on up to five, before falling back to the most
+- Commands whose output is a report to read run in a shared **Coursewright**
+  terminal: Setup, Init, Sync, Push, Pull, Status, Validate, Build Glossary, the
+  two reset commands, the three dry runs, Search, Push Module, the four
+  module-scoped Canvas actions on a module row, and all four export commands.
+  One step inside Export Course is the exception: choosing the table-of-contents
+  option writes `exports/toc.md` through the silent runner and opens it for
+  editing, and only the render that follows it, from **Course: Export via
+  TOC...**, reaches the terminal. The terminal is also where the two reset
+  commands ask their questions: Reset Canvas prints an inventory of what it is
+  about to delete and waits for y/N, Reset Sync State waits for y/N. A terminal
+  that is still running something is never reused (while Sync waits for an
+  answer about a reordering both sides made, a second command would be typed
+  straight into that prompt as its answer), so the next command opens
+  **Coursewright 2**, and so on up to five, before falling back to the most
   recently used one. Idle terminals are reused, lowest number first, and a
   closed terminal frees its number. Preview keeps a terminal of its own, outside
   that pool.

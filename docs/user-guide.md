@@ -466,7 +466,7 @@ materials to a new Canvas course at the start of a new academic year.
 
 Turn course materials into printable PDFs or editable Word documents, handy for
 exams, handouts, and offline review. This needs pandoc (and Typst for PDF); see
-the [optional install step](#getting-started) above.
+the [optional install step](#optional-pandoc-and-typst) above.
 
 ```bash
 npx course export course/01-intro/03-alerts.md   # one item

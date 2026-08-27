@@ -170,7 +170,8 @@ npx course setup
 
 It asks for your course name, the language of the labels students see, the look
 of the site and the exports, and whether to remove the built-in tutorial module.
-Answer, and it writes the configuration for you.
+It ends by offering to connect Canvas; skip that for now, a later step covers
+it. Answer, and it writes the configuration for you.
 
 > [!TIP]
 >

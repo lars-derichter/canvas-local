@@ -140,16 +140,17 @@ being necessary, because there would only be one of them. The runtime is about
 
 It was considered and declined, on two counts. A missing dependency at
 activation is not a degraded feature, it is the whole sidebar failing to load.
-And no test can see that coming: `node --test` resolves `dotenv` against the
+And `node --test` cannot see that coming: it resolves `dotenv` against the
 repository's own `node_modules`, so a packaging mistake passes the full suite,
-both CI platforms and lint, then throws once installed. Proving it works needs a
-check at the packaging level, which does not exist today.
+both CI platforms and lint, then throws once installed. The
+[extension-host smoke test](tests.md#the-extension-host-smoke-test) closes that
+hole: `npm run test:vscode` installs the packaged `.vsix` outside the
+repository, so a dependency missing from the package fails visibly. That answers
+the second objection and leaves size as the remaining cost.
 
-Two things would reopen it. A `.env` shape the hand-rolled reader deliberately
-omits (its docstring lists them) turning up in a real course, since extending
-the reader then costs more than the dependency does. Or a smoke test that
-actually launches the packaged extension, which would make the activation
-failure visible and leave size as the only remaining cost.
+What would still tip the decision: a `.env` shape the hand-rolled reader
+deliberately omits (its docstring lists them) turning up in a real course, since
+extending the reader then costs more than the dependency does.
 
 Copying dotenv's `parse` into `helpers.js` instead, with attribution, is a third
 option and a worse one: exact parity with no packaging step, but a fork with no

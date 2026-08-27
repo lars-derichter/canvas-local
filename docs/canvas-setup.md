@@ -43,7 +43,7 @@ create one:
 > `.env` file where this token is stored is already listed in `.gitignore`.
 
 For more information, see the Canvas documentation:
-[How do I manage API access tokens as an admin?](https://community.canvaslms.com/t5/Admin-Guide/How-do-I-manage-API-access-tokens-as-an-admin/ta-p/89)
+[How do I manage API access tokens in my user account?](https://community.instructure.com/t5/Canvas-Basics-Guide/How-do-I-manage-API-access-tokens-in-my-user-account/ta-p/615312)
 
 ## Canvas Course ID
 

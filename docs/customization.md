@@ -294,7 +294,7 @@ it to your students along with everything else.
 > [!WARNING]
 >
 > Remove it, or move it out of `course/`, before your first push to a course
-> students can see. Otherwise fifteen pages about Coursewright appear in their
+> students can see. Otherwise a full module about Coursewright appears in their
 > module list.
 
 `npx course setup` offers to delete it. Deleting is safe: the module stays

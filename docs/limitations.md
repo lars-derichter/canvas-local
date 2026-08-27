@@ -202,27 +202,27 @@ what the refusal asks for, and adoption pairs the two sides up from there.
 
 ## Destructive Operations and Student Work
 
-Two commands delete things on Canvas: `push --prune-canvas` and `reset-canvas`.
-A plain push deletes one thing as well, the Canvas file a renamed binary
-orphaned, but a file carries no grades, so that case belongs above rather than
-here. What separates the two commands is not how much they delete but which kind
-of object they delete, and only one of those kinds takes student work with it.
+Deleting on Canvas happens two ways: a prune (`push --prune-canvas` or
+`sync --prune-canvas`) and `reset-canvas`. A plain push deletes one thing as
+well, the Canvas file a renamed binary orphaned, but a file carries no grades,
+so that case belongs above rather than here. What separates a prune from
+`reset-canvas` is not how much they delete but which kind of object they delete,
+and only one of those kinds takes student work with it.
 
 - **Deleting a module item is safe.** A module item is a link. Removing it
   leaves the page, assignment or file it pointed at exactly where it was, with
   its gradebook column and its submissions untouched.
-- **A quiz and an LTI link are only ever unlinked.** `push --prune-canvas` and
-  `reset-canvas` remove the module item for either one and stop there: the quiz,
-  its questions and every submission on it stay in Canvas, and so does the tool
-  installation that other courses launch. Neither is this project's to delete.
-- **A discussion is deleted like a page.** It is authored content here, so
-  `push --prune-canvas` deletes the topic itself when you delete its local file,
-  and the replies go with it. `reset-canvas` leaves discussions alone.
-- **Deleting an assignment is not.** `push --prune-canvas` calls `DELETE` on the
-  assignment object itself, and Canvas takes its gradebook column and every
-  submission on it. Canvas's `/undelete` sometimes brings the assignment back;
-  the submissions frequently do not come with it, so the grades are gone for
-  good.
+- **A quiz and an LTI link are only ever unlinked.** A prune and `reset-canvas`
+  remove the module item for either one and stop there: the quiz, its questions
+  and every submission on it stay in Canvas, and so does the tool installation
+  that other courses launch. Neither is this project's to delete.
+- **A discussion is deleted like a page.** It is authored content here, so a
+  prune deletes the topic itself when you delete its local file, and the replies
+  go with it. `reset-canvas` leaves discussions alone.
+- **Deleting an assignment is not.** A prune calls `DELETE` on the assignment
+  object itself, and Canvas takes its gradebook column and every submission on
+  it. Canvas's `/undelete` sometimes brings the assignment back; the submissions
+  frequently do not come with it, so the grades are gone for good.
 - **`reset-canvas` does that to every assignment in the course**, alongside
   every module, page and file (except the assignments that are really quizzes,
   below). See [Advanced commands](advanced-commands.md#reset-canvas).
@@ -231,20 +231,20 @@ of object they delete, and only one of those kinds takes student work with it.
   column. Canvas returns that assignment from the assignments API like any other
   (`is_quiz_assignment: true`, with the quiz's id in `quiz_id`), and a `DELETE`
   on it deletes the quiz, its questions and every submission. Neither command
-  does that: `reset-canvas` skips those assignments and names them, and
-  `push --prune-canvas` refuses to delete one, reports it as an error, and
-  leaves it tracked. If a local file claimed `canvas_type: assignment` for an id
-  that Canvas holds as a quiz, that mismatch is yours to settle: delete the quiz
-  in Canvas if that is what you meant. A practice quiz has no gradebook column
-  and never appears among the assignments, so it is never at risk.
+  does that: `reset-canvas` skips those assignments and names them, and a prune
+  refuses to delete one, reports it as an error, and leaves it tracked. If a
+  local file claimed `canvas_type: assignment` for an id that Canvas holds as a
+  quiz, that mismatch is yours to settle: delete the quiz in Canvas if that is
+  what you meant. A practice quiz has no gradebook column and never appears
+  among the assignments, so it is never at risk.
 - **A New Quiz is not covered by any of that**, and cannot be: it is genuinely
   an assignment that launches an LTI tool (`is_quiz_lti_assignment: true`, no
   `quiz_id`, no separate quiz object), so this project manages it as the
-  assignment it is and both commands delete it like one. That deletes the quiz,
-  its questions and every submission on it, and nothing in this repo could
-  rebuild the questions. A New Quiz has no markdown source here the way an
-  assignment body does. `reset-canvas` names each one it is about to delete, so
-  a count of "n assignments" cannot hide it. `push --prune-canvas` does not: it
+  assignment it is, and a prune and `reset-canvas` delete it like one. That
+  deletes the quiz, its questions and every submission on it, and nothing in
+  this repo could rebuild the questions. A New Quiz has no markdown source here
+  the way an assignment body does. `reset-canvas` names each one it is about to
+  delete, so a count of "n assignments" cannot hide it. A prune does not: it
   lists the item as an ordinary assignment, which is the one place where the
   warning is thinner than the loss.
 

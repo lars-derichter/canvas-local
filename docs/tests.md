@@ -47,15 +47,17 @@ and `test/vscode/` for the bundled VS Code extension. Each file is named after
 what it covers, e.g. `test/convert/course-scanner.test.js` or
 `test/cli/push-helpers.test.js`.
 
-Three directories break that pattern. `test/helpers/` holds no tests: it is the
-shared `canvas-mock.js`, which stands in for the Canvas API over `fetch`, and
+Three places break that pattern. `test/helpers/` holds no tests: it is the
+shared `canvas-mock.js`, which stands in for the Canvas API over `fetch`;
 `prettier-config.js`, which gives a temporary course tree the same Prettier
 settings the repo has, so a write in a test formats the way it does in
-production. `test/vscode/host/` holds no `*.test.js` either, because nothing in
-it runs under `node --test`: it is the extension-host smoke test, whose files
-are a launcher, the cases that run inside VS Code, and an empty extension
-manifest. And `test/source-hygiene.test.js` sits at the root because it covers
-the whole source tree rather than one directory.
+production; and `points-cases.js`, the table of `--points` spellings that the
+CLI's reader and the extension's copy of its rule are each held to in their own
+test. `test/vscode/host/` holds no `*.test.js` either, because nothing in it
+runs under `node --test`: it is the extension-host smoke test, whose files are a
+launcher, the cases that run inside VS Code, and an empty extension manifest.
+And `test/source-hygiene.test.js` sits at the root because it covers the whole
+source tree rather than one directory.
 
 Coverage spans the config layer (`lib/config/`), the conversion layer
 (`lib/convert/`), the export layer (`lib/export/`), the reconcile engine
@@ -317,10 +319,10 @@ bound on the host run, which defaults to three minutes.
 sidebar is bound to the tree the extension builds means catching the read VS
 Code makes when it draws that sidebar, and a Windows CI runner has no desktop to
 draw on: the pane never appeared, and the case sat through its whole bound
-waiting for a read on a machine that had run the other seven in 120ms. Linux is
-fine because it goes through xvfb, which is a display even if nobody is looking
-at it. So the check is split. One case proves the binding with no pixels at all
-— handing a provider to `createTreeView` makes VS Code subscribe to its
+waiting for a read on a machine that had run the other eight cases in 120ms.
+Linux is fine because it goes through xvfb, which is a display even if nobody is
+looking at it. So the check is split. One case proves the binding with no pixels
+at all — handing a provider to `createTreeView` makes VS Code subscribe to its
 `onDidChangeTreeData` there and then, and nothing else in the extension
 subscribes to that emitter — and that one runs everywhere. The other reveals the
 view and catches the read, and where the pane never draws it reports itself as

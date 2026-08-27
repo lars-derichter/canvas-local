@@ -159,11 +159,11 @@ changes:
 
 ### Commit the Canvas Sync File
 
-Your project holds one file you did not write: `.canvas-sync.json`. Canvas
-Course Builder writes it when you connect the project to a Canvas course, and
-updates it on every push and pull after that. It records which Canvas page,
-assignment or discussion each of your markdown files became, and nothing else in
-your project does.
+Your project holds one file you did not write: `.canvas-sync.json`. Coursewright
+writes it when you connect the project to a Canvas course, and updates it on
+every push and pull after that. It records which Canvas page, assignment or
+discussion each of your markdown files became, and nothing else in your project
+does.
 
 Commit it like any other file. `git add .` picks it up along with your markdown,
 so the three commands above already do the right thing. What you must not do is
