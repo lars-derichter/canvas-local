@@ -14,6 +14,7 @@ const {
   gatherCanvas,
   gatherLocal,
   gitDirtyPaths,
+  runGit,
   subHeaderHash,
 } = require('../../lib/sync/gather');
 const { hashBinaryFile, hashLocalFile } = require('../../lib/sync/fingerprint');
@@ -584,6 +585,55 @@ describe('gitDirtyPaths', () => {
     // Empty, and it has to be read as "no answer" rather than "no dirty files":
     // `pull --force` falls back to counting scanned items here, or its question
     // would vanish for the run that most needs it.
+    assert.equal(result.files.size, 0);
+  });
+
+  it('reads more from git than the default buffer holds', () => {
+    // `execFileSync` stops at 1 MB unless told otherwise, and stopping is a
+    // throw. One `--porcelain -z` entry costs its path plus four bytes, so a
+    // checkout that has stopped ignoring an `npm install` blows through the
+    // default on the untracked list alone — and the guard then refuses every
+    // local write for the rest of the run.
+    //
+    // Driven through `cat-file` rather than by making a tree with tens of
+    // thousands of files in it: the buffer is a property of `runGit`, which
+    // both commands go through, and this asks git for two megabytes in a
+    // fraction of the time.
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gather-buffer-'));
+    try {
+      const big = 'x'.repeat(2 * 1024 * 1024);
+      fs.writeFileSync(path.join(dir, 'big.txt'), big, 'utf8');
+      runGit(['init'], dir);
+      runGit(['add', 'big.txt'], dir);
+
+      const out = runGit(['cat-file', '-p', ':big.txt'], dir);
+
+      assert.equal(out.length, big.length);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('says a tree is too big to list rather than quoting ENOBUFS', () => {
+    // The safe direction is unchanged — nothing can be proved safe to
+    // overwrite, so everything is dirty — but the line the user gets has to
+    // say what to go and look at. `spawnSync git ENOBUFS` reads as git having
+    // broken.
+    const result = gitDirtyPaths({
+      courseDir: '/repo/course',
+      cwd: '/repo',
+      run: (args) => {
+        if (args[0] === 'rev-parse') return '/repo\n';
+        const err = new Error('spawnSync git ENOBUFS');
+        err.code = 'ENOBUFS';
+        throw err;
+      },
+    });
+
+    assert.equal(result.available, false);
+    assert.match(result.reason, /listed more than \d+ MB of paths/);
+    assert.doesNotMatch(result.reason, /ENOBUFS/);
+    assert.equal(result.paths.size, 0);
     assert.equal(result.files.size, 0);
   });
 
