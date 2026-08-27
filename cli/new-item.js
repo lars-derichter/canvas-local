@@ -14,6 +14,119 @@ const { recordRenames } = require('./sync-renames');
 
 const VALID_TYPES = ['page', 'assignment', 'url', 'subsection', 'file'];
 
+/** What an assignment is worth when nothing usable says otherwise. */
+const DEFAULT_POINTS = 100;
+
+/**
+ * How a number of points is written: digits, and then at most one decimal point
+ * with digits on both sides of it.
+ */
+const POINTS = /^\d+(\.\d+)?$/;
+
+/**
+ * `typed` with the zeros that carry nothing taken off, so that it can be held
+ * against what `String(Number(typed))` prints. Leading zeros go, and so do
+ * trailing zeros past the decimal point: neither survives the trip through a
+ * number, and neither changes which number was meant.
+ *
+ * Only ever called on a value `POINTS` has already matched, so there is always
+ * at least one digit in front of the point and the stripping cannot leave an
+ * empty string behind.
+ */
+function withoutIdleZeros(typed) {
+  const [whole, fraction = ''] = typed.split('.');
+  const kept = fraction.replace(/0+$/, '');
+  return whole.replace(/^0+(?=\d)/, '') + (kept ? `.${kept}` : '');
+}
+
+/**
+ * The points a `--points` flag or a typed answer asks for, or null when it asks
+ * for nothing a number can be read out of whole.
+ *
+ * `parseInt` used to be this, and `parseInt` takes a bite out of anything it is
+ * handed: `abc` came back NaN, and NaN is not null, so it reached the
+ * frontmatter as `points_possible: .nan` and went to Canvas from there. `2.5`
+ * came back 2 and `1e3` came back 1. `--points -5` came back minus five, which
+ * commander hands through as a value rather than reading as a flag. Every one
+ * of those writes a number the author never asked for into a file that reads as
+ * deliberate, which is worse than writing the default: a wrong number nobody
+ * chose looks exactly like a right one.
+ *
+ * So the rule is a plain decimal and nothing else, and the caller falls back to
+ * `DEFAULT_POINTS` out loud on anything else. A fraction is a real number of
+ * points: Canvas takes `points_possible: 2.5`, and `lib/sync/canvas-write.js`
+ * sends whatever the frontmatter holds, so refusing one here would be this tool
+ * disagreeing with itself over a value it carries perfectly well. Zero is a
+ * real number of points for the same reason — that file goes out of its way to
+ * send `points_possible: 0` rather than drop it — and how fine a fraction may
+ * be is Canvas's business to round in its gradebook rather than this reader's
+ * to cut off.
+ *
+ * What is refused is refused for being a guess about intent, never for being a
+ * fraction. A sign, an exponent, a hex literal, a numeric separator, a decimal
+ * point with nothing on one side of it: each is either not a number of points
+ * at all or not the number it looks like, and the minus is the one that
+ * matters, because nothing is worth minus five points.
+ *
+ * The last line is the guard that used to be `Number.isSafeInteger`, widened to
+ * the fractions it now has to cover: what comes back has to print as the digits
+ * that went in. That is what stops `9007199254740993` from being written out as
+ * ...992, and `0.0000001` from being written out as `1e-7`.
+ *
+ * Which puts the edge where `String` stops writing a number out in full rather
+ * than where the arithmetic stops being exact. A one with twenty zeros after it
+ * is accepted and a one with twenty-one is refused, because the second prints
+ * as `1e+21`; 2^53 exactly is accepted, although it is past the safe integers,
+ * because it prints as itself. That is on purpose. What the guard protects is
+ * the file saying what the author typed, and a value that prints as itself does
+ * that no matter how large it is — while `1e+21` in the frontmatter is a number
+ * nobody wrote there. Nothing in this range is a real number of points either
+ * way, so the line is drawn where it can be stated exactly.
+ *
+ * `validatePoints` in the VS Code extension states this same rule at its input
+ * box, and the two are stated twice on purpose: an installed extension has no
+ * `node_modules` and no `cli/` to reach into, which is why that file holds a
+ * copy of everything it needs. `test/helpers/points-cases.js` is the table both
+ * of them are held to, so the copy cannot quietly stop matching this.
+ */
+function readPoints(value) {
+  const typed = String(value ?? '').trim();
+  if (!POINTS.test(typed)) return null;
+  const points = Number(typed);
+  return withoutIdleZeros(typed) === String(points) ? points : null;
+}
+
+/**
+ * `readPoints`, plus the line that says a value was not used. Shared by the
+ * flag and the prompt so the two cannot drift: both fall back to the same
+ * number, and neither substitutes it in silence.
+ */
+function pointsOrDefault(value) {
+  const points = readPoints(value);
+  if (points !== null) return points;
+  console.log(
+    `[new-item] "${value}" is not a number of points ` +
+      `(0 or more, 2.5 is fine). Using ${DEFAULT_POINTS}.`,
+  );
+  return DEFAULT_POINTS;
+}
+
+/**
+ * Say that a `--points` value had nowhere to go, because `createEntry` writes
+ * `points_possible` into an assignment and into nothing else.
+ *
+ * Both paths say it, in one place so they say it the same way. Saying nothing
+ * would be the defect this whole guard exists to stop, one step further along:
+ * the author asked for something the run did not do, and only the run knows. No
+ * number is named, because none was written.
+ */
+function warnPointsUnused(value, type) {
+  console.log(
+    `[new-item] --points is for an assignment, so "${value}" was not used ` +
+      `on this ${type}.`,
+  );
+}
+
 function getNextPosition(items) {
   if (items.length === 0) return 1;
   return items[items.length - 1].prefix + 1;
@@ -79,7 +192,7 @@ async function createEntry(
   const frontmatterData = { title: name };
   if (type === 'assignment') {
     frontmatterData.canvas_type = 'assignment';
-    frontmatterData.points_possible = points != null ? points : 100;
+    frontmatterData.points_possible = points != null ? points : DEFAULT_POINTS;
     frontmatterData.submission_types = ['online_upload'];
   } else if (type === 'url') {
     frontmatterData.canvas_type = 'external_url';
@@ -159,11 +272,23 @@ async function newItem(options = {}) {
       process.exit(1);
     }
 
+    // `createEntry` writes `points_possible` into an assignment and into
+    // nothing else, so `--points` anywhere else has nowhere to land. Reading it
+    // before the type is known drew "Using 100." over a page that was written
+    // without any points at all: a line about a fallback that never happened,
+    // which is worse than saying nothing.
+    if (options.points != null && type !== 'assignment') {
+      warnPointsUnused(options.points, type);
+    }
+
     const createdName = await createEntry(targetDir, type, {
       name: options.name,
       position,
       url: options.url,
-      points: options.points != null ? parseInt(options.points, 10) : undefined,
+      points:
+        type === 'assignment' && options.points != null
+          ? pointsOrDefault(options.points)
+          : undefined,
       filePath,
     });
     console.log(
@@ -200,6 +325,13 @@ async function newItem(options = {}) {
     break;
   }
 
+  // `--points` on a run that still has questions to answer is an answer to one
+  // of them, given early. It only means anything to an assignment, so it is
+  // said here rather than left to fall silently off the end of a page.
+  if (options.points != null && type !== 'assignment') {
+    warnPointsUnused(options.points, type);
+  }
+
   let name = null;
   let url = null;
   let points = null;
@@ -222,8 +354,18 @@ async function newItem(options = {}) {
     }
 
     if (type === 'assignment') {
-      const pointsStr = await prompt(rl, 'Points possible', '100');
-      points = parseInt(pointsStr, 10) || 100;
+      // A `--points` on an otherwise interactive run is offered back as the
+      // answer to confirm, rather than ignored the way it used to be or
+      // announced with a second message. It goes through the same reader first,
+      // so an unusable one falls back to 100 in the same words the flag-driven
+      // path uses, and what sits at the prompt is what that path would have
+      // written. An answer typed over it wins, which is what a default is for.
+      const offered =
+        options.points != null
+          ? pointsOrDefault(options.points)
+          : DEFAULT_POINTS;
+      const pointsStr = await prompt(rl, 'Points possible', String(offered));
+      points = pointsOrDefault(pointsStr);
     } else if (type === 'url') {
       while (true) {
         url = await prompt(rl, 'URL');
@@ -260,3 +402,4 @@ async function newItem(options = {}) {
 module.exports = newItem;
 module.exports._createEntry = createEntry;
 module.exports._promptPosition = promptPosition;
+module.exports._readPoints = readPoints;

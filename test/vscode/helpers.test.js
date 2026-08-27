@@ -51,9 +51,11 @@ const dotenv = require('dotenv');
 const { reorder } = require('../../cli/renumber');
 const { getItems } = require('../../cli/item-utils');
 const { _moveEntry } = require('../../cli/movetomodule-item');
+const { _readPoints: readPoints } = require('../../cli/new-item');
 const {
   displayTitle: libraryDisplayTitle,
 } = require('../../lib/convert/course-scanner');
+const { POINTS_CASES, EMPTY_POINTS } = require('../helpers/points-cases');
 
 function createFiles(dir, names) {
   for (const name of names) {
@@ -1901,133 +1903,319 @@ describe('helpers: validatePoints', () => {
     accepts(undefined);
   });
 
-  it('refuses what parseInt would turn into NaN', () => {
-    // `--points abc` reaches the frontmatter as `points_possible: .nan`.
+  it('takes a fraction, because Canvas and the CLI both do', () => {
+    // `points_possible: 2.5` is an ordinary Canvas assignment, and
+    // `lib/sync/canvas-write.js` sends whatever the frontmatter holds. The box
+    // used to refuse this and point at the frontmatter as the way to get one
+    // in, which was a detour around a flag that can carry it.
+    accepts('2.5');
+    accepts('0.5');
+    accepts('33.333');
+  });
+
+  it('refuses a decimal point with nothing on one side of it', () => {
+    // A `.5` is as easily a stray keystroke as it is a half, and a `2.` is a
+    // `2.5` that lost its tail. `0.5` is right there for anyone who means one.
+    refuses('.5');
+    refuses('5.');
+    refuses('1.2.3');
+  });
+
+  it('refuses what is not a number at all', () => {
     refuses('abc');
     refuses('100 points');
     refuses('1,5');
   });
 
-  it('refuses a decimal, and says where a fraction goes instead', () => {
-    // Canvas takes fractional points; `parseInt('2.5', 10)` is 2, so this path
-    // cannot carry one. The refusal has to name the path that can.
-    assert.match(refuses('2.5'), /frontmatter/i);
-    assert.match(refuses('0.5'), /frontmatter/i);
-    assert.match(refuses('.5'), /frontmatter/i);
-    // The same mistake spelled three more ways. They used to draw two
-    // different sentences: a decimal point is a decimal point.
-    assert.match(refuses('5.'), /frontmatter/i);
-    assert.match(refuses('5.0'), /frontmatter/i);
-    assert.match(refuses('1.2.3'), /frontmatter/i);
-  });
-
-  it('refuses exponent notation, which parseInt reads as its first digit', () => {
+  it('refuses a notation nobody writes a number of points in', () => {
+    // Each of these is a number to `Number` and not to a person filling in a
+    // points box, so reading one would be a guess about what was meant.
     refuses('1e5');
+    refuses('0e2');
+    refuses('0x10');
+    refuses('1_000');
+    refuses('5 5');
   });
 
   it('refuses a negative, which is not a number of points at all', () => {
     refuses('-5');
     refuses('-0');
+    refuses('-2.5');
+    refuses('+5');
   });
 
   it('refuses more digits than a number keeps', () => {
     accepts(String(Number.MAX_SAFE_INTEGER));
     refuses(String(Number.MAX_SAFE_INTEGER) + '0');
     refuses('9'.repeat(30));
+    // The same defect past the decimal point: what would be written out is
+    // `2.5`, and `2.5` is not what was typed.
+    refuses('2.5000000000000001');
   });
 
-  it('accepts every value the CLI would then read back unchanged', () => {
-    // The rule in one sentence: what this lets through, `parseInt(v, 10)` has
-    // to give back whole. Looser than that is silent data loss (2.5 becoming
-    // 2); stricter than that refuses a value the CLI would have handled.
+  it('answers the shared table of cases the CLI is held to as well', () => {
+    // The cross-check, and the reason `test/helpers/points-cases.js` exists.
+    // This function is a copy of `readPoints` in `cli/new-item.js`, kept by
+    // hand because the packaged extension has no `node_modules` and no `cli/`
+    // to require the original out of, and a copy is only worth having while it
+    // still says the same thing.
     //
-    // With the deliberate exceptions listed here rather than folded into the
-    // rule: each parses back whole at the CLI and is refused anyway, for the
-    // way it is spelled. The minus is the one that matters — commander passes
-    // `--points -5` through as a value and the CLI writes `points_possible: -5`
-    // unexamined. The rest are slips, not shorthands.
-    const refusedAnyway = new Set(['-5', '-0', '+5', '5.', '5.0', '0e2']);
-    const corpus = [
-      '0',
-      '1',
-      '007',
-      ' 50 ',
-      '100',
-      '2.5',
-      '.5',
-      '1e5',
-      '-5',
-      '-0',
-      '+5',
-      '5.',
-      '5.0',
-      '0e2',
-      'abc',
-      '100 points',
-      '1,5',
-      '9'.repeat(30),
-      '',
-    ];
-    for (const value of corpus) {
-      const typed = value.trim();
-      const parsed = parseInt(typed, 10);
-      const survivesTheCli =
-        typed === '' ||
-        (Number.isSafeInteger(parsed) &&
-          String(parsed) === String(Number(typed)));
+    // Both are held to the same table of concrete values, each in its own
+    // test, so changing one implementation on its own fails the other's test.
+    // What used to stand here modelled the CLI as a hardcoded `parseInt(...)`
+    // expression rather than running it, and went on passing after the CLI
+    // stopped using `parseInt`: it agreed with a function nobody runs.
+    for (const [typed, points] of POINTS_CASES) {
       assert.equal(
-        validatePoints(value) === null,
-        survivesTheCli && !refusedAnyway.has(typed),
-        `${JSON.stringify(value)}: parseInt gives ${parsed}`,
+        validatePoints(typed) === null,
+        points !== null,
+        `${JSON.stringify(typed)} is worth ${points} to the CLI, and this box ` +
+          `says ${JSON.stringify(validatePoints(typed))}`,
       );
     }
   });
 
-  it('never turns away a plain count the CLI would have taken', () => {
-    // A list of exceptions cannot prove it is complete, so this states the
-    // boundary from the other side, over every spelling it can build: what is
-    // refused despite surviving the CLI is always written with something other
-    // than digits — a sign, a decimal point, an exponent. Nothing anyone would
-    // type as a number of points is turned away for its spelling.
-    //
-    // Written this way after the sweep caught two the hand-written list above
-    // had missed: `5.0` and `0e2` both parse back whole, and both are refused.
-    const built = [];
-    for (const sign of ['', '-', '+']) {
-      for (const digits of ['0', '5', '07', '12', '100']) {
-        for (const tail of ['', '.', '.0', '.5', 'e2', ' ', 'x', '_0']) {
-          built.push(`${sign}${digits}${tail}`);
+  /**
+   * Every spelling worth trying, built out of the pieces a points answer is
+   * made of rather than listed one by one.
+   *
+   * A list only covers the cases somebody thought of, and what is being guarded
+   * here is a rule written out twice by hand: the divergence that matters is
+   * the one nobody thought of, which is precisely what a list cannot hold.
+   *
+   * Built as several small sweeps rather than one big product, because a
+   * product multiplies the boring dimensions together. Padding used to be a
+   * factor of the main sweep and made it six times the size while adding
+   * nothing to the 58 distinct values that come out accepted. It is its own
+   * sweep now, over far more kinds of space than six, and the whole corpus is
+   * smaller than it was. What is worth counting is the classes covered, not the
+   * cases.
+   */
+  function generatedCorpus() {
+    const values = new Set();
+    const add = (value) => values.add(value);
+
+    // How a number is spelled: sign, digits, decimal tail, trailing notation.
+    const signs = ['', '-', '+'];
+    const wholes = [
+      '',
+      '0',
+      '00',
+      '5',
+      '05',
+      '007',
+      '12',
+      '100',
+      // Around the precision boundary, where the digits stop being kept, and
+      // around the magnitude where `String` gives up and writes `1e+21`.
+      '9007199254740991',
+      '9007199254740992',
+      '9007199254740993',
+      '1' + '0'.repeat(20),
+      '1' + '0'.repeat(21),
+      '9'.repeat(30),
+    ];
+    const fractions = [
+      '',
+      '.',
+      '.0',
+      '.5',
+      '.50',
+      '.05',
+      '.123456789',
+      // The last magnitude a number spells out, and the first it does not.
+      '.000001',
+      '.0000001',
+      '.5000000000000001',
+    ];
+    const tails = ['', 'e2', 'E2', 'e-2', '_0', 'x10', 'abc', ','];
+    for (const sign of signs) {
+      for (const whole of wholes) {
+        for (const fraction of fractions) {
+          for (const tail of tails) {
+            add(`${sign}${whole}${fraction}${tail}`);
+          }
         }
       }
     }
-    built.push('0x10', '1_000', '5 5', ' 5 ', '1e5', '9'.repeat(30));
 
-    let plain = 0;
-    let divergences = 0;
-    for (const value of built) {
-      const typed = value.trim();
-      const parsed = parseInt(typed, 10);
-      if (/^\d+$/.test(typed) && Number.isSafeInteger(parsed)) {
-        plain++;
-        assert.equal(
-          validatePoints(value),
-          null,
-          `${JSON.stringify(value)} is a plain count and was refused`,
-        );
+    // What might or might not count as space around a value. `trim` strips
+    // Unicode whitespace and the byte-order mark and leaves NUL and the bidi
+    // marks where they are, and both readers have to draw that line in the
+    // same place, whichever way it falls.
+    const spaces = [
+      ' ',
+      '\t',
+      '\n',
+      '\r',
+      '\f',
+      '\v',
+      '\u00a0', // no-break space
+      '\u2002', // en space
+      '\u3000', // ideographic space
+      '\u2028', // line separator
+      '\ufeff', // byte-order mark
+      '\u0000', // NUL, which is not space at all
+      '\u200e', // left-to-right mark
+      '\u202a', // left-to-right embedding
+      '\u2066', // left-to-right isolate
+    ];
+    for (const space of spaces) {
+      for (const base of ['5', '2.5', '0']) {
+        add(`${space}${base}`);
+        add(`${base}${space}`);
+        add(`${space}${base}${space}`);
+      }
+      add(`5${space}5`);
+      add(space);
+    }
+
+    // Digits that are digits to a reader and not to `\d` or to `Number`. Both
+    // readers refuse them today; what matters is that they go on refusing them
+    // together.
+    const foreignDigits = [
+      '٥', // Arabic-Indic five
+      '۵', // Extended Arabic-Indic five
+      '५', // Devanagari five
+      '５', // Fullwidth five
+      '௧', // Tamil one
+      '½', // one half
+      '⁵', // superscript five
+      '₅', // subscript five
+      'Ⅴ', // Roman numeral five
+      '๕', // Thai five
+    ];
+    for (const digit of foreignDigits) {
+      add(digit);
+      add(`${digit}0`);
+      add(`5${digit}`);
+      add(`5.${digit}`);
+      add(`${digit}.5`);
+    }
+
+    // Every one- and two-character string over the punctuation a number is
+    // written with, which is where the short nonsense lives: `.-`, `+.`, `e5`,
+    // `5,`, `..` and the rest, without anyone having to think of them.
+    const alphabet = ['0', '5', '.', '-', '+', 'e', 'x', '_', ',', ' ', '\t'];
+    for (const first of alphabet) {
+      add(first);
+      for (const second of alphabet) add(`${first}${second}`);
+    }
+
+    // Notations of their own, and digits with something in the middle.
+    const odd = [
+      '0x10',
+      '0b101',
+      '0o17',
+      'Infinity',
+      '-Infinity',
+      'NaN',
+      '1,5',
+      '1 000',
+      '5 5',
+      '1_000',
+      '1.2.3',
+      '1..2',
+      '',
+      '   ',
+    ];
+    for (const value of odd) add(value);
+
+    // What is not a string at all. Both readers start with `String(value ?? '')`
+    // and take whatever comes out, and neither of the CLI's two paths promises
+    // a string: `--points` arrives from commander and the prompt from readline
+    // today, but `readPoints` is also called on the flag before the prompt
+    // sees it. An array stringifies to its contents, an object to
+    // `[object Object]`, a bigint to its digits, and each has to land the same
+    // way on both sides.
+    const notStrings = [
+      undefined,
+      null,
+      0,
+      -0,
+      25,
+      2.5,
+      -5,
+      NaN,
+      Infinity,
+      10n,
+      [],
+      [5],
+      [5, 6],
+      { toString: () => '7' },
+      {},
+      true,
+      false,
+    ];
+    for (const value of notStrings) values.add(value);
+
+    return [...values];
+  }
+
+  it('decides every generated spelling exactly as the CLI reader does', () => {
+    // The differential, and the guard this pair of functions actually needs.
+    // `validatePoints` is a copy of `readPoints` in `cli/new-item.js`, written
+    // out by hand because the packaged extension has no `node_modules` and no
+    // `cli/` to require the original out of (AGENTS.md). What fits a
+    // duplication is a check that says the two agree, over a space wide enough
+    // that a divergence has nowhere to hide. The table above states the rule
+    // readably; this catches what a table cannot hold.
+    //
+    // The two answer in different shapes — a number or null against null or a
+    // complaint — so what is held against each other is the decision: whether
+    // each takes the value, and, where both do, that the number the CLI reads
+    // is the language's own reading of those digits, at or above zero and
+    // finite. That last part is what fails if either reader ever starts
+    // rounding or truncating the value it was handed.
+    // A failure has to name the value it failed on, and half this corpus is
+    // invisible or is not a string. `JSON.stringify` escapes a string's spaces
+    // legibly, throws outright on a bigint, and answers `undefined` for several
+    // of the rest, so anything but a string is described rather than quoted.
+    const show = (value) => {
+      if (typeof value === 'string') return JSON.stringify(value);
+      if (value === null || value === undefined) return String(value);
+      return `${typeof value} ${String(value)}`;
+    };
+
+    const corpus = generatedCorpus();
+    let accepted = 0;
+
+    for (const value of corpus) {
+      // The same coercion both readers open with, so that `undefined` and an
+      // empty array are held against the rule the way the readers see them
+      // rather than as the words "undefined" and "".
+      const typed = String(value ?? '').trim();
+      const points = readPoints(value);
+      const complaint = validatePoints(value);
+      const where =
+        `${show(value)}: the CLI reads ${show(points)} ` +
+        `and the box says ${show(complaint)}`;
+
+      if (typed === '') {
+        // The one divergence there is, and the two still end at the same
+        // number: an empty box is the 100 it was pre-filled with, and an empty
+        // answer at the CLI is no answer, which its caller turns into 100.
+        assert.equal(complaint, null, where);
+        assert.equal(points, null, where);
         continue;
       }
-      const survivesTheCli =
-        Number.isSafeInteger(parsed) &&
-        String(parsed) === String(Number(typed));
-      if (!survivesTheCli || validatePoints(value) === null) continue;
-      divergences++;
-      assert.match(
-        typed,
-        /\D/,
-        `${JSON.stringify(value)} is refused although the CLI would have taken it`,
-      );
+
+      assert.equal(complaint === null, points !== null, where);
+      if (points === null) continue;
+      accepted++;
+      assert.equal(points, Number(typed), where);
+      assert.ok(points >= 0 && Number.isFinite(points), where);
     }
-    assert.ok(plain > 0 && divergences > 0, 'the sweep found nothing to check');
+
+    assert.ok(corpus.length > 1000, 'a sweep this narrow is not a sweep');
+    assert.ok(accepted > 0, 'a sweep that accepts nothing proves nothing');
+  });
+
+  it('takes the empty answers the CLI turns into the same default', () => {
+    // The one row where the two differ in shape and agree on the outcome: the
+    // CLI reads these as no answer and falls back to 100 out loud, and the box
+    // lets them through as the 100 it was pre-filled with.
+    for (const typed of EMPTY_POINTS) accepts(typed);
   });
 });
 

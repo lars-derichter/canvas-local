@@ -974,9 +974,11 @@ describe('VS Code extension: activated, and run', () => {
       'function',
       'and the box has to be able to refuse an answer',
     );
-    assert.equal(points.options.validateInput('2.5') === null, false);
+    assert.equal(points.options.validateInput('.5') === null, false);
     assert.equal(points.options.validateInput('abc') === null, false);
     assert.equal(points.options.validateInput('40'), null);
+    // A fraction is a number of points like any other, here as at the flag.
+    assert.equal(points.options.validateInput('2.5'), null);
 
     assert.equal(spawns.length, 1);
     const args = spawns[0].args.slice(1);

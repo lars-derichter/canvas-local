@@ -1218,44 +1218,60 @@ function directoryReadError(dir, error) {
  * The shape `showInputBox`'s `validateInput` wants.
  *
  * What counts as valid is the CLI's answer, not Canvas's: the value goes to
- * `--points`, and `cli/new-item.js` reads it with `parseInt(value, 10)`. So
- * anything parseInt would take a bite out of has to be stopped here, where the
- * author is still looking at what they typed:
+ * `--points`, and `readPoints` in `cli/new-item.js` decides there what reaches
+ * the frontmatter. This is a copy of that rule, kept by hand because an
+ * installed extension has no `node_modules` and no `cli/` to require the
+ * original out of (AGENTS.md), and held to the same table of cases in
+ * `test/helpers/points-cases.js` so the copy cannot quietly stop matching.
  *
- *   - `abc` parses to NaN, and NaN is not null, so it lands in the frontmatter
- *     as `points_possible: .nan`.
- *   - `2.5` parses to 2 and `1e5` parses to 1. Canvas itself is happy with
- *     fractional points, and a `points_possible: 2.5` written into the file by
- *     hand pushes fine (lib/sync/canvas-write.js passes it through), so the
- *     refusal says where to put one rather than pretending the number is
- *     impossible.
- *   - Past 2^53 the digits stop being kept at all.
+ * The rule, in a sentence: a plain decimal and nothing else. Digits, then
+ * optionally a point and more digits, and what comes back has to print as the
+ * digits that went in.
  *
- * Empty is valid and means 100, which is what the CLI's own interactive prompt
- * defaults to and what the box is pre-filled with. Zero is valid: an
- * assignment worth no points is an ordinary Canvas assignment.
+ *   - A fraction is a real number of points. Canvas takes
+ *     `points_possible: 2.5` and `lib/sync/canvas-write.js` sends whatever the
+ *     frontmatter holds, so the box used to send authors to the frontmatter for
+ *     a value the flag carries perfectly well. How fine a fraction may be is
+ *     Canvas's business to round in its gradebook, not this box's to cut off.
+ *   - Zero is valid: an assignment worth no points is an ordinary Canvas
+ *     assignment.
+ *   - Empty is valid and means 100, which is what the box is pre-filled with
+ *     and what the CLI's own interactive prompt defaults to on an empty answer.
  *
- * Some spellings are refused although parseInt would have read them back
- * whole: a sign (`-5`, `+5`, `-0`), a decimal point over a whole number
- * (`5.`, `5.0`), an exponent that resolves to one (`0e2`). What they have in
- * common is that none of them is a plain string of digits, and a plain string
- * of digits is never refused for the way it is written — only for being too
- * long to keep. The minus is the one that matters: commander hands
- * `--points -5` through as a value, and the CLI writes `points_possible: -5`
- * without a word, and nothing is worth minus five points. The rest are slips
- * rather than shorthands, and go the same way.
+ * What is refused is refused for being a guess about intent, never for being a
+ * fraction: a sign (`-5`, `+5`, `-0`), an exponent (`1e5`, `0e2`), a hex
+ * literal, a numeric separator, whitespace in the middle, a decimal point with
+ * nothing on one side of it (`.5`, `5.`). The minus is the one that matters,
+ * because commander hands `--points -5` through as a value rather than reading
+ * it as a flag of its own, and nothing is worth minus five points. The rest are
+ * slips rather than shorthands, and go the same way. The last check is the one
+ * that used to be `Number.isSafeInteger`, widened to cover fractions: past 2^53
+ * the digits stop being kept, and past six zeros after the point a number
+ * prints itself as `1e-7`.
+ *
+ * Which puts the edge where `String` stops writing a number out in full rather
+ * than where the arithmetic stops being exact. A one with twenty zeros after it
+ * is accepted and a one with twenty-one is refused, because the second prints
+ * as `1e+21`; 2^53 exactly is accepted, although it is past the safe integers,
+ * because it prints as itself. That is on purpose. What the guard protects is
+ * the file saying what the author typed, and a value that prints as itself does
+ * that no matter how large it is — while `1e+21` in the frontmatter is a number
+ * nobody wrote there. Nothing in this range is a real number of points either
+ * way, so the line is drawn where it can be stated exactly.
  */
 function validatePoints(value) {
   const typed = String(value ?? '').trim();
   if (typed === '') return null;
-  if (typed.includes('.')) {
-    return 'Whole points only. For a fraction, set points_possible in the frontmatter afterwards.';
+  if (!/^\d+(\.\d+)?$/.test(typed)) {
+    return 'Points must be 0 or more, written as digits or a decimal like 2.5';
   }
-  if (!/^\d+$/.test(typed)) {
-    return 'Points must be a whole number, 0 or more';
-  }
-  if (!Number.isSafeInteger(Number(typed))) {
-    return 'That is more points than a number can hold';
+  // Leading zeros and trailing zeros past the point carry nothing and do not
+  // survive the trip through a number, so they come off before the comparison.
+  const [whole, fraction = ''] = typed.split('.');
+  const kept = fraction.replace(/0+$/, '');
+  const spelled = whole.replace(/^0+(?=\d)/, '') + (kept ? `.${kept}` : '');
+  if (spelled !== String(Number(typed))) {
+    return 'That is more digits than a number keeps';
   }
   return null;
 }
