@@ -21,8 +21,8 @@ everything you need in one window:
 - **Git integration**: the Source Control panel lets you stage, commit, and push
   changes visually (see [Git Workflow](10-git-workflow.md) for a walkthrough)
 - **Course Manager extension**: this project includes a custom VS Code extension
-  that puts all course commands in the sidebar and command palette, so you can
-  manage your course without typing commands at all
+  that puts the course commands in the command palette, and the everyday ones in
+  a sidebar, so you can manage your course without typing commands at all
 
 It is free, open-source, and runs on Windows, macOS, and Linux.
 
@@ -67,8 +67,14 @@ and items, complete with icons for each content type. Item labels come from the
 frontmatter `title` (the same name Canvas and Docusaurus show), and clicking an
 item opens the file in the editor.
 
-The tree updates automatically whenever you add, rename, or delete files. There
-is no need to refresh manually.
+The tree updates itself whenever you add, rename, or delete files, so you rarely
+need to touch the refresh button in its title bar. It is there for the times a
+change slips past the watcher. The title bar also carries a **Collapse All**
+button for when the tree has grown long.
+
+Before you have any modules, the panel shows a short welcome instead of an empty
+box: a button that starts the setup wizard, and a link to this tutorial module.
+With no folder open at all, it points you at **File > Open Folder** first.
 
 ### Inline Actions
 
@@ -83,15 +89,17 @@ Hover over a module or item in the sidebar for quick-action buttons:
 
 ### Right-Click Menu
 
-Right-click any module or item in the sidebar to see context actions:
+Right-click a module or an item in the sidebar to see context actions:
 
-- **New**, **Rename**, **Move**, **Delete**: the same management commands,
-  without typing
-- **Move Item to Module**: move an item to another module or one of its
+- **Course: New Item**, **Course: Rename Item**, **Course: Move Item**,
+  **Course: Delete Item**, and the same four for modules: the management
+  commands, without typing
+- **Course: Move Item to Module**: move an item to another module or one of its
   subsections; works for subsections too (they always land in the module root,
   because subsections are never nested)
 - **Merge items**: first right-click an item and choose **Merge: Set as
-  Source**, then right-click the target item and choose **Merge with Source**
+  Source**, then right-click the target item and choose **Merge with Source**. A
+  dialog names both files and reminds you that the source is deleted.
 - **Course: Export Item to PDF/DOCX...**: export the selected item or items
   (multi-select combines them into one document), or a whole module via
   **Course: Export Module to PDF/DOCX...**
@@ -102,14 +110,20 @@ Right-click any module or item in the sidebar to see context actions:
   the questions the command asks there, such as which side wins when you and
   Canvas both reordered the same module.
 
-**Split Item at Cursor** is not on this menu. It works on the file open in the
-editor and the position of your cursor, neither of which a right-click on the
-tree tells it, so it lives in the command palette only.
+**Course: Split Item at Cursor** is not on this menu. It works on the file open
+in the editor and the position of your cursor, neither of which a right-click on
+the tree tells it, so it lives in the editor's own right-click menu (on any
+markdown file inside `course/`) and in the command palette.
 
 For the management commands, names, positions, and confirmations are collected
 through normal VS Code dialogs, and the command runs quietly in the background:
-no terminal pops up. You get a notification when it is done, and the full output
-is available in the **Canvas Course Builder** output channel (View > Output).
+no terminal pops up. When it finishes, its last line of output appears in the
+status bar for a few seconds and the tree refreshes itself. If something goes
+wrong you get an error notification with a **Show Log** button, which opens the
+full output in the **Canvas Course Builder** output channel (View > Output). A
+command that worked but still has something to tell you (a delete that stranded
+something on Canvas, say) shows a warning with the same button, so read those.
+
 The export and Canvas actions do open a terminal, so you can watch the output
 and answer whatever the CLI asks.
 
@@ -121,30 +135,41 @@ The fastest way to reorganise is dragging things around the tree:
 - **Move items**: drag an item within its module to reorder it, or onto another
   module or subsection to move it there
 - **Move subsections**: drag a subsection onto another module
-- **Add files**: drag files straight from Finder or Explorer onto a module to
-  add them as file items
+- **Add files**: drag files straight from Finder or Explorer onto a module, a
+  subsection, or an item to add them as file items at that spot
+- **Move a whole group**: select several rows (Ctrl/Cmd-click or Shift-click)
+  and drag them together onto a module, a subsection, or an item
 
 Renumbering and Canvas sync state are handled automatically, exactly as if you
-had run the CLI commands yourself.
+had run the CLI commands yourself. A drag the CLI cannot express, such as
+modules and items mixed in one selection, is refused with a message that says
+why, rather than half-done.
 
 ## Title Bar Buttons
 
-Four buttons sit at the top of the sidebar: **New Module** (create a module and
-pick its position), **Search** (find a word or phrase across your course files),
-**Preview** (starts the Docusaurus dev server if it is not already running and
-opens the course in your browser), and **Refresh** for the tree. The dropdown
-menu next to them gives quick access to sync and export commands:
+Four buttons sit at the top of the sidebar: **Course: New Module** (asks for a
+name and adds the module at the end), **Course: Search...** (find a word or
+phrase across your course files), **Course: Preview** (starts the Docusaurus dev
+server if it is not already running and opens the course in your browser), and
+**Course: Refresh Tree**. The dropdown menu next to them gives quick access to
+sync and export commands:
 
-- **Preview**: the same command as the button
-- **Sync with Canvas**: sync both ways in one run
-- **Push to Canvas**: push all modules
-- **Pull from Canvas**: pull content from Canvas
-- **Status**: see what a sync would do, without changing anything
-- **Validate**: check your content for errors before pushing
-- **Export**: export the full course, only flagged items, or a curated selection
-  via a table of contents
-- **Export via TOC**: appears once you have generated a table of contents and
-  edited it down to what you want
+- **Course: Preview**: the same command as the button
+- **Course: Sync with Canvas**: sync both ways in one run
+- **Course: Push to Canvas**: push all modules
+- **Course: Pull from Canvas**: pull content from Canvas
+- **Course: Status**: see what a sync would do, without changing anything
+- **Course: Validate**: check your content for errors before pushing
+- **Course: Export Course to PDF/DOCX...**: export the full course, only flagged
+  items, or a curated selection via a table of contents
+- **Course: Export via TOC...**: appears once you have generated a table of
+  contents and edited it down to what you want
+
+> [!TIP]
+>
+> The preview runs on port 3000. If something else on your machine already uses
+> that port, set **Course Manager: Preview Port** in VS Code's settings (search
+> for `courseManager.previewPort`). The next preview picks it up.
 
 ## Command Palette
 
@@ -183,20 +208,41 @@ Open the command palette with **Cmd+Shift+P** (macOS) or **Ctrl+Shift+P**
 | Course: Preview                      | Start the dev server and open the course               |
 | Course: Refresh Tree                 | Rebuild the sidebar tree by hand                       |
 
+> [!WARNING]
+>
+> Three more commands live in the palette and nowhere else: **Course: Build
+> Glossary**, **Course: Reset Sync State (Destructive)** and **Course: Reset
+> Canvas (Deletes ALL Canvas Content)**. They are deliberately kept out of the
+> sidebar, so that no stray click can start one. Both resets ask you to confirm
+> in the terminal first, and Reset Canvas empties your Canvas course. Read
+> `docs/backups.md` and `docs/advanced-commands.md` (in your project folder,
+> also readable on GitHub) before you use them.
+
 Some tree actions need a selected row to work on, so the palette does not list
-them: **Push This Module to Canvas**, **Open in Canvas**, the module-scoped
-**Sync**, **Pull** and **Status**, and the two halves of the merge. Use the
-hover buttons and the right-click menu for those.
+them: **Push This Module to Canvas**, **Open in Canvas**, **Sync This Module
+with Canvas**, **Pull This Module from Canvas**, **Status of This Module**, and
+the two halves of the merge. Use the hover buttons and the right-click menu for
+those.
 
 ## How It Works
 
 Everything the extension does goes through the same `npx course` CLI you use in
 the terminal, so renumbering and Canvas sync state behave exactly the same
-either way. The long-running ones (setup, init, sync, push, pull, status,
-validate, and the dry runs) run in a shared **Canvas Course Builder** terminal
-so you can follow their output; management commands (new, rename, move, delete,
-merge, split) run silently in the background and report back with a
-notification.
+either way. The commands whose output is a report to read run in a shared
+**Canvas Course Builder** terminal: setup, init, sync, push, pull, status,
+validate, the dry runs, search, push module, the four Canvas actions on a module
+row, and every export. The one exception is the table-of-contents option in
+**Course: Export Course to PDF/DOCX...**: it writes the list quietly and opens
+it for you to edit, and the export itself runs in the terminal once you choose
+**Course: Export via TOC...**. Management commands (new, rename, move, delete,
+merge, split) run silently in the background instead, and report through the
+status bar, a notification when there is something you have to act on, and the
+output channel.
+
+If you start a second background command while one is still running, it waits
+its turn: they run one at a time, so two of them can never renumber the same
+folder at once. A single spinner in the status bar shows when something is
+running or queued.
 
 > [!TIP]
 >
