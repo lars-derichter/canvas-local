@@ -1,13 +1,16 @@
-# Canvas Course Builder
+# Coursewright
 
-Write your course in markdown, in your own editor, with real version control,
-and publish it to Canvas LMS with one command.
+Write your course in markdown, in your own editor, with git underneath. Publish
+it as a website for your students, hand it out as a styled PDF or DOCX, or sync
+it straight into Canvas LMS, whichever you need. Bundled AI skills pitch in on
+lesson design, module building and proofreading when you ask. Both the AI and
+Canvas are optional: your course is plain files, and it works without either.
 
 The Canvas web editor is fine for a page or two. It gets painful when you
 maintain a whole course: no history, no search and replace, no offline work, no
-way to review changes before students see them. Canvas Course Builder moves the
-source of truth to plain markdown files on your computer and treats Canvas as a
-publishing target.
+way to review changes before students see them. Coursewright moves the source of
+truth to plain markdown files on your computer and makes Canvas one publishing
+target among three.
 
 ## What You Get
 
