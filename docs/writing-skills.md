@@ -44,10 +44,10 @@ predictable for both the reader and the model:
   2–4-line intro, `## Input` (only when the skill takes arguments), `## Steps`,
   `## Rules`, and a bare `$ARGUMENTS` line at the end.
 - **Approval gates** only when a skill writes something worth reviewing first.
-  Split `## Steps` into `### Phase A — <Verb> (Writes Nothing)` and
-  `### Phase B — <Verb> (Only After Approval)`, and end Phase A with the
-  canonical sentence: "Stop. Wait for explicit approval before starting Phase
-  B."
+  Split `## Steps` into `### Phase A: <Verb> (Writes Nothing)` and
+  `### Phase B: <Verb> (Only After Approval)`, and end Phase A with the
+  canonical pair: "Adjust on request and stay in Phase A. Stop. Wait for
+  explicit approval before starting Phase B."
 - **State each rule once.** A rule already carried by a step does not reappear
   under `## Rules`; drop the Rules section if nothing is left.
 - **Defer, don't copy.** Content owned by
@@ -74,20 +74,24 @@ predictable for both the reader and the model:
   guess, and prefix matching only keys on the first segment. The verb comes
   last, from a small vocabulary: `design` for gated interactive authoring,
   `build` for generation from an approved source, `init` for building a
-  configuration from ground truth (the repo, an interview, a reference document)
-  and `update` for changing a configuration already in place, whether from a
-  direct instruction (`/export-style-update`) or from decisions you settled
-  during the session (`/writing-style-update`). An `init` skill is not one-shot:
-  re-running it after the course changes is expected. `setup` is the one verb
-  outside that set, and `/course-setup` is the only skill that carries it: where
-  an `init` skill builds one configuration file, setup configures the project as
-  a whole, and the name matches the `npx course setup` command it drives. There
-  is one project to set up, so the verb stays a single case rather than a
-  pattern to follow. Read-only report skills take a result noun instead of a
-  verb (`consistency-check`, `coverage-map`, `image-todos`). Three names stay
-  bare verbs because they are single words in universal use, and because what
-  they act on is whatever you hand them rather than a course object worth
-  putting first: `/commit`, `/proofread`, and `/translate`.
+  configuration from ground truth (the repo, an interview, a reference
+  document), `update` for changing a configuration already in place, whether
+  from a direct instruction (`/export-style-update`) or from decisions you
+  settled during the session (`/writing-style-update`), `report` and `fix` for
+  the intake and work-through ends of the issue queue, `summarize` for a
+  condensed derivation of an approved source, and `retro` for the after-teaching
+  debrief. An `init` skill is not one-shot: re-running it after the course
+  changes is expected. `setup` sits outside that vocabulary, and `/course-setup`
+  is the only skill that carries it: where an `init` skill builds one
+  configuration file, setup configures the project as a whole, and the name
+  matches the `npx course setup` command it drives. There is one project to set
+  up, so the verb stays a single case rather than a pattern to follow. Prefer an
+  existing verb for a new skill; coin one only when none fits. Read-only report
+  skills take a result noun instead of a verb (`consistency-check`,
+  `coverage-map`, `image-todos`). Three names stay bare verbs because they are
+  single words in universal use, and because what they act on is whatever you
+  hand them rather than a course object worth putting first: `/commit`,
+  `/proofread`, and `/translate`.
 
 Contributing a skill back to the template itself? See
 [Contributing](contributing.md).

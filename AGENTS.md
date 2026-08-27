@@ -205,13 +205,14 @@ in [`docs/frontmatter.md`](docs/frontmatter.md).
   thing share a prefix and sort together (`lesson-design`, `lesson-summarize`,
   `lesson-module-build`). Verbs come from a small set: `design`, `build`, `init`
   to build a configuration from ground truth, `update` to change one already in
-  place. `/course-setup` is the single exception, named after the
-  `npx course setup` command it drives: it configures the whole project rather
-  than one configuration file. Read-only reports take a result noun instead
-  (`consistency-check`, `coverage-map`). `/commit`, `/proofread` and
-  `/translate` stay bare verbs: they act on whatever you hand them, not on a
-  course object. The full skill template is in
-  [`docs/writing-skills.md`](docs/writing-skills.md).
+  place, `report` and `fix` for the issue queue, `summarize` for a condensed
+  derivation, `retro` for the after-teaching debrief. `/course-setup` is the
+  single exception, named after the `npx course setup` command it drives: it
+  configures the whole project rather than one configuration file. Read-only
+  reports take a result noun instead (`consistency-check`, `coverage-map`,
+  `image-todos`). `/commit`, `/proofread` and `/translate` stay bare verbs: they
+  act on whatever you hand them, not on a course object. The full skill template
+  is in [`docs/writing-skills.md`](docs/writing-skills.md).
 - "Session scratchpad" in skill instructions means a temporary working directory
   outside the repo: Claude Code's session scratchpad, or whatever temp directory
   your tool provides. Never write temp files into the repo or `/tmp`.
