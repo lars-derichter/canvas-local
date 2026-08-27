@@ -275,20 +275,19 @@ async function main() {
       // activated at all, and every case below would fail for that reason
       // rather than any real one.
       '--disable-workspace-trust',
-      // An attempt at the one thing that has never worked on a Windows
-      // runner, and still labelled an attempt because no run has yet told us
-      // whether it helps. Chromium decides on Windows whether a window is
-      // covered by other windows and stops painting the ones that are; a
-      // session with no desktop to draw on can look that way from the inside,
-      // and a window that never paints never lays out the sidebar, which is
-      // the case that failed there. Linux is unaffected because xvfb gives it
-      // a real if virtual display.
+      // What makes the sidebar draw on a Windows runner. Chromium decides
+      // there whether a window is covered by other windows and stops painting
+      // the ones that are; a session with no desktop to draw on can look that
+      // way from the inside, and a window that never paints never lays out the
+      // sidebar. Linux is unaffected because xvfb gives it a real if virtual
+      // display.
       //
-      // The run that would have answered this could not: both sidebar cases
-      // failed before reaching the reveal, on a require-cache problem that had
-      // nothing to do with painting. So the question is still open, and the
-      // answer is one Windows log away — the sidebar case reporting `ok` means
-      // this line did it, `skip` means it bought nothing and can go.
+      // Measured rather than assumed, and it took two runs to ask the question
+      // cleanly. Without this line the sidebar case waited its full twenty
+      // seconds and saw nothing; the run that would have confirmed the fix
+      // failed earlier still, on a require-cache problem that had nothing to
+      // do with painting. With both settled, that case reports `ok` in about
+      // fifty milliseconds on Windows and skips nothing.
       ...(process.platform === 'win32'
         ? ['--disable-features=CalculateNativeWinOcclusion']
         : []),
