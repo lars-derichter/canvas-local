@@ -253,7 +253,10 @@ async function sync(options = {}) {
   // local is written at all.
   const gitDirty = options.gitDirty || gitDirtyPaths({ courseDir });
   if (!gitDirty.available) {
-    log.warn(
+    // `refusal` and not `warn`: this is the reason the local half of the run
+    // did nothing, and `--quiet` must not take the reason away with the
+    // chatter. See `cli/logger.js`.
+    log.refusal(
       `[sync] ${gitDirty.reason}. Every local file is treated as holding ` +
         'uncommitted work, so nothing here is overwritten or deleted this run.',
     );

@@ -5,6 +5,7 @@ const os = require('os');
 const path = require('path');
 
 const { mockCanvas, silence } = require('../helpers/canvas-mock');
+const log = require('../../cli/logger');
 
 process.env.CANVAS_API_URL = 'https://canvas.example.com';
 process.env.CANVAS_API_TOKEN = 'test-token-123';
@@ -421,6 +422,40 @@ describe('npx course sync', () => {
       assert.match(text, /\(git-dirty\): .*Commit or stash the file/);
       assert.match(text, /\(conflict-unwritten\): .*refused \(git-dirty\)/);
       assert.doesNotMatch(text, /Run `npx course sync` to settle it/);
+    });
+
+    it('says why the local half did nothing, even under --quiet', async () => {
+      // Sync writes both ways, so outside a checkout it is still a run that
+      // does something — it reconciles Canvas — while writing not one local
+      // byte. That is the shape a `--quiet` run is most easily misread as a
+      // full success, which is why the guard goes through `log.refusal`
+      // (`cli/logger.js`) rather than `log.warn`.
+      const out = silence();
+      const { courseDir, file } = syncedFixture();
+      mockCanvas(readRoutes());
+
+      log.configure({ quiet: true });
+      try {
+        await sync({
+          courseDir,
+          syncFile: file,
+          interactive: false,
+          gitDirty: {
+            available: false,
+            paths: new Set(),
+            files: new Set(),
+            reason: 'the tree is not inside a git repository',
+          },
+        });
+      } finally {
+        log.configure({ quiet: false });
+      }
+
+      const warned = out.warn.mock.calls
+        .map((call) => call.arguments.join(' '))
+        .join('\n');
+      assert.match(warned, /not inside a git repository/);
+      assert.match(warned, /nothing here is overwritten or deleted this run/);
     });
 
     it('refuses to download an embedded binary over uncommitted work', async () => {

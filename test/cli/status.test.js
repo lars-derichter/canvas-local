@@ -252,6 +252,46 @@ describe('npx course status', () => {
     assert.equal(process.exitCode, 0);
   });
 
+  it('prints no git-guard line today — a known defect, not a decision', async () => {
+    // **This test records current behaviour. It does not endorse it.**
+    //
+    // The other three commands print the guard's reason, and since it moved to
+    // `log.refusal` (`cli/logger.js`) `--quiet` no longer takes it away. This
+    // command prints nothing, and the tempting reading — the guard protects the
+    // working tree from a write and status makes none — is wrong. All three
+    // dirty guards in `lib/sync/plan.js` are gated on `writeLands`, which is
+    // false under status, so `gitDirty` changes no byte of what this command
+    // prints and the `git status` it runs is consumed by nothing. The result is
+    // that status reports "a sync would update 1 item locally" for a write that
+    // sync would refuse.
+    //
+    // Fixing that is a change to the planner and is logged as its own work. So
+    // this asserts only what is true right now, and is here to fail loudly if
+    // the fix lands without someone revisiting this file.
+    const out = silence();
+    const { courseDir, file } = syncedFixture();
+    mockCanvas(readRoutes());
+
+    await status({
+      courseDir,
+      syncFile: file,
+      gitDirty: {
+        available: false,
+        paths: new Set(),
+        files: new Set(),
+        reason: 'the tree is not inside a git repository',
+      },
+    });
+
+    const said = [out.log, out.warn, out.error]
+      .map((sink) =>
+        sink.mock.calls.map((call) => call.arguments.join(' ')).join('\n'),
+      )
+      .join('\n');
+    assert.doesNotMatch(said, /not inside a git repository/);
+    assert.equal(process.exitCode, 0);
+  });
+
   it('previews a local edit as the Canvas write it does not make', async () => {
     const out = silence();
     const { courseDir, file } = syncedFixture();

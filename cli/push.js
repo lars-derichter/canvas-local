@@ -113,7 +113,11 @@ async function push(options = {}) {
   // something it has not checked.
   const gitDirty = options.gitDirty || gitDirtyPaths({ courseDir });
   if (!gitDirty.available) {
-    log.warn(
+    // `refusal` and not `warn`, for the reason sync and pull use it: this is
+    // the same guard saying the same thing, and push is the direction where it
+    // costs the most to miss — the run goes ahead and changes Canvas with no
+    // undo behind it. See `cli/logger.js`.
+    log.refusal(
       `[push] ${gitDirty.reason}. Git is the undo for everything this writes, ` +
         'so there is nothing to fall back on if a push goes wrong.',
     );

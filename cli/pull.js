@@ -111,7 +111,11 @@ async function pull(options = {}) {
   // all: a file git holds uncommitted work for is the only copy of that work.
   const gitDirty = options.gitDirty || gitDirtyPaths({ courseDir });
   if (!gitDirty.available) {
-    log.warn(
+    // `refusal` and not `warn`, because this line is the reason the run does
+    // less than it was asked to: without `--force` it is the whole explanation
+    // for a pull that writes nothing. `--quiet` silences chatter, and gated
+    // there this run was a silent non-zero exit. See `cli/logger.js`.
+    log.refusal(
       `[pull] ${gitDirty.reason}. Every local file is treated as holding ` +
         'uncommitted work, so ' +
         (force

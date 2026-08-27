@@ -5,6 +5,7 @@ const os = require('os');
 const path = require('path');
 
 const { mockCanvas, silence } = require('../helpers/canvas-mock');
+const log = require('../../cli/logger');
 
 process.env.CANVAS_API_URL = 'https://canvas.example.com';
 process.env.CANVAS_API_TOKEN = 'test-token-123';
@@ -387,6 +388,40 @@ describe('npx course push', () => {
     assert.match(printed(out), /Left alone \(this command does not write/);
     assert.doesNotMatch(printed(out), /Skipped/);
     assert.equal(process.exitCode, 0);
+  });
+
+  it('says the undo is missing even under --quiet', async () => {
+    // Push is the direction where losing this line costs most: the run goes
+    // ahead and changes Canvas, and the only thing that would have let the
+    // author walk it back is the thing that is not there. On `log.warn` a
+    // `push --quiet` outside a checkout changed the course and said nothing
+    // about it, so it goes through `log.refusal` (`cli/logger.js`).
+    const out = silence();
+    const { courseDir, file } = syncedFixture();
+    mockCanvas(readRoutes());
+
+    log.configure({ quiet: true });
+    try {
+      await push({
+        courseDir,
+        syncFile: file,
+        interactive: false,
+        gitDirty: {
+          available: false,
+          paths: new Set(),
+          files: new Set(),
+          reason: 'the tree is not inside a git repository',
+        },
+      });
+    } finally {
+      log.configure({ quiet: false });
+    }
+
+    const warned = out.warn.mock.calls
+      .map((call) => call.arguments.join(' '))
+      .join('\n');
+    assert.match(warned, /not inside a git repository/);
+    assert.match(warned, /nothing to fall back on/);
   });
 
   it('--dry-run writes nothing and reports the plan as a preview', async () => {

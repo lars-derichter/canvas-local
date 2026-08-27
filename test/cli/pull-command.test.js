@@ -5,6 +5,7 @@ const os = require('os');
 const path = require('path');
 
 const { mockCanvas, silence } = require('../helpers/canvas-mock');
+const log = require('../../cli/logger');
 
 process.env.CANVAS_API_URL = 'https://canvas.example.com';
 process.env.CANVAS_API_TOKEN = 'test-token-123';
@@ -918,6 +919,31 @@ describe('npx course pull, over uncommitted work', () => {
     assert.match(warned, /not inside a git repository/);
     assert.match(warned, /--force overrides that/);
     assert.equal(process.exitCode, 1);
+  });
+
+  it('still says why it wrote nothing under --quiet', async () => {
+    // `--quiet` silences chatter, and the git guard is not chatter: it is the
+    // reason this run wrote nothing at all. On `log.warn` the whole of a
+    // `pull --quiet` outside a checkout was a silent non-zero exit — no line
+    // anywhere naming the guard that stopped it — which is exactly the state a
+    // scheduled job reads as "there was nothing to pull".
+    const out = silence();
+    const { courseDir, file, routes } = canvasMovedOn();
+    mockCanvas(routes);
+
+    log.configure({ quiet: true });
+    try {
+      await pull({ courseDir, syncFile: file, gitDirty: NO_GIT });
+    } finally {
+      log.configure({ quiet: false });
+    }
+
+    const warned = out.warn.mock.calls
+      .map((call) => call.arguments.join(' '))
+      .join('\n');
+    assert.match(warned, /not inside a git repository/);
+    assert.match(warned, /--force overrides that/);
+    assert.match(read(courseDir, '01-intro/01-welcome.md'), /Hello there/);
   });
 
   it('--force is what makes a pull outside a git checkout write anything', async () => {
