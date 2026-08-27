@@ -26,6 +26,8 @@ computer to a published Canvas module.
   from pages and assignments to discussions, quizzes and LTI links
 - [Lesson workflow](lesson-workflow.md): from lesson plan to student module with
   the bundled skills
+- [Didactic foundations](didactics.md): backward design, constructive alignment
+  and the improvement loop behind that workflow, and how far they reach
 - [The sources folder](sources.md): where lesson plans, notes, and issues live
 
 ## Your Course's Own Files

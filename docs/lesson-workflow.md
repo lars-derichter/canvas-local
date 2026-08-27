@@ -20,11 +20,13 @@ what gets them there                      (lessons)
 what they read and hand in                (the module under course/)
 ```
 
-This is [backward design](#further-reading): decide the destination and the
-evidence first, and the teaching follows from both. Its companion idea is
-constructive alignment: that goals, assessment and teaching activities should
-point at the same thing, and at the same level. A goal phrased as "apply" is not
-served by an exam that only asks students to reproduce.
+This is backward design: decide the destination and the evidence first, and the
+teaching follows from both. Its companion idea is constructive alignment: that
+goals, assessment and teaching activities should point at the same thing, and at
+the same level. A goal phrased as "apply" is not served by an exam that only
+asks students to reproduce. Where each idea lives in the skills, why neither is
+a straitjacket, and the originals behind both:
+[didactic foundations](didactics.md).
 
 You write the first two links of that chain into
 [course-context.md](../context/course-context.md), once, and every skill reads
@@ -219,12 +221,3 @@ alignment checked. Run `/course-context-init` to get the goals on paper, then
 `/coverage-map` to see which of them your existing material actually teaches,
 practises and assesses. Fixing the gaps it finds is cheaper than redesigning
 anything.
-
-## Further Reading
-
-The two ideas this workflow is built on, if you want the originals:
-
-- Biggs, J. (1996). Enhancing teaching through constructive alignment. _Higher
-  Education, 32_(3), 347–364. https://doi.org/10.1007/BF00138871
-- Wiggins, G., & McTighe, J. (2005). _Understanding by design_ (Expanded 2nd
-  ed.). ASCD.

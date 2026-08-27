@@ -94,6 +94,8 @@ is the language you work in.
 
 How the lesson skills chain together, from idea to lesson plan to class version
 to published module, is described in the [lesson workflow](lesson-workflow.md).
+The didactic ideas behind that chain, and how far they reach, are in
+[didactic foundations](didactics.md).
 
 ## Skills
 
