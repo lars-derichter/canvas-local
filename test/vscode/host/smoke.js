@@ -16,7 +16,7 @@ const path = require('path');
  * repository folder — so the artifact under test is the one `vscode:install`
  * puts in a user's editor.
  *
- * Four things, and deliberately no more:
+ * Five things, and deliberately no more:
  *
  * 1. the extension activates, and activates lazily, the way the host would
  *    activate it for a course author who clicks something;
@@ -30,7 +30,12 @@ const path = require('path');
  *    the pairing a course author's click actually depends on;
  * 3. the tree provider returns the tutorial module, built out of real
  *    `vscode.TreeItem`s rather than the stub's;
- * 4. the seven context-menu-only commands are gated out of the palette in the
+ * 4. the provider `activate()` built is bound to a tree view at all, and the
+ *    contributed `courseTree` sidebar is the view it is bound to. Those are
+ *    two cases rather than one because only the first can be proved without a
+ *    drawn sidebar, and a Windows CI runner does not draw one — the second
+ *    reports itself skipped there rather than passing quietly;
+ * 5. the seven context-menu-only commands are gated out of the palette in the
  *    manifest the host loaded, and are still registered so the menus that do
  *    show them work.
  *
@@ -94,6 +99,21 @@ const cases = [];
 /** Register one case. They run in the order they are written. */
 function check(name, fn) {
   cases.push({ name, fn });
+}
+
+/**
+ * What a case throws when its environment cannot run it.
+ *
+ * Thrown rather than returned, so a case cannot end up skipped by falling off
+ * the end of a function, and reported on its own line by the runner rather
+ * than folded into the pass count — a guard that did not run has to look
+ * different from one that ran and held.
+ */
+class Skipped extends Error {}
+
+/** Give up on this case, visibly, for a reason worth printing. */
+function skip(reason) {
+  throw new Skipped(reason);
 }
 
 let extensionUnderTest;
@@ -255,19 +275,79 @@ check('the tree returns the tutorial module', async () => {
   assert.ok(children.length > 0, 'the tutorial module came back empty');
 });
 
-check('shows that tree in the sidebar the manifest contributes', async () => {
+/**
+ * The provider `activate()` built, not one this file built for itself.
+ *
+ * There is no handle on it: it lives in a closure. But it is an instance of
+ * the class in the installed extension's own module, and `course.refreshTree`
+ * calls `refresh()` on it, so a wrapper on the prototype catches it by its
+ * `this` the next time that command runs. Every case that wants the live
+ * object goes through here.
+ */
+async function liveTreeProvider() {
   const ext = extension();
-  // Contributing the view and building the provider are two things, and the
-  // line that joins them — `vscode.window.createTreeView('courseTree', …)` —
-  // is one line in `activate()` with nothing pinning it: delete it and the
-  // sidebar is empty, while every other case here and all 2156 of `npm test`
-  // stay green. Nothing readable comes back out of a rendered view, so the
-  // proof is that the host asks: the extension's provider is an instance of
-  // this class, so a wrapper on the prototype sees the `getChildren(undefined)`
-  // VS Code makes when it renders the view for real.
   const { CourseTreeProvider } = require(
     path.join(ext.extensionPath, 'CourseTreeProvider.js'),
   );
+  const original = CourseTreeProvider.prototype.refresh;
+  let instance;
+  CourseTreeProvider.prototype.refresh = function refresh() {
+    instance = this;
+    return original.call(this);
+  };
+  try {
+    await vscode.commands.executeCommand('course.refreshTree');
+  } finally {
+    CourseTreeProvider.prototype.refresh = original;
+  }
+  assert.ok(
+    instance,
+    'course.refreshTree ran without calling refresh() on a CourseTreeProvider, ' +
+      'so this file cannot reach the provider the extension built',
+  );
+  return { instance, CourseTreeProvider };
+}
+
+check('binds the tree provider to a view, drawn or not', async () => {
+  // Contributing the view and building the provider are two things, and the
+  // line that joins them — `vscode.window.createTreeView('courseTree', …)` —
+  // is one line in `activate()` with nothing else pinning it: delete it and
+  // the sidebar is empty while all 2156 of `npm test` stay green.
+  //
+  // The next case proves that join the way a user sees it, by revealing the
+  // view and catching the read. This one proves it without a pixel, because
+  // the case that needs a rendered sidebar cannot run everywhere: on a Windows
+  // CI runner the pane never became visible and that case waited its whole
+  // bound for a read that never came, on a machine that had run the seven
+  // others in 120ms.
+  //
+  // What is left when you take the rendering away: handing a provider to
+  // `createTreeView` makes VS Code subscribe to its `onDidChangeTreeData`,
+  // there and then, before anything is drawn. Nothing else in this extension
+  // subscribes to that emitter. So a listener on it means the provider was
+  // handed over, and no listener means it was not.
+  const { instance } = await liveTreeProvider();
+  const emitter = instance._onDidChangeTreeData;
+
+  // `hasListeners()` is a real method on the object `new vscode.EventEmitter()`
+  // returns, but it is not in `vscode.d.ts`. If a future VS Code drops it, this
+  // says so instead of quietly deciding the answer is no.
+  assert.equal(
+    typeof emitter?.hasListeners,
+    'function',
+    'vscode.EventEmitter no longer offers hasListeners(), so this case cannot ' +
+      'tell a bound provider from an unbound one and needs rewriting',
+  );
+  assert.ok(
+    emitter.hasListeners(),
+    "nothing is listening to the provider's onDidChangeTreeData, so it was " +
+      'never handed to a tree view — `createTreeView` is missing from ' +
+      'activate(), and the sidebar is empty',
+  );
+});
+
+check('draws that tree in the sidebar the manifest contributes', async () => {
+  const { CourseTreeProvider } = await liveTreeProvider();
   const original = CourseTreeProvider.prototype.getChildren;
   const asked = [];
   CourseTreeProvider.prototype.getChildren = function getChildren(element) {
@@ -276,9 +356,8 @@ check('shows that tree in the sidebar the manifest contributes', async () => {
   };
   try {
     await vscode.commands.executeCommand('courseTree.focus');
-    // Rendering is asynchronous and the machine it renders on may be a busy CI
-    // runner, so this waits for the call rather than sleeping a guessed number
-    // of milliseconds. The bound only decides how long a failure takes.
+    // Rendering is asynchronous, so this waits for the read rather than
+    // sleeping a guessed number of milliseconds.
     await waitFor(
       () => asked.some((element) => element === undefined),
       REVEAL_TIMEOUT_MS,
@@ -286,11 +365,43 @@ check('shows that tree in the sidebar the manifest contributes', async () => {
   } finally {
     CourseTreeProvider.prototype.getChildren = original;
   }
-  assert.ok(
-    asked.some((element) => element === undefined),
-    `the courseTree view was revealed and did not ask the provider for its ` +
-      `root within ${REVEAL_TIMEOUT_MS}ms, so the view the manifest ` +
-      'contributes is not attached to the tree the extension builds',
+  const read = asked.some((element) => element === undefined);
+
+  // VS Code registers this when it renders a tree view pane, and it does so
+  // whether or not any extension bound a provider to it — measured by deleting
+  // `createTreeView` and watching the command turn up anyway. That makes it the
+  // one thing here that separates "the sidebar never drew" from "the sidebar
+  // drew and asked nobody", which are a skip and a failure respectively.
+  const rendered = (await vscode.commands.getCommands(true)).includes(
+    'workbench.actions.treeView.courseTree.collapseAll',
+  );
+
+  if (read) {
+    // Pin the marker from the side that cannot rot. If VS Code ever renames
+    // it, this fails here — on a machine where the sidebar demonstrably works
+    // — rather than turning every later run into a silent skip.
+    assert.ok(
+      rendered,
+      'the view rendered and read the provider, but the command this case ' +
+        'uses to detect a rendered pane is missing. It has moved, and the ' +
+        'skip below can no longer be trusted to mean what it says.',
+    );
+    return;
+  }
+  if (rendered) {
+    assert.fail(
+      `the courseTree pane rendered and did not ask the provider for its root ` +
+        `within ${REVEAL_TIMEOUT_MS}ms, so the view the manifest contributes ` +
+        'is not attached to the tree the extension builds',
+    );
+  }
+  skip(
+    `the courseTree pane never rendered within ${REVEAL_TIMEOUT_MS}ms on ` +
+      `${process.platform}, so there was no read to catch. A window with no ` +
+      'desktop to draw on does this: the Linux leg passes through xvfb, which ' +
+      'gives it one. The binding itself is still covered by the case above, ' +
+      'which needs no pixels; what is NOT covered here is that the provider ' +
+      'is bound to this view id rather than some other.',
   );
 });
 
@@ -352,6 +463,7 @@ check('keeps the context-menu-only commands out of the palette', async () => {
  */
 exports.run = async function run() {
   const failures = [];
+  const skipped = [];
   console.log(`# extension-host smoke test, ${cases.length} cases`);
   // A run of nothing is a pass, which is the failure `check-test-glob.js`
   // exists to prevent for `npm test` and the failure case 4's own floor exists
@@ -360,29 +472,45 @@ exports.run = async function run() {
   // floor too, and it is asserted before the first case rather than after the
   // last, because a run that registered nothing has nothing to report.
   assert.ok(
-    cases.length >= 8,
+    cases.length >= 9,
     `only ${cases.length} smoke cases registered, and this file has held at ` +
-      'least 8 since it was written. If cases were removed on purpose, lower ' +
+      'least 9 since it was written. If cases were removed on purpose, lower ' +
       'the floor here in that commit.',
   );
   for (const [index, testCase] of cases.entries()) {
     const number = index + 1;
+    const elapsed = Date.now();
     try {
       await testCase.fn();
-      console.log(`ok ${number} - ${testCase.name}`);
-    } catch (error) {
-      failures.push({ name: testCase.name, error });
-      console.log(`not ok ${number} - ${testCase.name}`);
       console.log(
-        String(error && error.stack ? error.stack : error)
+        `ok ${number} - ${testCase.name} (${Date.now() - elapsed}ms)`,
+      );
+    } catch (error) {
+      const took = Date.now() - elapsed;
+      // A skip is neither a pass nor a failure and is printed as neither, so
+      // nobody reads a run with a guard switched off as a run with it on.
+      const bucket = error instanceof Skipped ? skipped : failures;
+      bucket.push({ name: testCase.name, error });
+      const label = error instanceof Skipped ? 'skip' : 'not ok';
+      console.log(`${label} ${number} - ${testCase.name} (${took}ms)`);
+      const detail =
+        error instanceof Skipped
+          ? String(error.message)
+          : String(error && error.stack ? error.stack : error);
+      console.log(
+        detail
           .split('\n')
           .map((line) => `  ${line}`)
           .join('\n'),
       );
     }
   }
-  console.log(`# pass ${cases.length - failures.length}`);
+  console.log(`# pass ${cases.length - failures.length - skipped.length}`);
+  console.log(`# skip ${skipped.length}`);
   console.log(`# fail ${failures.length}`);
+  for (const one of skipped) {
+    console.log(`# NOT VERIFIED HERE: ${one.name}`);
+  }
   if (failures.length > 0) {
     throw new Error(
       `${failures.length} of ${cases.length} host smoke cases failed: ` +

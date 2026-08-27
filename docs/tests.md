@@ -239,10 +239,11 @@ Every other test of the VS Code extension either reads its source as text or
 executes it against `test/vscode/`'s own stub of the `vscode` API. Both are
 worth having, and neither can tell you what the real editor does: where the stub
 and the host disagree, the stub wins and nobody finds out. This one boots a real
-VS Code, installs the extension, and asserts four things inside it — the
+VS Code, installs the extension, and asserts five things inside it: the
 extension activates, every command the manifest declares is registered in the
 host and no `course.` command is registered that it does not declare, the tree
-returns the tutorial module and the contributed sidebar is attached to it, and
+returns the tutorial module, the provider `activate()` built is bound to a tree
+view and the contributed `courseTree` sidebar is the view it is bound to, and
 the seven context-menu-only commands are gated out of the palette.
 
 It is not part of `npm test`. The first run downloads about 130MB of VS Code
@@ -295,12 +296,32 @@ a number in a manifest. Running it against `stable` now and then is how you find
 out that the newest editor broke something. `CCB_VSCODE_TIMEOUT_MS` moves the
 bound on the host run, which defaults to three minutes.
 
+**One case does not run on Windows, and says so.** Proving that the contributed
+sidebar is bound to the tree the extension builds means catching the read VS
+Code makes when it draws that sidebar, and a Windows CI runner has no desktop to
+draw on: the pane never appeared, and the case sat through its whole bound
+waiting for a read on a machine that had run the other seven in 120ms. Linux is
+fine because it goes through xvfb, which is a display even if nobody is looking
+at it. So the check is split. One case proves the binding with no pixels at all
+— handing a provider to `createTreeView` makes VS Code subscribe to its
+`onDidChangeTreeData` there and then, and nothing else in the extension
+subscribes to that emitter — and that one runs everywhere. The other reveals the
+view and catches the read, and where the pane never draws it reports itself as
+`skip`, with the reason, its own line in the summary and a
+`# NOT VERIFIED HERE:` line after it. It is not allowed to skip quietly: if the
+pane _does_ draw and the read still does not come, that is a failure, and the
+command it uses to tell those two apart is itself pinned on every run where the
+read succeeds.
+
 What it does not cover: the palette, the menus and the sidebar as pixels. VS
 Code offers no way to ask "is this command in the palette right now", so the
 palette assertions are made against the manifest **as the installed extension
-carries it**, plus the fact that the commands are registered. Nothing here runs
-a CLI command — the workspace it opens is this repository, `.env` and all, so a
-case that executed a sync would sync a real Canvas course. And a `when` clause
-that is malformed rather than merely wrong is invisible: VS Code 1.93 accepts
+carries it**, plus the fact that the commands are registered. Where the sidebar
+does not draw, "bound to a tree view" is covered but "bound to _this_ view id"
+is not — pointing `createTreeView` at `courseTreeX` is caught only by the case
+that needs a rendered pane. Nothing here runs a CLI command — the workspace it
+opens is this repository, `.env` and all, so a case that executed a sync would
+sync a real Canvas course. And a `when` clause that is malformed rather than
+merely wrong is invisible: VS Code 1.93 accepts
 `view == courseTree && && (viewItem == module` without a word in any log, and no
 test in this project notices.
