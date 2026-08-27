@@ -19,6 +19,7 @@ sources/
   lesson-plans/         # One-page class versions (lesson-plan-NN.md)
   reference-materials/  # Canonical course data, e.g. glossary.yml
   reports/              # Dated reports, e.g. from /coverage-map
+  retros/               # Retro reports from /lesson-retro (<year>/lesson-NN.md)
   rubrics/              # Grading rubrics from /rubric-build
   issues.md             # Issue queue: /issue-report appends, /issue-fix resolves
 ```
@@ -29,13 +30,17 @@ documents the entry format.
 
 ## Lesson Plans
 
-Three of the suggested folders carry the [lesson workflow](lesson-workflow.md):
+Four of the suggested folders carry the [lesson workflow](lesson-workflow.md):
 
 - **`lessons/`**: full lesson designs, one `lesson-NN.md` per lesson (two-digit
   number). Written for you and colleagues; `/lesson-design` drafts them and
   `/lesson-module-build` turns them into student modules under `course/`.
 - **`lesson-plans/`**: one-page class versions, `lesson-plan-NN.md`, distilled
   from the matching lesson by `/lesson-summarize`.
+- **`retros/`**: retro reports, one `lesson-NN.md` per lesson per academic year
+  (`retros/2526/lesson-03.md`, the year in the same two-plus-two form as
+  `evaluations/`). `/lesson-retro` appends a dated section per run, labelled by
+  class group when the course is taught to parallel groups.
 - **`reference-materials/`**: canonical course data. `glossary.yml` here feeds
   `npx course build-glossary`, which generates per-module glossary pages.
 

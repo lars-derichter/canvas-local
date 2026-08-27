@@ -1,6 +1,6 @@
 ---
 name: lesson-retro
-description: Debrief a lesson right after teaching it, in a conversational interview: one question at a time, following up on the answers. Folds timing corrections and tips into the lesson plan's notes-to-self, durable course-wide insights into context/course-context.md, and lists content fixes for the student material. Use for "lesson retro", "debrief after teaching", "how the lesson went", "les nabespreken", "retro les 3", "hoe de les gegaan is".
+description: Debrief a lesson right after teaching it, in a conversational interview: one question at a time, following up on the answers. Folds timing corrections and tips into the lesson plan's notes-to-self and durable course-wide insights into context/course-context.md, appends a dated retro report to sources/retros/<year>/lesson-NN.md, and logs content fixes for the student material in the issue queue at sources/issues.md. Use for "lesson retro", "debrief after teaching", "how the lesson went", "les nabespreken", "retro les 3", "hoe de les gegaan is".
 ---
 
 # Lesson Retro
@@ -8,10 +8,11 @@ description: Debrief a lesson right after teaching it, in a conversational inter
 Capture how a lesson actually went while the author still remembers, and turn
 that into durable improvements: timing corrections and notes-to-self in the
 lesson plan, insights that hold for every lesson in
-[`context/course-context.md`](../../../context/course-context.md), and a fix
-list for the student material. This is the teaching counterpart of
-`/writing-style-update`: the self-improvement loop closed at the level of the
-lesson, not the writing.
+[`context/course-context.md`](../../../context/course-context.md), content fixes
+for the student material in the issue queue, and a dated section in the lesson's
+retro report under `sources/retros/`, the record of the run. This is the
+teaching counterpart of `/writing-style-update`: the self-improvement loop
+closed at the level of the lesson, not the writing.
 
 The interview is a conversation, not a form. Ask **one question at a time** and
 follow up on what they say before moving on. Never bundle the whole interview
@@ -32,6 +33,11 @@ plausibly recent, propose it in the same breath.
    - `sources/lessons/lesson-NN.md`, in full, especially the timed blocks and
      the existing notes-to-self.
    - The class version `sources/lesson-plans/lesson-plan-NN.md`, if it exists.
+   - This lesson's retro reports: `sources/retros/<year>/lesson-NN.md` for the
+     current academic year and, if present, the one before. They say what was
+     corrected last time (follow up on it: "Block 2 overran last year; did the
+     new budget hold?") and whether this year's sections carry class-group
+     labels.
    - [`context/course-context.md`](../../../context/course-context.md), to
      recognise when an observation is course-wide rather than lesson-specific.
 
@@ -58,6 +64,10 @@ plausibly recent, propose it in the same breath.
      downloads that surfaced during class.
    - **Next time**: anything to add, drop, or reorder.
 
+   If the course is taught to more than one class group (the author says so, or
+   this year's retro file already labels its sections by group), ask which group
+   this run was. Otherwise never bring groups up.
+
 4. **Know when to stop.** When answers get thin or the author signals done,
    confirm you have what you need and move on. A useful retro can be four
    questions long.
@@ -73,23 +83,43 @@ plausibly recent, propose it in the same breath.
    - **`context/course-context.md`**: insights that hold beyond this lesson
      (e.g. "prediction exercises take twice the planned time with this group").
      Name the section it belongs in.
-   - **Student material under `course/`**: content errors and friction, as a fix
-     list with file paths. Fixing them is a separate job; offer to do it after
-     the retro edits land, or leave the list for later.
+   - **Issue queue `sources/issues.md`**: content errors and friction in the
+     student material under `course/`, one entry per fix in the format the queue
+     file's own header documents (the same entry `/issue-report` writes; create
+     the file with that structure on first use). Diagnosing and fixing them is
+     `/issue-fix`'s job; offer to run it once the retro edits land.
    - **Writing-style corrections**: do not fold these in here; point the author
      at `/writing-style-update`.
+   - **Retro report `sources/retros/<year>/lesson-NN.md`**: always, whatever
+     else an observation touches. One dated section per run recording the retro:
+     one to three sentences on how the lesson went, in the author's words, then
+     short bullets for timing deltas, what worked, what confused, changes
+     applied (with file pointers) and fixes logged. When the course has more
+     than one class group, the group joins the heading
+     (`## 2026-02-12 — groep A`). A dozen lines in the colleague-facing
+     register, not a transcript; a thin retro yields a short section. Show the
+     proposed section in full.
 
    Mark anything you are unsure about as a question, not a proposal.
+
+### Apply (Only After Confirmation)
 
 6. **Apply after confirmation.** Surgical, minimal edits, one concern per edit.
    Keep the lesson plan's structure and voice: notes-to-self stay in that
    section's existing style, timing changes touch only the numbers and a short
-   reason. Never rewrite blocks wholesale.
+   reason. Never rewrite blocks wholesale. Append the issue entries to `## Open`
+   in `sources/issues.md`, and the report section after the last section in
+   `sources/retros/<year>/lesson-NN.md`. First retro of a lesson in a year:
+   create the file, and the year folder if needed, with an H1 naming the lesson
+   and the academic year (`# Retro lesson 3 — 2025–2026`). The year folder takes
+   the two-plus-two form `evaluations/` uses (`2526`); when the date could
+   belong to either academic year (late summer), confirm the year with the
+   author before creating a new folder.
 
-7. **Report.** Say what changed where, and what was deliberately left as a fix
-   list. If the author corrected the same kind of thing twice across retros,
-   suggest the pattern belongs in `course-context.md` and point at
-   `/course-context-update` for folding it in.
+7. **Report.** Say what changed where: the plan and context edits, the report
+   section, and the issues logged for `/issue-fix`. If the author corrected the
+   same kind of thing twice across retros, suggest the pattern belongs in
+   `course-context.md` and point at `/course-context-update` for folding it in.
 
 ## Rules
 
@@ -104,6 +134,9 @@ plausibly recent, propose it in the same breath.
   would alter what the lesson teaches (scope, goals), flag it as a
   `/lesson-design` job instead of editing it in.
 - One lesson per retro.
+- The report is append-only: record this run and never edit earlier sections. A
+  correction the retro produces lands in the lesson plan or in the next retro's
+  section, not in history.
 - No commits, no pushes, no staging.
 
 $ARGUMENTS

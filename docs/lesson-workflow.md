@@ -180,9 +180,14 @@ section of this page is pointing at.
 question at a time) about timing, comprehension, what worked, and material
 friction, then folds timing corrections and notes-to-self back into the lesson
 plan and course-wide insights into `course-context.md`. Next year's version of
-the lesson starts better than this year's. Content fixes for the student pages
-that surface in the retro can be logged with `/issue-report` so `/issue-fix`
-picks them up later.
+the lesson starts better than this year's.
+
+Two records remain. Each run appends a short dated section to that lesson's
+retro report at `sources/retros/<year>/lesson-NN.md` (one file per lesson per
+academic year, labelled by class group when you teach parallel groups), which
+the next retro of the same lesson reads first and follows up on. And content
+fixes for the student pages that surfaced in class go straight into
+`sources/issues.md`, so `/issue-fix` picks them up later.
 
 ## Course Quality
 

@@ -171,9 +171,12 @@ project whitelist.
   conversational interview: one question at a time, following up on your
   answers. Afterwards it sorts every observation into a destination and shows
   the list before touching anything: timing notes into the lesson plan,
-  course-wide insights into `course-context.md`, content errors into a fix list,
-  style corrections to `/writing-style-update`. The retro is the one sanctioned
-  way to modify an existing lesson plan.
+  course-wide insights into `course-context.md`, content errors into the issue
+  queue for `/issue-fix`, style corrections to `/writing-style-update`. Every
+  run also appends a dated section to the lesson's retro report at
+  `sources/retros/<year>/lesson-NN.md`, the record the next retro of that lesson
+  reads first. The retro is the one sanctioned way to modify an existing lesson
+  plan.
 
 ### Evaluation
 
