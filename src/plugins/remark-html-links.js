@@ -2,6 +2,8 @@ const path = require('path');
 const fs = require('fs');
 const { getFileLoaderUtils, escapePath } = require('@docusaurus/utils');
 
+const { requireAttributeValue } = require('./require-attribute');
+
 /**
  * Extensions that Docusaurus's built-in `transformLinks` remark plugin refuses
  * to treat as downloadable assets. It assumes `.md`/`.mdx`/`.html` links point
@@ -21,49 +23,6 @@ const HTML_EXTENSIONS = new Set(['.html', '.htm']);
 function splitUrl(url) {
   const match = /^([^?#]*)([?#].*)?$/.exec(url);
   return { pathname: match[1] || '', suffix: match[2] || '' };
-}
-
-/**
- * Build the JSX attribute value for `href={require("<loader>!<path>").default}`.
- * This mirrors `assetRequireAttributeValue` in Docusaurus's mdx-loader: the
- * estree is required so MDX can compile the expression at build time. file-loader
- * copies the asset into the build and its default export is the emitted URL.
- */
-function requireAttributeValue(requireString) {
-  return {
-    type: 'mdxJsxAttributeValueExpression',
-    value: `require("${requireString}").default`,
-    data: {
-      estree: {
-        type: 'Program',
-        sourceType: 'module',
-        comments: [],
-        body: [
-          {
-            type: 'ExpressionStatement',
-            expression: {
-              type: 'MemberExpression',
-              computed: false,
-              optional: false,
-              object: {
-                type: 'CallExpression',
-                optional: false,
-                callee: { type: 'Identifier', name: 'require' },
-                arguments: [
-                  {
-                    type: 'Literal',
-                    value: requireString,
-                    raw: JSON.stringify(requireString),
-                  },
-                ],
-              },
-              property: { type: 'Identifier', name: 'default' },
-            },
-          },
-        ],
-      },
-    },
-  };
 }
 
 /**
