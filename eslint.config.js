@@ -5,7 +5,7 @@ const globals = require('globals');
 // defects. ESLint 9 skips node_modules by default but does not read
 // .gitignore, so generated directories are listed explicitly.
 module.exports = [
-  { ignores: ['build/', '.docusaurus/', 'exports/'] },
+  { ignores: ['build/', '.docusaurus/', 'exports/', '.vscode-test/'] },
   js.configs.recommended,
   {
     languageOptions: {

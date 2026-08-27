@@ -2,13 +2,24 @@
 
 The project uses the built-in
 [Node.js test runner](https://nodejs.org/api/test.html) (`node:test` +
-`node:assert`): no extra dependencies required.
+`node:assert`). One test runs somewhere else: the extension-host smoke test
+boots a real VS Code. `@vscode/test-electron` downloads that editor and
+`@vscode/vsce` packages the extension for it, and those two are the only test
+dependencies in the project.
 
 ## Running Tests
 
 ```bash
 npm test
 ```
+
+```bash
+npm run test:vscode
+```
+
+The second one is the
+[extension-host smoke test](#the-extension-host-smoke-test) and is deliberately
+not part of `npm test`: its first run downloads about 130MB of VS Code.
 
 The glob in that script is double-quoted (`"test/**/*.test.js"`), and it has to
 stay that way. npm runs scripts through `cmd.exe` on Windows, and cmd does not
@@ -36,11 +47,14 @@ and `test/vscode/` for the bundled VS Code extension. Each file is named after
 what it covers, e.g. `test/convert/course-scanner.test.js` or
 `test/cli/push-helpers.test.js`.
 
-Two directories break that pattern. `test/helpers/` holds no tests: it is the
+Three directories break that pattern. `test/helpers/` holds no tests: it is the
 shared `canvas-mock.js`, which stands in for the Canvas API over `fetch`, and
 `prettier-config.js`, which gives a temporary course tree the same Prettier
 settings the repo has, so a write in a test formats the way it does in
-production. And `test/source-hygiene.test.js` sits at the root because it covers
+production. `test/vscode/host/` holds no `*.test.js` either, because nothing in
+it runs under `node --test`: it is the extension-host smoke test, whose files
+are a launcher, the cases that run inside VS Code, and an empty extension
+manifest. And `test/source-hygiene.test.js` sits at the root because it covers
 the whole source tree rather than one directory.
 
 Coverage spans the config layer (`lib/config/`), the conversion layer
@@ -214,3 +228,79 @@ the extension, lower the floor in the same commit, and only then.
 Adding a runner is the one change that needs the test edited: put its name in
 `RUNNERS`, or everything it runs goes unchecked. The test says so itself when it
 sees an argv-shaped array going somewhere it does not recognise.
+
+## The Extension-Host Smoke Test
+
+```bash
+npm run test:vscode
+```
+
+Every other test of the VS Code extension either reads its source as text or
+executes it against `test/vscode/`'s own stub of the `vscode` API. Both are
+worth having, and neither can tell you what the real editor does: where the stub
+and the host disagree, the stub wins and nobody finds out. This one boots a real
+VS Code, installs the extension, and asserts four things inside it — the
+extension activates, every command the manifest declares is registered in the
+host and no `course.` command is registered that it does not declare, the tree
+returns the tutorial module and the contributed sidebar is attached to it, and
+the seven context-menu-only commands are gated out of the palette.
+
+It is not part of `npm test`. The first run downloads about 130MB of VS Code
+into `.vscode-test/` (gitignored, and cached in CI); after that a run is about
+ten seconds.
+
+Four things about how it is put together are load-bearing, and all four are easy
+to undo by accident.
+
+**It runs against the `.vsix`, not the source folder.** `npm run test:vscode`
+packages the extension exactly as `npm run vscode:install` does and installs
+that artifact, so what the test loads is what a course author's editor loads.
+That is what makes it the packaging check [`docs/roadmap.md`](roadmap.md) asks
+for before dotenv could be bundled.
+
+**The extensions directory it installs into is outside this repository**, in the
+system temp directory. Node resolves a `require` by walking up from the
+requiring file, so an extension installed anywhere inside this checkout reaches
+the repository's own `node_modules` a few levels up — and then a dependency that
+is missing from the package resolves anyway and the test passes. Measured: with
+the extensions directory under `.vscode-test/`, an unbundled `require('dotenv')`
+added to `helpers.js` activated cleanly and every case passed. The user-data
+directory is out there too, for the duller reason that throwaway window state
+does not belong in a checkout, which leaves `.vscode-test/` holding the
+downloaded editor and nothing else — the only part worth caching in CI. Its name
+is kept short as a precaution and not as a fix: VS Code warns when the Unix
+domain socket it opens in there passes the 103-character limit, but it survives
+that, and a 210-character path under the checkout still ran every case green on
+macOS 1.93.
+
+**`test/vscode/host/harness/` is an empty extension**, and it is what puts the
+window into extension development mode — VS Code runs `--extensionTestsPath`
+only there. Pointing that at the real extension would load it as a development
+extension instead of an installed one, which is the thing being avoided.
+
+**The launcher scrubs the environment before it spawns.** Every VS Code process
+sets `ELECTRON_RUN_AS_NODE=1` and a wall of `VSCODE_*` variables in its
+children, so running this from VS Code's own integrated terminal starts the
+downloaded Electron as a Node interpreter, which then reads VS Code's command
+line as Node options and dies on `bad option: --extensionTestsPath`.
+`runTests()` from `@vscode/test-electron` does not scrub them, which is one of
+the reasons the launcher spawns the host itself; the other is that a wedged
+extension host is a CI job that never finishes rather than one that fails, and
+neither `runTests()` nor Electron has a timeout.
+
+Two environment variables steer it. `CCB_VSCODE_VERSION` picks the VS Code to
+run, defaulting to `1.93.0` — the floor in the extension's `engines.vscode`, so
+CI is reproducible and the floor is a claim the test actually makes rather than
+a number in a manifest. Running it against `stable` now and then is how you find
+out that the newest editor broke something. `CCB_VSCODE_TIMEOUT_MS` moves the
+bound on the host run, which defaults to three minutes.
+
+What it does not cover: the palette, the menus and the sidebar as pixels. VS
+Code offers no way to ask "is this command in the palette right now", so the
+palette assertions are made against the manifest **as the installed extension
+carries it**, plus the fact that the commands are registered. Nothing here runs
+a CLI command — the workspace it opens is this repository, `.env` and all, so a
+case that executed a sync would sync a real Canvas course. And a `when` clause
+that is malformed rather than merely wrong is invisible: VS Code 1.93 accepts
+`view == courseTree && && (viewItem == module` without a word in any log, and no
+test in this project notices.

@@ -40,6 +40,9 @@ Temporary Items
 .history
 .ionide
 *.vsix
+# Where `npm run test:vscode` puts the VS Code it downloads, plus the
+# throwaway extensions and user-data directories that run uses.
+.vscode-test/
 
 ### Node.js ###
 node_modules/
