@@ -585,6 +585,23 @@ article {
   margin-bottom: 0;
 }
 
+/* Media preview above the card, for image/video/audio file items. */
+.file-item-embed {
+  margin: 1rem 0;
+}
+
+.file-item-embed img,
+.file-item-embed video {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.file-item-embed audio {
+  display: block;
+  width: 100%;
+}
+
 /* ---------------------------------------------------------------------------
    Reference item card (remark-reference-item plugin)
 
