@@ -13,6 +13,11 @@ jobs:
   # on one OS from cancelling the other, so a single run always reports both.
   test:
     runs-on: ${{ matrix.os }}
+    # The smoke test bounds the extension host it boots, but not the npm and
+    # packaging steps around it, and GitHub's own default is six hours. This
+    # is the backstop for anything in this job that stops making progress
+    # without failing: a wedged leg costs minutes, not an afternoon.
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -25,6 +30,31 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+
+      # The VS Code the extension-host smoke test boots: about 130MB to fetch
+      # and a minute to unpack, and the same bytes until the version pinned in
+      # `test/vscode/host/run.js` moves — so the key is the hash of the two
+      # files that could move it. `restore-keys` hands back the previous
+      # download when they do, so a version bump costs one fetch rather than
+      # every run until the cache is warm again.
+      - name: Cache the VS Code the smoke test boots
+        uses: actions/cache@v4
+        with:
+          path: .vscode-test
+          key: vscode-${{ runner.os }}-${{ hashFiles('test/vscode/host/*.js') }}
+          restore-keys: vscode-${{ runner.os }}-
+
+      # Last, and split by platform for one reason: VS Code is an Electron
+      # application and a Linux runner has no display for it to open a window
+      # on, so that leg goes through xvfb. Windows runs it as it comes. This is
+      # the only check in this project that exercises the extension in a real
+      # editor, and on Windows it is the only one that has ever done so at all.
+      - name: Extension-host smoke test
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run test:vscode
+      - name: Extension-host smoke test
+        if: runner.os != 'Linux'
+        run: npm run test:vscode
 
   # Separate from `test` so a formatting nit never hides the test signal, and
   # deliberately not in the matrix above: ESLint and Prettier judge bytes, and
