@@ -116,8 +116,7 @@ gebruikt en schrap de rest.
 
 **Openingen en overgangen**
 
-- "Laten we erin duiken", "In dit hoofdstuk zullen we…", "Op het einde van deze
-  les kun je…".
+- "Laten we erin duiken", "Op het einde van deze les kun je…".
 - Retorische vragen als aanloop: "Maar wat betekent dat nu concreet voor jou?"
 - "In de snel evoluerende wereld van…", en elke andere alinea die eerst het
   decor opzet.
@@ -140,7 +139,6 @@ gebruikt en schrap de rest.
     moet hij anders, hoe correct hij ook staat. Zie ook de regel over natuurlijk
     Nederlands bij [Taal](#taal), die over je eigen schrijfgewoonten gaat; deze
     hier gaat over wat je bij het nalezen tegenkomt.
-- Kastlijnen als scheidingsteken.
 - "Het is belangrijk om op te merken dat…": laat de aanloop weg en zeg het.
 - De constructie "niet alleen X, maar Y", en haar neefje "X gaat niet over A,
   maar over B".

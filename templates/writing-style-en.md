@@ -131,8 +131,7 @@ delete the rest.
 
 **Openers and transitions**
 
-- "Let's dive in", "In this chapter we will…", "By the end of this lesson, you
-  will be able to…".
+- "Let's dive in", "By the end of this lesson, you will be able to…".
 - Rhetorical questions used as a runway: "So what does this actually mean for
   you?"
 - "In today's fast-paced world…", and every other scene-setting first paragraph.
@@ -140,7 +139,6 @@ delete the rest.
 
 **Sentence-level tells**
 
-- Em-dashes as all-purpose separators.
 - "It's important to note that…", "It's worth noting that…": just say the thing.
 - The "not just X, it's Y" construction, and its cousin "X isn't about A, it's
   about B".
