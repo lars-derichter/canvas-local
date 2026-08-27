@@ -130,18 +130,20 @@ source is not a document, URL, or stylesheet.
    the new style redefines the alert palette, then keep the style _names_ and
    change only their colours).
 
-7. **Regenerate and show the sample**: `npx course export --sample -f pdf` and
-   `-f docx`. Surface `exports/style-sample.pdf` (and the DOCX), point out any
-   DOCX degradation that applies (see `docs/export-styling.md`), and iterate on
-   request. Small later tweaks are the job of `/export-style-update`.
+7. **Regenerate and show the sample**: `npx course export --sample -f pdf`, then
+   again with `-f docx` (`--format` takes one value per run). Surface
+   `exports/style-sample.pdf` (and the DOCX), point out any DOCX degradation
+   that applies (see `docs/export-styling.md`), and iterate on request. Small
+   later tweaks are the job of `/export-style-update`.
 
 ## Rules
 
 - **Language.** Reply in chat in the language the author writes in; these style
   files carry no course prose.
-- Write only under `sources/`: `sources/export-style/` for the style files, and
-  a theme copied to `sources/` for colours. Never edit `export-styles/` or
-  `src/css/themes/` (shipped defaults, overwritten on upstream updates).
+- Write only under `sources/` (and `course.config.yml` when pointing `theme:` at
+  a copy there): `sources/export-style/` for the style files, a theme copied to
+  `sources/` for colours. Never edit `export-styles/` or `src/css/themes/`
+  (shipped defaults, overwritten on upstream updates).
 - Keep PDF and DOCX in sync: apply each format-agnostic decision (fonts,
   colours, margins) to both files.
 - If the reference uses a licensed font the system lacks, say so. Typst uses
