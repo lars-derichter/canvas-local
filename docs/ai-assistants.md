@@ -44,29 +44,22 @@ On Windows, skills need one git setting before they are found; see
 - **Exporting to PDF or Word**: turn pages, modules, or the whole course into
   printable documents, with a style derived from your own reference.
 
-## Writing Style
+## The Writing Style Guide
 
 Your AI assistant follows the conventions in
 [writing-style.md](../context/writing-style.md) when drafting course content:
 language, register, tone, structure, formatting, and patterns to avoid. The
 shipped `writing-style.md` is the English baseline, usable as it stands; run
-`/writing-style-init` early to adapt it to your own voice and audience (see
-[Customization](customization.md)). If you would rather skip the interview,
-`templates/` also ships baselines for US English, Flemish Dutch and Netherlands
-Dutch: copy the one matching your course over `context/writing-style.md` and
-edit from there.
-
-Three skills wrap around `writing-style.md`:
-
-- `/writing-style-init` adapts it to your own voice and audience; run it once
-  when you set up a new course.
-- `/proofread <path>` checks an existing document against it.
-- `/writing-style-update` folds corrections you made during a session into it as
-  durable rules, so you don't repeat the same feedback.
+`/writing-style-init` early to adapt it to your own voice and audience, or copy
+one of the ready baselines in `templates/` (US English, Flemish Dutch,
+Netherlands Dutch) over it and skip the interview (see
+[Customization](customization.md#the-writing-style-guide)).
 
 You can also edit `writing-style.md` by hand at any time. Treat it as a living
 document: the more it reflects your real preferences, the less you'll need to
-correct the assistant's output.
+correct the assistant's output. The skills that maintain and apply it,
+`/writing-style-init`, `/writing-style-update`, `/proofread` and `/translate`,
+are in [the catalogue below](#writing-style).
 
 ## Course Context
 
@@ -79,18 +72,12 @@ you will know they can, then how they get there), so the alignment between
 goals, assessment and teaching is written down once instead of re-derived per
 skill. The lesson skills read it before generating anything.
 
-Two skills wrap around `course-context.md`:
-
-- `/course-context-init` fills it in from your repo and an interview; run it
-  once when you set up a course, and again after your README, docs, or course
-  structure change substantially.
-- `/course-context-update` folds the design decisions you settled during a
-  working session into it, so the next skill run stops asking.
-
-Like `writing-style.md`, you can also edit it by hand. The shipped file is the
-English template; `templates/` holds the same scaffold in Dutch, so copy
-`templates/course-context-nl.md` over `context/course-context.md` first if that
-is the language you work in.
+`/course-context-init` fills it in from your repo and an interview, and
+`/course-context-update` folds in the design decisions you settle while working;
+both are in [the catalogue below](#project). Like `writing-style.md`, you can
+also edit it by hand. The shipped file is the English template; `templates/`
+holds the same scaffold in Dutch, so copy `templates/course-context-nl.md` over
+`context/course-context.md` first if that is the language you work in.
 
 How the lesson skills chain together, from idea to lesson plan to class version
 to published module, is described in the [lesson workflow](lesson-workflow.md).

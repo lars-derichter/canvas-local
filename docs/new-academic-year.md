@@ -40,19 +40,17 @@ npx course init
 > changes.
 
 From here until step 5, `.env` names the new course while `.canvas-sync.json`
-still describes last year's, so `sync`, `push`, `pull`, `status`, the item
-commands and the module commands refuse to run and name both courses. That is
-the guard against pushing last year's ids at this year's course, not a problem
-with your setup; step 5 clears it. The commands that read no sync state work
-throughout, step 3 below among them: `reset-canvas`, `reset-sync-state` itself,
-`setup`, `validate`, `search`, `build-glossary` and `export-toc`. `export` does
-read it, and carries on anyway. `new-module` is refused in this window whatever
-position you give it, because inserting a module can renumber the others and
-each folder name is a key, so lay out the new year's modules after step 5 rather
-than before it. Running `npx course init` at this step instead of editing `.env`
-by hand lifts the refusal straight away, because init rewrites the sync state
-too and leaves last year's module ids behind rather than filing them under the
-new course; if you go that way, step 5 has nothing left to do.
+still describes last year's, so the commands that act on the ids in it refuse to
+run and name both courses. That is the guard against pushing last year's ids at
+this year's course, not a problem with your setup; step 5 clears it, and
+[troubleshooting](troubleshooting.md#canvas-syncjson-describes-course-n) lists
+exactly which commands stop. Two things matter for this window: step 3 below
+works throughout, because `reset-canvas` never opens the sync state, and the new
+year's modules should be laid out after step 5, because `new-module` is among
+the commands that refuse. Running `npx course init` at this step instead of
+editing `.env` by hand lifts the refusal straight away, because init rewrites
+the sync state too and leaves last year's module ids behind rather than filing
+them under the new course; if you go that way, step 5 has nothing left to do.
 
 ## 3. Clean the Remote Course (If Needed)
 

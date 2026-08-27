@@ -168,15 +168,12 @@ questions and submissions that nothing here could rebuild.
 Two things about this file are load-bearing:
 
 - **The title is the matching key, and only until the sync state holds an id.**
-  Push places a quiz item it has no row for by reading the course's quiz list
-  and matching this file's title exactly, then records the id it found in
-  `.canvas-sync.json`. Every push after that goes straight to that id and never
-  reads the quiz list again, so a rename in Canvas breaks nothing once the row
-  exists, and breaks the match before it. A title that matches no quiz, and a
-  title two quizzes share, are both refusals rather than guesses: the item is
-  not placed, the reason is reported, the rest of the run carries on, and the
-  run ends non-zero. See [Limitations](limitations.md#quiz-questions-never-sync)
-  for the full order.
+  A quiz item with no row is matched to a quiz by exact title and the id it
+  finds is recorded in `.canvas-sync.json`; every later push goes straight to
+  the id, so a rename in Canvas breaks nothing once the row exists, and breaks
+  the match before it. No match and an ambiguous match are refusals, not
+  guesses. [Limitations](limitations.md#quiz-questions-never-sync) has the full
+  resolution order and both failure cases.
 - **`quiz_ref` is the rollover insurance, not a push requirement.** An item the
   sync state already ties to a quiz is placed whatever `quiz_ref` says. The path
   matters when the quiz is not in the course yet: it names the package to import

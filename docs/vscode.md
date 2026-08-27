@@ -16,9 +16,7 @@ out of the view on purpose: **Course: Build Glossary**, **Course: Reset Sync
 State (Destructive)** and **Course: Reset Canvas (Deletes ALL Canvas Content)**.
 The Course Manager view has no entry for any of them, in its title bar or in a
 right-click menu, so no stray click in the tree can start one. Both resets run
-in the terminal, where the CLI's own y/N questions still gate them. See
-[Advanced commands](advanced-commands.md), and read
-[Backing up a Canvas course](backups.md) before you run either.
+in the terminal, where the CLI's own y/N questions still gate them.
 
 ## Installation
 
@@ -124,16 +122,14 @@ output in the shared terminal instead:
 Most of these commands also work from the command palette; you then pick the
 module or item from a quick-pick list instead. When the active editor's file
 lies inside a module, that module (or the file itself) is offered first, marked
-as current, so Enter confirms it. Two sets are the exception. The two-step merge
-needs both right-clicks, so the palette carries **Course: Merge Items**, which
-asks for source and target. The four module-scoped Canvas actions have no
-palette entry at all: the palette already covers the whole course with **Course:
-Sync with Canvas**, **Course: Push to Canvas**, **Course: Pull from Canvas** and
-**Course: Status**, and a single module with **Course: Push Module to
-Canvas...**. Either way the actual work is done by the `npx course` CLI, so
-renumbering and Canvas sync state behave exactly like the terminal commands.
-Full output of the background commands is available in the **Coursewright**
-output channel (View → Output).
+as current, so Enter confirms it. The exceptions are the tree-bound commands the
+opening of this page names: the two-step merge (the palette's **Course: Merge
+Items** asks for source and target instead) and the module-scoped Canvas actions
+(the palette covers the whole course, and a single module with **Course: Push
+Module to Canvas...**). Either way the actual work is done by the `npx course`
+CLI, so renumbering and Canvas sync state behave exactly like the terminal
+commands. Full output of the background commands is available in the
+**Coursewright** output channel (View → Output).
 
 Three row types carry less than the rest. Rename, move and delete are
 contributed for pages, assignments, external URLs, files and subheaders, and

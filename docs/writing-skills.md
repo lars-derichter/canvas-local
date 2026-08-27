@@ -18,8 +18,7 @@ Say what you want automated and point the assistant at this page. For example:
 > the conventions in `docs/writing-skills.md`, and look at
 > `.agents/skills/lesson-summarize/SKILL.md` for a model.
 
-The [ideas list](roadmap.md) has more candidates; most are within reach of a
-single AI-assisted session.
+The [ideas list](roadmap.md) has more candidates.
 
 ## Where Skills Live
 

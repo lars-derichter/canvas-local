@@ -118,11 +118,9 @@ your contribution is released under the same licence.
 
 Skills follow a shared template, described in
 [Writing your own skills](writing-skills.md). A skill that would help other
-courses is welcome as a pull request; keep it course-agnostic (course facts come
-from `course-context.md` at runtime, never hardcoded) and language-agnostic:
-write the skill in English, take the language it writes _in_ from
-`writing-style.md` at runtime, and lead trigger phrases and examples with
-English before any second language.
+courses is welcome as a pull request; the template's course-agnostic and
+language-agnostic rules apply doubly to one meant for courses other than your
+own.
 
 If your change renames or removes a skill folder or a docs file, add the old
 path as it exists in downstream projects (e.g. `.agents/skills/<old-name>`) to
@@ -178,11 +176,8 @@ git config blame.ignoreRevsFile .git-blame-ignore-revs
 
 Everything in this project is written in English, and every heading takes its
 case from [`context/writing-style.md`](../context/writing-style.md): Chicago
-title case, capitalising the first and last word plus every major word, and
-lowercasing articles, coordinating conjunctions, and prepositions of three
-letters or fewer. That covers headings you write, not the labels the tooling
-generates: alert titles, link and file cards, and the glossary heading come from
-`lib/config/labels.js` and are sentence case by design.
+title case, with the carve-out that guide defines for the sentence-case labels
+the tooling generates.
 
 The project's own docs (`docs/`, the README, and `AGENTS.md`) add UK spelling
 (customise, colour), lines wrapped at 80 characters, and the

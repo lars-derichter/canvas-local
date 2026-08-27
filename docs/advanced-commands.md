@@ -32,31 +32,21 @@ next `push` will create everything fresh on Canvas.
 **When to use:**
 
 - Switching to a different Canvas instance or course. This is not optional: the
-  sync state records which course it describes, and `sync`, `push`, `pull`,
-  `status` and `delete-module` refuse to run against a different one, because
-  the ids in it mean nothing there and a Canvas file id is not even scoped to a
-  course. The item commands hit the same refusal, along with the other three
-  module commands, `new-module` among them because inserting a module renumbers
-  the ones above it, and every one of them refuses before it acts, so a run that
-  stopped changed nothing. Two commands read the mismatched file and carry on,
-  and neither writes to Canvas: `init`, which repairs it, and `export`. The rest
-  never open it and are not affected: `setup`, `validate`, `search`,
-  `build-glossary`, `export-toc`, `reset-canvas` and this command. Either this
-  command or `npx course init` clears it.
+  sync state records which course it describes, and every command that acts on
+  the ids in it refuses to run against a different one, before it acts, so a run
+  that stopped changed nothing.
+  [Troubleshooting](troubleshooting.md#canvas-syncjson-describes-course-n) lists
+  which commands stop, which read the mismatched file and carry on, and which
+  never open it. Either this command or `npx course init` clears the mismatch.
 - Preparing the repo for sharing (strip instance-specific IDs).
 - Testing the full sync flow from scratch.
 
 **Note:** The command asks for confirmation, and touches nothing on Canvas. The
 Canvas course keeps all its content, which is what makes the next push the part
-to watch. What the reset leaves behind is a course in which every module reads
-as unlinked, and where both sides of one still hold items, `sync` and `status`
-refuse that module rather than guess. `push` and `pull` do not refuse: each pins
-a direction, which is the answer the refusal is asking for, and from there
-adoption pairs a local file with the Canvas object of the same type and title,
-claiming what is already there instead of copying it. What cannot be paired is
-created, so a title that differs between the two sides, an item whose type
-changed, or two items in one module sharing a title each end up as a second copy
-on Canvas. Read the report rather than assuming either outcome. See
+to watch: every module reads as unlinked, `sync` and `status` refuse a module
+that holds items on both sides, and `push` answers that refusal by pinning a
+direction, adopting what it can pair by type and title and creating a second
+copy of what it cannot. Read the report rather than assuming either outcome. See
 [Push reconciles a module's item list](limitations.md#push-reconciles-a-modules-item-list).
 
 ## reset-canvas
@@ -85,23 +75,15 @@ Classic quizzes, discussions, announcements and rubrics survive, but the modules
 that linked them do not.
 
 Quizzes survive because the command skips them, not because it cannot reach
-them. A graded Classic Quiz is two objects in Canvas: the quiz that holds the
-questions, and an assignment that holds its column in the gradebook. That second
-object is returned by the assignments API like any other assignment (flagged
-`is_quiz_assignment: true`, carrying the quiz's id in `quiz_id`) and a `DELETE`
-on it deletes the quiz, its questions and every submission on it. `reset-canvas`
-leaves those assignments where they are, names them in its output, and keeps
-them out of the count of assignments it is about to delete. A practice quiz has
-no gradebook column and never appears in that list at all, so it was never at
-risk.
-
-A New Quiz is the exception that does get deleted: it is genuinely an
-assignment, one that launches an LTI tool, with no separate quiz object behind
-it for the guard to protect. Because the line above it promises that quizzes are
-left alone, the command says which kind is which and names every New Quiz it is
-about to delete. Deleting one takes its questions and every submission on it,
-and nothing in this project could rebuild the questions. A New Quiz has no
-markdown source here the way an assignment body does.
+them. A graded Classic Quiz is two objects in Canvas, the quiz and an assignment
+holding its gradebook column, and deleting that assignment would delete the
+quiz, its questions and every submission. `reset-canvas` leaves those
+assignments where they are, names them, and keeps them out of its count. A New
+Quiz gets no such shield: it is genuinely an assignment, with no separate quiz
+object for the guard to protect, so the command deletes it like one and names
+every one it is about to take, questions and submissions included.
+[Destructive operations and student work](limitations.md#destructive-operations-and-student-work)
+has the full picture.
 
 The command lists what the course holds, names the assignments that students
 have already submitted to, the ones it is skipping and the New Quizzes it is
@@ -155,40 +137,12 @@ everything.
 
 ## Resilience and Conflict Detection
 
-- **Retry logic**: a call that comes back 429, 5xx, or a throttled 403 (Canvas
-  reports rate limiting as 403 with "Rate Limit Exceeded" in the body) is
-  retried up to 3 times on top of the first attempt, so a failing request is
-  made 4 times before it gives up. The log counts them: `(attempt 2/4)`. Each
-  retry waits the server's `Retry-After` when the response names one, with
-  exponential backoff otherwise. A request with no answer after 60 seconds times
-  out, and network errors and timeouts are retried the same way. The exception
-  is a `POST`: it is retried only when Canvas refused the request before running
-  it (429 or throttled 403), never on a 5xx, network error, or timeout, because
-  those leave it unknown whether Canvas processed the request and a duplicate
-  page or assignment is worse than a clean failure.
-- **Error recovery**: If a single module or item fails during push/pull, the
-  remaining items continue and a summary of errors is shown at the end.
-- **Conflict detection**: what changed is decided by content, not by a
-  timestamp. Each side is compared against the fingerprint the last sync
-  recorded for it, which is what separates "changed here" from "changed there"
-  and both from "changed on both sides". Neither fingerprint reads a
-  modification time, so a fresh `git clone` is not mistaken for an entirely
-  edited course. One decision still reads a timestamp, the `newest` tiebreak,
-  and only a page, assignment, discussion or file whose two fingerprints have
-  both moved gives it two timestamps to compare; a module renamed on both sides,
-  and every item Canvas keeps no timestamp on, reach the same setting with
-  nothing to compare and fall to the local copy with a reason saying so. `push`
-  and `pull` never reach any of it, because pinning a direction has already
-  answered that question. See
-  [Push and pull are not a merge](limitations.md#push-and-pull-are-not-a-merge).
-- **Forced overwrite**: a file git reports as modified or untracked is never
-  written over and never deleted. `pull --force` switches that guard off, for
-  overwrites and deletes alike. It asks first whenever it would override at
-  least one such file under `course/`, and whenever git could not answer at all,
-  which outside a checkout is every file in the tree. An input stream that ends
-  without answering cancels the run; a piped `y` confirms it like a typed one.
-  See [Skipped with "(git-dirty)"](troubleshooting.md#git-dirty-under-skipped).
-- **Stale ID recovery**: a 404 on updating a page, assignment or discussion
-  means the object was deleted in Canvas, so it is created again and the new id
-  recorded. A module is not: a 404 there fails the action, and the run reports
-  it.
+The commands above run on the same engine as every sync, so its guards apply: a
+failing request is retried with backoff, an item that fails mid-run does not
+stop the rest, a stale id is recovered by recreating the object, what changed is
+decided by content rather than timestamps, and a file git reports as modified or
+untracked is never written over unless `pull --force` asked first. The mechanics
+are in [architecture](architecture.md#error-recovery); the user-visible side in
+[Push and pull are not a merge](limitations.md#push-and-pull-are-not-a-merge),
+[Skipped with "(git-dirty)"](troubleshooting.md#git-dirty-under-skipped) and
+[A stale id on the sync row](troubleshooting.md#a-stale-id-on-the-sync-row-404-on-update).

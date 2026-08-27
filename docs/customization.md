@@ -116,11 +116,9 @@ rather than its contents.
 
 Those first three sections are in that order on purpose: what students should be
 able to do, how you will know they can, and only then how you teach it. That is
-backward design, and it is the chain every lesson skill reads from top to
-bottom, so a lesson starts from the goals it serves rather than from a topic
-list. [Where to start](lesson-workflow.md#where-to-start) explains what that
-buys you. Filling in the first two sections is the single highest-value thing
-you can do for the skills.
+backward design ([didactic foundations](didactics.md)), the chain every lesson
+skill reads from top to bottom. Filling in the first two sections is the single
+highest-value thing you can do for the skills.
 
 It ships as the English fill-in template, every section marked `TODO`.
 `/course-context-init` completes it in whatever language you work in, reading
@@ -238,19 +236,17 @@ An export style decides how a PDF or Word document is laid out: typography,
 margins, the cover, and any fonts it ships. Built-in styles live in
 [`export-styles/`](../export-styles/):
 
-| Style         | Look                                                                                                                                                                                       |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `generic`     | The default. Helvetica/Arial, near-black headings, A4 with 2.5 cm margins, and a "Built with Coursewright" watermark on the cover.                                                         |
-| `thomas-more` | Century Gothic headings where the machine has that font, Nunito bundled as the fallback, and the Thomas More logo. The logo belongs to its owner. See [THIRD-PARTY.md](../THIRD-PARTY.md). |
+| Style         | Look                                                                                                                |
+| ------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `generic`     | The default: a neutral A4 layout with a "Built with Coursewright" cover watermark.                                  |
+| `thomas-more` | A worked example of institutional branding. The logo belongs to its owner: see [THIRD-PARTY.md](../THIRD-PARTY.md). |
 
 `npx course export --style thomas-more` overrides the config for one run.
 
 The comfortable route to a style of your own is AI-assisted:
-
-- `/export-style-init` derives a complete style from a reference you give it: a
-  Word template, a PDF, a website URL, or a CSS file.
-- `/export-style-update` makes plain-language tweaks ("headings dark blue",
-  "bigger margins") to an existing style.
+`/export-style-init` derives a complete style from a reference you give it, and
+`/export-style-update` makes plain-language tweaks to an existing one (see
+[the catalogue](ai-assistants.md#export-styling)).
 
 By hand, copy the closest style out and point `export.style` at it:
 
@@ -309,10 +305,7 @@ the preview site still ignores it too.
 
 "Use this template" copies the whole repository, so your course also inherits
 the files that govern the upstream project: its code of conduct, security
-policy, issue and pull-request templates, contributing guide and changelog. Each
-says up front which project it applies to, so leaving them costs nothing and
-keeps the bug-report route open. Most people leave them.
-
-Deleting them takes one extra step, because the next upstream update would
-otherwise deliver them again. See
+policy, issue and pull-request templates, contributing guide and changelog.
+Leaving them costs nothing; deleting them takes one extra step, because the next
+upstream update would otherwise deliver them again. See
 [deleting files that belong to the tooling project](updating-your-project.md#deleting-files-that-belong-to-the-tooling-project).

@@ -73,14 +73,10 @@ The workflow produces material for two audiences, defined in
 ## Course Context
 
 All lesson skills read [course-context.md](../context/course-context.md) first:
-your course's learning goals, assessment, pedagogy, lesson-plan template, module
-page roles, code-download conventions, glossary, and scope boundaries. Its
-sections follow backward design (goals, then the evidence for them, then the
-teaching that gets students there), so a lesson design starts from the goals it
-serves rather than from the topic list. Run `/course-context-init` once to fill
-it in; the skills ask about (and offer to record) anything it doesn't cover yet,
-and `/course-context-update` folds a working session's decisions in afterwards.
-The richer that file, the less the skills need to ask.
+your course's learning goals, assessment, pedagogy and conventions, written down
+once so the skills stop guessing.
+[AI assistants](ai-assistants.md#course-context) describes the file and the two
+skills that maintain it. The richer that file, the less the skills need to ask.
 
 ## Steps
 
@@ -202,11 +198,8 @@ Two report-only sweeps complement the single-file `/proofread`:
 
 For the findings you stumble on yourself while reviewing, `/issue-report` is the
 retail counterpart of those wholesale sweeps: it logs one error or wanted change
-into `sources/issues.md` with at most one question, so you stay in your
-reviewing flow. Later, `/issue-fix` triages the whole queue (checking whether
-each fix has wider implications, from the same defect on other pages to a style
-rule that belongs in `writing-style.md`) and applies the fixes after you approve
-its plan.
+into `sources/issues.md` so you stay in your reviewing flow, and `/issue-fix`
+later triages the whole queue and applies the fixes after you approve its plan.
 
 ## Adopting the Workflow Mid-Course
 

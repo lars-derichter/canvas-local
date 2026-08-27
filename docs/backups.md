@@ -14,16 +14,11 @@ a bad semester.
 
 > [!WARNING]
 >
-> Two commands can destroy Canvas content: `npx course reset-canvas` deletes
-> every module, page, assignment and file in the course, including content this
-> tool never created. `--prune-canvas`, on either `npx course push` or
-> `npx course sync`, deletes the Canvas modules and items you removed locally,
-> and `npx course sync --prune` adds the other direction to it. Deleting an
-> assignment is the one that reaches student work: it takes the gradebook column
-> and every submission on it. A run without a prune flag deletes nothing, but it
-> does overwrite: the Canvas copy of anything a local file tracks is replaced by
-> what the file says. See [Limitations](limitations.md) for exactly what each
-> one touches.
+> `npx course reset-canvas` and the prune flags delete Canvas content, and
+> deleting an assignment takes its gradebook column and every submission with
+> it. A run without a prune flag deletes nothing, but it does overwrite. The
+> [table below](#what-each-command-puts-at-risk) says what each command can
+> destroy and which backup protects you.
 
 ## Route 1: Export the Course to a File
 
@@ -78,11 +73,12 @@ push does.
 
 The cost of this route is that the Canvas ids differ between the two courses, so
 your `.canvas-sync.json` describes the sandbox, not the real course. Run
-`npx course reset-sync-state` when you switch. Forgetting is no longer silent:
-`sync`, `push`, `pull` and `status` all refuse to run while `.env` and the sync
-state name different courses, and say which is which. Do not read that as a
-guard on everything, though. `reset-canvas` never opens the sync file, so it
-deletes whatever course `.env` names, mismatch or not.
+`npx course reset-sync-state` when you switch. Forgetting is not silent: the
+sync commands
+[refuse to run](troubleshooting.md#canvas-syncjson-describes-course-n) while
+`.env` and the sync state name different courses. Do not read that as a guard on
+everything, though: `reset-canvas` never opens the sync state, so it deletes
+whatever course `.env` names, mismatch or not.
 
 ## What Git Backs up, and What It Does Not
 
@@ -123,22 +119,15 @@ of them, and `sync` has no flag that changes that. `pull --force` is the one
 lever that switches the guard off, and outside a git checkout the guard covers
 every file in `course/`, so a forced pull there writes over all of them.
 
-One assignment none of them deletes: Canvas lists the gradebook half of a graded
-Classic Quiz among the course's assignments, and deleting it deletes the quiz,
-its questions and its submissions. `reset-canvas` skips those and names them;
-`--prune-canvas` refuses them and says why, on `push` and on `sync` alike,
-because the refusal lives in the engine rather than in either command. Quiz and
-LTI items are only ever unlinked from their module, never deleted. A course
-export is still the only thing that brings a quiz back.
-
-A **New** Quiz is not one of those. Canvas builds it as an assignment that
-launches an LTI tool, with no separate quiz object behind it, so the guard above
-has nothing to catch and this project manages it as the assignment it is.
-`reset-canvas` deletes it (with its questions and every submission on it) and
-names it in the summary so a count of assignments cannot hide it.
-`--prune-canvas` deletes it too, and lists it as an ordinary assignment. Nothing
-in this repo can rebuild a New Quiz's questions; a course export is the only
-thing that brings one back.
+One assignment none of them deletes: the gradebook half of a graded Classic
+Quiz. `reset-canvas` skips those and names them; a prune refuses them and says
+why. Quiz and LTI items are only ever unlinked from their module, never deleted.
+A **New** Quiz has no such shield: Canvas builds it as an assignment with no
+separate quiz object behind it, so it is deleted like one, questions and
+submissions included, and only `reset-canvas` names it as a quiz in its warning.
+Nothing in this repo can rebuild either kind's questions; a course export is the
+only thing that brings them back. See
+[Destructive operations and student work](limitations.md#destructive-operations-and-student-work).
 
 Deleting the local file of a **graded** discussion deletes the topic, every
 reply in it and the grades behind it. Prune checks for that: it resolves the
@@ -159,9 +148,8 @@ for why, and for the warnings the commands print before they act.
 - **Before the first push to any course that already has content.** The CLI
   warns you at this point and asks for confirmation.
 - **Before `reset-canvas`, and before any run carrying a prune flag**, every
-  time. Each of them stops for a confirmation and points back here. On a course
-  students have submitted to, export the gradebook as well: no course export or
-  course copy carries grades.
+  time. On a course students have submitted to, export the gradebook as well: no
+  course export or course copy carries grades.
 - **At the end of each academic year**, before you repoint the project at a new
   course.
 - **Before you try something you have not tried before**, which for a while is

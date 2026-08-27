@@ -152,9 +152,8 @@ changes:
 
 > [!IMPORTANT]
 >
-> Git backs up your markdown, not your Canvas course. Your repository knows
-> nothing about the pages a colleague wrote in the Canvas web editor, the
-> quizzes, or student submissions. Backing those up is a separate job: see
+> Git backs up your markdown, not your Canvas course. Backing up what only
+> exists in Canvas is a separate job: see
 > [Backing up a Canvas course](backups.md).
 
 ### Commit the Canvas Sync File
@@ -176,14 +175,11 @@ Canvas objects the course owns, and a push from it updates those objects.
 Without it, the copy falls back on matching titles, and anything whose title no
 longer matches the one in Canvas is created a second time instead of updated.
 
-There is one more thing to know about a copy that travels. The sync file names
-the Canvas course it was built against, and so does `.env`. If the two disagree,
-`sync`, `push`, `pull` and `status` stop and name both courses rather than
-pushing one course's ids at the other, and so do the commands that edit modules
-and items. Not every command that reads the file stops: `npx course init` reads
-it in order to repair it, and `npx course export` reads it and does not mind. A
-clone is the easy way to arrange that: point its `.env` at a course of your own
-and the sync file still describes the original. Troubleshooting covers
+One more thing about a copy that travels: `.canvas-sync.json` names the Canvas
+course it was built against, and so does `.env`. If the two disagree, the sync
+commands stop and name both courses rather than pushing one course's ids at the
+other. A clone is the easy way to arrive there: point its `.env` at a course of
+your own and the file still describes the original. Troubleshooting covers
 [which of the two to change](troubleshooting.md#canvas-syncjson-describes-course-n).
 
 ## Next Steps
