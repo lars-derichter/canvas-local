@@ -48,7 +48,7 @@ Neither the `thomas-more` style nor the `thomas-more` theme is the default: the
 shipped defaults (`generic` and `github`) are brand-neutral. When you build your
 own course, point `theme:` and `export.style:` in `course.config.yml` at your
 institution's colours, fonts and logo;
-[docs/customization.md](docs/customization.md) explains how.
+[docs/customisation.md](docs/customisation.md) explains how.
 
 If you add a font or logo of your own to a style, check that its licence permits
 redistribution before committing it, and record it here.

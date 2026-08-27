@@ -7,7 +7,7 @@
 > to your own language, audience, and voice, or copy another baseline from
 > [`templates/`](../templates/) over this file: US English, Flemish Dutch or
 > Netherlands Dutch. The file is protected during upstream updates, so your
-> version sticks. See [Customization](../docs/customization.md).
+> version sticks. See [Customisation](../docs/customisation.md).
 
 Course materials are in English, and so is this guide, which AI tools read
 before drafting anything for you.

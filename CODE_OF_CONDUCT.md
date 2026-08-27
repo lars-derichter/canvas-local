@@ -5,7 +5,7 @@
 > This code of conduct governs participation in the upstream Canvas Course
 > Builder project: its issues, pull requests and discussions. If this file
 > reached you inside a course repository built from the template, see
-> [Files that belong to the tooling project](docs/customization.md#files-that-belong-to-the-tooling-project).
+> [Files that belong to the tooling project](docs/customisation.md#files-that-belong-to-the-tooling-project).
 
 ## Our Pledge
 

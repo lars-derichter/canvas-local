@@ -53,7 +53,7 @@ shipped `writing-style.md` is the English baseline, usable as it stands; run
 `/writing-style-init` early to adapt it to your own voice and audience, or copy
 one of the ready baselines in `templates/` (US English, Flemish Dutch,
 Netherlands Dutch) over it and skip the interview (see
-[Customization](customization.md#the-writing-style-guide)).
+[Customisation](customisation.md#the-writing-style-guide)).
 
 You can also edit `writing-style.md` by hand at any time. Treat it as a living
 document: the more it reflects your real preferences, the less you'll need to
@@ -238,7 +238,7 @@ project whitelist.
   Colour is the one thing these skills do not own outright: it comes from the
   theme in `src/css/themes/`, shared with the preview site and Canvas. A colour
   change edits the theme, and `reference.docx` alongside it: Word styles cannot
-  read the theme. See [Customization](customization.md#branding).
+  read the theme. See [Customisation](customisation.md#branding).
 
 ### Project
 

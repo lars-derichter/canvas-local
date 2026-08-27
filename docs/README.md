@@ -57,7 +57,7 @@ upstream updates, and AI assistants read them before drafting anything.
 
 ## Making It Yours
 
-- [Customization](customization.md): README, language, colours and fonts,
+- [Customisation](customisation.md): README, language, colours and fonts,
   branding, and licence
 - [Updating your project](updating-your-project.md): pulling tooling
   improvements from upstream

@@ -90,7 +90,7 @@ The short version, if you have done this sort of thing before:
    getting-started course with `npm start`.
 3. Make it your course with `npx course setup`: it asks for the language, the
    name and the look, and puts the matching templates in place (see
-   [customization](docs/customization.md)).
+   [customisation](docs/customisation.md)).
 4. Back up the Canvas course ([how](docs/backups.md)), connect it with
    `npx course init` (see the [Canvas setup guide](docs/canvas-setup.md)), and
    push your first module.
@@ -103,7 +103,7 @@ The [docs folder](docs/README.md) has the full map. Start with:
 - [User guide](docs/user-guide.md): course structure and every daily command
 - [Limitations](docs/limitations.md): what the tool does not do
 - [Backups](docs/backups.md): protecting a Canvas course before you sync
-- [Customization](docs/customization.md): README, language, branding, and
+- [Customisation](docs/customisation.md): README, language, branding, and
   licence
 - [AI assistants](docs/ai-assistants.md): the bundled skills and how to add your
   own

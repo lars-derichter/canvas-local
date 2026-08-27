@@ -50,7 +50,7 @@ export:
 - The **theme** is a CSS file in [`src/css/themes/`](../src/css/themes/) and
   owns colour. The exporter parses it and passes every colour to Typst as a
   pandoc variable, so the PDF, the preview site, Canvas pages and the alert
-  icons all read one file. [Customization](customization.md#branding) lists
+  icons all read one file. [Customisation](customisation.md#branding) lists
   every token.
 
 The two combine freely: `theme: thomas-more` with `export.style: generic` gives

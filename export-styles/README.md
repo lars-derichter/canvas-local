@@ -5,7 +5,7 @@ document: typography, margins, the cover, and the fonts it ships. Colour is not
 part of a style: that comes from the theme in
 [`src/css/themes/`](../src/css/themes/), which the site, Canvas and the PDF all
 read. See [docs/export-styling.md](../docs/export-styling.md) for the pipeline
-and [docs/customization.md](../docs/customization.md) for making it yours.
+and [docs/customisation.md](../docs/customisation.md) for making it yours.
 
 ## Choosing One
 

@@ -276,7 +276,7 @@ The licences follow the tooling/content split:
   change or replace the licence for your own material, and update the licence
   section of your README to match.
 
-## The Built-in Tutorial Module
+## The Built-In Tutorial Module
 
 `course/01-getting-started/` is two things at once: a friendly walkthrough of
 the project (markdown, alerts, course structure, syncing, exporting, working

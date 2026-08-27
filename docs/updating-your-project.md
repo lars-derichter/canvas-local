@@ -114,7 +114,7 @@ overwritten. Commit the file after changing it.
 > `course.config.yml` at it. `sources/` is protected and `course.config.yml` is
 > too. If you would rather edit a shipped file in place, add it to
 > `protected_files`, or choose `a` at the conflict prompt. See
-> [Customization](customization.md#branding).
+> [Customisation](customisation.md#branding).
 
 ### Deleting Files That Belong to the Tooling Project
 

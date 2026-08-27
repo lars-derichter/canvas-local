@@ -11,7 +11,7 @@ unless this file says otherwise.
 This file belongs to the course author. If you created your course from the
 Coursewright template, the content of `course/` is yours: keep this licence,
 adapt it, or replace it with one of your own choosing. The
-`docs/customization.md` guide explains where licensing is declared.
+`docs/customisation.md` guide explains where licensing is declared.
 
 The Coursewright tooling itself is MIT licensed (see the `LICENSE` file in the
 repository root). Third-party assets bundled with the template are listed in

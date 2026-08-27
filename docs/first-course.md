@@ -179,7 +179,7 @@ it. Answer, and it writes the configuration for you.
 > command in this project starts with `npx course`, and `npx course --help`
 > lists them all.
 
-[Customization](customization.md) explains every choice and how to change it
+[Customisation](customisation.md) explains every choice and how to change it
 later. If you work with an AI assistant, the `/course-setup` skill walks the
 same ground and writes the prose the command cannot; see
 [AI assistants](ai-assistants.md).

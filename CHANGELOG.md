@@ -590,7 +590,7 @@
   instead of a public issue. Because GitHub copies the whole template, these
   files also land in your course repository; each says which project it applies
   to, and
-  [Files that belong to the tooling project](docs/customization.md#files-that-belong-to-the-tooling-project)
+  [Files that belong to the tooling project](docs/customisation.md#files-that-belong-to-the-tooling-project)
   explains how to drop them if you would rather not carry them.
 - **Prettier and ESLint.** `npm run format` formats the repo and `npm run lint`
   reports defects; both are checked in CI. Formatting now includes markdown, so

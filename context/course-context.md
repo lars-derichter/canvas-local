@@ -18,7 +18,7 @@
 > [`templates/course-context-nl.md`](../templates/course-context-nl.md) over
 > this file first. Keep the file in `protected_files` in
 > `update-from-upstream.conf`, so upstream updates never overwrite your version.
-> See [Customization](../docs/customization.md).
+> See [Customisation](../docs/customisation.md).
 
 ## Course Overview
 

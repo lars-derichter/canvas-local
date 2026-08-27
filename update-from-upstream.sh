@@ -157,6 +157,7 @@ STALE_PATHS=(
   ".agents/skills/report-issue"
   ".agents/skills/initialize-course-context"
   "docs/claude-code.md"
+  "docs/customization.md"
   "templates/export/tm-logo.png"
   "templates/export"
   "templates/style-generic-en.md"

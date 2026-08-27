@@ -46,7 +46,7 @@ line in place.
 - [Limitations](docs/limitations.md): what the tool does not do
 - [Markdown guide](docs/markdown.md): supported syntax and alerts
 - [Frontmatter guide](docs/frontmatter.md): page and assignment metadata
-- [Customization](docs/customization.md): README, language, branding, and
+- [Customisation](docs/customisation.md): README, language, branding, and
   licence
 - [VS Code extension](docs/vscode.md): visual sidebar commands
 - [Troubleshooting](docs/troubleshooting.md): common issues and fixes

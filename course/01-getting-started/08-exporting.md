@@ -146,4 +146,4 @@ npx course export --sample --style thomas-more
 > For the full picture of how styling works (what each template file controls
 > and how to tweak the PDF with `--var`), see the export styling guide
 > (`docs/export-styling.md` in your project folder, also readable on GitHub),
-> and `docs/customization.md` for the colour tokens and your own branding.
+> and `docs/customisation.md` for the colour tokens and your own branding.

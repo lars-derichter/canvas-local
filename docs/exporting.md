@@ -71,7 +71,7 @@ items in the tree to combine them into one document.
 `/export-style-init` and `/export-style-update` skills derive a house style from
 a Word template, a PDF or a website. [Export styling](export-styling.md) has the
 pipeline, the style files and every override;
-[Customization](customization.md#branding) covers the colour side.
+[Customisation](customisation.md#branding) covers the colour side.
 
 ## When Something Fails
 

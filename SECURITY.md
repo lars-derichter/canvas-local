@@ -105,4 +105,4 @@ This file is the upstream project's policy, and it arrived in your repository
 because GitHub copies the whole template. It stays accurate for the tooling, so
 keeping it costs nothing, but if you would rather your own repository did not
 advertise a security policy pointing elsewhere, see
-[Files that belong to the tooling project](docs/customization.md#files-that-belong-to-the-tooling-project).
+[Files that belong to the tooling project](docs/customisation.md#files-that-belong-to-the-tooling-project).

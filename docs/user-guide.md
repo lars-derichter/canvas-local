@@ -38,7 +38,7 @@ with the project, so there is nothing else to install.
 
 `course/01-getting-started/` is a real module, so it would be published to your
 students along with your own. The setup wizard offers to remove it; see
-[the built-in tutorial module](customization.md#the-built-in-tutorial-module)
+[the built-in tutorial module](customisation.md#the-built-in-tutorial-module)
 for how to keep it locally without publishing it.
 
 ### Optional: pandoc and Typst
