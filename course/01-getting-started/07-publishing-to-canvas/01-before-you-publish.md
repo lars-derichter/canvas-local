@@ -30,6 +30,12 @@ already has content, especially content someone else put there.
 > **Create Export** gives you a file you can re-import. It takes about two
 > minutes and it is the only thing standing between a mistake and a bad week.
 
+That covers the sidebar too. **Course: Sync with Canvas**, **Course: Push to
+Canvas** and **Course: Pull from Canvas** in the Course Manager title-bar menu
+run these same whole-course commands, and the extension asks nothing of its own
+before it starts one. A button is quicker to press than a command is to type,
+which is exactly why the backup comes first.
+
 The safest way to learn this tool is in a **sandbox course**: an empty Canvas
 course nobody is enrolled in. Push to it, break it, push again. Most
 institutions hand out sandbox courses on request. When your material looks
