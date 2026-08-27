@@ -125,6 +125,10 @@ section, we will…" meta-introductions.
 Text that reads as machine-written costs you students' trust faster than a typo
 does. Sweep for these before publishing.
 
+The first three groups show up in text from any model. The last three are the
+pet habits of one assistant each: keep the groups for the models you use and
+delete the rest.
+
 **Openers and transitions**
 
 - "Let's dive in", "In this chapter we will…", "By the end of this lesson, you
@@ -137,11 +141,12 @@ does. Sweep for these before publishing.
 **Sentence-level tells**
 
 - Em-dashes as all-purpose separators.
-- "It's important to note that…": just say the thing.
+- "It's important to note that…", "It's worth noting that…": just say the thing.
 - The "not just X, it's Y" construction, and its cousin "X isn't about A, it's
   about B".
 - Decorative tricolons: "fast, simple and efficient".
 - Stacked hedges: "may potentially help to some extent in certain cases".
+- Vague attribution: "experts say", "studies show", with no source in sight.
 - Vocabulary that turns up far more often in generated text than in yours:
   _delve_, _leverage_, _robust_, _seamless_, _crucial_, _testament to_,
   _underscore_, _realm_, _tapestry_, and _navigate_ used figuratively.
@@ -155,6 +160,34 @@ does. Sweep for these before publishing.
 - Bullet lists where every item runs to the same length and the same grammatical
   shape. Real lists are lumpy.
 - Perfectly balanced sections, three bullets each, all the way down.
+- Sentences of the same length and build, marching in step. Vary the rhythm.
+
+**Claude**
+
+- Copula avoidance: "serves as", "stands as", "acts as", "represents" where the
+  verb is "is".
+- Trailing participle padding: "…, highlighting the importance of X", "…,
+  ensuring a smooth workflow", "…, reflecting broader trends".
+- Unsolicited reassurance: "You're not alone", "You're not imagining it".
+- Assistant voice leaking into prose: "Great question", "You're absolutely
+  right", "I'd be happy to walk you through…".
+
+**ChatGPT (OpenAI)**
+
+- Emoji as decoration in headings and bullets (🚀, ✅, 💡).
+- "In conclusion" / "Overall" closers, and "Hope this helps!".
+- Hype vocabulary: "game-changer", "unlock", "elevate", "supercharge", "embark
+  on a journey".
+- A table for information that is not tabular.
+- "Short answer: … Longer answer: …" and "TL;DR" scaffolding.
+
+**Gemini**
+
+- "Here's a breakdown of…", and answers that are nothing but nested bullets,
+  three levels deep.
+- "In essence", "Essentially", "Ultimately" as paragraph openers.
+- "Think of it like…" analogies for everything.
+- Unprompted disclaimers and safety caveats tacked onto the end.
 
 ### Links
 

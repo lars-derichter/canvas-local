@@ -108,6 +108,10 @@ Begin met één of twee zinnen context en kom dan ter zake. Geen meta-inleidinge
 Tekst die naar een machine ruikt, kost je sneller het vertrouwen van je
 studenten dan een tikfout. Loop ze dus na voor je publiceert.
 
+De eerste drie groepen duiken op in tekst uit elk model. De laatste drie zijn de
+vaste trekjes van één assistent: bewaar de groepen voor de modellen die je
+gebruikt en schrap de rest.
+
 **Openingen en overgangen**
 
 - "Laten we erin duiken", "In dit hoofdstuk zullen we…", "Aan het eind van deze
@@ -141,6 +145,7 @@ studenten dan een tikfout. Loop ze dus na voor je publiceert.
 - Sierlijke drieslagen: "snel, eenvoudig en efficiënt".
 - Gestapelde slagen om de arm: "kan in bepaalde gevallen mogelijk tot op zekere
   hoogte helpen".
+- Vage bronvermelding: "experts zeggen", "studies tonen aan", zonder bron.
 - Woorden die veel vaker in gegenereerde tekst opduiken dan in de jouwe:
   _cruciaal_, _naadloos_, _robuust_, _duiken in_, _benadrukken_, _een schat
   aan_, en _navigeren_ in figuurlijke zin.
@@ -155,6 +160,34 @@ studenten dan een tikfout. Loop ze dus na voor je publiceert.
   zijn hobbelig.
 - Perfect uitgebalanceerde onderdelen, overal drie bolletjes, van boven tot
   onder.
+- Zinnen van gelijke lengte en gelijke bouw, in de pas. Wissel het ritme af.
+
+**Claude**
+
+- Omzeild "is": "dient als", "fungeert als", "vormt" waar "is" volstaat.
+- Aangehangen "wat"-staarten: "…, wat het belang van X onderstreept", "…, wat
+  bredere trends weerspiegelt".
+- Ongevraagde geruststelling: "Je bent niet de enige", "Je beeldt het je niet
+  in".
+- Assistentenstem die in de tekst doorsijpelt: "Goede vraag", "Je hebt helemaal
+  gelijk", "Ik help je graag verder".
+
+**ChatGPT (OpenAI)**
+
+- Emoji als versiering in koppen en opsommingen (🚀, ✅, 💡).
+- "Kortom" / "Tot slot" als afsluiter, en "Hopelijk helpt dit!".
+- Hypewoorden: "game-changer", "ontgrendelen", "naar een hoger niveau tillen",
+  "revolutionair".
+- Een tabel voor informatie die geen tabel is.
+- "Kort antwoord: … Lang antwoord: …" en "TL;DR" als steiger.
+
+**Gemini**
+
+- "Hier is een overzicht:", en antwoorden die alleen uit geneste opsommingen
+  bestaan, drie niveaus diep.
+- "In essentie", "In wezen", "Uiteindelijk" als alinea-openers.
+- "Zie het als…"-analogieën voor alles.
+- Ongevraagde disclaimers en voorbehouden op het eind.
 
 ### Links
 
