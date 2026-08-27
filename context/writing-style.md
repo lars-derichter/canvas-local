@@ -229,8 +229,11 @@ voice where it costs clarity:
 
 ### Page-Title Emoji
 
-Page titles may start with a single emoji signalling the page type. Use at most
-one, only on the title, never decoratively elsewhere.
+Page titles may start with an emoji signalling the page type. One is the
+default; a second is fine when it genuinely adds information (❗️📅 for an
+assignment with a deadline), never a third. With two, keep the order of the list
+below. If no listed emoji fits, use an off-list one now and then; once it
+recurs, add it here with its meaning.
 
 - ❗️ assignment (to hand in, graded or not)
 - 🏠 homework
@@ -251,7 +254,9 @@ one, only on the title, never decoratively elsewhere.
 - ℹ️ extra info
 - 🔁 revision
 
-No other emoji in headings, bullets, or prose.
+Emoji stay on the title: none in headings, bullets, or prose. Students never
+read this guide, so put the legend on your course's start page; signage only
+works when the reader knows the signs.
 
 ### Callouts (GitHub-Style Alerts)
 

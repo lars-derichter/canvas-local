@@ -237,8 +237,11 @@ warme toon vallen zodra ze de duidelijkheid in de weg staat:
 
 ### Emoji in paginatitels
 
-Een paginatitel mag beginnen met één emoji die het type pagina aangeeft.
-Hoogstens één, alleen in de titel, nooit als versiering elders.
+Een paginatitel mag beginnen met een emoji die het type pagina aangeeft. Eén is
+de standaard; een tweede mag als die echt iets toevoegt (❗️📅 voor een opdracht
+met een deadline), nooit een derde. Gebruik je er twee, volg dan de volgorde van
+de lijst hieronder. Past geen enkele emoji uit de lijst, gebruik dan nu en dan
+een andere; keert die terug, zet hem dan hier in de lijst met zijn betekenis.
 
 - ❗️ opdracht (in te dienen, al dan niet op punten)
 - 🏠 thuiswerk
@@ -259,7 +262,9 @@ Hoogstens één, alleen in de titel, nooit als versiering elders.
 - ℹ️ extra info
 - 🔁 herhaling
 
-Geen andere emoji in koppen, opsommingen of lopende tekst.
+Emoji blijven op de titel: geen in koppen, opsommingen of lopende tekst.
+Studenten lezen deze gids nooit; zet de legenda dus op de startpagina van je
+cursus, want bewegwijzering werkt pas als de lezer de borden kent.
 
 ### Callouts (GitHub-alerts)
 
