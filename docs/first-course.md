@@ -185,7 +185,8 @@ same ground and writes the prose the command cannot; see
 
 ## 9. Install the VS Code Extension
 
-This puts every command in the sidebar, so day-to-day work needs no typing:
+This puts every command in the command palette and the everyday ones in a
+sidebar, so day-to-day work needs no typing:
 
 ```bash
 npm run vscode:install
@@ -194,7 +195,9 @@ npm run vscode:install
 Then reload VS Code (**Cmd/Ctrl+Shift+P**, type `reload window`). A book icon
 appears in the left-hand bar: that is the **Course Manager** panel, showing your
 modules and items as a tree. Right-click anything for the actions that apply to
-it.
+it. The panel deliberately carries no destructive command: `reset-canvas`,
+`reset-sync-state` and `build-glossary` are reachable from the palette only, and
+[Advanced commands](advanced-commands.md) covers what they do.
 
 If this step fails with a message about `code` not being found, go back to step
 1 and install the shell command.

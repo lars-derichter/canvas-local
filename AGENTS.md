@@ -69,12 +69,24 @@ folder.
 ## VS Code Extension
 
 `.vscode/extensions/course-manager/` contains a local VS Code extension that
-exposes every CLI command in the command palette. Three are palette-only: the
-two destructive ones (`reset-canvas` and `reset-sync-state`) and
-`build-glossary` have no entry in the Course Manager view or its menus, so they
-can only be reached by typing their name. Both destructive ones run in a
-terminal, where the CLI's own confirmation prompts still gate them. Install with
+exposes the CLI in the command palette and in a Course Manager view. Several
+commands sit in the palette and nowhere else, some of them because they ask for
+their target rather than read it from a tree row. For three that is a safety
+decision: the two destructive ones (`reset-canvas` and `reset-sync-state`) and
+`build-glossary` have no entry in the view or its menus, so they can only be
+reached by typing their name. Keep it that way: the view is free of destructive
+commands by design, so that no stray click in the tree can start one. Both
+destructive ones run in a terminal, where the CLI's own confirmation prompts
+still gate them. Seven commands go the other way and are hidden from the palette
+with a `when: "false"` entry under `menus.commandPalette`, because each acts on
+the tree row it was invoked from and does nothing without one. Install with
 `npm run vscode:install`. See [`docs/vscode.md`](docs/vscode.md).
+
+`extension.js` is activation wiring only. Every command handler but the tree
+refresh lives in `commands/`, and the three things they share (the terminal pool
+in `terminal.js`, the silent CLI runner in `runner.js`, the palette quick picks
+in `pickers.js`) each own a file, with the vscode-free parts in `helpers.js` and
+the workspace checks in `workspace.js`.
 
 **Never add a `require` to `helpers.js`**, neither `vscode` nor an npm package.
 It holds the parts that do not touch the editor API precisely so plain
