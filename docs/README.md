@@ -49,6 +49,8 @@ upstream updates, and AI assistants read them before drafting anything.
 - [AI assistants](ai-assistants.md): assistant setup and the bundled skills
 - [Writing your own skills](writing-skills.md): the file layout, template, and
   naming conventions
+- [Exporting](exporting.md): PDF and DOCX handouts, chapters, and course texts
+  from your materials
 - [Export styling](export-styling.md): the PDF/DOCX pipeline, and how the export
   style and theme resolve
 - [Hosting](hosting.md): publishing the preview site to GitHub Pages

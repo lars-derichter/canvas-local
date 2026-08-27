@@ -6,8 +6,7 @@ how to customise the look, either by hand or with the
 [`/export-style-init`](#deriving-a-style-from-a-reference) and
 `/export-style-update` skills.
 
-For prerequisites and everyday usage, see the
-[export section of the user guide](user-guide.md#exporting-to-pdf-or-docx).
+For prerequisites and everyday usage, see the [exporting guide](exporting.md).
 
 ## The Pipeline
 

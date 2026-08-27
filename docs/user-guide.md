@@ -43,18 +43,9 @@ for how to keep it locally without publishing it.
 
 ### Optional: pandoc and Typst
 
-Only needed to export course materials to PDF or Word. DOCX export needs pandoc;
-PDF export also needs Typst.
-
-```bash
-# macOS
-brew install pandoc typst
-# Windows
-winget install --id JohnMacFarlane.Pandoc --id Typst.Typst
-# Linux: use your package manager for pandoc; see the Typst releases page
-```
-
-See [Exporting to PDF or DOCX](#exporting-to-pdf-or-docx) below.
+Only needed to export course materials to PDF or Word. The
+[exporting guide](exporting.md#what-you-need) has the install commands per
+platform.
 
 ## Course Structure
 
@@ -464,45 +455,17 @@ materials to a new Canvas course at the start of a new academic year.
 
 ## Exporting to PDF or DOCX
 
-Turn course materials into printable PDFs or editable Word documents, handy for
-exams, handouts, and offline review. This needs pandoc (and Typst for PDF); see
-the [optional install step](#optional-pandoc-and-typst) above.
+Turn course materials into printable PDFs or editable Word documents: one item,
+a module, the whole course, or a curated selection.
 
 ```bash
-npx course export course/01-intro/03-alerts.md   # one item
-npx course export -m 01-intro                     # a whole module
-npx course export                                 # the full course
-npx course export -m 01-intro -f docx             # Word instead of PDF
-npx course export --flagged                       # only items with export: true
+npx course export -m 01-intro       # one module as PDF
+npx course export -f docx           # the whole course as Word
 ```
 
-Multiple items combine into one document with a title page, a generated table of
-contents, and a page break between chapters. Output lands in `exports/`
-(gitignored). Non-markdown items become link cards (external URLs) or attachment
-references (files) in the combined document.
-
-A whole-course export takes its title, and its filename, from `title` in
-`course.config.yml`: `exports/programming-fundamentals.pdf`. A module export is
-titled after the module. `--title "Something else"` overrides both.
-
-For a curated selection, use the two-step **table of contents** flow: generate a
-list, delete the lines you do not want, then export what remains.
-
-```bash
-npx course export-toc                    # writes exports/toc.md
-# …edit exports/toc.md, delete unwanted lines…
-npx course export --toc exports/toc.md
-```
-
-All of this is also available from the VS Code sidebar, including multi-select
-export of highlighted items.
-
-To change how exports look, `course.config.yml` picks the layout with
-`export.style` and the colours with `theme`; `--style <name>` overrides the
-layout for one run. See [export styling](export-styling.md) for the pipeline,
-[Customization](customization.md#branding) for the colour tokens, and the
-`/export-style-init` and `/export-style-update` skills for deriving a house
-style from a Word template.
+This needs pandoc (and Typst for PDF). The [exporting guide](exporting.md)
+covers the install, every scope, the curated table-of-contents flow, where the
+output lands, and how to change the look.
 
 ## Advanced Commands
 

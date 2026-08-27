@@ -16,7 +16,7 @@ external tool, write the file yourself with the frontmatter below.
 | ------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `title`       | string  | Display title on Canvas. Derived from the filename if omitted, and written into your file the first time a run creates or adopts the Canvas object. |
 | `canvas_type` | string  | One of `page`, `assignment`, `discussion`, `quiz`, `external_url`, `external_tool`, `file`. Defaults to `page`.                                     |
-| `export`      | boolean | Set `true` to include this item in `npx course export --flagged`. See [Exporting to PDF or DOCX](user-guide.md#exporting-to-pdf-or-docx).           |
+| `export`      | boolean | Set `true` to include this item in `npx course export --flagged`. See [Exporting](exporting.md).                                                    |
 
 The line is spliced in as text, nothing else in the file is touched, and a file
 that already declares a title is left alone. `push` writes it too: it is the one
@@ -267,8 +267,7 @@ prefix, and the `export` flag like any other item.
 Non-markdown files dropped directly into a module folder also work: the scanner
 detects them as file items automatically, with the filename as title. They carry
 no frontmatter, so they cannot use the `export` flag; to include one in an
-export, list it by path or add it to a TOC file. See
-[Exporting to PDF or DOCX](user-guide.md#exporting-to-pdf-or-docx).
+export, list it by path or add it to a TOC file. See [Exporting](exporting.md).
 
 ## Adopting an Item You Made by Hand in Canvas
 
