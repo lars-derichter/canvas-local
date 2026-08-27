@@ -1,14 +1,24 @@
 # VS Code Integration
 
-All course commands are available in the VS Code command palette (Cmd+Shift+P /
+Course commands are available in the VS Code command palette (Cmd+Shift+P /
 Ctrl+Shift+P). Type "Course:" to filter the list. Seven actions are kept out of
 it, because they act on the tree item you clicked and can do nothing without
 one: the inline **Push This Module to Canvas** and **Open in Canvas** buttons,
-the module-scoped **Sync**, **Pull** and **Status** that sit beside push in a
-module's right-click menu, and the two-step **Merge: Set as Source** / **Merge
-with Source**. The palette has its own whole-course sync commands, plus
-**Course: Push Module to Canvas...** and **Course: Merge Items**, which ask
-which module or item you mean.
+the **Sync This Module with Canvas**, **Pull This Module from Canvas** and
+**Status of This Module** entries that sit beside push in a module's right-click
+menu, and the two-step **Merge: Set as Source** / **Merge with Source**. The
+palette has its own whole-course sync commands, plus **Course: Push Module to
+Canvas...** and **Course: Merge Items**, which ask which module or item you
+mean.
+
+Other commands are in the palette and nowhere else, and three of those are kept
+out of the view on purpose: **Course: Build Glossary**, **Course: Reset Sync
+State (Destructive)** and **Course: Reset Canvas (Deletes ALL Canvas Content)**.
+The Course Manager view has no entry for any of them, in its title bar or in a
+right-click menu, so no stray click in the tree can start one. Both resets run
+in the terminal, where the CLI's own y/N questions still gate them. See
+[Advanced commands](advanced-commands.md), and read
+[Backing up a Canvas course](backups.md) before you run either.
 
 ## Installation
 
@@ -37,11 +47,16 @@ and links the tutorial module in the upstream repository.
   the folder name. The numeric prefix is shown as a description.
 - **Subheaders**: subfolders within a module, shown as collapsible groups.
 - **Items**: course pages, assignments, discussions, quizzes, external URLs, LTI
-  links, and files. Pages, assignments, external URLs and files each have a
-  distinct icon; the newer types fall back to the page icon for now. Labels come
-  from the frontmatter `title` (the same name Canvas and Docusaurus show); the
-  filename is shown in the tooltip. Clicking an item opens the file in the
-  editor.
+  links, and files. Each of the seven has an icon of its own, chosen by the
+  frontmatter `canvas_type`; a file declaring a type outside that set falls back
+  to the page icon. Labels come from the frontmatter `title` (the same name
+  Canvas and Docusaurus show); the filename is shown in the tooltip. Clicking an
+  item opens the file in the editor.
+
+The view title bar carries VS Code's **Collapse All** button, and the tree takes
+a multiple selection: Ctrl/Cmd-click or Shift-click several rows and **Course:
+Export Item to PDF/DOCX...** combines them into one document, while a drag moves
+them as one batch.
 
 ### Inline Actions
 
@@ -66,7 +81,7 @@ subheader row has no button: the Canvas text header it becomes has no URL of its
 own. An item with no row yet is reported as not pushed rather than guessed at; a
 module with no id yet opens the modules page unanchored.
 
-The sidebar's **New Item** creates pages, assignments, external URLs,
+The sidebar's **Course: New Item** creates pages, assignments, external URLs,
 subsections and file items. A discussion, a quiz or an LTI link is a file you
 write yourself: see [Frontmatter](frontmatter.md).
 
@@ -78,17 +93,20 @@ confirmation are collected through native VS Code dialogs and the CLI runs in
 the background (no terminal pops up); the export and Canvas entries stream their
 output in the shared terminal instead:
 
-- **New Item / New Module**: create items or modules
-- **Rename / Move**: rename or reorder items and modules (rename pre-fills the
-  current title)
-- **Move Item to Module**: move an item to a different module (or one of its
-  subsections). Subsections themselves can also be moved, but always to a module
-  root: they cannot be nested inside another subsection.
-- **Delete**: delete an item or module, after a modal confirmation
-- **Merge: Set as Source / Merge with Source**, two-step merge: right-click the
-  source item first, then right-click the target item to merge them
-- **Course: Export Item to PDF/DOCX**: export the item, or **Course: Export
-  Module to PDF/DOCX** for the whole module. Select several items first
+- **Course: New Item** and **Course: New Module**: create items or modules
+- **Course: Rename Item**, **Course: Move Item**, **Course: Rename Module**,
+  **Course: Move Module**: rename or reorder items and modules (rename pre-fills
+  the current title)
+- **Course: Move Item to Module**: move an item to a different module (or one of
+  its subsections). Subsections themselves can also be moved, but always to a
+  module root: they cannot be nested inside another subsection.
+- **Course: Delete Item** and **Course: Delete Module**: delete an item or
+  module, after a modal confirmation
+- **Merge: Set as Source** / **Merge with Source**, two-step merge: right-click
+  the source item first, then right-click the target item to merge them. A modal
+  names both files and warns that the source is deleted.
+- **Course: Export Item to PDF/DOCX...**: export the item, or **Course: Export
+  Module to PDF/DOCX...** for the whole module. Select several items first
   (Ctrl/Cmd-click or Shift-click in the tree) to export them together as one
   combined document. You then pick PDF or Word.
 - **Sync This Module with Canvas**, **Push This Module to Canvas**, **Pull This
@@ -110,12 +128,26 @@ as current, so Enter confirms it. Two sets are the exception. The two-step merge
 needs both right-clicks, so the palette carries **Course: Merge Items**, which
 asks for source and target. The four module-scoped Canvas actions have no
 palette entry at all: the palette already covers the whole course with **Course:
-Sync with Canvas**, **Push to Canvas**, **Pull from Canvas** and **Status**, and
-a single module with **Course: Push Module to Canvas...**. Either way the actual
-work is done by the `npx course` CLI, so renumbering and Canvas sync state
-behave exactly like the terminal commands. Full output of the background
-commands is available in the **Canvas Course Builder** output channel (View →
-Output).
+Sync with Canvas**, **Course: Push to Canvas**, **Course: Pull from Canvas** and
+**Course: Status**, and a single module with **Course: Push Module to
+Canvas...**. Either way the actual work is done by the `npx course` CLI, so
+renumbering and Canvas sync state behave exactly like the terminal commands.
+Full output of the background commands is available in the **Canvas Course
+Builder** output channel (View → Output).
+
+Three row types carry less than the rest. Rename, move and delete are
+contributed for pages, assignments, external URLs, files and subheaders, and
+export for the same set minus subheaders, so a discussion, a quiz or an LTI link
+offers the **Open in Canvas** button and no menu entry of its own. The two merge
+halves are narrower still: pages and assignments only. The palette reaches all
+of them: its pickers list a module's entries by filename, whatever type each one
+declares.
+
+One command sits in the editor's right-click menu instead of the tree's:
+**Course: Split Item at Cursor**, offered on any markdown file inside `course/`.
+It splits the file at the line the cursor is on, saving it first if it has
+unsaved changes, so it needs an open editor rather than a tree row. It is in the
+palette too.
 
 ### Drag and Drop
 
@@ -132,6 +164,11 @@ Drag tree items to reorder them:
   inside a subsection is ignored.
 - **External files**: drag files from Finder or Explorer onto a module,
   subheader, or item to add them as file items at that location.
+- **Several rows at once**: select rows with Ctrl/Cmd-click or Shift-click and
+  drag the selection onto a module or subheader to append the batch there, or
+  onto an item to give the batch that item's slot. The whole batch is checked
+  before anything moves, and a drag mixing modules with items, or carrying more
+  than one module, is refused with a message saying why.
 
 Drops are translated into the corresponding CLI commands (`move-module`,
 `move-item`, `movetomodule-item`, `new-item --type file`), so Canvas sync state
@@ -144,16 +181,18 @@ or modified. Use the refresh button in the view title bar to manually refresh.
 
 ### Title Bar Menu
 
-The title bar carries four buttons, in this order: **New Module**, which creates
-a module and asks for its name and position; **Search**, which asks for a word
-or phrase and shows all matches (with context) in the terminal; **Preview**,
-which starts the Docusaurus dev server (if not already running) and opens the
-course in the browser; and **Refresh**, above. The dropdown repeats **Preview**
-and adds **Sync with Canvas**, **Push to Canvas**, **Pull from Canvas**,
-**Status** and **Validate** for quick access to sync commands, plus **Export**,
-a quick pick to export the full course, only flagged items, or a curated
-selection via a table of contents. Choosing the TOC option opens the generated
-list for editing and reveals an **Export via TOC** action once it is ready.
+The title bar carries four buttons, in this order: **Course: New Module**, which
+asks for a name and adds the module after the last one; **Course: Search...**,
+which asks for a word or phrase and shows all matches (with context) in the
+terminal; **Course: Preview**, which starts the Docusaurus dev server (if not
+already running) and opens the course in the browser; and **Course: Refresh
+Tree**, above. The dropdown repeats **Course: Preview** and adds **Course: Sync
+with Canvas**, **Course: Push to Canvas**, **Course: Pull from Canvas**,
+**Course: Status** and **Course: Validate** for quick access to sync commands,
+plus **Course: Export Course to PDF/DOCX...**, a quick pick to export the full
+course, only flagged items, or a curated selection via a table of contents.
+Choosing the TOC option opens the generated list for editing and reveals
+**Course: Export via TOC...** once it is ready.
 
 ## Commands
 
@@ -174,17 +213,18 @@ list for editing and reveals an **Export via TOC** action once it is ready.
 | Course: Push to Canvas (Dry Run)   | Preview push without making changes        |
 | Course: Push Module to Canvas...   | Pick a module from a list and push it      |
 | Course: Pull from Canvas           | Pull Canvas course into local markdown     |
+| Course: Pull from Canvas (Dry Run) | Preview a pull without writing anything    |
 | Course: Status                     | Compare local vs Canvas state              |
 | Course: Validate                   | Check course content for errors            |
 
 ### Module Management
 
-| Command               | Description                                      |
-| --------------------- | ------------------------------------------------ |
-| Course: New Module    | Create a new module (asks for name and position) |
-| Course: Move Module   | Move a module to a different position            |
-| Course: Rename Module | Rename a module                                  |
-| Course: Delete Module | Delete a module and renumber remaining           |
+| Command               | Description                                        |
+| --------------------- | -------------------------------------------------- |
+| Course: New Module    | Create a module after the last one (asks the name) |
+| Course: Move Module   | Move a module to a different position              |
+| Course: Rename Module | Rename a module                                    |
+| Course: Delete Module | Delete a module and renumber remaining             |
 
 ### Item Management
 
@@ -223,24 +263,77 @@ margins.
 | Course: Preview      | Start the Docusaurus dev server and open the course     |
 | Course: Refresh Tree | Rebuild the sidebar tree by hand, when a watcher missed |
 
+### Advanced
+
+Palette only. None of these has a button, a menu entry or a tree row, and the
+two resets ask their own y/N questions in the terminal before they touch
+anything. Read [Advanced commands](advanced-commands.md) and
+[Backing up a Canvas course](backups.md) first.
+
+| Command                                           | Description                                              |
+| ------------------------------------------------- | -------------------------------------------------------- |
+| Course: Build Glossary                            | Regenerate module glossary pages from the glossary YAML  |
+| Course: Reset Sync State (Destructive)            | Delete `.canvas-sync.json` and the ids left in files     |
+| Course: Reset Canvas (Deletes ALL Canvas Content) | Delete every module, page, assignment and file on Canvas |
+
+## Settings
+
+One setting, under **Course Manager** in the settings UI:
+
+| Setting                     | Default | What it does                 |
+| --------------------------- | ------- | ---------------------------- |
+| `courseManager.previewPort` | `3000`  | The port the preview runs on |
+
+**Course: Preview** starts the dev server with `npm start -- --port <port>` and
+opens that port in the browser, so set it when something else on the machine
+already holds 3000. It is read on every run, so a change takes effect on the
+next preview rather than after a reload. A value that is not a port number
+between 1 and 65535 (a float, a boolean, `0`, a string like `"007"`) draws a
+warning naming the value, and the preview falls back to 3000; a plain digit
+string such as `"3001"` is accepted, because that is the mistake a settings file
+invites.
+
 ## How It Works
 
-- Long-running commands run in a shared **Canvas Course Builder** terminal so
-  you can follow their output: Setup, Init, Sync, Push, Pull, Status, Validate,
-  Build Glossary, the two reset commands, the three dry runs, and the four
-  module-scoped Canvas actions on a module row. The terminal is also where the
-  two reset commands ask their questions: Reset Canvas prints an inventory of
-  what it is about to delete and waits for y/N, Reset Sync State waits for y/N.
-  A terminal that is still running something is never reused — while Sync waits
-  for an answer about a reordering both sides made, a second command would be
-  typed straight into that prompt as its answer — so the next command opens
-  **Canvas Course Builder 2**, and so on up to five, before falling back to the
-  most recently used one. Idle terminals are reused, lowest number first, and a
-  closed terminal frees its number.
-- Structural commands (new/rename/move/delete, merge, split) run the CLI
-  silently in the background; results appear as notifications and in the
-  **Canvas Course Builder** output channel, and the tree refreshes
-  automatically.
+- Commands whose output is a report to read run in a shared **Canvas Course
+  Builder** terminal: Setup, Init, Sync, Push, Pull, Status, Validate, Build
+  Glossary, the two reset commands, the three dry runs, Search, Push Module, the
+  four module-scoped Canvas actions on a module row, and all four export
+  commands. One step inside Export Course is the exception: choosing the
+  table-of-contents option writes `exports/toc.md` through the silent runner and
+  opens it for editing, and only the render that follows it, from **Course:
+  Export via TOC...**, reaches the terminal. The terminal is also where the two
+  reset commands ask their questions: Reset Canvas prints an inventory of what
+  it is about to delete and waits for y/N, Reset Sync State waits for y/N. A
+  terminal that is still running something is never reused (while Sync waits for
+  an answer about a reordering both sides made, a second command would be typed
+  straight into that prompt as its answer), so the next command opens **Canvas
+  Course Builder 2**, and so on up to five, before falling back to the most
+  recently used one. Idle terminals are reused, lowest number first, and a
+  closed terminal frees its number. Preview keeps a terminal of its own, outside
+  that pool.
+- Structural commands (new/rename/move/delete, merge, split, and every drag and
+  drop) run the CLI silently in the background instead, and report three ways. A
+  run that succeeds puts the last line of its output in the status bar for five
+  seconds and refreshes the tree. A run that fails raises an error notification
+  carrying the first line of the error, with a **Show Log** button that opens
+  the **Canvas Course Builder** output channel. A run that succeeds and still
+  writes to standard error raises a warning notification with the same button,
+  because a warning that only reached the log would go unread: the case this
+  exists for is a delete whose renumbering strands a Canvas object. Either way
+  the full output is in that output channel (View → Output).
+- Background runs are serialised: one at a time, in the order they were started,
+  because two of them would renumber the same directory and rewrite
+  `.canvas-sync.json` on top of each other. A ten-row drop is ten queued runs.
+  Whatever is outstanding shares one status-bar spinner, which appears only once
+  something has been running (or waiting) for longer than three quarters of a
+  second, and goes away when the last run settles. A run that has not finished
+  in five minutes is killed.
+- The background runner needs `cli/index.js` in the open folder and says so by
+  name when there is none: "No cli/index.js in this workspace, so there is no
+  course CLI to run. Open the course project folder itself." Nothing is spawned
+  in that case. The extension ships inside the course project, beside the CLI it
+  drives, so a folder without one is not a course project.
 - The workspace check blocks on one thing. `validateWorkspace` stops a command
   when no workspace folder is open at all; a workspace with no `course/`
   directory only draws a warning pointing at Setup, and the command runs
@@ -248,13 +341,15 @@ margins.
   altogether, because none of them reads `course/`: Setup is the command the
   warning names, so firing it during a Setup run would interrupt the run that
   answers it.
-- **Push Module** presents a quick-pick list of all module folders so you can
-  select which one to push, with the active file's module listed first.
-- **Preview** checks whether the Docusaurus dev server is already running. If
-  not, it starts `npm start` in a Preview terminal and opens the browser as soon
-  as the server responds.
+- **Course: Push Module to Canvas...** presents a quick-pick list of all module
+  folders so you can select which one to push, with the active file's module
+  listed first.
+- **Course: Preview** checks whether the Docusaurus dev server is already
+  running on the configured port. If not, it starts `npm start -- --port <port>`
+  in a Preview terminal and opens the browser as soon as the server responds, or
+  gives up after two minutes and points at that terminal.
 - The extension ships no dependencies. Everything it needs lives in its own
-  three JavaScript files, because the installed extension sits in
+  JavaScript files, because the installed extension sits in
   `~/.vscode/extensions` with no `node_modules` beside it, and resolving a
   package from the opened workspace instead would let any folder you open run
   code in the extension host. That is why `helpers.js` parses `.env` itself
