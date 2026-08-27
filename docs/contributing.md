@@ -139,7 +139,7 @@ The Prettier config is deliberately small. The defaults already matched the
 codebase, so only three options are set:
 
 - `proseWrap: always` wraps prose at 80 characters, the rule the next section
-  describes. It used to be maintained by hand.
+  describes.
 - `embeddedLanguageFormatting: off` keeps Prettier out of fenced code blocks. In
   this repo those blocks are instructional content: a deliberately indented YAML
   example in [Frontmatter](frontmatter.md), or a course code sample showing a

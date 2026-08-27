@@ -47,8 +47,8 @@ skipped runs rather than failed ones.
 If you own a domain and want to use it instead of the `github.io` address, enter
 it under **Settings > Pages** and point your domain's DNS at GitHub Pages.
 Nothing in your repository changes: the deploy workflow reads the domain back
-from GitHub, so the next push builds the site for it. A `CNAME` file is neither
-created nor needed when you publish with GitHub Actions. See
+from GitHub, so the next push builds the site for it, and no `CNAME` file is
+involved. See
 [GitHub's custom domain guide](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site).
 
 ## Troubleshooting

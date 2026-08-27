@@ -52,9 +52,7 @@ each folder name is a key, so lay out the new year's modules after step 5 rather
 than before it. Running `npx course init` at this step instead of editing `.env`
 by hand lifts the refusal straight away, because init rewrites the sync state
 too and leaves last year's module ids behind rather than filing them under the
-new course, but it does not touch the `canvas_id` and `canvas_module_id` fields
-older versions of this tool wrote into `course/`. Clearing those is all step 5
-has left to do, and a course authored on this version carries none.
+new course; if you go that way, step 5 has nothing left to do.
 
 ## 3. Clean the Remote Course (If Needed)
 
@@ -112,9 +110,7 @@ npx course reset-sync-state
 ```
 
 This deletes `.canvas-sync.json`, the one record of which Canvas object each
-file and folder is, and sweeps up the `canvas_id` and `canvas_module_id` fields
-older versions of this tool wrote into `course/`. Your content is untouched:
-only the sync bookkeeping goes.
+file and folder is. Your content is untouched: only the sync bookkeeping goes.
 
 That file is committed, so its deletion is a change to your project like any
 other: stage it and commit it. The push in step 6 writes a new one, naming the

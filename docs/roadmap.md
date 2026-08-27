@@ -62,7 +62,7 @@ patterns.
 
 An `npx course relink` command would pair local files with the Canvas objects
 that already exist and record the links, rewriting no file bodies at all. `push`
-and `pull` now do most of that on their own: an item with no row in
+and `pull` already do most of that on their own: an item with no row in
 `.canvas-sync.json` is paired with the Canvas object of the same type and title
 in the same module, for every type, and the pair goes into the sync state
 (`planAdoptions` in `lib/sync/plan.js`). Three gaps are what a command would be
@@ -80,12 +80,12 @@ course and rebuilds it from local markdown, which carries pages, assignments,
 discussions and files but not a quiz's questions and not an LTI installation.
 Canvas's own Course Copy carries both, and it is the only way to carry a
 course-level LTI 1.1 installation across at all, because the Canvas API never
-returns `shared_secret`. Course Copy followed by `push` is no longer the
-duplicate-everything trap it was, since adoption claims what it can pair, but
-the discussions the copy leaves behind are exactly what adoption cannot reach:
-`reset-canvas` spares them and no module item points at them. Course Copy
-followed by `pull` still overwrites the local markdown. `relink` is the missing
-third option that would make Course Copy a first-class rollover path.
+returns `shared_secret`. Adoption saves Course Copy followed by `push` from
+duplicating everything, since it claims what it can pair, but the discussions
+the copy leaves behind are exactly what adoption cannot reach: `reset-canvas`
+spares them and no module item points at them. Course Copy followed by `pull`
+still overwrites the local markdown. `relink` is the missing third option that
+would make Course Copy a first-class rollover path.
 
 ### More Item Types for `new-item`
 
@@ -138,13 +138,12 @@ around `dotenv.parse`, and the corpus that currently proves the two agree stops
 being necessary, because there would only be one of them. The runtime is about
 16KB with targeted `.vscodeignore` negations, against a 50KB package.
 
-It was considered during the extension review and declined for now, on two
-counts. A missing dependency at activation is not a degraded feature, it is the
-whole sidebar failing to load. And no test can see that coming: `node --test`
-resolves `dotenv` against the repository's own `node_modules`, so a packaging
-mistake passes the full suite, both CI platforms and lint, then throws once
-installed. Proving it works needs a check at the packaging level, which does not
-exist today.
+It was considered and declined, on two counts. A missing dependency at
+activation is not a degraded feature, it is the whole sidebar failing to load.
+And no test can see that coming: `node --test` resolves `dotenv` against the
+repository's own `node_modules`, so a packaging mistake passes the full suite,
+both CI platforms and lint, then throws once installed. Proving it works needs a
+check at the packaging level, which does not exist today.
 
 Two things would reopen it. A `.env` shape the hand-rolled reader deliberately
 omits (its docstring lists them) turning up in a real course, since extending

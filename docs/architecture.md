@@ -35,12 +35,12 @@ site locale and the remark plugin labels.
 ## Sync State
 
 `.canvas-sync.json` is where a local file's Canvas identity lives. It is
-committed rather than gitignored, and since schema v4 no markdown file carries a
-`canvas_id` at all, so a push or a pull leaves a change here to commit alongside
-the content that caused it. Being committed is also how it stops being readable:
-a merge left half-finished puts conflict markers in it. A file that is there and
-cannot be parsed refuses the run rather than passing for a course that was never
-synced, and the refusal says when it found those markers.
+committed rather than gitignored, and no markdown file carries a `canvas_id`, so
+a push or a pull leaves a change here to commit alongside the content that
+caused it. Being committed is also how it stops being readable: a merge left
+half-finished puts conflict markers in it. A file that is there and cannot be
+parsed refuses the run rather than passing for a course that was never synced,
+and the refusal says when it found those markers.
 
 ```json
 {
@@ -115,12 +115,11 @@ Key properties:
   as a reorder nobody made.
 - **items**: keyed by the item's path under `course/`, with forward slashes on
   every platform and always beginning with its module's folder name. Path as
-  key, Canvas ids as values: the exact inverse of v3, which keyed every item by
-  its Canvas identity. Keying on the path is what makes a committed file legible
-  to the person who owns it: you can open it, recognise your own course in it,
-  and repair a row by hand. A key written with the `course/` prefix matches
-  nothing and fails silently. Renames do not orphan a row: every command that
-  renames re-keys as it goes, and one made by hand is picked up by
+  key, Canvas ids as values. Keying on the path is what makes a committed file
+  legible to the person who owns it: you can open it, recognise your own course
+  in it, and repair a row by hand. A key written with the `course/` prefix
+  matches nothing and fails silently. Renames do not orphan a row: every command
+  that renames re-keys as it goes, and one made by hand is picked up by
   `lib/sync/rename-detect.js`.
 - **local_hash / canvas_hash**: what each side looked like at the last sync.
   They are never compared to each other, only each against its own stored value,
@@ -139,12 +138,10 @@ Key properties:
   value the last completed one left. Nothing reads it, and no decision depends
   on it. The only timestamps a decision reads are the file's mtime and Canvas's
   `updated_at`, and only to break a tie when both sides of an item changed.
-- **schema_version**: the loader reads version 4 only. A file written by any
-  other version is refused with an error rather than guessed at, because
-  misreading the mapping would create duplicates on Canvas. There is
-  deliberately no migration from v3, since the two schemas key items
-  differently; rebuild with [`reset-sync-state`](advanced-commands.md) and push
-  again.
+- **schema_version**: the loader reads version 4 only. A file carrying any other
+  version is refused with an error rather than guessed at, because misreading
+  the mapping would create duplicates on Canvas; rebuild with
+  [`reset-sync-state`](advanced-commands.md) and push again.
 
 ### Prune Semantics
 
@@ -205,10 +202,10 @@ the module item and never the object behind it.
   lists that quiz, and by an exact title match against `listQuizzes` otherwise.
   The id it finds is recorded on the row, never written into the file. A quiz
   that matches nothing throws with the QTI import procedure in the message, and
-  two quizzes under one title throw as ambiguous. Neither is skipped: a skip
-  counted as an applied action, so the run reported an item it had not created
-  and still exited zero. `lib/canvas/quizzes.js` deliberately exposes a read
-  call only, so no code path can write to a quiz.
+  two quizzes under one title throw as ambiguous. Neither is skipped: a silent
+  skip would report an item the run had not created and still exit zero.
+  `lib/canvas/quizzes.js` deliberately exposes a read call only, so no code path
+  can write to a quiz.
 - `external_tool` is identified by its launch URL, not by `content_id`. Canvas
   resolves the tool through `Lti::ToolFinder.from_url` on every launch, and
   substitutes a dummy tool with `id = 0` when nothing matches, saving the item
@@ -218,8 +215,7 @@ the module item and never the object behind it.
   as a match or as a miss.
 - `external_url` is a plain link. It exists only as a module item, with no
   Canvas object behind it, so its module item id is its whole identity, and that
-  id survives a push now, because the item list is reconciled rather than
-  rebuilt.
+  id survives a push, because the item list is reconciled rather than rebuilt.
 
 Pull writes both kinds. For authored content it converts the Canvas HTML body;
 for a reference it writes frontmatter only, with no API fetch at all.
@@ -299,10 +295,8 @@ taken from the response to a write and never from what was sent: hash the
 request and every later run reports a remote change nobody made.
 
 Neither hash reads an mtime, so both survive a `git clone`, which stamps every
-file it checks out with the checkout time. That is what the old system got
-wrong. Push overwrote Canvas unconditionally, pull refused any file whose mtime
-was later than `last_sync`, and status called a fresh clone an entirely modified
-course.
+file it checks out with the checkout time. An mtime-based comparison would read
+a fresh clone as an entirely modified course.
 
 One decision still reads an mtime, and only one: the `newest` tiebreak. It has
 two timestamps to compare only for an item of an authored type where both hashes
@@ -328,8 +322,8 @@ for what that means item by item.
 
 Text headers are ordinary items here. They carry a `sub_header` fingerprint over
 their title and indent (`subHeaderHash` in `gather.js`), so one added in Canvas
-is adopted or left alone by the same rules as anything else, and they are no
-longer regenerated from your subfolder names.
+is adopted or left alone by the same rules as anything else; the set is never
+regenerated wholesale from your subfolder names.
 
 ### Asking Without Blocking
 
@@ -346,8 +340,8 @@ moved on while the terminal waited.
 
 ### What a Run Writes Into Your Tree
 
-Pull writes files, and it no longer renames them. A Canvas title lands in the
-file's frontmatter as `title:`, a Canvas module name lands in the folder's
+Pull writes files, and it never renames them. A Canvas title lands in the file's
+frontmatter as `title:`, a Canvas module name lands in the folder's
 `_category_.json`, and the filename stays as you left it. The one thing that
 still moves is the numeric prefix, which _is_ the local order: a Canvas-side
 reorder is a `reorder-local-module`, and it renames through temporary names one
@@ -359,8 +353,8 @@ and no local rename among them.
 Push writes to Canvas, and the only thing it ever puts into a file is a `title:`
 line, spliced in as text on an item it created or adopted that declares none. No
 file is given a `canvas_id`, ever: identity lives in `.canvas-sync.json`, and
-because `canvas_id` counts as a Canvas-owned frontmatter key, a stale one left
-behind by an older version is dropped on the next pull.
+because `canvas_id` counts as a Canvas-owned frontmatter key, a stale one is
+dropped on the next pull.
 
 Push still makes a second pass for links. An item whose markdown links to a page
 this run had not created yet is pushed with that link unresolved, and

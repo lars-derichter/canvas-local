@@ -19,12 +19,12 @@ Removes all instance-specific sync artifacts from the local codebase:
 1. Deletes `.canvas-sync.json`, the one record of which Canvas module, item,
    uploaded icon and embedded file each folder and file is. That deletion is the
    reset.
-2. Sweeps up what older versions of this tool left in the tree: the `canvas_id`
-   in a markdown file's frontmatter and the `customProps.canvas_module_id` in a
-   folder's `_category_.json`. Neither is written any more, and a leftover one
-   is a second answer to a question the sync state now owns alone. `canvas_type`
-   is left alone: that is your declaration of what a file should become, not a
-   record of what Canvas did.
+2. Sweeps stray sync bookkeeping out of the tree: a `canvas_id` in a markdown
+   file's frontmatter and a `customProps.canvas_module_id` in a folder's
+   `_category_.json`. Neither is part of the format, and a leftover one is a
+   second answer to a question the sync state owns alone. `canvas_type` is left
+   alone: that is your declaration of what a file should become, not a record of
+   what Canvas did.
 
 After running this command the project is back to a "never pushed" state: the
 next `push` will create everything fresh on Canvas.

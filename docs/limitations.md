@@ -11,7 +11,7 @@ of how the tool works today, not a list of bugs.
 
 ## Which Canvas Types Sync, and How Much of Them
 
-Every type of item a Canvas module can hold now crosses in both directions. What
+Every type of item a Canvas module can hold crosses in both directions. What
 differs is how much of it crosses.
 
 | Canvas type               | Push | Pull | What crosses                                    |
@@ -129,9 +129,9 @@ visible broken item you can fix beats content dropped on the floor.
 
 ## Push Reconciles a Module's Item List
 
-Older versions cleared a module and built its item list again on every push.
-This one reconciles it: each item is matched against what `.canvas-sync.json`
-recorded at the last sync, and only what differs is written.
+A push does not clear a module and rebuild its item list; it reconciles it: each
+item is matched against what `.canvas-sync.json` recorded at the last sync, and
+only what differs is written.
 
 - **An item you added by hand in Canvas is adopted, not dropped.** Push looks
   for a local file of the same type and title. When it finds one, that file
@@ -157,7 +157,7 @@ recorded at the last sync, and only what differs is written.
   it is.
 - **A text header is an ordinary item.** It is matched on its module item id
   like anything else, so one added by hand in Canvas is adopted or left alone by
-  the same rules. Push no longer regenerates the set from your subfolder names.
+  the same rules. Push never regenerates the set from your subfolder names.
 - **A plain push deletes one thing on Canvas**, and only one: the file a renamed
   binary orphaned, above. Everything else is `push --prune-canvas`'s job, and
   even there the only candidate is an item the sync state already tracked and
@@ -231,7 +231,7 @@ of object they delete, and only one of those kinds takes student work with it.
   column. Canvas returns that assignment from the assignments API like any other
   (`is_quiz_assignment: true`, with the quiz's id in `quiz_id`), and a `DELETE`
   on it deletes the quiz, its questions and every submission. Neither command
-  does that any more: `reset-canvas` skips those assignments and names them, and
+  does that: `reset-canvas` skips those assignments and names them, and
   `push --prune-canvas` refuses to delete one, reports it as an error, and
   leaves it tracked. If a local file claimed `canvas_type: assignment` for an id
   that Canvas holds as a quiz, that mismatch is yours to settle: delete the quiz
@@ -432,14 +432,14 @@ to merge against even in principle.
   compared against the fingerprint the last sync recorded for it, which is what
   separates "changed here" from "changed there" and both from "changed on both
   sides". Neither fingerprint reads a modification time, so a fresh `git clone`
-  is no longer mistaken for an entirely edited course. Exactly one decision
-  still reads a timestamp: the `newest` tiebreak, and it has two timestamps to
-  compare only for a page, assignment, discussion or file whose two fingerprints
-  have both moved. A module renamed on both sides, a quiz, an LTI link, an
-  external URL and a text header reach the same setting with nothing to compare,
-  because Canvas keeps no timestamp on any of them, and go to your copy with a
-  reason saying so. Push and pull never reach any of it, because pinning a
-  direction has already answered that question. See
+  is not mistaken for an entirely edited course. Exactly one decision still
+  reads a timestamp: the `newest` tiebreak, and it has two timestamps to compare
+  only for a page, assignment, discussion or file whose two fingerprints have
+  both moved. A module renamed on both sides, a quiz, an LTI link, an external
+  URL and a text header reach the same setting with nothing to compare, because
+  Canvas keeps no timestamp on any of them, and go to your copy with a reason
+  saying so. Push and pull never reach any of it, because pinning a direction
+  has already answered that question. See
   [The reconcile engine](architecture.md#the-reconcile-engine).
 - **A file holding uncommitted work is never overwritten and never deleted.** A
   single `git status` covers the whole run, and any file it reports as modified

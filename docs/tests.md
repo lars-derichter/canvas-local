@@ -191,9 +191,9 @@ on how it is laid out.
 `test/vscode/cli-contract.test.js` is the guard between the two halves of this
 project. It reads every `npx course` command line and every `runCli` argv the
 extension builds, reads the commands commander actually registers in
-`cli/index.js`, and fails when the two disagree. A flag renamed on one side used
-to be found by whoever clicked the button in VS Code; this finds it on the next
-`npm test`.
+`cli/index.js`, and fails when the two disagree. Without it, a flag renamed on
+one side would be found by whoever clicked the button in VS Code; this finds it
+on the next `npm test`.
 
 It checks two things and nothing more: the subcommand exists, and every flag
 exists on that subcommand (or on the program, since commander accepts

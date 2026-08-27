@@ -143,12 +143,12 @@ Three layers:
 
 - `.env`: Canvas API credentials (gitignored).
 - `.canvas-sync.json`: **Committed, not gitignored.** Tracks the Canvas ids for
-  modules, items, icons and embedded files, and since schema v4 it is the single
-  source of item identity: which Canvas object a file is, keyed by that file's
-  path under `course/` (`lib/sync/state.js`). No markdown file carries an id any
-  more, so a push or a pull leaves a change here to commit alongside the content
-  that caused it. Only `.canvas-sync.json.tmp`, the half-written file an
-  interrupted save leaves behind, is ignored.
+  modules, items, icons and embedded files, and it is the single source of item
+  identity: which Canvas object a file is, keyed by that file's path under
+  `course/` (`lib/sync/state.js`). No markdown file carries an id, so a push or
+  a pull leaves a change here to commit alongside the content that caused it.
+  Only `.canvas-sync.json.tmp`, the half-written file an interrupted save leaves
+  behind, is ignored.
 
 ### Course Configuration
 
