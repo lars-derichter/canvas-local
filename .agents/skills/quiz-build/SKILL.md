@@ -104,9 +104,9 @@ to `essay_question`, and let the author choose.
    and in Canvas. Fields and their rules:
    [`docs/frontmatter.md`](../../../docs/frontmatter.md#quiz).
 
-   Name the order this imposes: import the package first, because push places
-   the item and never creates a quiz. Push a title the course does not hold yet
-   and that item is refused, with the step 6 procedure as the error message.
+   Name the order this imposes: import the package first. Push places the item
+   but never creates a quiz, so pushing before the import refuses the item with
+   an error that spells out the same import procedure as step 6.
 
 8. **Report in chat**: every path written, question count, total points, a
    pointer to the import section in `questions.md`, and a reminder that a

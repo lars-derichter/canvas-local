@@ -38,8 +38,9 @@ the whole document from the repo and an interview.
 4. **Flag what this document cannot fix.** A course name or language settled in
    conversation also lives in `course.config.yml`; a changed goal notation
    leaves existing lesson plans, modules and evaluations spelling the old one,
-   which is what `/coverage-map`, `/evaluation-design` and `/rubric-build` match
-   on. Name these in the report and leave them to the author.
+   which is what `/coverage-map`, `/evaluation-design`, `/rubric-build`,
+   `/quiz-build` and `/lesson-module-build` match on. Name these in the report
+   and leave them to the author.
 
 5. **Report what changed** per section, and hand off the rest: writing-style
    corrections to `/writing-style-update`, observations about a lesson you just

@@ -79,10 +79,10 @@ contradicts it, and say so explicitly in the report.
    are now filled in. Point to repo files (framework docs, worked-example
    modules and lessons) rather than copying their content.
 
-6. **Check the update config.** If `update-from-upstream.conf` exists and its
-   `protected_files` does not include `context/course-context.md`, tell the
-   author to add it. Otherwise the next upstream update overwrites their version
-   with the template. Do not edit the conf yourself.
+6. **Check the update config.** Confirm `update-from-upstream.conf` still lists
+   `context/course-context.md` under `protected_files`, as the shipped conf
+   does. If it was removed, warn the author: without it the next upstream update
+   overwrites their version with the template. Do not edit the conf yourself.
 
 7. **Report changes.** List what changed per section and remind the author that
    the lesson skills will offer to save newly gathered facts back into this doc

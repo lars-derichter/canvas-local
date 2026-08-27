@@ -68,10 +68,12 @@ still verified.
      mechanically: unknown `canvas_type` values, an `external_url` or
      `external_tool` item with no URL, a `file` or `quiz` item whose `file_ref`
      or `quiz_ref` names nothing on disk. Every error it reports is a finding.
-     It also reports broken links and missing referenced files; those belong to
-     step 3, which covers raw HTML as well. What no command checks stays a
-     judgement call against `docs/frontmatter.md`: assignment pages missing the
-     fields the worked examples carry.
+     It also reports broken markdown links and missing referenced files; fold
+     those into step 3's findings. Raw HTML references it only warns about as
+     never syncing, without checking the target exists; that existence check
+     stays step 3's. What no command checks stays a judgement call against
+     `docs/frontmatter.md`: assignment pages missing the fields the worked
+     examples carry.
    - `_category_.json` whose `position` does not match the folder's numeric
      prefix, or module folders missing `_category_.json` where the other modules
      have one.

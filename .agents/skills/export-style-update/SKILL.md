@@ -85,9 +85,9 @@ document/site", hand off to `export-style-init`.
    `Attachment`, and `SourceCode` untouched unless the request is specifically
    about them: the Lua filter references them by name.
 
-5. **Regenerate and show**: `npx course export --sample -f pdf` (add `-f docx`
-   when the change touched the DOCX). Confirm the change landed, then iterate on
-   request.
+5. **Regenerate and show**: `npx course export --sample -f pdf`, and a second
+   run with `-f docx` when the change touched the DOCX (`--format` takes one
+   value per run). Confirm the change landed, then iterate on request.
 
 ## Rules
 

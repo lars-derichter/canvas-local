@@ -123,8 +123,9 @@ with one sentence if the source is not a `.md` under `sources/lessons/`.
    set `lesson: N` in the stub's frontmatter first. A missing-term flag means
    step 6's glossary addition was skipped. Add the term and re-run.
 
-8. **`_category_.json`**: `{ "label": "<Label>", "position": NN }`, one trailing
-   newline.
+8. **`_category_.json`**: a `label` and a `position` matching the `NN` prefix,
+   pretty-printed the way Prettier leaves it (one key per line, one trailing
+   newline), like the existing modules'.
 
 9. **Style pass.** Re-check every page against the student-facing rules of
    `context/writing-style.md` and the module conventions of `course-context.md`,

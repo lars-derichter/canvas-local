@@ -95,9 +95,9 @@ extensions, stop and explain.
 
 - **Language.** Report in the language the author writes in; findings and
   proposed replacements stay in the document's own language.
-- Treat the colleague-facing register as a peer dialect, not a watered-down
-  student register: short fragments, dry humour, and parenthetical asides are
-  welcome there.
+- Treat the colleague-facing register as a peer dialect with its own rules in
+  writing-style.md's colleague-facing section, not as a watered-down student
+  register.
 - Something that reads oddly but breaks no writing-style.md rule goes under
   "consider" with a one-sentence note, or is left alone.
 

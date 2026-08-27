@@ -34,17 +34,18 @@ source is not a document, URL, or stylesheet.
    [`export-styles/generic/template.typ`](../../../export-styles/generic/template.typ),
    the default you will fork; note the `conf(...)` signature (font, codefont,
    fontsize, margin, paper, logo), the `pick(...)` helper that reads theme
-   colours, and the `alert-colors` map. Also read
-   [`src/css/themes/github.css`](../../../src/css/themes/github.css) for the
-   `--ccb-*` colour tokens. The custom paragraph styles inside the style's
-   `reference.docx` (the twelve per-kind `AlertTitle<Kind>`/`AlertBody<Kind>`
-   pairs (Note, Tip, Important, Warning, Caution, Check) plus `LinkCard`,
-   `LinkCardTitle`, `Attachment`, and `SourceCode`) are mapped by the Lua filter
-   and **must survive** any edit to the DOCX.
+   colours, and the `alert-colors` map. Also read the active theme for the
+   `--ccb-*` colour tokens: the file `theme:` in `course.config.yml` selects,
+   e.g. [`src/css/themes/github.css`](../../../src/css/themes/github.css). The
+   custom paragraph styles inside the style's `reference.docx` (the six per-kind
+   `AlertTitle<Kind>`/`AlertBody<Kind>` pairs, one per alert kind: Note, Tip,
+   Important, Warning, Caution, Check; plus `LinkCard`, `LinkCardTitle`,
+   `Attachment`, and `SourceCode`) are mapped by the Lua filter and **must
+   survive** any edit to the DOCX.
 
 2. **Extract the visual decisions** from the reference:
    - `.docx`: unzip into a fresh directory in the session scratchpad; read
-     `word/styles.xml` (font, size, colour of `Title`, `Heading1/2/3`,
+     `word/styles.xml` (font, size, colour of `Title`, `Heading1/2/3` and
      `Normal`), `word/theme/theme1.xml` (theme fonts, colours), and the
      `<w:sectPr>` in `word/document.xml` (margins).
    - `.pdf`: read it with the Read tool (it renders pages); judge fonts, heading
@@ -60,8 +61,8 @@ source is not a document, URL, or stylesheet.
    | Decision           | Value | Where it goes                                | DOCX (reference.docx)             |
    | ------------------ | ----- | -------------------------------------------- | --------------------------------- |
    | Body font          | …     | `font:` in `conf()`                          | `Normal` + theme `<a:latin>`      |
-   | Heading font       | …     | `show heading` rule                          | `Heading 1/2/3`                   |
-   | Heading colour     | …     | `--ccb-heading` in the theme                 | `Heading 1/2/3` colour            |
+   | Heading font       | …     | `show heading` rule                          | `Heading1/2/3`                    |
+   | Heading colour     | …     | `--ccb-heading` in the theme                 | `Heading1/2/3` colour             |
    | Body size          | …     | `fontsize:` in `conf()`                      | `Normal` size                     |
    | Link/accent colour | …     | `--ccb-link` / `--ccb-accent` in the theme   | `Hyperlink` colour                |
    | Alert colours      | …     | `--ccb-alert-<kind>-fg` / `-bg` in the theme | per-kind `AlertTitle`/`AlertBody` |
@@ -80,12 +81,13 @@ source is not a document, URL, or stylesheet.
 ### Phase B: Write and Regenerate (Only After Approval)
 
 4. **Fork the selected style** into `sources/export-style/` (create the folder
-   if absent). Resolve the style from `export.style` in `course.config.yml`,
+   if absent). Resolve `<style>` from `export.style` in `course.config.yml`,
    defaulting to `generic`:
-   `cp export-styles/generic/template.typ export-styles/generic/reference.docx sources/export-style/`
+   `cp export-styles/<style>/template.typ export-styles/<style>/reference.docx sources/export-style/`
 
-   If the spec includes colours, also copy the active theme:
-   `cp src/css/themes/github.css sources/theme.css`, set
+   If the spec includes colours, also copy the active theme (`<theme>` from
+   `theme:` in `course.config.yml`):
+   `cp src/css/themes/<theme>.css sources/theme.css`, set
    `theme: sources/theme.css` in `course.config.yml`, and edit the `--ccb-*`
    tokens there.
 
