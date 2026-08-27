@@ -42,16 +42,16 @@ intake question is free.
 
 4. **Fix the register and the ruleset**, in this order:
    - Target is the course language and the text is student-facing (`course/`,
-     `evaluations/`, assignment and exam instructions): read
-     `context/writing-style.md` in full and apply its shared plus student-facing
-     rules.
+     and what students receive under `evaluations/`: assignment and exam
+     instructions): read `context/writing-style.md` in full and apply its shared
+     plus student-facing rules.
    - Target is the course language, anything else: the same guide, shared plus
      colleague-facing rules, with the reading level following the source.
    - Target is not the course language: the source's own register and reading
      level, in ordinary current usage of the target language. Do not carry over
      the course guide's language-specific rules: its spelling variety, its
      heading-case rule, its list of AI tells all describe another language.
-   - Register genuinely unclear: use the colleague-facing one.
+   - Register genuinely unclear: ask.
 
 5. **Translate in units of thought, not in words.** Sentence boundaries may
    move, a subordinate clause may become its own sentence, two short sentences
@@ -113,5 +113,6 @@ intake question is free.
   source's word count produces padding in one direction and compression in the
   other. Expansion must not become explanation the source did not carry.
 - Do not edit the source. No commits, no pushes, no staging.
+- Run `npm run format` on any file you wrote; Prettier owns markdown wrapping.
 
 $ARGUMENTS

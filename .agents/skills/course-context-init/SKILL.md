@@ -1,6 +1,6 @@
 ---
 name: course-context-init
-description: Read the repo and interview the user to fill in or refresh context/course-context.md, the per-course design context the lesson skills (lesson-design, lesson-summarize, lesson-module-build) rely on. Run once when setting up a course, and again after README, docs, or course structure change substantially. Use for "initialize course context", "set up the course context", "refresh the course context", "cursuscontext invullen", "course context verversen".
+description: Read the repo and interview the author to fill in or refresh context/course-context.md, the per-course design context the lesson skills (/lesson-design, /lesson-summarize, /lesson-module-build) rely on. Confirms a per-section summary before writing. Run once when setting up a course, and again after README, docs, or course structure change substantially. Use for "initialize course context", "set up the course context", "refresh the course context", "cursuscontext invullen", "cursuscontext verversen".
 ---
 
 # Course Context Init
@@ -99,6 +99,8 @@ contradicts it, and say so explicitly in the report.
   the author; when in doubt, ask or leave `TODO`.
 - Do not modify `context/writing-style.md`, `AGENTS.md`, or course content: the
   only written artefact is `context/course-context.md`.
-- Do not commit the changes automatically. Leave that to the author.
+- No commits, no pushes, no staging.
+- Run `npm run format` on the doc after writing; Prettier owns markdown
+  wrapping.
 
 $ARGUMENTS

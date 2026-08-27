@@ -1,6 +1,6 @@
 ---
 name: course-context-update
-description: Review course-design decisions and corrections the author settled in this conversation, and fold them into context/course-context.md as durable facts. Use for "update course context", "save this to the course context", "remember this course decision", "cursuscontext bijwerken", "onthoud deze cursusafspraak".
+description: Review course-design decisions and corrections the author settled in this conversation, and fold them into context/course-context.md as durable facts. Proposes the edits and applies them only after approval. Use for "update course context", "save this to the course context", "remember this course decision", "cursuscontext bijwerken", "onthoud deze cursusafspraak".
 ---
 
 # Course Context Update
@@ -31,9 +31,10 @@ the whole document from the repo and an interview.
 3. **Propose the edits**: a concise list with the reason and the source in the
    conversation for each. For a `TODO` section, replace the `TODO` and drop that
    section's HTML guidance comment. For a filled section, propose a replacement
-   rather than an append, and say which it is. Apply only after confirmation,
-   with surgical, minimal edits so the author can review a small diff. Never
-   reorder the sections: their order is the backward-design chain.
+   rather than an append, and say which it is. Stop and wait for explicit
+   approval, then apply with surgical, minimal edits so the author can review a
+   small diff. Never reorder the sections: their order is the backward-design
+   chain.
 
 4. **Flag what this document cannot fix.** A course name or language settled in
    conversation also lives in `course.config.yml`; a changed goal notation
@@ -56,7 +57,9 @@ the whole document from the repo and an interview.
 - Prefer concrete, checkable statements over intentions: "goals are referenced
   as `LG3` in each lesson plan's own goals section" beats "goals are clearly
   referenced".
-- `context/course-context.md` is the only written artefact. Do not commit the
-  changes automatically.
+- `context/course-context.md` is the only written artefact. No commits, no
+  pushes, no staging.
+- Run `npm run format` on the doc after editing; Prettier owns markdown
+  wrapping.
 
 $ARGUMENTS

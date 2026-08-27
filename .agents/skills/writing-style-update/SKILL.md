@@ -1,6 +1,6 @@
 ---
 name: writing-style-update
-description: Review style corrections and preferences the user expressed in this conversation, and fold them into context/writing-style.md as durable rules. Use for "update style", "make this a style rule", "remember this writing preference", "stijlregel toevoegen", "onthoud deze schrijfvoorkeur".
+description: Review style corrections and preferences the author expressed in this conversation, and fold them into context/writing-style.md as durable rules. Proposes the edits and applies them only after approval. Use for "update style", "make this a style rule", "remember this writing preference", "stijlregel toevoegen", "onthoud deze schrijfvoorkeur".
 ---
 
 # Writing Style Update
@@ -25,9 +25,9 @@ drafts material.
    section, and only genuinely general rules under the shared rules.
 
 3. **Propose the edits**: a concise list of additions, rewordings, or removals
-   with the reason for each, sourced from the conversation. Apply only after
-   confirmation, with surgical, minimal edits so the author can review a small
-   diff.
+   with the reason for each, sourced from the conversation. Stop and wait for
+   explicit approval, then apply with surgical, minimal edits so the author can
+   review a small diff.
 
 4. **Check `AGENTS.md` at the project root** and update it only where a new rule
    directly contradicts it. Then report what changed; the next draft follows the
@@ -41,6 +41,8 @@ drafts material.
   rules.
 - Prefer concrete examples over abstract rules: "avoid _utilise_, prefer _use_"
   (or "avoid _hanteren_, prefer _gebruiken_") beats "keep diction plain".
-- Do not commit the changes automatically.
+- No commits, no pushes, no staging.
+- Run `npm run format` on the guide after editing; Prettier owns markdown
+  wrapping.
 
 $ARGUMENTS

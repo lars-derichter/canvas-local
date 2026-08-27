@@ -28,7 +28,7 @@ not a markdown file under `course/` or `evaluations/`.
    - [`context/course-context.md`](../../../context/course-context.md): the
      learning-goal scheme and its notation. If it is `TODO`, infer goals from
      the lesson plan the assignment belongs to, or ask the author once, and
-     offer at the end to save what you learned.
+     offer `/course-context-update` at the end to record what you learned.
    - The lesson plan(s) in `sources/lessons/` that the assignment belongs to,
      for the goals it practises and the level at which they were taught.
    - [`context/writing-style.md`](../../../context/writing-style.md): the rubric
@@ -43,9 +43,11 @@ not a markdown file under `course/` or `evaluations/`.
    excellent, in the course language); point total and whether points sit per
    criterion or per cell.
 
-3. **Derive the criteria.** Each criterion must trace to a requirement in the
-   assignment text or to a learning goal it practises. Typical count: three to
-   six. For each, note the source (quoted requirement or goal reference).
+3. **Derive the criteria.** Each criterion traces to a requirement in the
+   assignment text or to a learning goal it practises; a criterion you add on
+   your own initiative is allowed only when the alignment check flags it as
+   yours. Typical count: three to six. For each, note the source (quoted
+   requirement, goal reference, or own initiative).
 
 4. **Propose in chat, no files:**
    - **The matrix.** Criteria as rows; per criterion: weight in points, the
@@ -56,7 +58,8 @@ not a markdown file under `course/` or `evaluations/`.
      claims to practise but the rubric cannot see. Flag each.
    - **Open questions.** Anything the author must decide before Phase B.
 
-5. Adjust on request. Stop. Wait for explicit approval before starting Phase B.
+5. Adjust on request and stay in Phase A. Stop. Wait for explicit approval
+   before starting Phase B.
 
 ### Phase B: Write (Only After Approval)
 
@@ -71,11 +74,11 @@ not a markdown file under `course/` or `evaluations/`.
    mistakes to look for, partial-credit guidance) where Phase A surfaced one.
    Colleague-facing register of `context/writing-style.md`.
 
-7. **Offer, do not run:**
-   - A student-facing summary of the criteria (no level descriptors, just what
-     is graded, headed by the course's own phrase for what you are marked on)
-     appended to the assignment page, only on explicit request, since it edits
-     student-facing material.
+7. **Report the path written, then offer, do not run:**
+   - Appending a student-facing summary of the criteria to the assignment page
+     (no level descriptors, just what is graded, headed by the course's own
+     phrase for what you are marked on). It edits student-facing material, so it
+     happens only when the author accepts this offer.
    - `/proofread` on the rubric.
 
 ## Rules
@@ -83,10 +86,10 @@ not a markdown file under `course/` or `evaluations/`.
 - **Language.** Write everything in the language `context/writing-style.md`
   states the course uses; `course.config.yml`'s `language` key only picks the
   generated labels. Reply in chat in the language the author writes in.
-- No criteria from your own initiative without flagging them in Phase A.
 - One assignment per call.
-- Never change the assignment page or lesson plans without the explicit request
-  in step 7.
+- Never change the assignment page or lesson plans outside an accepted step 7
+  offer.
 - No commits, no pushes, no staging.
+- Run `npm run format` on what you wrote; Prettier owns markdown wrapping.
 
 $ARGUMENTS

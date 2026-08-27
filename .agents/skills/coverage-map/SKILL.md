@@ -27,8 +27,8 @@ the whole course.
    evaluation carries. Follow any framework document they point to.
    - If Learning goals is `TODO`, infer the scheme from the lesson plans under
      `sources/lessons/` (a consistent goal notation across plans counts as a
-     scheme). If that fails, ask the author once, and at the end offer to save
-     the answer into `course-context.md`.
+     scheme). If that fails, ask the author once, and at the end offer
+     `/course-context-update` to record the answer.
    - If the course turns out to have no explicit learning-goal scheme at all,
      say so, offer `/course-context-init` to help define one, and stop. Do not
      invent goals to map.
@@ -81,12 +81,14 @@ the whole course.
   quoted material keep the wording the course uses.
 - Read-only by default. The only file this skill may ever write is the report
   under `sources/reports/`, and only on explicit request.
-- Mechanical gaps only. Whether a gap is a _problem_ is the author's call; do
-  not editorialise about the course design beyond the four gap lists.
+- The four gap lists are the whole verdict. Whether a gap or an imbalance is a
+  _problem_ is the author's call; state the numbers and do not editorialise
+  about the course design beyond them.
 - Every claim cites file(s). A cell in the matrix without evidence is an empty
   cell, not a guess.
 - Mark inferred goal mappings (step 4) explicitly; do not present them with the
   same confidence as explicit references.
 - No commits, no pushes, no staging.
+- Run `npm run format` on any report you wrote; Prettier owns markdown wrapping.
 
 $ARGUMENTS

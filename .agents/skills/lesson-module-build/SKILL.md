@@ -22,15 +22,16 @@ with one sentence if the source is not a `.md` under `sources/lessons/`.
 1. **Read**, in order: the source lesson plan (full);
    [`context/course-context.md`](../../../context/course-context.md) (module
    conventions, code-and-downloads rules, glossary); for a needed section still
-   `TODO`, infer the answer from existing modules or ask once, and offer at the
-   end to save it back;
+   `TODO`, infer the answer from existing modules or ask once, offering
+   `/course-context-update` at the end to record it;
    [`context/writing-style.md`](../../../context/writing-style.md) (the pages
    use the student-facing register);
    [`docs/frontmatter.md`](../../../docs/frontmatter.md); the one or two
    lowest-numbered existing modules under `course/` as worked examples; the
-   canonical glossary file, if the course has one. If no modules exist yet, the
-   Phase A proposal doubles as a proposal for the module conventions. Confirm it
-   explicitly.
+   canonical glossary file, if the course has one (default
+   `sources/reference-materials/glossary.yml`; path per `course-context.md`). If
+   no modules exist yet, the Phase A proposal doubles as a proposal for the
+   module conventions. Confirm it explicitly.
 
 2. **Inventory the plan.**
    - **Goals.** List the lesson's goals, in the course's own notation. Note for
@@ -60,11 +61,12 @@ with one sentence if the source is not a `.md` under `sources/lessons/`.
 
    Close the proposal with **goals against pages**: one line per lesson goal,
    naming the pages that practise it. Flag any goal no page practises, and any
-   page that serves no goal. Report it; do not redesign the plan around it and
-   do not block on it. The author decides whether a gap matters. Skip this
-   paragraph entirely if the lesson plan states no goals.
+   page that serves no goal; the author decides whether a gap matters, so do not
+   redesign the plan around it or block on it. Skip this paragraph entirely if
+   the lesson plan states no goals.
 
-   Stop. Wait for explicit approval before starting Phase B.
+   Adjust on request and stay in Phase A. Stop. Wait for explicit approval
+   before starting Phase B.
 
 ### Phase B: Write (Only After Approval)
 
@@ -134,8 +136,9 @@ with one sentence if the source is not a `.md` under `sources/lessons/`.
 10. **Report in chat**: module path; generated files grouped (pages, archives,
     PNGs, `_category_.json`); table of image TODOs. Suggest as separate steps,
     do not run: `/proofread` on the module, `npx docusaurus start` to check
-    sidebar and links, unzipping one archive in the target IDE. Offer to save
-    any conventions `course-context.md` was missing.
+    sidebar and links, unzipping one archive in the target IDE. Offer
+    `/course-context-update` for any conventions `course-context.md` was
+    missing.
 
 ## Rules
 
@@ -144,6 +147,7 @@ with one sentence if the source is not a `.md` under `sources/lessons/`.
   generated labels. Reply in chat in the language the author writes in.
 - Never change the source lesson or other existing modules under `course/`.
 - No commits, no pushes, no staging.
+- Run `npm run format` on what you wrote; Prettier owns markdown wrapping.
 - Only the transparent PNG placeholder for images, never generated artwork.
 - One lesson per call. Invent no content beyond the plan; if a needed image is
   unclear, write an honest TODO asking the author.

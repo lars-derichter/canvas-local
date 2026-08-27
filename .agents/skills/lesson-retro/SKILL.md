@@ -1,6 +1,6 @@
 ---
 name: lesson-retro
-description: Debrief a lesson right after teaching it, in a conversational interview: one question at a time, following up on the answers. Folds timing corrections and tips into the lesson plan's notes-to-self and durable course-wide insights into context/course-context.md, appends a dated retro report to sources/retros/<year>/lesson-NN.md, and logs content fixes for the student material in the issue queue at sources/issues.md. Use for "lesson retro", "debrief after teaching", "how the lesson went", "les nabespreken", "retro les 3", "hoe de les gegaan is".
+description: Debrief a lesson right after teaching it, in a conversational interview: one question at a time, following up on the answers. Folds timing corrections and tips into the lesson plan's notes-to-self and durable course-wide insights into context/course-context.md, appends a dated retro report to sources/retros/<year>/lesson-NN.md, and logs content fixes for the student material in the issue queue at sources/issues.md. Proposes every edit in chat and applies only after approval. Use for "lesson retro", "debrief after teaching", "how the lesson went", "les nabespreken", "retro les 3", "hoe de les gegaan is".
 ---
 
 # Lesson Retro
@@ -84,10 +84,9 @@ plausibly recent, propose it in the same breath.
      (e.g. "prediction exercises take twice the planned time with this group").
      Name the section it belongs in.
    - **Issue queue `sources/issues.md`**: content errors and friction in the
-     student material under `course/`, one entry per fix in the format the queue
-     file's own header documents (the same entry `/issue-report` writes; create
-     the file with that structure on first use). Diagnosing and fixing them is
-     `/issue-fix`'s job; offer to run it once the retro edits land.
+     student material under `course/`, one entry per fix, in the entry format
+     `/issue-report` documents. Diagnosing and fixing them is `/issue-fix`'s
+     job; offer to run it once the retro edits land.
    - **Writing-style corrections**: do not fold these in here; point the author
      at `/writing-style-update`.
    - **Retro report `sources/retros/<year>/lesson-NN.md`**: always, whatever
@@ -96,22 +95,25 @@ plausibly recent, propose it in the same breath.
      short bullets for timing deltas, what worked, what confused, changes
      applied (with file pointers) and fixes logged. When the course has more
      than one class group, the group joins the heading
-     (`## 2026-02-12 — groep A`). A dozen lines in the colleague-facing
+     (`## 2026-02-12 · groep A`). A dozen lines in the colleague-facing
      register, not a transcript; a thin retro yields a short section. Show the
      proposed section in full.
 
    Mark anything you are unsure about as a question, not a proposal.
 
-### Apply (Only After Confirmation)
+   Stop. Wait for explicit approval before applying anything.
 
-6. **Apply after confirmation.** Surgical, minimal edits, one concern per edit.
-   Keep the lesson plan's structure and voice: notes-to-self stay in that
-   section's existing style, timing changes touch only the numbers and a short
-   reason. Never rewrite blocks wholesale. Append the issue entries to `## Open`
-   in `sources/issues.md`, and the report section after the last section in
+### Apply (Only After Approval)
+
+6. **Apply.** Surgical, minimal edits, one concern per edit. Keep the lesson
+   plan's structure and voice: notes-to-self stay in that section's existing
+   style, timing changes touch only the numbers and a short reason. Never
+   rewrite blocks wholesale. Append the issue entries to `## Open` in
+   `sources/issues.md` (creating the file with `/issue-report`'s documented
+   structure on first use), and the report section after the last section in
    `sources/retros/<year>/lesson-NN.md`. First retro of a lesson in a year:
    create the file, and the year folder if needed, with an H1 naming the lesson
-   and the academic year (`# Retro lesson 3 — 2025–2026`). The year folder takes
+   and the academic year (`# Retro lesson 3 (2025–2026)`). The year folder takes
    the two-plus-two form `evaluations/` uses (`2526`); when the date could
    belong to either academic year (late summer), confirm the year with the
    author before creating a new folder.
@@ -138,5 +140,6 @@ plausibly recent, propose it in the same breath.
   correction the retro produces lands in the lesson plan or in the next retro's
   section, not in history.
 - No commits, no pushes, no staging.
+- Run `npm run format` on what you edited; Prettier owns markdown wrapping.
 
 $ARGUMENTS

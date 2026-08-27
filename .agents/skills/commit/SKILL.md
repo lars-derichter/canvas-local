@@ -14,7 +14,7 @@ Create a git commit following the project's commit message conventions.
    - Origin URL contains the upstream path `lars-derichter/coursewright` →
      **development mode**: this is the tool's own repository, so skip all
      changes inside `course/`, and `.canvas-sync.json` at the root along with
-     them, unless the user explicitly asks to include them. They are typically
+     them, unless the author explicitly asks to include them. They are typically
      temporary sync-test artifacts that should not reach git history or the
      remote. The sync state is committed rather than gitignored, so a sync test
      leaves it in `git status` carrying a test Canvas course's module and item

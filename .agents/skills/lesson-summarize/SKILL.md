@@ -1,6 +1,6 @@
 ---
 name: lesson-summarize
-description: Generate a concise class version (one-page teaching reminder) of a full lesson plan from sources/lessons/ and write it to sources/lesson-plans/. Use for "summarize lesson", "class version", "make a one-page teaching reminder", "klasversie maken", "bondig lesplan", "lesplan samenvatten".
+description: Generate a concise class version (one-page teaching reminder) of a full lesson plan from sources/lessons/ and write it to sources/lesson-plans/. Writes without an approval phase; asks before overwriting an existing class version. Use for "summarize lesson", "class version", "make a one-page teaching reminder", "klasversie maken", "bondig lesplan", "lesplan samenvatten".
 ---
 
 # Lesson Summarize
@@ -52,7 +52,7 @@ not a `.md` under `sources/lessons/`.
    - **Content**: the lesson's concepts as a compact list, using the inventory
      groups from `course-context.md` if it defines them (omit empty groups).
    - **Timeline**: chronological bullets, each starting
-     `**HH:MM–HH:MM (N min) — Activity name.**`, then short fragments: no
+     `**HH:MM–HH:MM (N min): Activity name.**`, then short fragments: no
      rationale, no "why". Breaks get one sentence. Concrete decisions stay: key
      examples, commands, links to homework scaffolds, the exit-ticket question.
    - **Optional, only if the source has them**: reserve activities (one line),
@@ -84,5 +84,6 @@ not a `.md` under `sources/lessons/`.
 - Never invent activities or goals not in the source; if something belongs on
   the page but is missing from the source, surface the gap and stop.
 - Do not modify the source lesson. No commits, no pushes, no staging.
+- Run `npm run format` on the file you wrote; Prettier owns markdown wrapping.
 
 $ARGUMENTS

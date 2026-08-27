@@ -14,9 +14,10 @@ file.
 
 `$ARGUMENTS` may hold a path to a question list (markdown), a quiz title, and/or
 free text. Question sources, in order of preference: a markdown file given as a
-path (e.g. a `blueprint.md` from `/evaluation-design`); questions drafted
-earlier in the conversation; or nothing yet, then draft questions from the
-lesson plans in scope as part of Phase A, after reading
+path (e.g. an `instructions.md` from `/evaluation-design`; its `blueprint.md`
+holds short descriptions, not question text); questions drafted earlier in the
+conversation; or nothing yet, then draft questions from the lesson plans in
+scope as part of Phase A, after reading
 [`context/course-context.md`](../../../context/course-context.md).
 
 ## Supported Question Types
@@ -48,8 +49,9 @@ to `essay_question`, and let the author choose.
    unless it is `TODO`.
 
 2. **Confirm the destination** in one sentence: `evaluations/<year>/<slug>/`,
-   with the year folder the highest-numbered under `evaluations/` and the slug
-   from the quiz title.
+   with the year folder the highest-numbered under `evaluations/` (none yet:
+   propose one in the two-plus-two form, `2526` for 2025–2026) and the slug from
+   the quiz title.
 
 3. **Propose in chat**: quiz title; per question a numbered row with the
    (shortened) text, the mapped `question_type`, the correct answer(s), and
@@ -61,10 +63,11 @@ to `essay_question`, and let the author choose.
    `/evaluation-design` blueprint carry theirs already. Below the table, name
    any goal in scope that no question touches, and any question serving no goal.
    Report it and let the author decide; never drop or invent a question over it.
-   Skip the column and the paragraph when the course states no goals. Say so in
+   When the course states no goals, skip the column and the paragraph, say so in
    one line rather than guessing, and offer `/course-context-init`.
 
-   Stop. Wait for explicit approval before starting Phase B.
+   Adjust on request and stay in Phase A. Stop. Wait for explicit approval
+   before starting Phase B.
 
 ### Phase B: Generate (Only After Approval)
 
@@ -126,5 +129,7 @@ to `essay_question`, and let the author choose.
   Never guess a correct answer; ask.
 - Generated code, ids, and filenames: lowercase, hyphenated, ASCII.
 - No commits, no pushes, no staging.
+- Run `npm run format` on the markdown you wrote; Prettier owns markdown
+  wrapping.
 
 $ARGUMENTS

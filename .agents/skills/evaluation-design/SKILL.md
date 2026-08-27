@@ -29,17 +29,20 @@ sentence.
    (the goals and their reference notation), the Assessment section (evaluation
    moments, weights, question formats, allowed aids, and the course's alignment
    rule), pedagogy, scope boundaries; for a needed section still `TODO`, infer
-   the answer from the repo or ask, offering at the end to save it back;
-   `context/writing-style.md` (shared rules plus the student-facing section);
-   every lesson plan in scope, in full, tracking per lesson which learning goals
-   were actively practised versus only seeded and how much lesson time each goal
-   received; existing evaluations under `evaluations/` as worked examples (the
-   most recent is the structural template). If none exist, the Phase A proposal
-   doubles as a proposal for the evaluation format. Confirm it explicitly.
+   the answer from the repo or ask, offering `/course-context-update` at the end
+   to record it; `context/writing-style.md` (shared rules plus the
+   student-facing section); every lesson plan in scope, in full, tracking per
+   lesson which learning goals were actively practised versus only seeded and
+   how much lesson time each goal received; existing evaluations under
+   `evaluations/` as worked examples (the most recent is the structural
+   template). If none exist, the Phase A proposal doubles as a proposal for the
+   evaluation format. Confirm it explicitly.
 
 2. **Confirm the destination** in one sentence: the highest-numbered
    academic-year folder under `evaluations/` (e.g. `2526/`) unless the author
-   says otherwise, plus a slug mirroring existing siblings (`test1`, `exam`).
+   says otherwise, plus a slug mirroring existing siblings (`test1`, `exam`). If
+   `evaluations/` holds no year folder yet, propose one in the two-plus-two form
+   (`2526` for 2025–2026).
 
 3. **Settle the practicalities** before designing questions, from the Assessment
    section of `course-context.md` first, then the worked example, then the
@@ -64,8 +67,8 @@ sentence.
      alternatives and why.
    - **Open questions** the author must decide before Phase B.
 
-   Adjust on request and stay in Phase A until the author explicitly approves.
-   Stop. Wait for explicit approval before starting Phase B.
+   Adjust on request and stay in Phase A. Stop. Wait for explicit approval
+   before starting Phase B.
 
 ### Phase B: Write (Only After Approval)
 
@@ -83,7 +86,7 @@ sentence.
    `context/writing-style.md`, then report both paths and offer follow-ups, do
    not run them: `/proofread` on `instructions.md`, `/rubric-build` for open
    questions, `/quiz-build` if part should become a Canvas quiz, `/coverage-map`
-   for the whole-course picture, saving gathered facts into `course-context.md`.
+   for the whole-course picture, `/course-context-update` for gathered facts.
 
 ## Rules
 
@@ -94,10 +97,12 @@ sentence.
   scope actively practised; a question on merely-seeded or out-of-scope material
   must be flagged in Phase A, never slipped in.
 - Do not invent learning goals. If the course has no explicit goal scheme,
-  derive per-lesson goals from the lesson plans and say you did so.
+  derive per-lesson goals from the lesson plans, label them as derived, and say
+  so in Phase A.
 - `evaluations/` is never served by Docusaurus or synced to Canvas; still keep
   filenames lowercase and hyphenated like the rest of the repo.
 - Never change lesson plans, course modules, or other evaluations.
 - No commits, no pushes, no staging.
+- Run `npm run format` on what you wrote; Prettier owns markdown wrapping.
 
 $ARGUMENTS

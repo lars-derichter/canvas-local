@@ -1,6 +1,6 @@
 ---
 name: consistency-check
-description: Whole-course consistency sweep of course/: dead cross-links, terms used before their introducing lesson, glossary drift, duplicate or gapped numeric prefixes, frontmatter problems, stale prerequisite references, a label language that does not match the prose language. Complements /proofread, which checks a single file, and /coverage-map, which checks learning-goal alignment rather than structure. Reports findings grouped by severity; does not auto-fix. Use for "consistency check", "check the whole course", "find dead links", "consistentiecheck", "dode links zoeken", "hele cursus nakijken".
+description: Whole-course consistency sweep of course/: dead cross-links, terms used before their introducing lesson, glossary drift, duplicate or gapped numeric prefixes, frontmatter problems, stale prerequisite references, a label language that does not match the prose language. Complements /proofread, which checks a single file, and /coverage-map, which checks learning-goal alignment rather than structure. Reports findings grouped by severity and offers to apply the mechanical ones; writes nothing by default. Use for "consistency check", "check the whole course", "find dead links", "consistentiecheck", "dode links zoeken", "hele cursus nakijken".
 ---
 
 # Consistency Check
@@ -8,7 +8,8 @@ description: Whole-course consistency sweep of course/: dead cross-links, terms 
 Sweep every module under `course/` for cross-file problems that a single-file
 `/proofread` cannot see: dead links, glossary and terminology drift, structural
 numbering issues, and stale prerequisite references. Report findings grouped by
-severity. Never auto-fix: propose, the author decides.
+severity; fixes are applied only when the author picks them from the report
+(step 8).
 
 ## Input
 
@@ -137,5 +138,6 @@ still verified.
   and its variety from `writing-style.md`, and the phrasing this course actually
   uses from the pages themselves.
 - No commits, no pushes, no staging.
+- Run `npm run format` on what you edited; Prettier owns markdown wrapping.
 
 $ARGUMENTS

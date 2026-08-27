@@ -72,8 +72,8 @@ entries. Empty means every entry under `## Open`.
    or `/lesson-retro` / defer), the files it touches, and the follow-ups from
    step 4. Add a separate list of what will _not_ be fixed and why.
 
-7. Adjust the plan on request and stay in Phase A until the author explicitly
-   approves. Stop. Wait for explicit approval before starting Phase B.
+7. Adjust the plan on request and stay in Phase A. Stop. Wait for explicit
+   approval before starting Phase B.
 
 ### Phase B: Fix (Only After Approval)
 
@@ -117,5 +117,6 @@ entries. Empty means every entry under `## Open`.
 - Course specifics (glossary path, conventions) come from `course-context.md` at
   runtime; hardcode nothing.
 - No commits, no pushes, no staging; never run `npx course push`.
+- Run `npm run format` on what you edited; Prettier owns markdown wrapping.
 
 $ARGUMENTS

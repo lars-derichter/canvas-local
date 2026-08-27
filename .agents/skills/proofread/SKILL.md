@@ -1,6 +1,6 @@
 ---
 name: proofread
-description: Check a markdown document for spelling, grammar, natural flow, and compliance with context/writing-style.md, in whatever language that guide is written. Distinguishes the student-facing register (course/, evaluations/) from the colleague-facing register (anything under sources/), and applies the right rules. Reports findings; does not auto-fix. Use for "proofread", "check the spelling", "check this lesson plan against the style guide", "nalezen", "spelling checken", "check dit lesplan op stijl".
+description: Check a markdown document for spelling, grammar, natural flow, and compliance with context/writing-style.md, in whatever language that guide is written. Distinguishes the student-facing register (course/, evaluation text handed to students) from the colleague-facing register (sources/, blueprints, rubrics), and applies the right rules. Reports findings and offers to apply fixes; writes nothing by default. Use for "proofread", "check the spelling", "check this lesson plan against the style guide", "nalezen", "spelling checken", "check dit lesplan op stijl".
 ---
 
 # Proofread
@@ -8,7 +8,8 @@ description: Check a markdown document for spelling, grammar, natural flow, and 
 Review one markdown document for spelling, grammar, naturalness of the prose (no
 translated feel), and
 [`context/writing-style.md`](../../../context/writing-style.md) compliance.
-Report findings grouped by severity; never auto-fix without confirmation.
+Report findings grouped by severity; fixes are applied only when the author
+picks them from the report (step 7).
 
 ## Input
 
@@ -18,13 +19,16 @@ extensions, stop and explain.
 
 ## Steps
 
-1. **Determine the register** from the path: `course/**` or `evaluations/**` →
-   student-facing; anywhere under `sources/` → colleague-facing; `docs/**`,
-   `README.md` and `AGENTS.md` → colleague-facing, plus the rules in
-   `docs/contributing.md` § Documentation Style (UK spelling, 80 columns), which
-   add to writing-style.md rather than override it; otherwise ask. The
-   lowest-numbered lesson under `sources/lessons/` (if any) is the worked
-   example for the colleague-facing register.
+1. **Determine the register** from the path: `course/**` → student-facing. Under
+   `evaluations/**`, what students receive (`instructions.md`, exam and
+   assignment text) → student-facing; the colleague documents beside it
+   (`blueprint.md`, `questions.md`, `rubric.md`) → colleague-facing. Anywhere
+   under `sources/` → colleague-facing. `docs/**`, `README.md` and `AGENTS.md` →
+   colleague-facing, plus the rules in `docs/contributing.md` § Documentation
+   Style (UK spelling, 80 columns), which add to writing-style.md rather than
+   override it. Otherwise ask. The lowest-numbered lesson under
+   `sources/lessons/` (if any) is the worked example for the colleague-facing
+   register.
 
 2. **Read `context/writing-style.md` in full.** Apply the shared rules plus the
    section matching the register. writing-style.md is the authoritative ruleset:
@@ -89,7 +93,7 @@ extensions, stop and explain.
 7. **Offer to apply fixes**: all "must fix", a named selection, or none (the
    default). When applying, use minimal edits, one concern per edit, then re-run
    the mechanical checks once to confirm. Close with what changed and what was
-   reported but left untouched. Do not commit, push, or stage.
+   reported but left untouched.
 
 ## Rules
 
@@ -100,5 +104,7 @@ extensions, stop and explain.
   register.
 - Something that reads oddly but breaks no writing-style.md rule goes under
   "consider" with a one-sentence note, or is left alone.
+- Run `npm run format` on what you edited; Prettier owns markdown wrapping.
+- No commits, no pushes, no staging.
 
 $ARGUMENTS

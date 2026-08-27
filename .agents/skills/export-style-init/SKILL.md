@@ -1,6 +1,6 @@
 ---
 name: export-style-init
-description: Derive a reusable PDF/DOCX export style from a reference (a Word document, a PDF, a website URL, or a CSS file) and write it to sources/export-style/ so course exports match that look. Phase A proposes a style spec and stops for approval; Phase B writes template.typ + reference.docx and regenerates the sample. Use for "initialize export style", "set up an export style", "match this Word template", "build a house style for the export", "exportstijl opzetten", "maak een huisstijl voor de export".
+description: Derive a reusable PDF/DOCX export style from a reference (a Word document, a PDF, a website URL, or a CSS file) and write it to sources/export-style/ so course exports match that look. Phase A proposes a style spec and stops for approval; Phase B writes template.typ + reference.docx and regenerates the sample. Use for "initialize export style", "match this Word template", "build a house style for the export", "exportstijl opzetten", "maak een huisstijl voor de export".
 ---
 
 # Export Style Init
@@ -76,7 +76,8 @@ source is not a document, URL, or stylesheet.
    Say plainly what the reference asks for that the pipeline cannot do cleanly
    (per-heading background bands, running chapter headers, …).
 
-   Stop. Wait for explicit approval before starting Phase B.
+   Adjust on request and stay in Phase A. Stop. Wait for explicit approval
+   before starting Phase B.
 
 ### Phase B: Write and Regenerate (Only After Approval)
 
@@ -110,10 +111,14 @@ source is not a document, URL, or stylesheet.
 
    ```bash
    D=<fresh dir in the session scratchpad>
-   unzip -oq sources/export-style/reference.docx -d "$D"
+   unzip -oq sources/export-style/reference.docx -d "$D/docx"
    # Edit word/styles.xml and/or word/theme/theme1.xml, then:
-   ( cd "$D" && zip -Xrq "<absolute repo path>/sources/export-style/reference.docx" . )
+   ( cd "$D/docx" && zip -Xrq "$D/reference.docx" . )
+   cp "$D/reference.docx" sources/export-style/reference.docx
    ```
+
+   Zip in the scratchpad and copy the result in; `zip` writing directly into a
+   cloud-synced folder can fail on the in-place rename.
 
    In `word/styles.xml`: `Normal`, `Heading1/2/3`, `Hyperlink`. Font via
    `<w:rFonts>`, size via `<w:sz>` in half-points (`28` = 14pt), colour via
@@ -126,11 +131,12 @@ source is not a document, URL, or stylesheet.
 7. **Regenerate and show the sample**: `npx course export --sample -f pdf` and
    `-f docx`. Surface `exports/style-sample.pdf` (and the DOCX), point out any
    DOCX degradation that applies (see `docs/export-styling.md`), and iterate on
-   request. Small later tweaks are the job of
-   [`export-style-update`](../export-style-update/SKILL.md).
+   request. Small later tweaks are the job of `/export-style-update`.
 
 ## Rules
 
+- **Language.** Reply in chat in the language the author writes in; these style
+  files carry no course prose.
 - Write only under `sources/`: `sources/export-style/` for the style files, and
   a theme copied to `sources/` for colours. Never edit `export-styles/` or
   `src/css/themes/` (shipped defaults, overwritten on upstream updates).
@@ -153,5 +159,6 @@ source is not a document, URL, or stylesheet.
   with neither present the cover simply has no logo.
 - Colours in `reference.docx` cannot read the theme. When you change a theme
   colour, change the matching Word style too, or the DOCX drifts from the PDF.
+- No commits, no pushes, no staging.
 
 $ARGUMENTS

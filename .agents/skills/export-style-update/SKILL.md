@@ -6,9 +6,8 @@ description: Make a plain-language change to how course exports look (heading co
 # Export Style Update
 
 Apply a small, plain-language change to how `npx course export` looks, and show
-the result. The iterate-in-place companion to
-[`export-style-init`](../export-style-init/SKILL.md). Use that skill to derive a
-whole new look from a reference.
+the result. The iterate-in-place companion to `/export-style-init`, which
+derives a whole new look from a reference.
 
 Unlike `/writing-style-update` and `/course-context-update`, this skill does not
 sweep the conversation for decisions to record. It takes the change asked of it
@@ -25,7 +24,7 @@ injected into the PDF at export time. **Layout** lives in the export style
 `$ARGUMENTS` is the requested change in plain language ("headings dark blue",
 "font Georgia", "bigger margins", "koppen donkerblauw", "grotere marges"). If
 empty, ask what to change. If the request is really "build a style from this
-document/site", hand off to `export-style-init`.
+document/site", hand off to `/export-style-init`.
 
 ## Steps
 
@@ -74,10 +73,14 @@ document/site", hand off to `export-style-init`.
 
    ```bash
    D=<fresh dir in the session scratchpad>
-   unzip -oq sources/export-style/reference.docx -d "$D"
+   unzip -oq sources/export-style/reference.docx -d "$D/docx"
    # Edit word/styles.xml and/or word/theme/theme1.xml, then:
-   ( cd "$D" && zip -Xrq "<absolute repo path>/sources/export-style/reference.docx" . )
+   ( cd "$D/docx" && zip -Xrq "$D/reference.docx" . )
+   cp "$D/reference.docx" sources/export-style/reference.docx
    ```
+
+   Zip in the scratchpad and copy the result in; `zip` writing directly into a
+   cloud-synced folder can fail on the in-place rename.
 
    Font size is in half-points (`<w:sz w:val="28">` = 14pt); colour is
    `<w:color w:val="RRGGBB">` (no `#`). Leave the per-kind
@@ -91,10 +94,13 @@ document/site", hand off to `export-style-init`.
 
 ## Rules
 
+- **Language.** Reply in chat in the language the author writes in; these style
+  files carry no course prose.
 - Write only under `sources/` (and `course.config.yml` when pointing `theme:` at
   a copy there).
 - Do not silently redesign: make the requested change and nothing more.
 - If a request cannot be met cleanly by the pipeline, say so and offer the
   nearest achievable alternative rather than a fragile hack.
+- No commits, no pushes, no staging.
 
 $ARGUMENTS

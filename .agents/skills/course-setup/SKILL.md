@@ -61,7 +61,8 @@ confirmed and change only what the author asks for.
    command will refuse to overwrite because it already holds the author's work,
    so nothing is a surprise.
 
-   Stop. Wait for explicit approval before starting Phase B.
+   Adjust on request and stay in Phase A. Stop. Wait for explicit approval
+   before starting Phase B.
 
 ### Phase B: Apply (Only After Approval)
 
@@ -111,7 +112,8 @@ confirmed and change only what the author asks for.
   which is what `npx course setup` does.
 - Never invent a course fact. When the repo is silent and the author has not
   said, ask, or leave a `TODO` in the README.
-- Never run `npx course push`, and never commit. Publishing and committing are
-  the author's calls.
+- Never run `npx course push`: publishing is the author's call.
+- No commits, no pushes, no staging.
+- Run `npm run format` on the prose you wrote; Prettier owns markdown wrapping.
 
 $ARGUMENTS

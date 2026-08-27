@@ -33,15 +33,15 @@ logical lesson". Three modes, combinable:
 1. **Read the fixed inputs**: `course-context.md` (pedagogy, learning-goal
    scheme, lesson-plan conventions, scope boundaries); follow the documents it
    points to, and for a needed section still `TODO`, infer the answer from the
-   repo or ask, offering at the end to save it back; `context/writing-style.md`
-   (shared rules plus the colleague-facing section); all existing files in
-   `sources/lessons/` in full, tracking which learning goals are actively
-   practised versus only seeded and the running context (project, storyline,
-   case) at each point; the structural template (the lesson plan named in
-   `course-context.md`, else the lowest-numbered existing lesson). If the folder
-   is empty, propose a structure (goals, preparation, timed blocks, deliberate
-   exclusions, notes-to-self), confirm it, and note it as a candidate for
-   `course-context.md`.
+   repo or ask, offering `/course-context-update` at the end to record it;
+   `context/writing-style.md` (shared rules plus the colleague-facing section);
+   all existing files in `sources/lessons/` in full, tracking which learning
+   goals are actively practised versus only seeded and the running context
+   (project, storyline, case) at each point; the structural template (the lesson
+   plan named in `course-context.md`, else the lowest-numbered existing lesson).
+   If the folder is empty, propose a structure (goals, preparation, timed
+   blocks, deliberate exclusions, notes-to-self), confirm it, and note it as a
+   candidate for `course-context.md`.
 
 2. **Confirm the lesson number** (from `$ARGUMENTS`, else the next free slot)
    with the author in one sentence.
@@ -65,8 +65,8 @@ logical lesson". Three modes, combinable:
      naming rejected alternatives and why.
    - **Open questions** the author must decide before a full draft.
 
-   Adjust on request and stay in Phase A until the author explicitly approves.
-   Stop. Wait for explicit approval before starting Phase B.
+   Adjust on request and stay in Phase A. Stop. Wait for explicit approval
+   before starting Phase B.
 
 ### Phase B: Draft (Only After Approval)
 
@@ -90,17 +90,19 @@ logical lesson". Three modes, combinable:
 
 5. **Update the glossary, only if the course has one** (Glossary section of
    `course-context.md`). Add the technical terms a student meets for the first
-   time in this lesson to the canonical glossary file, per that file's own
-   conventions: skip what is already a lemma or a synonym under another lemma;
-   never standardise on a synonym or invent one; definitions of one or two
-   sentences in the voice of the existing entries, tagged with this lesson's
-   number. If in doubt whether a term belongs, ask the author in one bundled
-   question. Page regeneration happens in `/lesson-module-build`, not here.
+   time in this lesson to the canonical glossary file (default
+   `sources/reference-materials/glossary.yml`; path per `course-context.md`),
+   per that file's own conventions: skip what is already a lemma or a synonym
+   under another lemma; never standardise on a synonym or invent one;
+   definitions of one or two sentences in the voice of the existing entries,
+   tagged with this lesson's number. If in doubt whether a term belongs, ask the
+   author in one bundled question. Page regeneration happens in
+   `/lesson-module-build`, not here.
 
 6. **Report and offer follow-ups, do not run them**: `/proofread` on the new
    plan, `/lesson-summarize` for the one-page class version,
    `/lesson-module-build` when the lesson is ready to become a module, and
-   saving gathered course facts into `course-context.md`.
+   `/course-context-update` for gathered course facts.
 
 ## Rules
 
@@ -117,5 +119,6 @@ logical lesson". Three modes, combinable:
 - One lesson per call. Never change existing lessons; the only written artefacts
   are the new `lesson-NN.md` and, when applicable, new glossary entries.
 - No commits, no pushes, no staging.
+- Run `npm run format` on what you wrote; Prettier owns markdown wrapping.
 
 $ARGUMENTS

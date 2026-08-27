@@ -1,6 +1,6 @@
 ---
 name: writing-style-init
-description: Interview the user and analyse samples of their writing to rewrite context/writing-style.md to match their voice, audience, and formatting preferences. Use for "initialize style", "set up the style guide", "configure the writing style", "stijlgids opzetten", "schrijfstijl instellen".
+description: Interview the author and analyse samples of their writing to rewrite context/writing-style.md to match their voice, audience, and formatting preferences. Confirms the intended changes before writing. Use for "initialize style", "set up the style guide", "configure the writing style", "stijlgids opzetten", "schrijfstijl instellen".
 ---
 
 # Writing Style Init
@@ -18,7 +18,7 @@ the course author's own voice and audience.
    best guess, refinable later via `/writing-style-update` or direct edits.
 
 2. **Analyse the samples, then interview only what they did not answer** (ask
-   the user, bundling related questions into one round). Dimensions for both:
+   the author, bundling related questions into one round). Dimensions for both:
    - Language and regional variety (English: UK/US; Dutch: Flemish/Netherlands;
      …); student age band and CEFR level if the course language is not the
      students' first language.
@@ -84,6 +84,8 @@ the course author's own voice and audience.
   in another language gets a guide in that language. Interview and reply in the
   language the author writes in.
 - Never guess beyond what samples plus interview support; when in doubt, ask.
-- Do not commit the changes automatically.
+- No commits, no pushes, no staging.
+- Run `npm run format` on the guide after writing; Prettier owns markdown
+  wrapping.
 
 $ARGUMENTS
