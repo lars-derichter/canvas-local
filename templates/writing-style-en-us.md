@@ -241,10 +241,16 @@ listed emoji fits, use an off-list one now and then; once it recurs, add it here
 with its meaning.
 
 - ❗️ assignment (to hand in, graded or not)
+- 💯 exam or test material
 - 🏠 homework
 - 📅 has a deadline
+- 👥 group work
+- 💬 discussion
 - 📝 something to write
+- 📖 something to read
 - 🛠 something to build
+- ⚙️ setup / installation
+- 📦 starter files / download
 - 🧪 try it yourself / experiment
 - 🔎 research
 - 💪 practice

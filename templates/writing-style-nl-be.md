@@ -244,10 +244,16 @@ de lijst hieronder. Past geen enkele emoji uit de lijst, gebruik dan nu en dan
 een andere; keert die terug, zet hem dan hier in de lijst met zijn betekenis.
 
 - ❗️ opdracht (in te dienen, al dan niet op punten)
+- 💯 examen- of toetsmateriaal
 - 🏠 thuiswerk
 - 📅 heeft een deadline
+- 👥 groepswerk
+- 💬 discussie
 - 📝 iets schrijven
+- 📖 iets lezen
 - 🛠 iets maken
+- ⚙️ installatie / setup
+- 📦 startbestanden / download
 - 🧪 zelf proberen / experiment
 - 🔎 onderzoeken
 - 💪 oefenen
