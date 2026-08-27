@@ -1,6 +1,6 @@
 {
   "name": "ccb-smoke-harness",
-  "displayName": "Canvas Course Builder smoke-test harness",
+  "displayName": "Coursewright smoke-test harness",
   "description": "Empty extension whose only job is to put the test window into extension development mode, so --extensionTestsPath runs. The extension under test is installed from its .vsix instead, and this contributes nothing.",
   "publisher": "local",
   "version": "0.0.0",

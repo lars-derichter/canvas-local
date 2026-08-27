@@ -88,12 +88,12 @@ and the way you will pull in improvements to the tooling later.
 
 ## 5. Create Your Course Project
 
-Canvas Course Builder is a **template**: you make your own copy, and your copy
-is yours. Changes you make never affect the original, and you can make one copy
-per course.
+Coursewright is a **template**: you make your own copy, and your copy is yours.
+Changes you make never affect the original, and you can make one copy per
+course.
 
 1. Open the
-   [Canvas Course Builder project page](https://github.com/lars-derichter/canvas-course-builder).
+   [Coursewright project page](https://github.com/lars-derichter/coursewright).
 2. Click **Use this template** at the top right, then **Create a new
    repository**.
 3. Give it a name that says which course it is: `course-web-development`,

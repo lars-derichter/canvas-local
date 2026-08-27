@@ -25,7 +25,7 @@ body:
   - type: textarea
     id: today
     attributes:
-      label: How you use Canvas Course Builder today
+      label: How you use Coursewright today
       description:
         What your course looks like, which commands you lean on, what you work
         around by hand. This helps decide what matters most.
@@ -38,6 +38,6 @@ body:
       options:
         - label:
             I checked the [ideas
-            list](https://github.com/lars-derichter/canvas-course-builder/blob/main/docs/roadmap.md)
+            list](https://github.com/lars-derichter/coursewright/blob/main/docs/roadmap.md)
             and this is not already on it.
           required: true

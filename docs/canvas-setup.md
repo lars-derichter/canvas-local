@@ -1,7 +1,7 @@
 # Canvas Setup
 
 This guide walks you through obtaining the three credentials needed to connect
-Canvas Course Builder to your Canvas LMS instance.
+Coursewright to your Canvas LMS instance.
 
 ## Canvas API URL
 
@@ -23,16 +23,15 @@ Copy the base URL **without** any path after the domain (no `/courses/...` or
 
 ## Canvas API Token
 
-An API access token lets Canvas Course Builder interact with Canvas on your
-behalf. To create one:
+An API access token lets Coursewright interact with Canvas on your behalf. To
+create one:
 
 1. Log in to Canvas and click on **Account** (your profile icon in the left
    sidebar).
 2. Select **Settings**.
 3. Scroll down to the **Approved Integrations** section.
 4. Click **+ New Access Token**.
-5. Fill in a **Purpose** (e.g. "Canvas Course Builder") so you can recognise it
-   later.
+5. Fill in a **Purpose** (e.g. "Coursewright") so you can recognise it later.
 6. Optionally set an **Expiry date**. If left blank the token will not expire.
 7. Click **Generate Token**.
 8. **Copy the token immediately.** It will only be shown once. If you lose it,

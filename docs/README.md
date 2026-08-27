@@ -1,6 +1,6 @@
 # Documentation
 
-All guides for Canvas Course Builder. New here? Start with
+All guides for Coursewright. New here? Start with
 [your first course](first-course.md), which walks the whole path from an empty
 computer to a published Canvas module.
 

@@ -317,11 +317,11 @@ invites.
   run that succeeds puts the last line of its output in the status bar for five
   seconds and refreshes the tree. A run that fails raises an error notification
   carrying the first line of the error, with a **Show Log** button that opens
-  the **Canvas Course Builder** output channel. A run that succeeds and still
-  writes to standard error raises a warning notification with the same button,
-  because a warning that only reached the log would go unread: the case this
-  exists for is a delete whose renumbering strands a Canvas object. Either way
-  the full output is in that output channel (View → Output).
+  the **Coursewright** output channel. A run that succeeds and still writes to
+  standard error raises a warning notification with the same button, because a
+  warning that only reached the log would go unread: the case this exists for is
+  a delete whose renumbering strands a Canvas object. Either way the full output
+  is in that output channel (View → Output).
 - Background runs are serialised: one at a time, in the order they were started,
   because two of them would renumber the same directory and rewrite
   `.canvas-sync.json` on top of each other. A ten-row drop is ten queued runs.

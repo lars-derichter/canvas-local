@@ -35,8 +35,7 @@ contradicts it, and say so explicitly in the report.
    - Any course-specific doc under `context/` or `sources/` (e.g. a pedagogical
      framework, a competency profile, card or page-type descriptions). These are
      prime sources for the Learning goals, Pedagogy and Module conventions
-     sections. `docs/` holds the canvas-course-builder tooling docs and is not a
-     source.
+     sections. `docs/` holds the coursewright tooling docs and is not a source.
    - `evaluations/` if it exists: the most recent evaluation shows the forms,
      question types and weights the Assessment section should record.
    - The existing modules under `course/` (folder names, page files, `_files/`

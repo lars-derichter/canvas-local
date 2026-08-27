@@ -5,9 +5,9 @@ canvas_type: page
 
 # How This Works
 
-You are looking at a course built with Canvas Course Builder. Every page in this
-module is a plain markdown file in a folder on a computer, previewed as this
-website, and published to Canvas with one command.
+You are looking at a course built with Coursewright. Every page in this module
+is a plain markdown file in a folder on a computer, previewed as this website,
+and published to Canvas with one command.
 
 This module walks you through doing that yourself. Work through it in order:
 each page assumes the one before it.

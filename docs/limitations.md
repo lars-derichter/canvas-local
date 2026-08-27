@@ -1,10 +1,10 @@
-# What Canvas Course Builder Does Not Do
+# What Coursewright Does Not Do
 
-Canvas Course Builder is opinionated. It expects one folder layout, treats your
-markdown as the source of truth, and holds the full content of only some of the
-things a Canvas module can hold. That is what makes it small enough to trust,
-but it also makes it a poor fit for some courses, and you should find that out
-now rather than in week six.
+Coursewright is opinionated. It expects one folder layout, treats your markdown
+as the source of truth, and holds the full content of only some of the things a
+Canvas module can hold. That is what makes it small enough to trust, but it also
+makes it a poor fit for some courses, and you should find that out now rather
+than in week six.
 
 Read this before you commit a semester to it. Everything below is a description
 of how the tool works today, not a list of bugs.

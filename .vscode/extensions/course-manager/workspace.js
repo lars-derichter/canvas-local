@@ -25,16 +25,14 @@ function getWorkspaceRoot() {
 function validateWorkspace() {
   const root = getWorkspaceRoot();
   if (!root) {
-    vscode.window.showErrorMessage(
-      'Canvas Course Builder: No workspace folder open.',
-    );
+    vscode.window.showErrorMessage('Coursewright: No workspace folder open.');
     return null;
   }
 
   const courseDir = path.join(root, 'course');
   if (!fs.existsSync(courseDir)) {
     vscode.window.showWarningMessage(
-      'Canvas Course Builder: No course/ directory found. Run "Course: Setup (First-Run Wizard)" to create one.',
+      'Coursewright: No course/ directory found. Run "Course: Setup (First-Run Wizard)" to create one.',
     );
   }
 

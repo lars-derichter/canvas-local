@@ -1,7 +1,7 @@
 # User Guide
 
-Canvas Course Builder lets you write course materials as markdown files on your
-own computer, preview them on a local website
+Coursewright lets you write course materials as markdown files on your own
+computer, preview them on a local website
 ([Docusaurus](https://docusaurus.io/)), and sync them with
 [Canvas LMS](https://www.instructure.com/canvas) in one command. This guide
 covers the course structure and the daily workflow; the [docs index](README.md)

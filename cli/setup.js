@@ -54,7 +54,7 @@ const TOOLING_INDEX_HEADING = 'Write Your Course in Markdown';
 
 /** Where the tutorial module stays readable after a course deletes its copy. */
 const TUTORIAL_UPSTREAM_URL =
-  'https://github.com/lars-derichter/canvas-course-builder/tree/main/course/01-getting-started';
+  'https://github.com/lars-derichter/coursewright/tree/main/course/01-getting-started';
 
 /** Label-set languages, from lib/config/labels.js. */
 const LANGUAGES = [
@@ -70,8 +70,10 @@ const WRITING_STYLES = [
   { id: 'nl', label: 'Nederlands, variant Nederland' },
 ];
 
-/** The H1 of the tooling's own README, which a course replaces. */
-const TOOLING_README_TITLE = 'Canvas Course Builder';
+/** The H1 of the tooling's own README, which a course replaces. The old
+ * project name stays recognised so a clone from before the rename still
+ * gets the replacement offer after pulling the update. */
+const TOOLING_README_TITLES = ['Coursewright', 'Canvas Course Builder'];
 
 // ---------------------------------------------------------------------------
 // Pure helpers (exported for tests)
@@ -237,7 +239,7 @@ function normaliseForCompare(text) {
 function isToolingReadme(content) {
   if (content == null) return true;
   const heading = content.match(/^#\s+(.+)$/m);
-  return Boolean(heading) && heading[1].trim() === TOOLING_README_TITLE;
+  return Boolean(heading) && TOOLING_README_TITLES.includes(heading[1].trim());
 }
 
 /**

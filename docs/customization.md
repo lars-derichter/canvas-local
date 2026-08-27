@@ -85,8 +85,8 @@ project and is overwritten on upstream updates; a title set in
 
 ## The README
 
-The `README.md` in your project root describes Canvas Course Builder, the
-tooling (not your course). Replace it with the course README template:
+The `README.md` in your project root describes Coursewright, the tooling (not
+your course). Replace it with the course README template:
 
 ```bash
 cp templates/README-course-en.md README.md
@@ -240,7 +240,7 @@ margins, the cover, and any fonts it ships. Built-in styles live in
 
 | Style         | Look                                                                                                                                                                                       |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `generic`     | The default. Helvetica/Arial, near-black headings, A4 with 2.5 cm margins, and a "Built with Canvas Course Builder" watermark on the cover.                                                |
+| `generic`     | The default. Helvetica/Arial, near-black headings, A4 with 2.5 cm margins, and a "Built with Coursewright" watermark on the cover.                                                         |
 | `thomas-more` | Century Gothic headings where the machine has that font, Nunito bundled as the fallback, and the Thomas More logo. The logo belongs to its owner. See [THIRD-PARTY.md](../THIRD-PARTY.md). |
 
 `npx course export --style thomas-more` overrides the config for one run.
@@ -294,12 +294,12 @@ it to your students along with everything else.
 > [!WARNING]
 >
 > Remove it, or move it out of `course/`, before your first push to a course
-> students can see. Otherwise fifteen pages about Canvas Course Builder appear
-> in their module list.
+> students can see. Otherwise fifteen pages about Coursewright appear in their
+> module list.
 
 `npx course setup` offers to delete it. Deleting is safe: the module stays
 readable in the
-[upstream repository](https://github.com/lars-derichter/canvas-course-builder/tree/main/course/01-getting-started),
+[upstream repository](https://github.com/lars-derichter/coursewright/tree/main/course/01-getting-started),
 so you can consult it, or copy it back, long after your own course has replaced
 it. To keep it locally without publishing it, rename the folder with a leading
 underscore (`_01-getting-started`), which excludes it from Canvas syncing while

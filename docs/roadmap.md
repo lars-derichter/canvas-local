@@ -39,7 +39,7 @@ below are provisional; they firm up when someone builds one.
   from a pile of these) into a draft module: one page per topic, images
   extracted, speaker notes as prose. Big adoption lever; hard to do well.
 - **/module-import**: restructure a legacy course-page dump, for example content
-  scraped from another LMS, into Canvas Course Builder conventions: numbering,
+  scraped from another LMS, into Coursewright conventions: numbering,
   frontmatter, link rewriting.
 
 ### Meta

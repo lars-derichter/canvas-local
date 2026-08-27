@@ -9,8 +9,7 @@
 > [`README-course-nl.md`](README-course-nl.md) instead.
 
 Course materials for **Course Name**, written in markdown and synced with Canvas
-LMS using
-[Canvas Course Builder](https://github.com/lars-derichter/canvas-course-builder).
+LMS using [Coursewright](https://github.com/lars-derichter/coursewright).
 
 ## Course Overview
 
@@ -34,14 +33,14 @@ This course covers ...
 The course content in `course/` is licensed under
 [CC BY-NC-SA 4.0](course/LICENSE.md) unless stated otherwise.
 
-The Canvas Course Builder tooling is [MIT licensed](LICENSE); keep that file and
-this line in place.
+The Coursewright tooling is [MIT licensed](LICENSE); keep that file and this
+line in place.
 
 ## Useful Links
 
 - [Your first course](docs/first-course.md): the step-by-step beginner
   walkthrough
-- [User guide](docs/user-guide.md): full Canvas Course Builder documentation
+- [User guide](docs/user-guide.md): full Coursewright documentation
 - [Canvas setup](docs/canvas-setup.md): API credentials and course ID
 - [Backups](docs/backups.md): protecting the Canvas course before you sync
 - [Limitations](docs/limitations.md): what the tool does not do

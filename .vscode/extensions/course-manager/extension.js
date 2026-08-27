@@ -21,9 +21,7 @@ const { registerPreviewCommands } = require('./commands/preview');
 
 function activate(context) {
   const workspaceRoot = getWorkspaceRoot();
-  const outputChannel = vscode.window.createOutputChannel(
-    'Canvas Course Builder',
-  );
+  const outputChannel = vscode.window.createOutputChannel('Coursewright');
   context.subscriptions.push(outputChannel);
 
   // --- Tree view ---

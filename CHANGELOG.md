@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **The project is now Coursewright.** Same tool, new name: the site, the
+  PDF/DOCX exports and the AI skills never needed Canvas, so the name no longer
+  claims it. The repository lives at `lars-derichter/coursewright` (GitHub
+  redirects the old address, but re-point your remotes with
+  `git remote set-url`), the npm package and the VS Code extension are renamed,
+  and `npx course setup` still recognises a README from before the rename. The
+  extension installs under a new id: run `npm run vscode:install` again and
+  uninstall `local.canvas-course-builder` once.
 - **File items that hold media now show the media.** An image, video or audio
   file item used to render as a bare download card in the preview; the media
   itself now sits above the card, an image inline and video or audio with a

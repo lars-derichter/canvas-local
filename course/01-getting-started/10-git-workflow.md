@@ -124,10 +124,10 @@ pull changes that were pushed from elsewhere:
 ## The Canvas Sync File
 
 Your project holds one file you did not write: `.canvas-sync.json`, in the
-project root. Canvas Course Builder creates it when you connect the project to a
-Canvas course, and updates it on every push, pull and sync after that. It
-records which Canvas page, assignment or discussion each of your markdown files
-became, and nothing else in your project does.
+project root. Coursewright creates it when you connect the project to a Canvas
+course, and updates it on every push, pull and sync after that. It records which
+Canvas page, assignment or discussion each of your markdown files became, and
+nothing else in your project does.
 
 Commit it. It is in the project on purpose and it is not ignored, so `git add .`
 picks it up along with your markdown, and so does the **+** next to **Changes**

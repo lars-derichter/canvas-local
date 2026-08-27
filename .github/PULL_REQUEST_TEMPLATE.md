@@ -25,6 +25,6 @@ preview site, a Canvas page or an export, say where to look.
       to users
 
 The tooling is
-[MIT licensed](https://github.com/lars-derichter/canvas-course-builder/blob/main/LICENSE);
+[MIT licensed](https://github.com/lars-derichter/coursewright/blob/main/LICENSE);
 by opening this pull request you agree your contribution is released under the
 same licence.

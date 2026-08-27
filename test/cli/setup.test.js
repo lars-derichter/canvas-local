@@ -23,7 +23,7 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 const SHIPPED = `# Per-course settings: name, language, look, and label overrides.
 
 # The name of this course.
-title: Canvas Course Builder
+title: Coursewright
 
 # A one-line descriptor of the course. Optional.
 # tagline: Bachelor 1, semester 2
@@ -291,6 +291,13 @@ describe('isToolingIndex', () => {
 
 describe('isToolingReadme', () => {
   it('recognises the tooling README by its H1', () => {
+    assert.equal(
+      isToolingReadme('# Coursewright\n\nWrite your course...\n'),
+      true,
+    );
+  });
+
+  it('recognises the pre-rename tooling README', () => {
     assert.equal(
       isToolingReadme('# Canvas Course Builder\n\nWrite your course...\n'),
       true,

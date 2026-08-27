@@ -1,17 +1,17 @@
 blank_issues_enabled: true
 contact_links:
   - name: Troubleshooting guide
-    url: https://github.com/lars-derichter/canvas-course-builder/blob/main/docs/troubleshooting.md
+    url: https://github.com/lars-derichter/coursewright/blob/main/docs/troubleshooting.md
     about: Common push, pull, preview and AI-assistant problems, with fixes.
   - name: User guide
-    url: https://github.com/lars-derichter/canvas-course-builder/blob/main/docs/user-guide.md
+    url: https://github.com/lars-derichter/coursewright/blob/main/docs/user-guide.md
     about: Setup, course structure and the daily commands, starting from zero.
   - name: Ideas list
-    url: https://github.com/lars-derichter/canvas-course-builder/blob/main/docs/roadmap.md
+    url: https://github.com/lars-derichter/coursewright/blob/main/docs/roadmap.md
     about:
       Features already under consideration. Worth a look before suggesting one.
   - name: Report a security vulnerability
-    url: https://github.com/lars-derichter/canvas-course-builder/security/advisories/new
+    url: https://github.com/lars-derichter/coursewright/security/advisories/new
     about:
       Private disclosure for anything exploitable. Please do not open a public
       issue.

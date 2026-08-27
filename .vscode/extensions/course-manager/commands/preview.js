@@ -10,7 +10,7 @@ const { previewPort, previewTerminalEntry } = require('../helpers');
  */
 
 /** The name the preview terminal is opened and found under. */
-const PREVIEW_TERMINAL_NAME = 'Canvas Course Builder: Preview';
+const PREVIEW_TERMINAL_NAME = 'Coursewright: Preview';
 
 /**
  * The preview terminal and the shell it is running: `{ terminal, flavour }`.
@@ -43,7 +43,7 @@ function registerPreviewCommands({ register, workspaceRoot }) {
           ? String(rejected)
           : JSON.stringify(rejected);
       vscode.window.showWarningMessage(
-        `Canvas Course Builder: courseManager.previewPort is ${shown}, which is not a port number. Using ${port}.`,
+        `Coursewright: courseManager.previewPort is ${shown}, which is not a port number. Using ${port}.`,
       );
     }
 
@@ -82,7 +82,7 @@ function registerPreviewCommands({ register, workspaceRoot }) {
     vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Window,
-        title: 'Canvas Course Builder: starting preview…',
+        title: 'Coursewright: starting preview…',
       },
       async () => {
         for (let i = 0; i < 60; i++) {
@@ -93,7 +93,7 @@ function registerPreviewCommands({ register, workspaceRoot }) {
           }
         }
         vscode.window.showWarningMessage(
-          'Canvas Course Builder: Preview server did not start within 2 minutes. Check the Preview terminal.',
+          'Coursewright: Preview server did not start within 2 minutes. Check the Preview terminal.',
         );
       },
     );

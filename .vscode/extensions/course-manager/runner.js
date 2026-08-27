@@ -109,7 +109,7 @@ const trackProgress = createProgressGate(
 
 /**
  * Run `npx course <args>` without a terminal. Output goes to the
- * "Canvas Course Builder" output channel; failures surface as error notifications.
+ * "Coursewright" output channel; failures surface as error notifications.
  * Returns a promise resolving to true on success.
  *
  * The run waits its turn: see `createSerialQueue` for why two of these must
@@ -117,7 +117,7 @@ const trackProgress = createProgressGate(
  */
 function runCli(args) {
   const run = cliQueue(() => execCli(args));
-  trackProgress(run, `Canvas Course Builder: course ${args[0]}`);
+  trackProgress(run, `Coursewright: course ${args[0]}`);
   return run;
 }
 
@@ -127,7 +127,7 @@ function execCli(args) {
     const cliPath = cliEntryPoint(workspaceRoot);
     if (!cliPath) {
       vscode.window.showErrorMessage(
-        'Canvas Course Builder: No cli/index.js in this workspace, so there is no course CLI to run. Open the course project folder itself.',
+        'Coursewright: No cli/index.js in this workspace, so there is no course CLI to run. Open the course project folder itself.',
       );
       resolve(false);
       return;
@@ -160,9 +160,7 @@ function execCli(args) {
           // (`if (!ok) return`) should stop rather than build on a result
           // nobody could read.
           try {
-            vscode.window.showErrorMessage(
-              `Canvas Course Builder: ${error.message}`,
-            );
+            vscode.window.showErrorMessage(`Coursewright: ${error.message}`);
           } catch {
             /* the host itself is unreachable; settling is what is left */
           }
@@ -184,7 +182,7 @@ function execCli(args) {
           .trim()
           .split('\n')[0];
         vscode.window
-          .showErrorMessage(`Canvas Course Builder: ${firstError}`, 'Show Log')
+          .showErrorMessage(`Coursewright: ${firstError}`, 'Show Log')
           .then((choice) => {
             if (choice === 'Show Log') outputChannel.show();
           });
@@ -202,7 +200,7 @@ function execCli(args) {
         if (warning) {
           vscode.window
             .showWarningMessage(
-              `Canvas Course Builder: ${warning.split('\n')[0]}`,
+              `Coursewright: ${warning.split('\n')[0]}`,
               'Show Log',
             )
             .then((choice) => {
@@ -212,7 +210,7 @@ function execCli(args) {
         const lastLine = stdout.trim().split('\n').filter(Boolean).pop();
         if (lastLine)
           vscode.window.setStatusBarMessage(
-            `Canvas Course Builder: ${lastLine.replace(/^\[[^\]]+\]\s*/, '')}`,
+            `Coursewright: ${lastLine.replace(/^\[[^\]]+\]\s*/, '')}`,
             5000,
           );
         courseTreeProvider.refresh();

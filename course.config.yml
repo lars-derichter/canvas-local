@@ -5,7 +5,7 @@
 # cover of a PDF or DOCX export of the whole course. Leave it out and it falls
 # back to the generic label for the language below ("Course", "Cursus"), so set
 # it to something of your own.
-title: Canvas Course Builder
+title: Coursewright
 
 # A one-line descriptor of the course: programme, year, semester. Optional.
 # Printed above the title on export covers.

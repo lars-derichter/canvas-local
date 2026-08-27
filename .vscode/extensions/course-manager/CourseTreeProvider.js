@@ -78,7 +78,7 @@ const UNREADABLE_BURST_MS = 50;
 
 /** Tell the author why a drop could not be handed to the CLI. */
 function refuseDrop(message) {
-  vscode.window.showInformationMessage(`Canvas Course Builder: ${message}`);
+  vscode.window.showInformationMessage(`Coursewright: ${message}`);
 }
 
 class CourseTreeProvider {
@@ -178,9 +178,7 @@ class CourseTreeProvider {
         others.size === 0
           ? ''
           : ` ${others.size} other folder${others.size === 1 ? '' : 's'} could not be read either.`;
-      vscode.window.showWarningMessage(
-        `Canvas Course Builder: ${first.message}${rest}`,
-      );
+      vscode.window.showWarningMessage(`Coursewright: ${first.message}${rest}`);
     }, UNREADABLE_BURST_MS);
     // A pending notification is not a reason to keep the host alive, and in a
     // test run it is not a reason to keep the process alive either.
@@ -705,7 +703,7 @@ class CourseTreeProvider {
     // position, so ignore rather than move it somewhere surprising.
     if (target.contextValue !== 'subheader' && target._subfolderName) {
       vscode.window.showInformationMessage(
-        'Canvas Course Builder: Drop a subsection onto a module or a top-level item.',
+        'Coursewright: Drop a subsection onto a module or a top-level item.',
       );
       return;
     }
@@ -763,7 +761,7 @@ class CourseTreeProvider {
   async _handleExternalFileDrop(target, uris, runCli) {
     if (!target) {
       vscode.window.showWarningMessage(
-        'Canvas Course Builder: Drop files onto a module or item.',
+        'Coursewright: Drop files onto a module or item.',
       );
       return;
     }
@@ -780,7 +778,7 @@ class CourseTreeProvider {
       subsection = target._subfolderName;
     } else {
       vscode.window.showWarningMessage(
-        'Canvas Course Builder: Drop files onto a module or item.',
+        'Coursewright: Drop files onto a module or item.',
       );
       return;
     }

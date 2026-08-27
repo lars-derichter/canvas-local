@@ -253,7 +253,7 @@ describe('VS Code extension: the tree, read', () => {
     assert.deepEqual(tree.getChildren(module), []);
     await burst();
     assert.equal(of('warning').length, 1);
-    assert.match(of('warning')[0].text, /Canvas Course Builder: /);
+    assert.match(of('warning')[0].text, /Coursewright: /);
     assert.match(of('warning')[0].text, /01-week-one/);
     assert.match(of('warning')[0].text, /EACCES/);
   });

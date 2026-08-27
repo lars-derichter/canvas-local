@@ -126,7 +126,7 @@ function registerExportCommands({ context, register, workspaceRoot }) {
       // now, so the entry is there by the time the author has finished editing.
       setTocReady(true);
       vscode.window.showInformationMessage(
-        'Canvas Course Builder: Delete the item lines you do not want, then run "Course: Export via TOC..." from the view menu.',
+        'Coursewright: Delete the item lines you do not want, then run "Course: Export via TOC..." from the view menu.',
       );
       return;
     }
@@ -155,7 +155,7 @@ function registerExportCommands({ context, register, workspaceRoot }) {
     if (!fs.existsSync(curatedTocPath(workspaceRoot))) {
       setTocReady(false);
       vscode.window.showErrorMessage(
-        'Canvas Course Builder: There is no exports/toc.md to export. Run "Course: Export Course to PDF/DOCX..." and pick the table-of-contents option to make one.',
+        'Coursewright: There is no exports/toc.md to export. Run "Course: Export Course to PDF/DOCX..." and pick the table-of-contents option to make one.',
       );
       return;
     }

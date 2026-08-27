@@ -1,8 +1,8 @@
 # Updating Your Project
 
-The original Canvas Course Builder project may receive bug fixes, new features,
-or improved documentation over time. This guide shows you how to pull those
-updates into your project.
+The original Coursewright project may receive bug fixes, new features, or
+improved documentation over time. This guide shows you how to pull those updates
+into your project.
 
 > [!TIP]
 >
@@ -11,11 +11,11 @@ updates into your project.
 
 ## One-Time Setup
 
-Add the original Canvas Course Builder project as a remote called `upstream`.
-You only need to do this once:
+Add the original Coursewright project as a remote called `upstream`. You only
+need to do this once:
 
 ```bash
-git remote add upstream https://github.com/lars-derichter/canvas-course-builder.git
+git remote add upstream https://github.com/lars-derichter/coursewright.git
 ```
 
 You can verify it was added:
@@ -397,7 +397,7 @@ If you prefer to run the steps yourself instead of using the script:
 4. **Commit** the result:
 
    ```bash
-   git commit -m "Import upstream updates from canvas-course-builder"
+   git commit -m "Import upstream updates from coursewright"
    ```
 
 5. **Tag** the merge point for future reference:

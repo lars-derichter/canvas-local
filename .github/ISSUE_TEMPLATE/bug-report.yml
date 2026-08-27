@@ -1,6 +1,5 @@
 name: Bug report
-description:
-  Something in the Canvas Course Builder tooling does not work as expected
+description: Something in the Coursewright tooling does not work as expected
 labels: ["bug"]
 body:
   - type: markdown
@@ -8,10 +7,10 @@ body:
       value: |
         Thanks for reporting this. Two things worth checking first:
 
-        - [Troubleshooting](https://github.com/lars-derichter/canvas-course-builder/blob/main/docs/troubleshooting.md)
+        - [Troubleshooting](https://github.com/lars-derichter/coursewright/blob/main/docs/troubleshooting.md)
           covers the most common push, pull, preview and AI-assistant problems.
         - If the problem is a security vulnerability, do not open an issue.
-          Follow the [security policy](https://github.com/lars-derichter/canvas-course-builder/blob/main/SECURITY.md)
+          Follow the [security policy](https://github.com/lars-derichter/coursewright/blob/main/SECURITY.md)
           instead.
 
         Not sure whether what you found is a bug? Report it anyway. It might
@@ -70,7 +69,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: Canvas Course Builder version
+      label: Coursewright version
       description:
         The `version` field in `package.json`, or the commit you are on (`git
         rev-parse --short HEAD`).

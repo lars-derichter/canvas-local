@@ -1,14 +1,14 @@
 ---
 slug: /
-title: Canvas Course Builder
+title: Coursewright
 sidebar_position: 0
 ---
 
 # Write Your Course in Markdown, Publish It to Canvas
 
-**Canvas Course Builder** moves your course out of the Canvas web editor and
-into plain files on your computer, with version control, search and replace,
-offline work, a local preview, and one command to publish.
+**Coursewright** moves your course out of the Canvas web editor and into plain
+files on your computer, with version control, search and replace, offline work,
+a local preview, and one command to publish.
 
 This site is the proof: it is a course built with the tool, previewed with the
 tool, and published straight from the repository.
@@ -27,8 +27,8 @@ another matter: no history, no search and replace across pages, no offline work,
 no way to review a change before students see it, and no way to reuse last
 year’s material without clicking through it all again.
 
-Canvas Course Builder treats your markdown as the source of truth and Canvas as
-a publishing target. You write in your own editor, review every change, and push
+Coursewright treats your markdown as the source of truth and Canvas as a
+publishing target. You write in your own editor, review every change, and push
 when you are ready.
 
 ## What You Get
@@ -62,11 +62,11 @@ that now than in week six.
 
 ## Start Here
 
-- **[Your First Course, Step by Step](https://github.com/lars-derichter/canvas-course-builder/blob/main/docs/first-course.md)**:
+- **[Your First Course, Step by Step](https://github.com/lars-derichter/coursewright/blob/main/docs/first-course.md)**:
   from nothing installed to a published Canvas module.
-- **[What It Does Not Do](https://github.com/lars-derichter/canvas-course-builder/blob/main/docs/limitations.md)**:
+- **[What It Does Not Do](https://github.com/lars-derichter/coursewright/blob/main/docs/limitations.md)**:
   read this before committing a semester to it.
-- **[The project on GitHub](https://github.com/lars-derichter/canvas-course-builder)**:
+- **[The project on GitHub](https://github.com/lars-derichter/coursewright)**:
   the code, the documentation, and the **Use this template** button.
 
 The tooling is MIT licensed; the example course content on this site is CC

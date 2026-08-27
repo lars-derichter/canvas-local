@@ -1779,7 +1779,7 @@ describe('helpers: previewPort', () => {
 });
 
 describe('helpers: previewTerminalEntry', () => {
-  const NAME = 'Canvas Course Builder: Preview';
+  const NAME = 'Coursewright: Preview';
   const terminal = (name) => ({ name });
 
   it('answers null when there is nothing open under that name', () => {
@@ -2320,7 +2320,7 @@ describe('helpers: curatedTocPath', () => {
 });
 
 describe('helpers: terminalNumber', () => {
-  const BASE = 'Canvas Course Builder';
+  const BASE = 'Coursewright';
 
   it('numbers the bare base name 1 and "<base> N" its N', () => {
     assert.equal(terminalNumber(BASE, BASE), 1);

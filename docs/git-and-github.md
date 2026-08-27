@@ -17,7 +17,7 @@ easy.
 
 **GitHub** is a website that hosts Git projects online. It lets you store a
 backup of your work in the cloud, collaborate with others, and easily get
-updates from the original Canvas Course Builder project.
+updates from the original Coursewright project.
 
 ## Creating a GitHub Account
 
@@ -92,10 +92,10 @@ sudo dnf install git
 
 ## Template Repositories
 
-Canvas Course Builder is a **template repository**: you create your own
-independent copy from it. Your project won't affect the original, and you can
-create as many copies as you need, one per course. Later you can still pull in
-improvements to the tooling without touching your content; see
+Coursewright is a **template repository**: you create your own independent copy
+from it. Your project won't affect the original, and you can create as many
+copies as you need, one per course. Later you can still pull in improvements to
+the tooling without touching your content; see
 [Updating your project](updating-your-project.md).
 
 [Your first course](first-course.md#5-create-your-course-project) walks through

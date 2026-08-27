@@ -1,8 +1,8 @@
 # Security Policy
 
-This policy covers the **Canvas Course Builder tooling** (the CLI, the libraries
-under `lib/`, the Docusaurus site, and the VS Code extension) as published at
-[lars-derichter/canvas-course-builder](https://github.com/lars-derichter/canvas-course-builder).
+This policy covers the **Coursewright tooling** (the CLI, the libraries under
+`lib/`, the Docusaurus site, and the VS Code extension) as published at
+[lars-derichter/coursewright](https://github.com/lars-derichter/coursewright).
 
 It does not cover the course material in a repository built from this template,
 and it does not cover your Canvas instance. Problems with Canvas itself belong
@@ -10,8 +10,8 @@ with Instructure or with your institution's IT department.
 
 ## Supported Versions
 
-Only the latest `main` is supported. Canvas Course Builder is a template you
-copy rather than a package you install, so fixes reach you through
+Only the latest `main` is supported. Coursewright is a template you copy rather
+than a package you install, so fixes reach you through
 `./update-from-upstream.sh` (see
 [Updating your project](docs/updating-your-project.md)) rather than through a
 patch release. There are no long-lived release branches and no backports.
@@ -21,10 +21,10 @@ patch release. There are no long-lived release branches and no backports.
 Please report privately, not in a public issue:
 
 1. Go to the
-   [Security tab](https://github.com/lars-derichter/canvas-course-builder/security)
-   of the project.
+   [Security tab](https://github.com/lars-derichter/coursewright/security) of
+   the project.
 2. Click **Report a vulnerability**, or use
-   [this direct link](https://github.com/lars-derichter/canvas-course-builder/security/advisories/new).
+   [this direct link](https://github.com/lars-derichter/coursewright/security/advisories/new).
 
 A useful report includes the version or commit you are on, what an attacker
 could do, and the smallest set of steps that shows the problem. Include the

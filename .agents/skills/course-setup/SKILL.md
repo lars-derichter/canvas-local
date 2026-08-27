@@ -1,6 +1,6 @@
 ---
 name: course-setup
-description: Turn a fresh copy of the Canvas Course Builder template into a real course (course.config.yml, the README, the course context and the writing style guide) by gathering the answers, running npx course setup, and writing the prose the command cannot. Phase A proposes every answer and stops for approval; Phase B applies them. Use for "set up the course", "set up this template", "make this template my course", "cursus opzetten", "dit template mijn cursus maken".
+description: Turn a fresh copy of the Coursewright template into a real course (course.config.yml, the README, the course context and the writing style guide) by gathering the answers, running npx course setup, and writing the prose the command cannot. Phase A proposes every answer and stops for approval; Phase B applies them. Use for "set up the course", "set up this template", "make this template my course", "cursus opzetten", "dit template mijn cursus maken".
 ---
 
 # Course Setup
@@ -22,11 +22,11 @@ confirmed and change only what the author asks for.
 1. **Read what is already set.** In order:
    - `course.config.yml`: `title`, `tagline`, `language`, `theme`,
      `export.style`. Anything other than the shipped defaults
-     (`title: Canvas Course Builder`, `language: en`, `theme: github`,
+     (`title: Coursewright`, `language: en`, `theme: github`,
      `export.style: generic`) is an answer the author already gave.
-   - `README.md`: if its H1 is still `# Canvas Course Builder`, it is the
-     tooling's README and needs replacing. Otherwise it is the author's, and the
-     course name, overview and module table in it are facts, not placeholders.
+   - `README.md`: if its H1 is still `# Coursewright`, it is the tooling's
+     README and needs replacing. Otherwise it is the author's, and the course
+     name, overview and module table in it are facts, not placeholders.
    - `context/course-context.md` and `context/writing-style.md`: whether each
      still holds shipped content or has been written in.
    - `course/`: which modules exist, and whether `01-getting-started/` is still

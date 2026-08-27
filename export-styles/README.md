@@ -23,7 +23,7 @@ overrides it.
 
 | Style         | Look                                                                                                                                                                                                                    |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `generic`     | The default. Helvetica/Arial, near-black headings, A4 with 2.5 cm margins, and a "Built with Canvas Course Builder" watermark on the cover. No bundled fonts.                                                           |
+| `generic`     | The default. Helvetica/Arial, near-black headings, A4 with 2.5 cm margins, and a "Built with Coursewright" watermark on the cover. No bundled fonts.                                                                    |
 | `thomas-more` | A worked example of full institutional branding: Century Gothic headings where the machine has that font, Nunito bundled as the fallback, orange and navy, and the Thomas More logo. Pair it with `theme: thomas-more`. |
 
 The Thomas More logo belongs to its owner, and the bundled Nunito ships under

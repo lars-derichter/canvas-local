@@ -10,7 +10,7 @@ Everyone taking part is expected to follow the
 If something isn't working as expected, open an issue on GitHub:
 
 1. Go to the **Issues** tab on
-   [the original Canvas Course Builder project page.](https://github.com/lars-derichter/canvas-course-builder)
+   [the original Coursewright project page.](https://github.com/lars-derichter/coursewright)
 2. Click **New issue**.
 3. Pick the form that fits (bug report, idea, or documentation problem) and fill
    it in. The forms ask for exactly what's listed below, so you don't have to
@@ -47,8 +47,7 @@ but describe:
 
 - **What you'd like**: the feature or change you have in mind
 - **Why it would help**: the use case or problem it solves
-- **How you use Canvas Course Builder today**: this helps prioritise what
-  matters most
+- **How you use Coursewright today**: this helps prioritise what matters most
 
 Check the [ideas list](roadmap.md) first: your idea may already be there.
 
@@ -56,9 +55,8 @@ Check the [ideas list](roadmap.md) first: your idea may already be there.
 
 If you'd like to contribute a fix or improvement yourself, follow these steps:
 
-1. **Fork** the original Canvas Course Builder project. On the project page,
-   click the **Fork** button in the top-right corner to create a copy under your
-   account.
+1. **Fork** the original Coursewright project. On the project page, click the
+   **Fork** button in the top-right corner to create a copy under your account.
 
 2. **Create a branch** for your change:
 

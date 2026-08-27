@@ -841,10 +841,10 @@ describe('VS Code extension: split at cursor, from the editor', () => {
       '/home/lars/project/sources/lessons/01-intro.md',
       '/home/lars/project/README.md',
       // The trap this clause exists to avoid: the project is called
-      // canvas-course-builder, so a plain `course` search matches every file
+      // coursewright, so a plain `course` search matches every file
       // in it. Separators on both sides are what make it a folder.
-      '/home/lars/canvas-course-builder/docs/vscode.md',
-      'C:\\Users\\lars\\canvas-course-builder\\docs\\vscode.md',
+      '/home/lars/coursewright/docs/vscode.md',
+      'C:\\Users\\lars\\coursewright\\docs\\vscode.md',
       '/home/lars/project/coursework/notes.md',
     ]) {
       assert.ok(!matches.test(outside), `${outside} should not offer it`);
@@ -1678,7 +1678,7 @@ describe('VS Code extension: workspace validation', () => {
     // Init writes .env and .canvas-sync.json and never touches course/, so
     // "Run Course: Init first" pointed at the one command that could not help.
     const warning = allSource.match(
-      /'(Canvas Course Builder: No course\/ directory found[^']*)'/,
+      /'(Coursewright: No course\/ directory found[^']*)'/,
     );
     assert.ok(warning, 'the missing-course/ warning should exist');
     assert.match(warning[1], /Course: Setup \(First-Run Wizard\)/);

@@ -11,8 +11,8 @@ it makes the experience a lot smoother.
 
 ## Why VS Code?
 
-VS Code is a great match for Canvas Course Builder because it brings together
-everything you need in one window:
+VS Code is a great match for Coursewright because it brings together everything
+you need in one window:
 
 - **Markdown support**: syntax highlighting, live preview, and formatting
   shortcuts for the markdown files you write your course in
@@ -41,13 +41,13 @@ It is free, open-source, and runs on Windows, macOS, and Linux.
      distribution, or install the `.deb` or `.rpm` package directly.
 
 3. Open VS Code and use **File > Open Folder** (or **Cmd+O** / **Ctrl+K
-   Ctrl+O**) to open your `canvas-course-builder` project folder.
+   Ctrl+O**) to open your `coursewright` project folder.
 
 > [!TIP]
 >
 > If you installed VS Code with the PATH option (Windows) or ran **Shell
 > Command: Install 'code' command in PATH** from the command palette (macOS),
-> you can open your project from the terminal: `code canvas-course-builder`
+> you can open your project from the terminal: `code coursewright`
 
 ## Installing the Course Manager Extension
 
@@ -120,8 +120,8 @@ through normal VS Code dialogs, and the command runs quietly in the background:
 no terminal pops up. When it finishes, its last line of output appears in the
 status bar for a few seconds and the tree refreshes itself. If something goes
 wrong you get an error notification with a **Show Log** button, which opens the
-full output in the **Canvas Course Builder** output channel (View > Output). A
-command that worked but still has something to tell you (a delete that stranded
+full output in the **Coursewright** output channel (View > Output). A command
+that worked but still has something to tell you (a delete that stranded
 something on Canvas, say) shows a warning with the same button, so read those.
 
 The export and Canvas actions do open a terminal, so you can watch the output
@@ -229,15 +229,15 @@ those.
 Everything the extension does goes through the same `npx course` CLI you use in
 the terminal, so renumbering and Canvas sync state behave exactly the same
 either way. The commands whose output is a report to read run in a shared
-**Canvas Course Builder** terminal: setup, init, sync, push, pull, status,
-validate, the dry runs, search, push module, the four Canvas actions on a module
-row, and every export. The one exception is the table-of-contents option in
-**Course: Export Course to PDF/DOCX...**: it writes the list quietly and opens
-it for you to edit, and the export itself runs in the terminal once you choose
-**Course: Export via TOC...**. Management commands (new, rename, move, delete,
-merge, split) run silently in the background instead, and report through the
-status bar, a notification when there is something you have to act on, and the
-output channel.
+**Coursewright** terminal: setup, init, sync, push, pull, status, validate, the
+dry runs, search, push module, the four Canvas actions on a module row, and
+every export. The one exception is the table-of-contents option in **Course:
+Export Course to PDF/DOCX...**: it writes the list quietly and opens it for you
+to edit, and the export itself runs in the terminal once you choose **Course:
+Export via TOC...**. Management commands (new, rename, move, delete, merge,
+split) run silently in the background instead, and report through the status
+bar, a notification when there is something you have to act on, and the output
+channel.
 
 If you start a second background command while one is still running, it waits
 its turn: they run one at a time, so two of them can never renumber the same

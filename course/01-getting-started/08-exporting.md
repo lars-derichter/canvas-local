@@ -7,9 +7,9 @@ export: true
 # Exporting to PDF or Word
 
 Sometimes you need your course materials on paper or as a file you can hand out:
-an exam, a handout, or something to read offline. Canvas Course Builder can turn
-any page, a whole module, or your entire course into a polished PDF or an
-editable Word document.
+an exam, a handout, or something to read offline. Coursewright can turn any
+page, a whole module, or your entire course into a polished PDF or an editable
+Word document.
 
 This is optional. If you only ever publish to Canvas, you can skip it.
 
@@ -104,8 +104,8 @@ With the Course Manager sidebar you do not have to type anything:
   the whole course: everything, only the flagged pages, or a curated table of
   contents.
 
-You choose PDF or Word each time. Export runs in the Canvas Course Builder
-terminal so you can follow its progress.
+You choose PDF or Word each time. Export runs in the Coursewright terminal so
+you can follow its progress.
 
 ## Where Your Files Go
 

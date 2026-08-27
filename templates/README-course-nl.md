@@ -11,7 +11,7 @@
 
 Cursusmateriaal voor **Naam van de cursus**, geschreven in markdown en
 gesynchroniseerd met Canvas LMS via
-[Canvas Course Builder](https://github.com/lars-derichter/canvas-course-builder).
+[Coursewright](https://github.com/lars-derichter/coursewright).
 
 ## Overzicht
 
@@ -35,8 +35,8 @@ Deze cursus behandelt ...
 Het cursusmateriaal in `course/` valt onder
 [CC BY-NC-SA 4.0](course/LICENSE.md), tenzij anders vermeld.
 
-De Canvas Course Builder-tooling valt onder de [MIT-licentie](LICENSE); laat dat
-bestand en deze regel staan.
+De Coursewright-tooling valt onder de [MIT-licentie](LICENSE); laat dat bestand
+en deze regel staan.
 
 ## Nuttige links
 

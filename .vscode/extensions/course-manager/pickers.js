@@ -48,7 +48,7 @@ async function pickModuleFolder(placeHolder, { preselect = true } = {}) {
   const folders = listModuleFolders();
   if (folders.length === 0) {
     vscode.window.showErrorMessage(
-      'Canvas Course Builder: No modules found in course/.',
+      'Coursewright: No modules found in course/.',
     );
     return null;
   }
@@ -102,9 +102,7 @@ async function pickItemPath(placeHolder, { preselect = true } = {}) {
 
   const entries = listEntries(moduleDir);
   if (entries.length === 0) {
-    vscode.window.showErrorMessage(
-      'Canvas Course Builder: No items in this module.',
-    );
+    vscode.window.showErrorMessage('Coursewright: No items in this module.');
     return null;
   }
   const items = promoteActive(

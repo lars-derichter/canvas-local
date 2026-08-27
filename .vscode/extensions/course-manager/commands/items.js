@@ -198,7 +198,7 @@ function registerItemCommands({ register, workspaceRoot }) {
     mergeSource = treeItem;
     vscode.commands.executeCommand('setContext', 'course.mergeSourceSet', true);
     vscode.window.showInformationMessage(
-      `Canvas Course Builder: Merge source set to "${path.basename(treeItem.filePath)}". Now right-click the target item.`,
+      `Coursewright: Merge source set to "${path.basename(treeItem.filePath)}". Now right-click the target item.`,
     );
   });
 
@@ -260,7 +260,7 @@ function registerItemCommands({ register, workspaceRoot }) {
     const editor = vscode.window.activeTextEditor;
     if (!editor || !editor.document.fileName.endsWith('.md')) {
       vscode.window.showErrorMessage(
-        'Canvas Course Builder: Open a markdown file and place the cursor on the split line.',
+        'Coursewright: Open a markdown file and place the cursor on the split line.',
       );
       return;
     }

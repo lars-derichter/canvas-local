@@ -15,7 +15,7 @@ const {
  * from — so no handler anywhere can quote for a shell of its own choosing.
  */
 
-const TERMINAL_BASE_NAME = 'Canvas Course Builder';
+const TERMINAL_BASE_NAME = 'Coursewright';
 
 // The terminals this extension streams commands into, most recently used
 // last. `busy` means a sendText now would land inside whatever runs there:
@@ -104,7 +104,7 @@ function runInTerminal(build) {
         ? ' (that terminal was open before this window, so its shell is a guess)'
         : '';
     vscode.window.showErrorMessage(
-      `Canvas Course Builder: ${error.message}${guessed}. Nothing was run.`,
+      `Coursewright: ${error.message}${guessed}. Nothing was run.`,
     );
     return;
   }
@@ -143,7 +143,7 @@ function initTerminals({ context, workspaceRoot: root }) {
   // --- Terminal pool bookkeeping ---
 
   // Adopt pool-named terminals that survived a window reload, so a fresh
-  // window does not stack a second "Canvas Course Builder" beside the old
+  // window does not stack a second "Coursewright" beside the old
   // one. Their state is unknowable, and unknowable means busy: each rejoins
   // the pool when shell integration activates in it, when it reports a
   // command ending, or by closing. Which shell they run is unknowable too, so

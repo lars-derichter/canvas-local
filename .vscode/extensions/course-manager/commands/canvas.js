@@ -18,7 +18,7 @@ function registerCanvasCommands({ register, workspaceRoot }) {
 
     if (!apiUrl || !courseId) {
       vscode.window.showWarningMessage(
-        'Canvas Course Builder: No Canvas API configuration found. Run "Course: Init (Canvas Setup)" first.',
+        'Coursewright: No Canvas API configuration found. Run "Course: Init (Canvas Setup)" first.',
       );
       return;
     }
@@ -54,7 +54,7 @@ function registerCanvasCommands({ register, workspaceRoot }) {
     const canvasId = getCanvasId(workspaceRoot, treeItem.filePath);
     if (!canvasId) {
       vscode.window.showInformationMessage(
-        'Canvas Course Builder: This item has not been pushed to Canvas yet.',
+        'Coursewright: This item has not been pushed to Canvas yet.',
       );
       return;
     }

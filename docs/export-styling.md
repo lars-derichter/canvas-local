@@ -43,11 +43,11 @@ export:
   owns everything about layout. `generic` is the default: Helvetica/Arial,
   near-black headings, A4 with 2.5 cm margins, headings auto-numbered `1.` /
   `1.1.`, every H1 on a new page, a muted centred page number, and a cover
-  carrying a "Built with Canvas Course Builder" watermark. `thomas-more` ships
-  alongside it as a worked example of institutional branding: Century Gothic
-  headings where the machine has that font, Nunito bundled as the fallback, and
-  the institution's logo. The logo belongs to its owner and Nunito ships under
-  the SIL Open Font License (see [THIRD-PARTY.md](../THIRD-PARTY.md)).
+  carrying a "Built with Coursewright" watermark. `thomas-more` ships alongside
+  it as a worked example of institutional branding: Century Gothic headings
+  where the machine has that font, Nunito bundled as the fallback, and the
+  institution's logo. The logo belongs to its owner and Nunito ships under the
+  SIL Open Font License (see [THIRD-PARTY.md](../THIRD-PARTY.md)).
 - The **theme** is a CSS file in [`src/css/themes/`](../src/css/themes/) and
   owns colour. The exporter parses it and passes every colour to Typst as a
   pandoc variable, so the PDF, the preview site, Canvas pages and the alert
