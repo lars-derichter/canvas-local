@@ -5,6 +5,10 @@ locally while you write. Publishing that same site on **GitHub Pages** is one
 repository setting and gives your students a stable, free URL for the materials,
 whether or not the course uses Canvas at all.
 
+Coursewright's own site, [coursewright.md](https://coursewright.md/), is the
+project repository's `course/` folder published exactly this way, custom domain
+included.
+
 The website only contains your `course/` folder. The `evaluations/` and
 `sources/` folders are never built into the site, so your exam materials stay
 out of the public version even though they live in the same repository.

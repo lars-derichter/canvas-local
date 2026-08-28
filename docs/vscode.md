@@ -37,7 +37,7 @@ When there is nothing to show, the panel carries a short welcome instead of a
 blank page. With no folder open it points at **File > Open Folder**; in a
 project with no modules yet (no `course/`, or a `course/` whose tutorial module
 was removed at setup) it offers **Course: Setup (First-Run Wizard)** as a button
-and links the tutorial module in the upstream repository.
+and links the built-in tutorial module, live and in the upstream repository.
 
 ### Tree Structure
 

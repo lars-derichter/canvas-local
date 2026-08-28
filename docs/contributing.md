@@ -189,7 +189,7 @@ a compiler.
 
 `course/` and `evaluations/` follow the guide in full, in its **student-facing**
 register: warm, direct, second person, CEFR B2, with the page-title emoji and
-callouts it defines for course pages. The getting-started module ships as a
+callouts it defines for course pages. The built-in tutorial module ships as a
 course, it is what a new user reads first, and it doubles as the end-to-end
 acceptance test for Canvas sync, so it has to keep exercising every content type
 a repository can create on its own: pages, an assignment, a discussion, an

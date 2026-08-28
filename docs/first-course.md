@@ -2,10 +2,10 @@
 
 This guide takes you from a computer with nothing installed to a published
 course module: on a course website, as a PDF or Word handout, or in Canvas. You
-choose the route in the final step, and the built-in module you preview along
-the way is a working example of everything the tool can publish. It assumes no
-experience with VS Code, the command line, or git. Every command is one you copy
-and paste.
+choose the route in the final step, and the built-in tutorial module you preview
+along the way is a working example of every content type a course can create on
+its own. It assumes no experience with VS Code, the command line, or git. Every
+command is one you copy and paste.
 
 Set aside about an hour for the first run. You do most of it once and never
 again.
@@ -164,9 +164,13 @@ module. Leave it running. It updates as you write.
 > **Ctrl+C** to stop it, or open a second terminal for other commands with the
 > **+** button at the top right of the terminal panel.
 
-Read the Getting Started module in the preview. It teaches markdown, the folder
-layout, and the daily commands, and every page in it survives the trip to each
-of the publish routes in step 11.
+Read the built-in tutorial module in the preview: the **Getting Started** module
+in the sidebar. It teaches markdown, the folder layout, and the daily commands,
+and every page in it survives the trip to each of the publish routes in step 11.
+The same module is live at [coursewright.md](https://coursewright.md/), so you
+can compare what you see with the published version. It continues from the
+Course Manager panel you install in step 9: every step in it is a click there,
+with the terminal command named alongside.
 
 ## 8. Make It Your Course
 
@@ -209,7 +213,9 @@ it.
 If this step fails with a message about `code` not being found, go back to step
 1 and install the shell command.
 
-[VS Code integration](vscode.md) is the full reference for the panel.
+[VS Code integration](vscode.md) is the full reference for the panel. The
+built-in tutorial module picks up from here: it walks the rest of the workflow
+from this panel, naming the terminal command for each step alongside.
 
 ## 10. Write Something
 

@@ -38,6 +38,8 @@ line in place.
 
 ## Useful Links
 
+- [The built-in tutorial module](https://coursewright.md/): the sidebar-first
+  walkthrough of the tool, kept readable there after you remove your copy
 - [Your first course](docs/first-course.md): the step-by-step beginner
   walkthrough
 - [User guide](docs/user-guide.md): full Coursewright documentation

@@ -39,6 +39,9 @@ en deze regel staan.
 
 ## Nuttige links
 
+- [De ingebouwde tutorialmodule](https://coursewright.md/): de rondleiding door
+  de tool vanuit de zijbalk, ook leesbaar nadat je je eigen kopie verwijderd
+  hebt
 - [Je eerste cursus](docs/first-course.md): de stap-voor-stap handleiding voor
   wie hier nieuw is
 - [Gebruikersgids](docs/user-guide.md): de volledige Coursewright-documentatie

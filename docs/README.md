@@ -2,13 +2,19 @@
 
 All guides for Coursewright. New here? Start with
 [your first course](first-course.md): it walks the whole path from an empty
-computer to a published course, and the built-in module you preview along the
-way is a working example of everything the tool can publish.
+computer to a published course, and the
+[built-in tutorial module](https://coursewright.md/getting-started/how-this-works/)
+you preview along the way (source:
+[`course/01-getting-started/`](../course/01-getting-started/)) is a guided walk
+through the sidebar and the three publish routes, and a working example of every
+content type.
 
 ## Getting Started
 
 - [Your first course, step by step](first-course.md): the beginner tutorial,
   assuming no VS Code, terminal, or git experience
+- [The built-in tutorial module](https://coursewright.md/getting-started/how-this-works/):
+  the tool's own course, walking the whole workflow from the sidebar
 - [User guide](user-guide.md): course structure and every daily command
 - [Git and GitHub basics](git-and-github.md): what they are and the commands you
   need

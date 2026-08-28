@@ -55,7 +55,7 @@
       },
       {
         "view": "courseTree",
-        "contents": "No course modules found.\nRun the first-run wizard to set up the course name, language and look, then add your first module.\n[Course: Setup (First-Run Wizard)](command:course.setup)\nThe [tutorial module](https://github.com/lars-derichter/coursewright/tree/main/course/01-getting-started) walks through the whole workflow.",
+        "contents": "No course modules found.\nRun the first-run wizard to set up the course name, language and look, then add your first module.\n[Course: Setup (First-Run Wizard)](command:course.setup)\nThe [tutorial module](https://github.com/lars-derichter/coursewright/tree/main/course/01-getting-started) walks through the whole workflow. Read it live at [coursewright.md](https://coursewright.md/).",
         "when": "workbenchState != empty"
       }
     ],

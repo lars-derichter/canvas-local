@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- **The built-in tutorial module is a guided walk now, sidebar first.** It used
+  to tour the tooling feature by feature; it now goes through the work in the
+  order the work happens, with every step shown in the VS Code Course Manager
+  panel and the terminal command named alongside, so nobody has to type to
+  follow along. The pages are ordered by what they depend on: VS Code before
+  writing, git before publishing. Publishing is a section of its own that takes
+  the three routes in turn, the course website, the PDF or Word handout, and
+  Canvas, and the workflow diagram draws all three instead of Canvas alone.
+  Every page ends with a Try It. A discussion item joins the module, so it now
+  exercises every content type a fresh course can create on its own. The module
+  is also published: the tool's own site, https://coursewright.md/, is that
+  module, and the README, the guides, the setup wizard and the extension's
+  welcome view all link it now. A dozen factual corrections came out of the
+  rewrite. See
+  [The built-in tutorial module](docs/customisation.md#the-built-in-tutorial-module).
 - **The design tokens are now `--cw-*`.** The theme CSS custom properties, the
   pandoc variables the Typst templates read, the deploy workflow's
   `CW_SITE_URL`/`CW_BASE_URL`, and the smoke test's `CW_VSCODE_*` switches all

@@ -278,11 +278,14 @@ The licences follow the tooling/content split:
 
 ## The Built-In Tutorial Module
 
-`course/01-getting-started/` is two things at once: a friendly walkthrough of
-the project (markdown, alerts, course structure, syncing, exporting, working
-with an AI assistant) and a worked example of every content type the tooling
-supports, which makes it the handiest reference while you build your first
-module.
+`course/01-getting-started/` is two things at once. It is a guided walk through
+the project, sidebar first: markdown, alerts, course structure, git, the three
+publish routes and working with an AI assistant, with every step taken in the VS
+Code Course Manager panel and the terminal command named alongside. And it is a
+working example of every content type a course can create on its own, which
+makes it the handiest reference while you build your first module. It is also
+the tool's own site: [coursewright.md](https://coursewright.md/) is this
+repository's `course/` folder published as a website.
 
 It is also a real module in `course/`, which means `npx course push` publishes
 it to your students along with everything else.
@@ -294,7 +297,7 @@ it to your students along with everything else.
 > module list.
 
 `npx course setup` offers to delete it. Deleting is safe: the module stays
-readable in the
+readable at [coursewright.md](https://coursewright.md/), and in the
 [upstream repository](https://github.com/lars-derichter/coursewright/tree/main/course/01-getting-started),
 so you can consult it, or copy it back, long after your own course has replaced
 it. To keep it locally without publishing it, rename the folder with a leading

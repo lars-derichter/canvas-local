@@ -49,9 +49,10 @@ only what the author asks for.
      publishes its `course/` as the project site), so a course that keeps it
      markets the tooling to its own students.
    - Whether to remove `course/01-getting-started/`. Say what it is (a
-     walkthrough of the project and a worked example of every content type) and
-     that it publishes to students on the first `npx course push` if it stays.
-     Mention it remains readable in the upstream repository afterwards.
+     walkthrough of the project and a worked example of every content type a
+     course can create on its own) and that it publishes to students on the
+     first `npx course push` if it stays. Mention it remains readable at
+     https://coursewright.md/ and in the upstream repository afterwards.
 
 3. **Propose every answer and the exact command.** List the answers as a table,
    marking each as taken from the repo or from the interview, then show the

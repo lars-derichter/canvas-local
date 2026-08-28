@@ -10,7 +10,7 @@ Use standard relative markdown links to reference other course pages:
 
 ```md
 [Alerts](02-alerts.md)
-[Folder Layout](../04-organising-your-course/01-folder-layout.md)
+[Folder Layout](../05-organising-your-course/01-folder-layout.md)
 [Section heading](../02-other-module/01-page.md#section)
 ```
 

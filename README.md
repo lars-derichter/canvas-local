@@ -29,7 +29,9 @@ default your own conventions override. The reasoning is in
   ([Docusaurus](https://docusaurus.io/)) shows your course as you write, in the
   same structure students will see. One GitHub setting
   [publishes it](docs/hosting.md) as a public course website, and any static
-  host can serve the same build.
+  host can serve the same build. The tool's own site,
+  [coursewright.md](https://coursewright.md/), is the built-in tutorial module
+  published this way.
 - **PDF and DOCX export.** Hand out a styled course text or a single chapter,
   with your institution's branding. See [exporting](docs/exporting.md).
 - **One-command Canvas sync.** `npx course sync` reconciles modules, pages,
@@ -96,7 +98,7 @@ The short version, if you have done this sort of thing before:
 
 1. Click **Use this template** on GitHub and create your course repository.
 2. Clone it, install Node.js 24+, run `npm install`, and preview the built-in
-   getting-started course with `npm start`.
+   tutorial module with `npm start`.
 3. Make it your course with `npx course setup`: it asks for the language, the
    name and the look, and puts the matching templates in place (see
    [customisation](docs/customisation.md)).
@@ -113,8 +115,12 @@ The short version, if you have done this sort of thing before:
 
 The [docs folder](docs/README.md) has the full map. Start with:
 
-- [Your first course](docs/first-course.md): the complete beginner tutorial, and
-  a demo of everything the tool can publish
+- [The built-in tutorial module](https://coursewright.md/): the tool's own
+  course, a guided walk through the sidebar and the three publish routes, and a
+  live example of every content type; source in
+  [`course/01-getting-started/`](course/01-getting-started/)
+- [Your first course](docs/first-course.md): the complete beginner walkthrough,
+  from installing nothing to a published module
 - [User guide](docs/user-guide.md): course structure and every daily command
 - [Markdown guide](docs/markdown.md): supported syntax, links, and alerts
 - [Hosting](docs/hosting.md): the course website on GitHub Pages

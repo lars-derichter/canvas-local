@@ -56,6 +56,9 @@ const TOOLING_INDEX_HEADING = 'Write Your Course in Markdown';
 const TUTORIAL_UPSTREAM_URL =
   'https://github.com/lars-derichter/coursewright/tree/main/course/01-getting-started';
 
+/** The live copy of that module: the upstream project's own site. */
+const TUTORIAL_SITE_URL = 'https://coursewright.md/';
+
 /** Label-set languages, from lib/config/labels.js. */
 const LANGUAGES = [
   { id: 'en', label: 'English' },
@@ -627,9 +630,12 @@ async function setup(options = {}) {
         log.info(
           '\n[setup] course/01-getting-started/ is the built-in tutorial module: a' +
             '\n[setup] friendly walkthrough of the project, and a worked example of every' +
-            '\n[setup] content type. It is part of your course folder, so `npx course push`' +
-            '\n[setup] would publish it to your students. Deleting it locally costs nothing —' +
-            `\n[setup] it stays readable at\n[setup]   ${TUTORIAL_UPSTREAM_URL}`,
+            '\n[setup] content type a course can create on its own. It is part of your' +
+            '\n[setup] course folder, so `npx course push` would publish it to your' +
+            '\n[setup] students. Deleting it locally costs nothing: it stays readable at' +
+            `\n[setup]   ${TUTORIAL_SITE_URL}` +
+            '\n[setup] and in the upstream repository at' +
+            `\n[setup]   ${TUTORIAL_UPSTREAM_URL}`,
         );
         removeTutorial = await confirm(
           rl,
