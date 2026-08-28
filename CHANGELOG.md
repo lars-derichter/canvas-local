@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **The tutorial module ships as its own PDF and Word document.** It used to
+  demonstrate the export route with a synthetic handout that had nothing to do
+  with the course around it, and only in PDF, so the Word route had no result to
+  show at all. Both documents now sit in a **Download This Course** subsection
+  at the end of the module, exported from the module itself, so what you
+  download is what you just read. The artificial HTML starter went with them: a
+  five-line skeleton page that taught nothing about file items the Workflow
+  Diagram does not already teach. `docs/contributing.md` carries the rule for
+  regenerating the two documents after a tutorial edit, since nothing in CI
+  notices when they go stale.
 - **The beginner guides lead with the VS Code panel now.** The tutorial module
   was rewritten sidebar-first and the guides were not, so a reader following
   `docs/` and a reader following the module were handed two different tools.
