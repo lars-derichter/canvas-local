@@ -211,7 +211,7 @@ From the terminal, you can also restore a specific file from a previous commit:
 git log --oneline
 
 # Restore a file from a specific commit
-git checkout abc1234 -- course/01-getting-started/01-markdown-basics.md
+git checkout abc1234 -- course/01-getting-started/03-writing-your-pages/01-markdown-basics.md
 ```
 
 Replace `abc1234` with the commit hash from `git log`. After restoring, stage

@@ -60,12 +60,14 @@ Items inside a subsection appear indented under the SubHeader in Canvas.
 
 > [!TIP]
 >
-> Every subfolder needs a `_category_.json` file with at least a `label` and
-> `position` field, just like module folders.
+> A subfolder can carry a `_category_.json` file too, exactly like a module
+> folder. It is optional in both places.
 
 ## The `_category_.json` File
 
-This file controls how a folder appears in the Docusaurus sidebar:
+You only need this file when the folder name is not the title you want. Without
+one, the title comes from the folder name, with the number stripped and the
+hyphens turned into spaces.
 
 ```json
 {
@@ -74,5 +76,14 @@ This file controls how a folder appears in the Docusaurus sidebar:
 }
 ```
 
-- **label**: the display name in the sidebar
-- **position**: sort order, matching the numeric folder prefix
+- **label**: the title of the module or subsection, on Canvas, in the preview
+  and in an export
+- **position**: sort order in the preview website, which is the only place that
+  reads it. Canvas and the PDF or Word export take their order from the numeric
+  prefix.
+
+The preview prefers `position` over the prefix, so the two have to agree. The
+CLI keeps them in step for you: `new-module` writes the position it just used,
+and every command that renumbers folders updates it as well. If you edit the
+file by hand, change the number to match the new prefix, or your preview will
+list things in one order and Canvas and your export in another.

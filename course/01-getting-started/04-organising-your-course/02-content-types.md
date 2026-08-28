@@ -127,6 +127,20 @@ course/01-module/
   05-workflow-diagram.md   -> File: "Workflow Diagram"
 ```
 
+There is a shorter way, and the tooling uses it itself. Drop the binary straight
+into the module or subsection folder with a numeric prefix in front of its name,
+no wrapper and no `_files/`, and it is a file item as it stands. That is what
+`npx course new-item --type file` does, and what happens when you drag a file
+from Finder or Explorer onto the VS Code tree.
+
+Canvas and the PDF or Word export take both shapes. The preview website only
+shows the wrapper, because it builds its pages from `.md` files, and a bare
+binary has nowhere to carry a `title:` or an `export: true`. Use the wrapper
+when the file has to appear on the website, and the bare file when it does not.
+The
+[frontmatter reference](https://github.com/lars-derichter/coursewright/blob/main/docs/frontmatter.md#file-item)
+covers both.
+
 This module contains three live examples: the
 [Workflow Diagram](../02-workflow-diagram.md) (SVG), the
 [Example PDF](../09-example-pdf.md), and the

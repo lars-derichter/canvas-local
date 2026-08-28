@@ -115,9 +115,14 @@ of copying and pasting manually:
 npx course merge-items
 ```
 
-Pick a **source** and a **target** item. The source content is appended to the
-target, and the source file is removed. Remaining items are renumbered
-automatically.
+You pick the **target** first, the item that keeps its frontmatter and receives
+the content, and then the **source**. The source content is appended to the
+target and the source file is deleted from your folder. Remaining items are
+renumbered automatically.
+
+The Canvas page behind the source is left alone. Until you remove it with
+`npx course push --prune-canvas`, every sync report lists it as orphaned on
+Canvas.
 
 ### Splitting an Item
 
@@ -128,9 +133,10 @@ up:
 npx course split-item
 ```
 
-Choose the file, the line number where you want to split, and a title for the
-new item. The command creates a new file from that point onward and trims the
-original.
+Choose the file. The command tells you how many body lines it has, counted from
+the first line after the frontmatter, and asks which line to split after. Then
+give the new item a title. Everything below that line moves into the new file,
+and the original is trimmed.
 
 > [!TIP]
 >

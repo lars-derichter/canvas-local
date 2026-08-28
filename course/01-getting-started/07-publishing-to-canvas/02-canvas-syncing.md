@@ -220,10 +220,12 @@ These flags work with any command:
 
 The sync process is designed to be resilient:
 
-- **Automatic retries**: a call that comes back rate-limited (429) or with a
-  server error (5xx) is retried up to 3 times on top of the first attempt, with
-  a longer wait each time, so a failing request is made 4 times before it gives
-  up.
+- **Automatic retries**: a call Canvas turns down because you are going too
+  fast, or that fails on Canvas's side, is tried again, with a longer wait each
+  time. One case is deliberately left out: a call that creates something and
+  comes back with a server error. Canvas may have made the object before the
+  error reached you, so sending it again could leave you with two. That one is
+  reported instead of repeated.
 - **Partial failures**: If one item fails, the rest of the module continues. A
   summary of errors is shown at the end.
 

@@ -56,9 +56,13 @@ Lecturers and teaching teams who maintain course material in Canvas and want the
 comfort of files, folders, and version control. You do not need to be technical:
 the beginner walkthrough starts from a computer with nothing installed.
 
-It is also opinionated, and honest about it: four Canvas content types sync,
-quizzes are import-only, and the folder layout is a contract. Better to know
-that now than in week six.
+It is also opinionated, and honest about it. Every Canvas item type crosses, but
+not all of them in the same way: pages, assignments, discussions and files live
+in your own files and are rebuilt from them, while a quiz or an external tool
+syncs only as a reference to something that stays in Canvas. Quiz questions
+never cross at all. And the folder layout is a contract: one folder per module,
+one level of nesting, numbered prefixes. Better to know that now than in week
+six.
 
 ## Start Here
 

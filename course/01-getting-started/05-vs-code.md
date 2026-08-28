@@ -97,9 +97,10 @@ Right-click a module or an item in the sidebar to see context actions:
 - **Course: Move Item to Module**: move an item to another module or one of its
   subsections; works for subsections too (they always land in the module root,
   because subsections are never nested)
-- **Merge items**: first right-click an item and choose **Merge: Set as
-  Source**, then right-click the target item and choose **Merge with Source**. A
-  dialog names both files and reminds you that the source is deleted.
+- **Merge items**: on page and assignment rows only. Right-click one and choose
+  **Merge: Set as Source**, then right-click the target and choose **Merge with
+  Source**. A dialog names both files and reminds you that the source is
+  deleted.
 - **Course: Export Item to PDF/DOCX...**: export the selected item or items
   (multi-select combines them into one document), or a whole module via
   **Course: Export Module to PDF/DOCX...**
@@ -136,7 +137,9 @@ The fastest way to reorganise is dragging things around the tree:
   module or subsection to move it there
 - **Move subsections**: drag a subsection onto another module
 - **Add files**: drag files straight from Finder or Explorer onto a module, a
-  subsection, or an item to add them as file items at that spot
+  subsection, or an item to add them as file items. They land at the end of that
+  module or subsection, not at the exact spot you dropped them, so move them
+  afterwards if the order matters
 - **Move a whole group**: select several rows (Ctrl/Cmd-click or Shift-click)
   and drag them together onto a module, a subsection, or an item
 
