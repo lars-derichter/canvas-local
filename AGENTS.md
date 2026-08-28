@@ -63,6 +63,14 @@ Before handing code back, run `npm run lint` (ESLint; defects only) and
 `npm run format` (Prettier; formatting). Both are checked in CI. Do not hand-
 format code or hand-wrap markdown prose. Prettier owns both.
 
+After changing markdown, also run `npm run lint:links`
+([lychee](https://lychee.cli.rs/), `brew install lychee`). It resolves every
+relative link and heading anchor in `README.md`, `docs/`, `course/`, `context/`
+and the skills. Nothing else does: `onBrokenLinks: 'throw'` only covers what
+Docusaurus builds, and its docs plugin is scoped to `course/`, so a stale
+`user-guide.md#canvas-sync` fails no build. It is not in CI, so it is on you.
+`templates/` is deliberately excluded, and `lychee.toml` says why.
+
 Item commands auto-detect the current module when run from inside a module
 folder.
 

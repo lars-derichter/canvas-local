@@ -1,0 +1,27 @@
+# Link checking for the markdown in this repository, run by `npm run lint:links`.
+#
+# This exists because nothing else checks these links. `onBrokenLinks: 'throw'`
+# in docusaurus.config.js only covers what Docusaurus builds, and the docs
+# plugin is scoped to `path: 'course'`, so every relative link and heading
+# anchor under docs/ was unverified until this file. The docs cross-link each
+# other heavily and several pages are linked by anchor, which is exactly the
+# kind of thing that rots silently.
+#
+# `templates/` is deliberately not checked: those files are copied elsewhere by
+# `npx course setup` (the README templates to the repository root, the
+# writing-style and course-context ones to context/, the index ones to course/),
+# so their relative links are written for the destination rather than for where
+# the file sits. They also cross-link each other, which is only correct while
+# they are still in templates/. No single base directory satisfies both, so
+# check those by hand when you touch them.
+
+# Local files only. Checking the external links too is a separate, slower run
+# with its own failure mode (rate limits, sites that block CI), so it is not
+# part of the check that gates a commit.
+offline = true
+
+# The point of the exercise. Without this, `user-guide.md#canvas-sync` passes as
+# long as the file exists, whatever happened to the heading.
+include_fragments = "full"
+
+no_progress = true

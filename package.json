@@ -42,6 +42,7 @@
     "test:vscode": "npm run vscode:package && node test/vscode/host/run.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "lint:links": "lychee README.md AGENTS.md CHANGELOG.md \"docs/**/*.md\" \"course/**/*.md\" \"context/*.md\" \".agents/skills/**/*.md\"",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "vscode:install": "npm run vscode:package && code --install-extension .vscode/extensions/course-manager/coursewright.vsix"

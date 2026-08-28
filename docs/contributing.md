@@ -78,12 +78,19 @@ If you'd like to contribute a fix or improvement yourself, follow these steps:
    the test setup and how to write new tests):
 
    ```bash
-   npm start        # check the Docusaurus preview
-   npm run build    # verify the production build succeeds
-   npm test         # run the automated tests
-   npm run lint     # report code defects
-   npm run format   # apply Prettier
+   npm start          # check the Docusaurus preview
+   npm run build      # verify the production build succeeds
+   npm test           # run the automated tests
+   npm run lint       # report code defects
+   npm run format     # apply Prettier
+   npm run lint:links # check documentation links and anchors
    ```
+
+   `npm run lint:links` needs [lychee](https://lychee.cli.rs/)
+   (`brew install lychee`, or a binary from its releases page) and is the only
+   check that covers links under `docs/`: the Docusaurus build only validates
+   what it builds, and its docs plugin is scoped to `course/`. Skip it if you
+   changed no markdown.
 
 5. **Push** your branch to your fork:
 
