@@ -7,8 +7,8 @@ canvas_type: page
 
 Alerts are coloured callout boxes that help important information stand out on
 the page. They are a great way to highlight tips, warnings, or key details for
-your students. This project supports six types of alerts, and they work in both
-the local preview and on Canvas.
+your students. This project supports six types of alerts, and they work in every
+output.
 
 ## Syntax
 
@@ -59,5 +59,14 @@ the text on the following line(s):
 - Pick the type that matches the intent, not the colour you prefer.
 - Keep the text inside concise. If it needs multiple paragraphs, consider making
   it regular content instead.
-- Alerts are converted to styled HTML when pushed to Canvas, with icons hosted
-  on your Canvas instance.
+- The same alert renders on the website, in a PDF or Word export, and on Canvas,
+  where the icons are uploaded to your Canvas instance on the first push.
+
+## Try It
+
+Add a `[!TIP]` of your own to this page, anywhere you like, and save.
+
+> [!CHECK]
+>
+> It shows as a coloured box, with the title the language in `course.config.yml`
+> gives it.

@@ -5,263 +5,146 @@ canvas_type: page
 
 # VS Code
 
-Visual Studio Code (VS Code) is a free code editor that works beautifully with
-this project. You do not need it (any text editor and a terminal will do), but
-it makes the experience a lot smoother.
-
-## Why VS Code?
-
-VS Code is a great match for Coursewright because it brings together everything
-you need in one window:
-
-- **Markdown support**: syntax highlighting, live preview, and formatting
-  shortcuts for the markdown files you write your course in
-- **Built-in terminal**: run CLI commands like `npx course push` without leaving
-  the editor
-- **Git integration**: the Source Control panel lets you stage, commit, and push
-  changes visually (see [Git Workflow](07-git-workflow.md) for a walkthrough)
-- **Course Manager extension**: this project includes a custom VS Code extension
-  that puts the course commands in the command palette, and the everyday ones in
-  a sidebar, so you can manage your course without typing commands at all
-
-It is free, open-source, and runs on Windows, macOS, and Linux.
+Visual Studio Code is the free editor this module assumes, and it runs on
+Windows, macOS and Linux. The Course Manager extension that ships with this
+project puts your course in its sidebar, so every step from here on is a click,
+with the terminal there for anyone who would rather type.
 
 ## Installing VS Code
 
-1. Go to [code.visualstudio.com](https://code.visualstudio.com/) and download
-   the installer for your operating system.
+Download it from [code.visualstudio.com](https://code.visualstudio.com/) and
+install it with the defaults. On macOS there is one extra step worth doing while
+you are there: step 1 of the
+[first-course guide](https://github.com/lars-derichter/coursewright/blob/main/docs/first-course.md#1-install-vs-code)
+adds the `code` shell command, which the extension install below needs.
 
-2. Install it:
+Then use **File > Open Folder** and pick your project folder itself, not a
+folder above it.
 
-   - **Windows**: run the downloaded installer and follow the prompts. Check the
-     option to add VS Code to your PATH if offered.
-   - **macOS**: open the downloaded `.zip` file and drag **Visual Studio Code**
-     into your **Applications** folder.
-   - **Linux**: follow the instructions on the download page for your
-     distribution, or install the `.deb` or `.rpm` package directly.
+## Installing the Extension
 
-3. Open VS Code and use **File > Open Folder** (or **Cmd+O** / **Ctrl+K
-   Ctrl+O**) to open your `coursewright` project folder.
-
-> [!TIP]
->
-> If you installed VS Code with the PATH option (Windows) or ran **Shell
-> Command: Install 'code' command in PATH** from the command palette (macOS),
-> you can open your project from the terminal: `code coursewright`
-
-## Installing the Course Manager Extension
-
-From the project root, run:
+Open VS Code’s terminal with **Ctrl+`** and run:
 
 ```bash
 npm run vscode:install
 ```
 
-You only need to do this once (or again after the extension is updated).
+Then run **Developer: Reload Window** from the command palette. Do both again
+whenever the extension is updated. This is the one command everybody types; the
+rest of this page is buttons.
 
-## The Course Manager Sidebar
+## The Course Manager Panel
 
-After installing the extension, you will see a **Course Manager** panel in the
-VS Code activity bar (the book icon). It shows a tree view of all your modules
-and items, complete with icons for each content type. Item labels come from the
-frontmatter `title` (the same name Canvas and Docusaurus show), and clicking an
-item opens the file in the editor.
+Click the book icon in the activity bar, down the left edge of the window. The
+panel shows your course as a tree: modules, the subsections inside them, and the
+items inside those, each with an icon for its type. Labels come from the `title`
+in each file’s frontmatter, so the tree, the website and Canvas all say the same
+thing. Click a row and the file opens in the editor.
 
-The tree updates itself whenever you add, rename, or delete files, so you rarely
-need to touch the refresh button in its title bar. It is there for the times a
-change slips past the watcher. The title bar also carries a **Collapse All**
-button for when the tree has grown long.
+The tree keeps itself up to date as files change. **Course: Refresh Tree** is
+there for the odd miss. Before you have any modules at all, the panel shows a
+short welcome instead, with a button that starts the setup wizard.
 
-Before you have any modules, the panel shows a short welcome instead of an empty
-box: a button that starts the setup wizard, and a link to this tutorial module.
-With no folder open at all, it points you at **File > Open Folder** first.
+### The Title Bar
 
-### Inline Actions
+Four buttons sit at the top of the panel:
 
-Hover over a module or item in the sidebar for quick-action buttons:
+- **Course: New Module**: add a module, asking for a name and a position.
+- **Course: Search...**: find a word or phrase across your course files.
+- **Course: Preview**: open the course website in your browser.
+- **Course: Refresh Tree**: rebuild the tree by hand.
 
-- **Push This Module to Canvas** (cloud icon): push just that module to Canvas.
-  Module rows only, because a module is the smallest thing a push can send.
-- **Open in Canvas** (link icon): open that module or item on Canvas in your
-  browser. A module row lands on the course's modules page, scrolled to that
-  module. An item you have not pushed yet has nothing to open, so the extension
-  tells you that instead.
+The `…` dropdown beside them holds the whole-course commands: **Course: Sync
+with Canvas**, **Course: Push to Canvas**, **Course: Pull from Canvas**,
+**Course: Status**, **Course: Validate** and **Course: Export Course to
+PDF/DOCX...**. **Course: Export via TOC...** joins them once you have a table of
+contents to render. The pages that follow explain what each one does.
 
-### Right-Click Menu
+### Hover Buttons
 
-Right-click a module or an item in the sidebar to see context actions:
+Hover a module row and two small buttons appear: **Push This Module to Canvas**
+(the cloud) and **Open in Canvas** (the link). Item rows carry the link button
+only. An item you have not pushed yet has nothing to open, and the extension
+says so rather than guessing.
 
-- **Course: New Item**, **Course: Rename Item**, **Course: Move Item**,
-  **Course: Delete Item**, and the same four for modules: the management
-  commands, without typing
-- **Course: Move Item to Module**: move an item to another module or one of its
-  subsections; works for subsections too (they always land in the module root,
-  because subsections are never nested)
-- **Merge items**: on page and assignment rows only. Right-click one and choose
-  **Merge: Set as Source**, then right-click the target and choose **Merge with
-  Source**. A dialog names both files and reminds you that the source is
-  deleted.
-- **Course: Export Item to PDF/DOCX...**: export the selected item or items
-  (multi-select combines them into one document), or a whole module via
-  **Course: Export Module to PDF/DOCX...**
-- **Sync This Module with Canvas**, **Push This Module to Canvas**, **Pull This
-  Module from Canvas** and **Status of This Module**: run one of the four Canvas
-  commands on the module you clicked instead of on the whole course. Module rows
-  only. These open the shared terminal, so you can read the report and answer
-  the questions the command asks there, such as which side wins when you and
-  Canvas both reordered the same module.
+### Right-Click
 
-**Course: Split Item at Cursor** is not on this menu. It works on the file open
-in the editor and the position of your cursor, neither of which a right-click on
-the tree tells it, so it lives in the editor's own right-click menu (on any
-markdown file inside `course/`) and in the command palette.
+Right-click a row for the commands that act on it.
 
-For the management commands, names, positions, and confirmations are collected
-through normal VS Code dialogs, and the command runs quietly in the background:
-no terminal pops up. When it finishes, its last line of output appears in the
-status bar for a few seconds and the tree refreshes itself. If something goes
-wrong you get an error notification with a **Show Log** button, which opens the
-full output in the **Coursewright** output channel (View > Output). A command
-that worked but still has something to tell you (a delete that stranded
-something on Canvas, say) shows a warning with the same button, so read those.
+- **Creating:** **Course: New Item** on a module or a subsection, **Course: New
+  Module** on a module.
+- **Editing:** **Course: Rename Item**, **Course: Move Item** and **Course: Move
+  Item to Module**, plus **Merge: Set as Source** and **Merge with Source** on
+  page and assignment rows. Modules have **Course: Rename Module** and **Course:
+  Move Module**.
+- **Removing:** **Course: Delete Item** and **Course: Delete Module**, each
+  behind a confirmation.
+- **Exporting:** **Course: Export Item to PDF/DOCX...**, and **Course: Export
+  Module to PDF/DOCX...** on a module row.
+- **Canvas:** **Sync This Module with Canvas**, **Push This Module to Canvas**,
+  **Pull This Module from Canvas** and **Status of This Module**, module rows
+  only.
 
-The export and Canvas actions do open a terminal, so you can watch the output
-and answer whatever the CLI asks.
+[Managing Modules and Items](06-managing-modules-and-items.md) walks through the
+tasks themselves. This is only the map.
 
 ### Drag and Drop
 
-The fastest way to reorganise is dragging things around the tree:
+Drag an item within its module to reorder it, or onto another module or
+subsection to move it there. Subsections travel the same way, and a module
+dropped onto another module changes position. Select several rows first and the
+whole selection moves together, though a selection mixing modules with items is
+refused with a message saying why. Files dragged in from Finder or Explorer
+become file items, appended at the end of whatever you dropped them on.
 
-- **Reorder modules**: drag a module onto another module
-- **Move items**: drag an item within its module to reorder it, or onto another
-  module or subsection to move it there
-- **Move subsections**: drag a subsection onto another module
-- **Add files**: drag files straight from Finder or Explorer onto a module, a
-  subsection, or an item to add them as file items. They land at the end of that
-  module or subsection, not at the exact spot you dropped them, so move them
-  afterwards if the order matters
-- **Move a whole group**: select several rows (Ctrl/Cmd-click or Shift-click)
-  and drag them together onto a module, a subsection, or an item
+### The Command Palette
 
-Renumbering and Canvas sync state are handled automatically, exactly as if you
-had run the CLI commands yourself. A drag the CLI cannot express, such as
-modules and items mixed in one selection, is refused with a message that says
-why, rather than half-done.
-
-## Title Bar Buttons
-
-Four buttons sit at the top of the sidebar: **Course: New Module** (asks for a
-name and adds the module at the end), **Course: Search...** (find a word or
-phrase across your course files), **Course: Preview** (starts the Docusaurus dev
-server if it is not already running and opens the course in your browser), and
-**Course: Refresh Tree**. The dropdown menu next to them gives quick access to
-sync and export commands:
-
-- **Course: Preview**: the same command as the button
-- **Course: Sync with Canvas**: sync both ways in one run
-- **Course: Push to Canvas**: push all modules
-- **Course: Pull from Canvas**: pull content from Canvas
-- **Course: Status**: see what a sync would do, without changing anything
-- **Course: Validate**: check your content for errors before pushing
-- **Course: Export Course to PDF/DOCX...**: export the full course, only flagged
-  items, or a curated selection via a table of contents
-- **Course: Export via TOC...**: appears once you have generated a table of
-  contents and edited it down to what you want
-
-> [!TIP]
->
-> The preview runs on port 3000. If something else on your machine already uses
-> that port, set **Course Manager: Preview Port** in VS Code's settings (search
-> for `courseManager.previewPort`). The next preview picks it up.
-
-## Command Palette
-
-Open the command palette with **Cmd+Shift+P** (macOS) or **Ctrl+Shift+P**
-(Windows/Linux) and type **“Course:”** to filter it down to the course commands:
-
-| Command                              | What it does                                           |
-| ------------------------------------ | ------------------------------------------------------ |
-| Course: Setup (First-Run Wizard)     | Name, language, look, templates, Canvas                |
-| Course: Init (Canvas Setup)          | Configure Canvas API credentials                       |
-| Course: Sync with Canvas             | Sync both ways in one run                              |
-| Course: Sync with Canvas (Dry Run)   | Preview a sync without writing anything                |
-| Course: Push to Canvas               | Push all modules                                       |
-| Course: Push to Canvas (Dry Run)     | Preview push without making changes                    |
-| Course: Push Module to Canvas...     | Push a single module                                   |
-| Course: Pull from Canvas             | Pull content from Canvas                               |
-| Course: Pull from Canvas (Dry Run)   | Preview a pull without changing your files             |
-| Course: Status                       | Show what a sync would do, without writing anything    |
-| Course: Validate                     | Check content for errors                               |
-| Course: Search...                    | Find a word or phrase across files                     |
-| Course: New Module                   | Create a new module                                    |
-| Course: Move Module                  | Reorder a module                                       |
-| Course: Rename Module                | Rename a module                                        |
-| Course: Delete Module                | Delete a module                                        |
-| Course: New Item                     | Create a new item                                      |
-| Course: Move Item                    | Reorder an item                                        |
-| Course: Move Item to Module          | Move an item to another module                         |
-| Course: Rename Item                  | Rename an item                                         |
-| Course: Delete Item                  | Delete an item                                         |
-| Course: Merge Items                  | Combine two items into one                             |
-| Course: Split Item at Cursor         | Split the active file at the cursor                    |
-| Course: Export Item to PDF/DOCX...   | Export one item, or several combined into one document |
-| Course: Export Module to PDF/DOCX... | Export a whole module                                  |
-| Course: Export Course to PDF/DOCX... | Export the course, flagged items, or a TOC selection   |
-| Course: Export via TOC...            | Render the curated `exports/toc.md`                    |
-| Course: Preview                      | Start the dev server and open the course               |
-| Course: Refresh Tree                 | Rebuild the sidebar tree by hand                       |
+Press **Cmd+Shift+P** (macOS) or **Ctrl+Shift+P** (Windows, Linux) and type
+**“Course:”** to filter the list down to these commands. A few live here and
+nowhere else: **Course: Setup (First-Run Wizard)**, **Course: Init (Canvas
+Setup)**, the three dry runs, **Course: Push Module to Canvas...**, and
+**Course: Split Item at Cursor**, which is also in the editor’s own right-click
+menu. With a file from a module open, the palette offers that module first.
 
 > [!WARNING]
 >
-> Three more commands live in the palette and nowhere else: **Course: Build
-> Glossary**, **Course: Reset Sync State (Destructive)** and **Course: Reset
-> Canvas (Deletes ALL Canvas Content)**. They are deliberately kept out of the
-> sidebar, so that no stray click can start one. Both resets ask you to confirm
-> in the terminal first, and Reset Canvas empties your Canvas course. Read
-> `docs/backups.md` and `docs/advanced-commands.md` (in your project folder,
-> also readable on GitHub) before you use them.
+> Three more are palette-only on purpose, so that no stray click in the tree can
+> start one: **Course: Build Glossary**, **Course: Reset Sync State
+> (Destructive)** and **Course: Reset Canvas (Deletes ALL Canvas Content)**.
+> Both resets ask you to confirm in the terminal, and Reset Canvas empties your
+> Canvas course. Read the
+> [backups guide](https://github.com/lars-derichter/coursewright/blob/main/docs/backups.md)
+> and the
+> [advanced commands guide](https://github.com/lars-derichter/coursewright/blob/main/docs/advanced-commands.md)
+> before you touch either.
 
-Some tree actions need a selected row to work on, so the palette does not list
-them: **Push This Module to Canvas**, **Open in Canvas**, **Sync This Module
-with Canvas**, **Pull This Module from Canvas**, **Status of This Module**, and
-the two halves of the merge. Use the hover buttons and the right-click menu for
-those.
+## Where the Output Goes
 
-## How It Works
+The management commands (new, rename, move, delete, merge, split) run quietly in
+the background, one at a time. A spinner appears in the status bar, the last
+line of output lands beside it when the command finishes, and anything that went
+wrong raises a notification with a **Show Log** button that opens the
+**Coursewright** output channel.
 
-Everything the extension does goes through the same `npx course` CLI you use in
-the terminal, so renumbering and Canvas sync state behave exactly the same
-either way. The commands whose output is a report to read run in a shared
-**Coursewright** terminal: setup, init, sync, push, pull, status, validate, the
-dry runs, search, push module, the four Canvas actions on a module row, and
-every export. The one exception is the table-of-contents option in **Course:
-Export Course to PDF/DOCX...**: it writes the list quietly and opens it for you
-to edit, and the export itself runs in the terminal once you choose **Course:
-Export via TOC...**. Management commands (new, rename, move, delete, merge,
-split) run silently in the background instead, and report through the status
-bar, a notification when there is something you have to act on, and the output
-channel.
+Everything else opens the shared **Coursewright** terminal: setup, init, sync,
+push, pull, status, validate, search, the dry runs and every export. That is
+where you read the report and answer the questions the CLI asks. Preview keeps a
+terminal of its own and runs on port 3000, which you can change with the
+`courseManager.previewPort` setting.
 
-If you start a second background command while one is still running, it waits
-its turn: they run one at a time, so two of them can never renumber the same
-folder at once. A single spinner in the status bar shows when something is
-running or queued.
-
-> [!TIP]
+> [!NOTE]
 >
-> If you have a file open inside a module folder, the palette commands already
-> know where you are: whenever one asks for a module or an item, that file's
-> module (or the file itself) sits at the top of the list, marked as current.
-> Press Enter to confirm it, or pick any other entry as usual.
+> Every command and every setting in full is in the
+> [VS Code guide](https://github.com/lars-derichter/coursewright/blob/main/docs/vscode.md).
 
-## Updating
+## Try It
 
-If the extension is updated (for example, after pulling new changes), reinstall
-it:
+1. Open the Course Manager panel and click any page to open it in the editor.
+2. Hover the **Getting Started** module row and find the two buttons that
+   appear.
+3. Press **Course: Preview** in the panel’s title bar.
 
-```bash
-npm run vscode:install
-```
-
-Then reload VS Code (or run **Developer: Reload Window** from the command
-palette) to pick up the new version.
+> [!CHECK]
+>
+> A browser tab opens on this course, and the terminal panel shows the dev
+> server running.

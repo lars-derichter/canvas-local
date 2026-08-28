@@ -99,11 +99,23 @@ students have submitted to.
 
 ## Two Habits Worth Forming
 
-- **`npx course push --dry-run` first.** It reports what would happen and
-  changes nothing. Read it. Then run the real push.
-- **`npx course validate` when something feels off.** It catches broken internal
-  links, images and downloads that are not where a page says they are,
-  frontmatter that will not parse, and items missing a field their type needs,
-  while all of that is still cheap to fix.
+- **Course: Push to Canvas (Dry Run)**, from the command palette, before every
+  real push. It reports what would happen and changes nothing. Read it, then run
+  the real push. (Terminal: `npx course push --dry-run`.)
+- **Course: Validate**, in the panel’s `…` dropdown, whenever something feels
+  off. It catches broken internal links, images and downloads that are not where
+  a page says they are, frontmatter that will not parse, and items missing a
+  field their type needs, while all of that is still cheap to fix. (Terminal:
+  `npx course validate`.)
 
-With that out of the way, on to [Canvas Syncing](./06-canvas-syncing.md).
+## Try It
+
+1. Take the backup above, or ask your institution for a sandbox course.
+2. Open the `…` dropdown in the Course Manager title bar and choose **Course:
+   Validate**.
+
+> [!CHECK]
+>
+> The terminal reports nothing to fix, or names exactly what to fix. Either way
+> you now know what you are about to push, so on to
+> [Canvas Syncing](./06-canvas-syncing.md).

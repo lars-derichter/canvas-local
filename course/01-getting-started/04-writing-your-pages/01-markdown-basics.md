@@ -46,8 +46,9 @@ Link to external resources with `[text](url)`:
 ### Internal Links
 
 You can link to other course pages using relative paths. These links work in
-both the Docusaurus preview and Canvas: during push, they are automatically
-converted to Canvas internal URLs.
+every output: in the preview and on the published website, in a PDF or Word
+export (where they become cross-references inside the document), and on Canvas,
+where a push converts them to Canvas internal URLs.
 
 - Same folder: `[Alerts](02-alerts.md)`
 - Subfolder: `[Folder Layout](../05-organising-your-course/01-folder-layout.md)`
@@ -72,8 +73,9 @@ Here is an embedded example:
 
 ![Example image](../_files/example-image.svg)
 
-During push, images are automatically uploaded to Canvas and their paths are
-rewritten to Canvas file URLs. During pull, they are downloaded back.
+Images travel with the page in every output. An export embeds them in the
+document, and a push uploads them to Canvas and rewrites the paths to Canvas
+file URLs. A pull downloads them back.
 
 ## Linking to Files
 
@@ -85,7 +87,8 @@ templates, or starter files students should download:
 ```
 
 Like images, linked files are uploaded to Canvas during push and the link is
-rewritten to the Canvas file URL. Try it:
+rewritten to the Canvas file URL. A PDF or Word export leaves the link as you
+wrote it, since a document on paper has nowhere to put a download. Try it:
 [example document](../_files/example-document.docx).
 
 One special case: in the local preview, a link to an `.html` file opens that
@@ -99,7 +102,8 @@ file. Internal links to course pages must always use the `.md` path, never
 > [!NOTE]
 >
 > To make a file its own entry in the module list, instead of a link inside a
-> page, use a file item. See
+> page, use a file item. [HTML Starter](04-html-starter.md), next door in this
+> subsection, is one: a wrapper around an `.html` file. See
 > [Content Types](../05-organising-your-course/02-content-types.md).
 
 ## Code Blocks
@@ -141,5 +145,15 @@ Three dashes create a horizontal rule:
 
 ---
 
-That covers the essentials. For a complete reference, see the GitHub Markdown
-Guide linked in this module.
+That covers the essentials. For a complete reference, see the
+[GitHub Markdown Guide](03-github-markdown-guide.md).
+
+## Try It
+
+Click **Markdown Basics** in the tree to open this file, then add something of
+your own: a row to the table under Tables, or a code block in a language you
+teach. Save it. This is your copy of the module, so nothing here is precious.
+
+> [!CHECK]
+>
+> The preview shows what you added, in the right place on the page.

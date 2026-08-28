@@ -5,9 +5,9 @@ canvas_type: page
 
 # Folder Layout
 
-All your course content lives in the `course/` folder. The way you organise
-files and folders here directly controls how content appears in both the local
-preview and on Canvas, with no configuration needed.
+All your course content lives in the `course/` folder. How you organise files
+and folders here decides where everything appears in every output, with no
+configuration at all.
 
 ## Module Folders
 
@@ -38,7 +38,7 @@ course/01-getting-started/
 ```
 
 The same numbering convention applies: prefix controls order, and is stripped
-from the title. A `title:` field in the file's frontmatter overrides the derived
+from the title. A `title:` field in the file’s frontmatter overrides the derived
 one.
 
 ## Subsections (Subfolders)
@@ -56,18 +56,11 @@ course/01-getting-started/
   03-summary.md
 ```
 
-Items inside a subsection appear indented under the SubHeader in Canvas.
-
-> [!TIP]
->
-> A subfolder can carry a `_category_.json` file too, exactly like a module
-> folder. It is optional in both places.
+Items inside a subsection appear indented under the SubHeader in Canvas. A
+subfolder can carry a `_category_.json` file of its own, exactly like a module
+folder, and it is optional in both places.
 
 ## The `_category_.json` File
-
-You only need this file when the folder name is not the title you want. Without
-one, the title comes from the folder name, with the number stripped and the
-hyphens turned into spaces.
 
 ```json
 {
@@ -76,14 +69,33 @@ hyphens turned into spaces.
 }
 ```
 
-- **label**: the title of the module or subsection, on Canvas, in the preview
-  and in an export
-- **position**: sort order in the preview website, which is the only place that
-  reads it. Canvas and the PDF or Word export take their order from the numeric
-  prefix.
+Optional, and only needed when the folder name is not the title you want:
+`label` is that title, on Canvas, in the preview and in an export. The website
+also reads `position` and prefers it over the numeric prefix, so keep the two in
+step if you edit by hand. Every command that renumbers folders already does.
 
-The preview prefers `position` over the prefix, so the two have to agree. The
-CLI keeps them in step for you: `new-module` writes the position it just used,
-and every command that renumbers folders updates it as well. If you edit the
-file by hand, change the number to match the new prefix, or your preview will
-list things in one order and Canvas and your export in another.
+## Files That Start With an Underscore
+
+A file or folder whose name starts with `_` is never an item. `_files/` holds
+the images and downloads a module embeds, `_category_.json` names a folder
+without becoming a page, and a page called `_draft.md` stays out of every output
+until you drop the underscore.
+
+## Try It
+
+This one carries on over the next two pages, so leave what you make in place.
+
+1. Right-click the **Getting Started** module in the tree and choose **Course:
+   New Item**. Pick **page**, call it `Scratch`, and put it last.
+2. Watch it appear in the tree and in the sidebar of the preview.
+3. In VS Code’s Explorer, rename the file to `_99-scratch.md`. Then rename it
+   back.
+
+> [!TIP]
+>
+> **Terminal:** `npx course new-item` asks the same questions.
+
+> [!CHECK]
+>
+> The page disappears from the tree and the sidebar under its underscore name,
+> and comes back without restarting anything.

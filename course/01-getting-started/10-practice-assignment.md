@@ -24,13 +24,12 @@ yourself.
 
 ## Instructions
 
-1. **Create a new page** in this module. You can use the terminal:
+1. Right-click the **Getting Started** module in the Course Manager panel and
+   choose **Course: New Item**.
 
-   ```bash
-   npx course new-item
-   ```
-
-   Or right-click this module in the VS Code sidebar and choose **New Item**.
+   > [!TIP]
+   >
+   > **Terminal:** `npx course new-item`.
 
 2. Choose **page** as the item type and give it a name.
 
@@ -41,14 +40,16 @@ yourself.
    - A list (numbered or bulleted)
    - One alert (e.g. `> [!TIP]`)
 
-4. **Preview your page** locally by running `npm start` or clicking the Preview
-   button in the VS Code sidebar. Check that everything looks the way you want.
+4. Press **Course: Preview** in the panel’s title bar and check the page in your
+   browser (terminal: `npm start`).
 
-5. When you are happy with it, **push your changes** to Canvas:
+5. Publish the page by the route you chose:
 
-   ```bash
-   npx course push --module 01-getting-started
-   ```
+   - **The website:** commit and push from the Source Control panel with **Sync
+     Changes**.
+   - **A handout:** right-click the module and choose **Course: Export Module to
+     PDF/DOCX...**.
+   - **Canvas:** hover the module row and click **Push This Module to Canvas**.
 
 > [!TIP]
 >
@@ -59,5 +60,5 @@ yourself.
 
 ## Submission
 
-Paste the title of the page you created and briefly describe which formatting
-features you used.
+Paste the title of the page you created, describe which formatting features you
+used, and name the route you published by.

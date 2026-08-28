@@ -30,6 +30,27 @@ follows instructions written for exactly that job. For example:
 Skills are plain markdown files in the `.agents/skills/` folder, so you can read
 what each one does and adjust it to fit how you work.
 
+## Goals First
+
+The lesson and evaluation skills work backwards, the way course design does:
+what students should be able to do at the end (the learning goals), then how you
+will know they can (the assessment), and only then what gets them there (the
+lessons). They read all of it from one file, `context/course-context.md`, which
+`/course-context-init` fills in with you: subject, goals, assessment, pedagogy
+and the conventions your modules follow, written down once instead of
+re-explained every time you ask for something.
+
+Nothing forces you to fill it in; the skills ask rather than refuse. But a
+course whose goals are written down is one where they stop guessing, and it is
+what lets `/coverage-map` tell you which goals are taught but never tested. From
+there the chain runs: `/lesson-design` for the plan, `/lesson-summarize` for a
+one-page class version, `/lesson-module-build` for the finished student pages,
+and `/lesson-retro` afterwards to fold what happened back in. The reasoning is
+in the
+[didactic foundations](https://github.com/lars-derichter/coursewright/blob/main/docs/didactics.md),
+and the practical tour in the
+[lesson workflow](https://github.com/lars-derichter/coursewright/blob/main/docs/lesson-workflow.md).
+
 ## What You Can Do With It
 
 Beyond everyday help (“draft a page about X”, “move these three items to another
@@ -40,10 +61,6 @@ course authoring. The main families:
   `/writing-style-update` folds in new preferences, and `/proofread` checks a
   page against it. `/translate` puts a page or a pasted passage into another
   language without it sounding translated.
-- **Lessons**: `/lesson-design` helps you plan a lesson, `/lesson-summarize`
-  makes a one-page class version, and `/lesson-module-build` turns the plan into
-  finished student pages. After teaching, `/lesson-retro` debriefs the lesson
-  and folds your notes back in.
 - **Evaluation**: `/evaluation-design` blueprints an exam, `/quiz-build` turns a
   question list into a Canvas quiz, and `/rubric-build` writes a grading rubric.
 - **Quality**: `/consistency-check` sweeps the whole course for dead links and
@@ -51,7 +68,11 @@ course authoring. The main families:
   `/image-todos` lists the artwork you still owe.
 - **Export styling**: `/export-style-init` derives a PDF or Word style from a
   reference document, and `/export-style-update` tweaks it in plain language
-  (see [Exporting to PDF or Word](08-publishing/03-pdf-and-word.md)).
+  (see [A PDF or Word Handout](08-publishing/03-pdf-and-word.md)).
+- **Project and housekeeping**: `/course-setup` walks you through the first-run
+  setup, `/course-context-init` and `/course-context-update` keep the course
+  context current, `/issue-report` and `/issue-fix` run a small issue queue in
+  `sources/issues.md`, and `/commit` writes a git commit.
 
 You do not have to memorise these. Type `/` in Claude Code (or ask any assistant
 what skills it sees) to get the list, or just describe what you want and let it
@@ -62,7 +83,9 @@ suggest the right one.
 1. Pick a tool and open your project folder with it: Claude Code
    ([claude.ai/code](https://claude.ai/code)), OpenAI Codex
    ([developers.openai.com/codex](https://developers.openai.com/codex)), or
-   another agentic tool. Most work in the terminal and as a VS Code extension.
+   another agentic tool. Claude Code and Codex both run in the terminal and as a
+   VS Code extension, so the assistant sits right beside the Course Manager
+   panel.
 2. Ask for something in plain language, or name a skill like `/proofread`.
 3. Review what it proposes before it acts. The skills that make bigger changes
    stop and show you a plan first.
@@ -82,8 +105,20 @@ The skills follow the open Agent Skills format, plain markdown files: if your
 assistant does not support skills, you can still open a skill file and paste its
 instructions, or simply describe the task yourself.
 
+## Try It
+
+Open your project in the assistant of your choice and run
+`/proofread course/01-getting-started/09-working-with-ai.md`, which is this
+page.
+
+> [!CHECK]
+>
+> It reports its findings in three buckets, worst first, and changes nothing
+> until you tell it to.
+
 > [!NOTE]
 >
-> For the full list of skills and what each one does, see the AI assistants
-> guide (`docs/ai-assistants.md`) and the lesson workflow guide
-> (`docs/lesson-workflow.md`) in your project folder, also readable on GitHub.
+> For the full list of skills and what each one does, see the
+> [AI assistants guide](https://github.com/lars-derichter/coursewright/blob/main/docs/ai-assistants.md)
+> and the
+> [lesson workflow guide](https://github.com/lars-derichter/coursewright/blob/main/docs/lesson-workflow.md).

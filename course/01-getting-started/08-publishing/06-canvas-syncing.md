@@ -5,74 +5,42 @@ canvas_type: page
 
 # Canvas Syncing
 
-Once your content is ready, you can push it to Canvas, pull existing Canvas
-content into your local project, or do both in one run with `npx course sync`.
-The CLI handles all the API communication, content conversion, and state
-tracking for you.
+Push your content to Canvas, pull edits back into your files, or do both in one
+run. The Course Manager panel runs those same commands, and the report lands in
+the Coursewright terminal, where you read it and answer what the CLI asks.
 
-## Initial Setup
+## Connecting to Canvas
 
-Before syncing, you need to configure your Canvas credentials:
-
-```bash
-npx course init
-```
-
-This interactive command asks for your Canvas instance URL, an API access token,
-and the course ID. It stores these in a `.env` file. The Canvas setup guide
-(`docs/canvas-setup.md` in your project folder, also readable on GitHub)
-explains where to find these values.
+**Course: Init (Canvas Setup)** in the command palette asks for your Canvas web
+address, an API access token and the course ID, and stores the three in `.env`.
+The
+[Canvas setup guide](https://github.com/lars-derichter/coursewright/blob/main/docs/canvas-setup.md)
+shows where to find each. Terminal: `npx course init`.
 
 > [!IMPORTANT]
 >
-> Keep your `.env` file secure. It contains your Canvas API token, which grants
-> full access to your Canvas account. Never commit it to version control.
+> Keep `.env` secure. It holds your Canvas API token, which grants full access
+> to your Canvas account. Never commit it to version control.
 
-## Reviewing Changes Before You Push
+## Seeing What Would Change
 
-Before pushing, it is a good idea to check what has changed:
+**Course: Status** in the `…` dropdown reads your files and your Canvas course,
+compares each against the last sync, and prints what a sync would do, writing
+nothing to either side. **Status of This Module** on a module’s right-click menu
+does one module. Status reads the live course, so it needs your credentials and
+a connection; there is no offline version, because “what would a sync do” has no
+answer from your own files alone. Terminal: `npx course status`, with `-m` for
+one module.
 
-```bash
-npx course status
-```
+## Pushing
 
-Status reads your files and your Canvas course, compares each of them against
-the last sync, and prints what a sync would do: what changed here, what changed
-there, and what changed on both sides. It writes nothing to either side.
-
-Because it reads the live Canvas course, status needs your credentials and a
-working connection. There is no offline version of it, because “what would a
-sync do” cannot be answered from your own files alone.
-
-Add `-m` to limit it to the modules you are working on:
-
-```bash
-npx course status -m 01-getting-started
-```
-
-## Validating Your Content
-
-You can also check your content for common errors before pushing:
-
-```bash
-npx course validate
-```
-
-This catches broken internal links, images and downloads that are not where a
-page says they are, frontmatter that will not parse, and items missing a field
-their type needs. That is much easier to fix locally than after pushing to
-Canvas.
-
-## Pushing to Canvas
-
-```bash
-npx course push
-```
-
-This converts all your markdown to HTML and uploads it to Canvas. Each module
-becomes a Canvas module, and each file becomes whichever of the seven item types
-its frontmatter names: see
-[Content Types](../05-organising-your-course/02-content-types.md).
+Hover a module row and click **Push This Module to Canvas**, the little cloud.
+**Course: Push to Canvas** in the `…` dropdown does the whole course, and
+**Course: Push to Canvas (Dry Run)** in the palette says what it would do first.
+Each folder becomes a Canvas module and each file becomes the item type its
+frontmatter names: see
+[Content Types](../05-organising-your-course/02-content-types.md). Terminal:
+`npx course push`, `--dry-run`, `-m 01-getting-started`.
 
 > [!NOTE]
 >
@@ -80,27 +48,6 @@ its frontmatter names: see
 > hand is matched to a local file of the same type and title, and left where it
 > is when nothing matches. See
 > [Before You Publish to Canvas](./05-before-you-publish-to-canvas.md).
-
-### Useful Flags
-
-| Flag                          | What it does                                                                               |
-| ----------------------------- | ------------------------------------------------------------------------------------------ |
-| `--dry-run`                   | Preview what would happen without making any changes on Canvas                             |
-| `--module 01-getting-started` | Push only a single module instead of the entire course                                     |
-| `--prune-canvas`              | Delete Canvas items and modules whose local file you deleted. It lists them and asks first |
-
-### Example Workflow
-
-```bash
-# Check what would change first
-npx course push --dry-run
-
-# Push only the module you are working on
-npx course push --module 01-getting-started
-
-# Push everything and clean up deleted items on Canvas
-npx course push --prune-canvas
-```
 
 ## Commit the Sync State
 
@@ -137,48 +84,26 @@ git add .canvas-sync.json
 > [troubleshooting guide](https://github.com/lars-derichter/coursewright/blob/main/docs/troubleshooting.md#corrupted-canvas-syncjson)
 > covers the repair.
 
-## Pulling From Canvas
+## Pulling
 
-```bash
-npx course pull
-```
+**Course: Pull from Canvas** in the `…` dropdown turns your Canvas course into
+local markdown files, which is how you take over a course that already lives
+there; **Pull This Module from Canvas** does one module.
 
-This downloads your Canvas course and converts it into local markdown files.
-Useful for importing an existing Canvas course or syncing changes made directly
-on Canvas.
-
-### What Pull Will Not Overwrite
-
-Pull asks git. Any file `git status` reports as modified or untracked is left
-exactly as it is, listed at the end with the reason, and the rest of the run
-carries on. Untracked counts, and that is the case worth knowing: git holds no
-copy at all of a file it has never seen.
-
-The rule that follows is worth reading twice, because it is the opposite of what
-you might expect. **Committed work is not protected. Uncommitted work is.** A
-change you have committed is safe in git whether or not pull writes over it, so
-pull goes ahead. A change you have not committed exists nowhere else, so pull
-refuses to touch it.
-
-So commit before you pull. Not to protect the file from pull, but because that
-is what makes the change recoverable at all.
-
-If Canvas really does hold the version you want, `--force` switches the guard
-off. It asks first, naming how many files it is about to write over:
-
-```bash
-npx course pull --force
-```
+Pull asks git first and leaves any file `git status` calls modified or untracked
+exactly as it is, listing it at the end. The rule behind that runs the opposite
+way round from what you might expect: committed work is not protected,
+uncommitted work is. A committed change survives in git whether or not pull
+writes over it; an uncommitted one exists nowhere else. So commit before you
+pull. When Canvas really does hold the version you want, `pull --force` switches
+the guard off and asks first, and that one is terminal-only.
 
 ## Syncing Both Ways
 
-Push and pull each pin a direction. `npx course sync` is the same run with
-nothing pinned: it reads both sides, works out what changed where since the last
-sync, and writes each item in whichever direction it actually moved.
-
-```bash
-npx course sync
-```
+Push and pull each pin a direction. **Course: Sync with Canvas** in the `…`
+dropdown pins nothing: it reads both sides, works out what changed where since
+the last sync, and writes each item in whichever direction it moved. **Sync This
+Module with Canvas** does one module.
 
 | What changed since the last sync | What sync does                                    |
 | -------------------------------- | ------------------------------------------------- |
@@ -189,76 +114,54 @@ npx course sync
 
 Running a push and then a pull does not get you there. Where both sides changed
 the same item, push hands it to your file and leaves Canvas matching, so the
-Canvas edit is gone before the pull ever looks at it. Sync sees that item as a
-conflict, settles it on its own terms, and names it in the report.
+Canvas edit is gone before the pull looks at it. Sync sees a conflict there,
+settles it on its own terms, and names it in the report.
 
-Deleting is not something sync does on its own, any more than push or pull do,
-bar the one small exception
-[Before You Publish to Canvas](./05-before-you-publish-to-canvas.md) names. It
-takes a flag: `--prune-canvas` removes the Canvas items whose local file you
-deleted, `--prune-local` removes the local files Canvas no longer has, and
-`--prune` does both. Each of them lists what it is about to remove and asks
-first. The rest of the flags will look familiar:
+Two questions it will not settle alone, and puts to you in the Coursewright
+terminal: a module both sides reordered, where it prints both orders and asks
+which wins, and a file that vanished while a new one turned up in the same
+folder with the same title, where it asks whether that is one item renamed.
+
+Your first run should still be a push. Sync tells a changed item from a new one
+by `.canvas-sync.json`, which links nothing before your first push, so a module
+with items on both sides looks brand new on both, and syncing it would drop a
+second copy of everything into Canvas. Sync refuses that module and sends you to
+push or pull, which pair each file with the Canvas object of the same type and
+title and tie the two together from then on.
+
+## From the Terminal
+
+The prune, conflict, order and force switches exist only here; the panel has no
+control for any of them. Every prune lists what it will delete and asks first.
 
 ```bash
-npx course sync --dry-run              # report the run instead of making it
-npx course sync -m 01-getting-started  # only these modules; repeatable
-npx course sync --conflict local       # your file wins every disputed item
+npx course sync                        # two-way; the newest change wins
+npx course sync --dry-run              # report it instead of making it
+npx course sync -m 01-intro -m 02-html # only these modules; repeatable
+npx course sync --conflict local       # your file wins every clash
+npx course sync --order canvas         # Canvas wins a reordered module
+npx course sync --prune                # delete on both sides; asks first
+npx course push --prune-canvas         # delete Canvas items you deleted
+npx course pull --prune-local          # delete local files Canvas dropped
+npx course pull --force                # write over uncommitted local work
+npx course status                      # what a sync would do; writes nothing
+npx course validate                    # check your content before pushing
 ```
 
-### The Questions Sync Asks
+The full reference is in the
+[user guide](https://github.com/lars-derichter/coursewright/blob/main/docs/user-guide.md#canvas-sync).
 
-A content conflict is settled without asking: the newest change wins, and the
-report names the item with the two times it compared. If Canvas reports no
-usable time, your file wins and the report writes `Canvas unknown` in its place.
-Two things sync asks about instead of settling on its own:
+## Try It
 
-- **A module both sides reordered.** An order is its own question with its own
-  flag, `--order`, so sync parks it rather than guessing. It prints both orders
-  and asks which one wins.
-- **A file that disappeared while a new one turned up** in the same folder, with
-  the same title. Sync asks whether that is the same item renamed. Say no and
-  they count as two unrelated items: the new file is created on Canvas, and the
-  old Canvas object sits there until you prune it.
+1. Run **Course: Init (Canvas Setup)** from the command palette and give it your
+   Canvas address, token and course ID.
+2. Run **Course: Push to Canvas (Dry Run)**, also from the palette, and read the
+   report.
+3. Hover the **Getting Started** module and click **Push This Module to
+   Canvas**.
+4. Open the `…` dropdown and choose **Course: Status**.
 
-Add `--conflict ask` if you want the content question put to you as well.
-
-### Your First Run Should Be a Push
-
-Sync leans on `.canvas-sync.json` to tell a changed item from a new one. Before
-your first push that file links nothing, so a module holding items on both sides
-looks brand new on both sides, and syncing it would drop a second copy of
-everything into Canvas. Sync refuses that module and points you at push or pull
-instead.
-
-Pinning a direction is the answer it is asking for. Push and pull pair each of
-your files with the Canvas object of the same type and title, and tie the two
-together from then on. That is how the tool takes over a course it did not
-create, and after that first run sync has what it needs.
-
-## Global Flags
-
-These flags work with any command:
-
-| Flag        | Effect                                             |
-| ----------- | -------------------------------------------------- |
-| `--verbose` | Show detailed API request and response information |
-| `--quiet`   | Only show errors, suppress all other output        |
-
-## Error Handling
-
-The sync process is designed to be resilient:
-
-- **Automatic retries**: a call Canvas turns down because you are going too
-  fast, or that fails on Canvas's side, is tried again, with a longer wait each
-  time. One case is deliberately left out: a call that creates something and
-  comes back with a server error. Canvas may have made the object before the
-  error reached you, so sending it again could leave you with two. That one is
-  reported instead of repeated.
-- **Partial failures**: If one item fails, the rest of the module continues. A
-  summary of errors is shown at the end.
-
-> [!TIP]
+> [!CHECK]
 >
-> Use `--dry-run` before your first real push to make sure everything looks
-> right. It is much easier to fix issues before they reach Canvas.
+> The module is in your Canvas course, **Open in Canvas** on its row takes you
+> straight there, and status reports nothing left to do.

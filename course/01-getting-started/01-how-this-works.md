@@ -23,8 +23,9 @@ with the terminal command named alongside it for anyone who would rather type.
 - **Where students read it** is your choice: the course website, a printed or
   downloaded handout, or Canvas. All three are built from the same files.
 
-Your files are the source of truth. Canvas is a publishing target, the way a
-website is a publishing target for a document you wrote.
+Your files are the source of truth. The website, the handout and Canvas are each
+a place you publish them to, the way a printed book is one output of a
+manuscript and never the manuscript itself.
 
 ## What That Buys You
 
@@ -56,9 +57,44 @@ website is a publishing target for a document you wrote.
 > with one answer during `npx course setup`, and it stays readable at
 > [coursewright.md](https://coursewright.md/) afterwards.
 
+## A Word on the Signs
+
+The page titles in this module start with a small sign that says what kind of
+page it is. Here is the legend:
+
+- 📘 explanation or reference
+- ⚙️ setup
+- 📦 a file to download
+- 📖 something to read elsewhere
+- ⚠️ important
+- ❗️ an assignment
+- 📅 has a deadline
+- 💬 a discussion
+
+The signs are a convention from this project’s writing style guide, which has a
+longer list to pick from. Use them in your own course or leave them out. Either
+way they live on the title and nowhere else, never in a heading and never in the
+text.
+
 ## A Word on the Numbers
 
 Every file and folder starts with a two-digit number: `01-`, `02-`, and so on.
 That number sets the order, in this preview and in Canvas, and it is stripped
 from the title students see. You will meet the rest of the naming rules in
 [Folder Layout](./05-organising-your-course/01-folder-layout.md).
+
+## Try It
+
+1. Click **How This Works** in the Course Manager tree to open this file in the
+   editor.
+2. Change one word in the first paragraph and save.
+3. If the preview is not running yet, press **Course: Preview** in the panel’s
+   title bar.
+
+> [!TIP]
+>
+> **Terminal:** `npm start` runs the same preview.
+
+> [!CHECK]
+>
+> The page in your browser shows your change within a second or two.
