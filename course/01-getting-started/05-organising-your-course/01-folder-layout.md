@@ -86,14 +86,16 @@ until you drop the underscore.
 This one carries on over the next two pages, so leave what you make in place.
 
 1. Right-click the **Getting Started** module in the tree and choose **Course:
-   New Item**. Pick **page**, call it `Scratch`, and put it last.
+   New Item**. Pick **page** and call it `Scratch`. It lands at the end of the
+   module.
 2. Watch it appear in the tree and in the sidebar of the preview.
 3. In VS Code’s Explorer, rename the file to `_99-scratch.md`. Then rename it
    back.
 
 > [!TIP]
 >
-> **Terminal:** `npx course new-item` asks the same questions.
+> **Terminal:** `npx course new-item` asks the same questions, plus one the
+> panel does not: which position to give the new page.
 
 > [!CHECK]
 >

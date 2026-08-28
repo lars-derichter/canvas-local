@@ -49,7 +49,7 @@ short welcome instead, with a button that starts the setup wizard.
 
 Four buttons sit at the top of the panel:
 
-- **Course: New Module**: add a module, asking for a name and a position.
+- **Course: New Module**: add a module after the last one, asking for a name.
 - **Course: Search...**: find a word or phrase across your course files.
 - **Course: Preview**: open the course website in your browser.
 - **Course: Refresh Tree**: rebuild the tree by hand.

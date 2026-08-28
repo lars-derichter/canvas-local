@@ -11,14 +11,17 @@ files for you, so you never rename anything by hand to close a gap.
 
 ## Creating
 
-**Course: New Module** sits in the panel’s title bar. It asks for a name and a
-position, then writes the folder with the right numeric prefix and a
-`_category_.json` inside it.
+**Course: New Module** sits in the panel’s title bar. It asks for a name and
+adds the module after the last one, writing the folder with the right numeric
+prefix and a `_category_.json` inside it.
 
-For an item, right-click a module or a subsection and choose **Course: New
-Item**. It asks where the item goes, which of the five types it is, a name and a
-position. An assignment also asks for its points, an external URL for its
-address.
+For an item, right-click the module or subsection you want it in and choose
+**Course: New Item**. It asks which of the five types it is and a name; an
+assignment also asks for its points, an external URL for its address, and a file
+opens a file picker. The new item lands at the end of that module or subsection.
+
+Neither one asks you where to put it. If it belongs somewhere else, move it
+afterwards, which is the next section.
 
 ## Reordering
 
@@ -88,10 +91,12 @@ npx course split-item         # split an item into two
 ```
 
 They ask for what they need, and the item commands work out which module you
-mean when you run them from inside a module folder. Two of the prompts run the
-other way round from the sidebar: `merge-items` asks for the target first and
-the source second, and `split-item` asks which line to split after, counted from
-the first line after the frontmatter.
+mean when you run them from inside a module folder. Three things differ from the
+sidebar. `new-module` and `new-item` ask you for a position, where the panel
+always appends. `merge-items` asks for the target first and the source second,
+the other way round from the two right-clicks. And `split-item` asks which line
+to split after, counted from the first line after the frontmatter, rather than
+reading your cursor.
 
 Flags answer the questions instead, which is what you want in a script:
 
