@@ -1,5 +1,9 @@
 # VS Code Integration
 
+This page is the full reference behind the beginner guides:
+[your first course](first-course.md) and [the user guide](user-guide.md) name
+individual panel actions as they go and point back here for the rest.
+
 Course commands are available in the VS Code command palette (Cmd+Shift+P /
 Ctrl+Shift+P). Type "Course:" to filter the list. Seven actions are kept out of
 it, because they act on the tree item you clicked and can do nothing without

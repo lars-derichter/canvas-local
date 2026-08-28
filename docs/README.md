@@ -2,17 +2,19 @@
 
 All guides for Coursewright. New here? Start with
 [your first course](first-course.md): it walks the whole path from an empty
-computer to a published course, and the
+computer to a published course, installing the Course Manager panel along the
+way, and the
 [built-in tutorial module](https://coursewright.md/getting-started/how-this-works/)
-you preview along the way (source:
-[`course/01-getting-started/`](../course/01-getting-started/)) is a guided walk
-through the sidebar and the three publish routes, and a working example of every
-content type.
+you preview there is a guided walk through the sidebar and the three publish
+routes, and a working example of every content type (source:
+[`course/01-getting-started/`](../course/01-getting-started/)).
 
 ## Getting Started
 
 - [Your first course, step by step](first-course.md): the beginner tutorial,
   assuming no VS Code, terminal, or git experience
+- [VS Code extension](vscode.md): the Course Manager panel and command palette
+  reference
 - [The built-in tutorial module](https://coursewright.md/getting-started/how-this-works/):
   the tool's own course, walking the whole workflow from the sidebar
 - [User guide](user-guide.md): course structure and every daily command
@@ -59,7 +61,6 @@ drafting anything.
 
 ## Tools
 
-- [VS Code extension](vscode.md): sidebar and command-palette reference
 - [CLI reference](cli-reference.md): every `npx course` command and flag, and
   the npm scripts
 - [AI assistants](ai-assistants.md): assistant setup and the bundled skills

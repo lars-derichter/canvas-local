@@ -34,14 +34,15 @@ default your own conventions override. The reasoning is in
   published this way.
 - **PDF and DOCX export.** Hand out a styled course text or a single chapter,
   with your institution's branding. See [exporting](docs/exporting.md).
+- **A VS Code extension.** Every command is reachable from the sidebar or the
+  command palette, so daily work needs no terminal. The two destructive ones and
+  the glossary builder are palette-only, kept out of the tree so no stray click
+  can start them. What the panel does not reach is flags, not commands.
 - **One-command Canvas sync.** `npx course sync` reconciles modules, pages,
   assignments, discussions and files with
   [Canvas LMS](https://www.instructure.com/canvas) in both directions, and
   deletes nothing unless you ask. `push` and `pull` are the same run with the
   direction pinned, and `status` shows what a sync would do without doing it.
-- **A VS Code extension.** The sidebar and command palette cover everything but
-  the two destructive commands and the glossary builder, so daily work needs no
-  terminal.
 - **AI-assisted authoring on didactically sound foundations.** Bundled skills
   help design lessons, build student modules, generate Canvas quizzes,
   proofread, and check course consistency, with any AI coding agent that reads
@@ -97,12 +98,15 @@ experience with VS Code, the terminal, or git.
 The short version, if you have done this sort of thing before:
 
 1. Click **Use this template** on GitHub and create your course repository.
-2. Clone it, install Node.js 24+, run `npm install`, and preview the built-in
-   tutorial module with `npm start`.
-3. Make it your course with `npx course setup`: it asks for the language, the
+2. Clone it, install Node.js 24+, and run `npm install`.
+3. Run `npm run vscode:install`, then **Developer: Reload Window**. A book icon
+   appears in the activity bar: the Course Manager panel, which is where the
+   rest of this happens by clicking.
+4. Make it your course with `npx course setup`: it asks for the language, the
    name and the look, and puts the matching templates in place (see
-   [customisation](docs/customisation.md)).
-4. Publish, to whichever of the three targets you need:
+   [customisation](docs/customisation.md)). Preview the built-in tutorial module
+   with `npm start`.
+5. Publish, to whichever of the three targets you need:
    - **Website**: switch on [GitHub Pages](docs/hosting.md); publishing is one
      repository setting.
    - **PDF or Word**: [export](docs/exporting.md) an item, a module, or the
@@ -121,6 +125,8 @@ The [docs folder](docs/README.md) has the full map. Start with:
   [`course/01-getting-started/`](course/01-getting-started/)
 - [Your first course](docs/first-course.md): the complete beginner walkthrough,
   from installing nothing to a published module
+- [VS Code extension](docs/vscode.md): the Course Manager panel and command
+  palette reference
 - [User guide](docs/user-guide.md): course structure and every daily command
 - [CLI reference](docs/cli-reference.md): every command and flag, and the npm
   scripts
