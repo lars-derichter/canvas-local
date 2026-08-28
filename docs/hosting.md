@@ -59,6 +59,9 @@ involved. See
 
 ## Troubleshooting
 
+The common website failures also sit with everything else that can go wrong, in
+[troubleshooting](troubleshooting.md#the-website).
+
 If the deploy fails, open the failed run under the **Actions** tab to read the
 log. The most common cause is a **broken link**: the site is configured to fail
 the build on broken internal links (`onBrokenLinks: 'throw'` in

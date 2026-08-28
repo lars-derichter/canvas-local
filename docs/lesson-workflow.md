@@ -1,9 +1,9 @@
 # Lesson Workflow
 
 Coursewright includes a set of [AI-assistant](ai-assistants.md) skills that take
-a lesson from rough idea to published Canvas module. Using them is optional (you
-can keep writing modules by hand), but together they form a complete authoring
-flow.
+a lesson from rough idea to a module ready to publish: to the website, as a
+handout, or into Canvas. Using them is optional (you can keep writing modules by
+hand), but together they form a complete authoring flow.
 
 ## Where to Start
 
@@ -56,7 +56,7 @@ sources/lesson-plans/                 course/NN-<slug>/
 lesson-plan-NN.md                     (student-facing module)
 (one-page class version)                 │  /proofread, npm start
                                          ▼
-                                      npx course push
+                                      publish: site build, export, or push
 ```
 
 ## The Two Registers
@@ -65,10 +65,9 @@ The workflow produces material for two audiences, defined in
 [writing-style.md](../context/writing-style.md):
 
 - **Colleague-facing**: the lesson plan and class version under `sources/`.
-  Written for you and fellow teachers; never served by Docusaurus or synced to
-  Canvas.
-- **Student-facing**: the module under `course/`; served by Docusaurus and
-  pushed to Canvas.
+  Written for you and fellow teachers; never part of any published output.
+- **Student-facing**: the module under `course/`, and everything built from it:
+  the website, the handout, the Canvas module.
 
 ## Course Context
 
@@ -92,7 +91,8 @@ skills that maintain it. The richer that file, the less the skills need to ask.
    archives, and placeholder images with TODO notes. Again design-first,
    write-after-approval.
 4. **Check and publish**: `/proofread` the new pages, preview with `npm start`,
-   then `npx course push`.
+   then publish: push the commit for the website, export a handout, or
+   `npx course push` for Canvas.
 
 See [ai-assistants.md](ai-assistants.md) for what each skill does in detail.
 
@@ -177,8 +177,7 @@ section of this page is pointing at.
 `/lesson-retro` closes the loop. Right after a lesson, it interviews you (one
 question at a time) about timing, comprehension, what worked, and material
 friction, then folds timing corrections and notes-to-self back into the lesson
-plan and course-wide insights into `course-context.md`. Next year's version of
-the lesson starts better than this year's.
+plan and course-wide insights into `course-context.md`.
 
 Two records remain. Each run appends a short dated section to that lesson's
 retro report at `sources/retros/<year>/lesson-NN.md` (one file per lesson per
@@ -212,5 +211,4 @@ The same goes for the design chain at the top of this page. A course already
 running has its lessons; what it often lacks is the goals written down and the
 alignment checked. Run `/course-context-init` to get the goals on paper, then
 `/coverage-map` to see which of them your existing material actually teaches,
-practises and assesses. Fixing the gaps it finds is cheaper than redesigning
-anything.
+practises and assesses.

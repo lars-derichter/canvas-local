@@ -75,7 +75,7 @@ pipeline, the style files and every override;
 
 ## When Something Fails
 
-The failures worth knowing, a font Typst cannot find, a missing `rsvg-convert`
-for SVG in Word, Word's table of contents showing empty, are covered in
-[troubleshooting](troubleshooting.md) and the
+The failures worth knowing (a font Typst cannot find, a missing `rsvg-convert`
+for SVG in Word, Word's table of contents showing empty) are covered in
+[troubleshooting](troubleshooting.md#exports) and the
 [DOCX degradations](export-styling.md#docx-degradations) list.

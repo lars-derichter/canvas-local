@@ -1,32 +1,7 @@
 # Troubleshooting
 
-Common issues and how to resolve them.
-
-## Connection Errors
-
-### "CANVAS_COURSE_ID is not set"
-
-Run `npx course init` to configure your Canvas API credentials. This creates a
-`.env` file with your API URL, token, and course ID.
-
-### "fetch failed" or Network Timeout
-
-- Verify your Canvas instance is reachable in a browser.
-- Check that `CANVAS_API_URL` in `.env` is the bare domain (e.g.
-  `https://your-school.instructure.com`), without `/api/v1` or any other path
-  after it; the CLI appends `/api/v1` itself.
-- If behind a VPN or firewall, ensure it allows outbound HTTPS to your Canvas
-  instance.
-
-### 401 Unauthorized
-
-Your API token is invalid or expired. Generate a new token in Canvas under
-**Account > Settings > New Access Token** and update `.env`.
-
-### 403 Forbidden
-
-Your token lacks permissions for the target course. Verify you have a Teacher or
-Admin role in the Canvas course.
+Common issues and how to resolve them, grouped by where they bite: the commands
+themselves, the website, the exports, the Canvas sync, and the AI assistants.
 
 ## Running the Commands
 
@@ -63,6 +38,92 @@ Run it in a terminal, or pass the flags it names. The run exits non-zero rather
 than reporting a success it never had. A destructive question behaves the other
 way round on purpose: `reset-canvas`, a prune and `pull --force` all read
 silence as "no" and cancel.
+
+## The Website
+
+### Build Fails With Broken Links
+
+The site is configured to fail the build on a broken internal link
+(`onBrokenLinks: 'throw'` in `docusaurus.config.js`), in the local build and in
+the deploy alike. Check that all relative `.md` links point to existing files.
+`npm run build` shows the exact error location and catches before a push what
+would otherwise stop the deploy.
+
+### Alerts Not Rendering
+
+The custom remark plugin (`src/plugins/remark-gfm-alerts.js`) requires the exact
+syntax `> [!TYPE]` on a new line inside a blockquote. Make sure there's no space
+before the `[` and the type is one of: NOTE, TIP, IMPORTANT, WARNING, ATTENTION
+(or its synonym CAUTION), CHECK.
+
+### The Deploy Runs, but Nothing Is Published
+
+When every job after the first shows as skipped, GitHub Pages is not switched on
+yet, or its source is still set to a branch. Set **Settings > Pages > Source**
+to **GitHub Actions** and push again. [Hosting](hosting.md#troubleshooting)
+covers the rarer deploy failures.
+
+## Exports
+
+### "unknown font family"
+
+Typst warns and falls back to the next font in the style's list; the export
+still succeeds. The `generic` style asks for Helvetica, then Arial, so the
+warning is normal on a machine without them. Silence it by picking a font
+`typst fonts` lists (`--var mainfont=Arial`), or drop font files into
+`sources/export-style/fonts/`.
+
+### An SVG Image Is Missing From the Word Document
+
+For DOCX, pandoc needs `rsvg-convert` on the PATH to rasterise inline SVG (it
+ships with librsvg: `brew install librsvg`); without it the image is dropped
+with a warning. The PDF renders SVG natively. Use PNG for images that must
+appear in DOCX everywhere.
+
+### The Word Table of Contents Shows Empty
+
+Word writes the TOC as a field that stays empty until you update it: open the
+document, select all (Ctrl/Cmd-A), and press F9. Nothing went wrong in the
+export.
+
+### Office Fonts Not Found on macOS
+
+On macOS, Microsoft Office keeps its typefaces (Century Gothic among them)
+inside the application bundles, so `typst fonts` does not list them. The
+exporter adds Office's font directories itself, so a Mac with Word exports in
+the same typeface a Windows machine does; `npx course export --verbose` prints
+the directories it searched. Without Office, headings fall through to the next
+font in the style's list.
+
+[Export styling](export-styling.md) explains the pipeline behind all four, and
+its [DOCX degradations](export-styling.md#docx-degradations) section lists what
+Word output gives up by design.
+
+## Canvas Connection Errors
+
+### "CANVAS_COURSE_ID is not set"
+
+Run `npx course init` to configure your Canvas API credentials. This creates a
+`.env` file with your API URL, token, and course ID.
+
+### "fetch failed" or Network Timeout
+
+- Verify your Canvas instance is reachable in a browser.
+- Check that `CANVAS_API_URL` in `.env` is the bare domain (e.g.
+  `https://your-school.instructure.com`), without `/api/v1` or any other path
+  after it; the CLI appends `/api/v1` itself.
+- If behind a VPN or firewall, ensure it allows outbound HTTPS to your Canvas
+  instance.
+
+### 401 Unauthorized
+
+Your API token is invalid or expired. Generate a new token in Canvas under
+**Account > Settings > New Access Token** and update `.env`.
+
+### 403 Forbidden
+
+Your token lacks permissions for the target course. Verify you have a Teacher or
+Admin role in the Canvas course.
 
 ## Push Issues
 
@@ -249,21 +310,6 @@ course you think it is.
 Both are covered by [Advanced commands](advanced-commands.md) and, for the
 yearly move to a new course, [New academic year](new-academic-year.md). Back the
 Canvas course up first: [Backups](backups.md).
-
-## Docusaurus Issues
-
-### Build Fails With Broken Links
-
-Docusaurus is configured to throw on broken links. Check that all relative `.md`
-links point to existing files. Run `npm run build` to see the exact error
-location.
-
-### Alerts Not Rendering
-
-The custom remark plugin (`src/plugins/remark-gfm-alerts.js`) requires the exact
-syntax `> [!TYPE]` on a new line inside a blockquote. Make sure there's no space
-before the `[` and the type is one of: NOTE, TIP, IMPORTANT, WARNING, ATTENTION
-(or its synonym CAUTION), CHECK.
 
 ## AI Assistant Issues
 

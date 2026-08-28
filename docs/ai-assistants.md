@@ -9,6 +9,12 @@ context about the project structure, available commands, and conventions, so it
 can help effectively out of the box. [CLAUDE.md](../CLAUDE.md) is a one-line
 import of the same file, because Claude Code reads that name.
 
+The lesson and evaluation skills sit on a didactic backbone: backward design and
+constructive alignment, read from your own `course-context.md`.
+[Didactic foundations](didactics.md) explains those ideas and how far they
+reach; the [lesson workflow](lesson-workflow.md) shows the skills chaining along
+them.
+
 ## Supported Tools
 
 - **[Claude Code](https://claude.ai/code)** reads `AGENTS.md` through
@@ -37,8 +43,9 @@ On Windows, skills need one git setting before they are found; see
   in bulk.
 - **Generating markdown from notes**: paste rough notes and have them turned
   into polished course pages.
-- **Debugging sync issues**: describe the problem and let the assistant inspect
-  sync state, logs, and Canvas responses.
+- **Debugging a failing output**: describe the problem, whether it is a sync
+  report, a site build failing on a broken link, or an export in the wrong font,
+  and let the assistant inspect the sync state, the build log, and the configs.
 - **Reviewing content**: check for broken links, missing frontmatter, or
   inconsistencies across modules.
 - **Exporting to PDF or Word**: turn pages, modules, or the whole course into
@@ -81,8 +88,6 @@ holds the same scaffold in Dutch, so copy `templates/course-context-nl.md` over
 
 How the lesson skills chain together, from idea to lesson plan to class version
 to published module, is described in the [lesson workflow](lesson-workflow.md).
-The didactic ideas behind that chain, and how far they reach, are in
-[didactic foundations](didactics.md).
 
 ## Skills
 
@@ -181,9 +186,11 @@ project whitelist.
   as a quiz. It first maps every question to a supported Canvas question type
   and flags anything that fits none; after approval it generates and verifies
   the package and writes a colleague-facing `questions.md` with the answers.
-  Importing is manual: in Canvas, go to **Settings → Import Course Content**,
-  content type **QTI .zip file**, import, then check the questions, set dates
-  and time limit (QTI does not carry those), and publish.
+  Importing the package into Canvas stays a manual step, once per course:
+  [quiz questions never sync](limitations.md#quiz-questions-never-sync) explains
+  why, and
+  [new academic year](new-academic-year.md#what-a-rollover-does-to-each-type)
+  lists the import clicks.
 - **/rubric-build** builds a grading rubric for one assignment or evaluation. It
   proposes the criteria-by-levels matrix, with every criterion traced to a
   requirement in the assignment text or a learning goal, then writes a

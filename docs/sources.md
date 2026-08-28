@@ -1,12 +1,12 @@
 # Sources
 
 Reference materials, inspiration, and notes for course development. Files here
-are **never** served by Docusaurus or synced to Canvas: this is a private
-workspace for collecting ideas and references.
+are **never** published: not served by Docusaurus, not exported, not synced to
+Canvas. This is a private workspace for collecting ideas and references.
 
 ## Organisation
 
-Create subfolders as needed. Suggested structure:
+Create subfolders as needed; the tree below is an example, not a contract:
 
 ```
 sources/

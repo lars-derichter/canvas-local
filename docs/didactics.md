@@ -7,9 +7,10 @@ back into next year's material. This page names all three, shows where each
 lives in the tooling, and draws the boundary that matters: they are a proven
 base to start from, not a straitjacket. Every structure described here is a
 default, and your own conventions in
-[course-context.md](../context/course-context.md) override it. The
-[lesson workflow](lesson-workflow.md) page is the practical tour; this one is
-the reasoning behind it.
+[course-context.md](../context/course-context.md) override it. None of it is
+tied to one destination: the module the workflow produces publishes to the
+website, a handout and Canvas alike. The [lesson workflow](lesson-workflow.md)
+page is the practical tour; this one is the reasoning behind it.
 
 ## Backward Design
 
