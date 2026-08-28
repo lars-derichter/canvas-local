@@ -122,6 +122,8 @@ The [docs folder](docs/README.md) has the full map. Start with:
 - [Your first course](docs/first-course.md): the complete beginner walkthrough,
   from installing nothing to a published module
 - [User guide](docs/user-guide.md): course structure and every daily command
+- [CLI reference](docs/cli-reference.md): every command and flag, and the npm
+  scripts
 - [Markdown guide](docs/markdown.md): supported syntax, links, and alerts
 - [Hosting](docs/hosting.md): the course website on GitHub Pages
 - [Exporting](docs/exporting.md): PDF and DOCX handouts and course texts

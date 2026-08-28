@@ -60,6 +60,8 @@ drafting anything.
 ## Tools
 
 - [VS Code extension](vscode.md): sidebar and command-palette reference
+- [CLI reference](cli-reference.md): every `npx course` command and flag, and
+  the npm scripts
 - [AI assistants](ai-assistants.md): assistant setup and the bundled skills
 - [Writing your own skills](writing-skills.md): the file layout, template, and
   naming conventions
