@@ -4060,7 +4060,7 @@ describe('applyPlan, per action type', () => {
     assert.deepEqual(
       fs
         .readdirSync(path.join(courseDir, '01-intro/01-part'))
-        .filter((entry) => entry.startsWith('__ccb_order_')),
+        .filter((entry) => entry.startsWith('__cw_order_')),
       [],
     );
     // The Canvas ids swapped with the files, not with the names.
@@ -4228,7 +4228,7 @@ describe('applyPlan, per action type', () => {
     assert.deepEqual(
       fs
         .readdirSync(path.join(courseDir, '01-intro'))
-        .filter((entry) => entry.startsWith('__ccb_order_')),
+        .filter((entry) => entry.startsWith('__cw_order_')),
       [],
     );
     assert.deepEqual(state.modules['01-intro'].item_order, [
@@ -4289,7 +4289,7 @@ describe('applyPlan, per action type', () => {
     // The name it is stranded under carries the basename, so the recovery
     // sweep in `gatherLocal` can still find it on the next run.
     assert.equal(
-      fs.existsSync(path.join(courseDir, '01-intro/__ccb_order_02-b.md')),
+      fs.existsSync(path.join(courseDir, '01-intro/__cw_order_02-b.md')),
       true,
     );
   });

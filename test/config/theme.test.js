@@ -23,15 +23,15 @@ const {
 
 const MINIMAL_THEME = `
 :root {
-  --ccb-fg: #111111;
-  --ccb-font-sans: Helvetica,
+  --cw-fg: #111111;
+  --cw-font-sans: Helvetica,
     Arial, sans-serif;
-${ALERT_KINDS.map((kind) => `  --ccb-alert-${kind}-fg: #aa00${kind.length}0;\n  --ccb-alert-${kind}-bg: #bb00${kind.length}0;`).join('\n')}
+${ALERT_KINDS.map((kind) => `  --cw-alert-${kind}-fg: #aa00${kind.length}0;\n  --cw-alert-${kind}-bg: #bb00${kind.length}0;`).join('\n')}
 }
 `;
 
 describe('parseTokens', () => {
-  it('reads --ccb-* declarations and collapses multi-line values', () => {
+  it('reads --cw-* declarations and collapses multi-line values', () => {
     const tokens = parseTokens(MINIMAL_THEME);
     assert.strictEqual(tokens.fg, '#111111');
     assert.strictEqual(tokens['font-sans'], 'Helvetica, Arial, sans-serif');
@@ -40,9 +40,9 @@ describe('parseTokens', () => {
   it('ignores commented-out declarations and var() references', () => {
     const tokens = parseTokens(`
       :root {
-        /* --ccb-ghost: #000000; */
-        --ccb-real: #ffffff;
-        --ifm-link-color: var(--ccb-real);
+        /* --cw-ghost: #000000; */
+        --cw-real: #ffffff;
+        --ifm-link-color: var(--cw-real);
       }
     `);
     assert.deepStrictEqual(Object.keys(tokens), ['real']);
@@ -142,7 +142,7 @@ describe('loadTheme', () => {
   it('throws when a theme is missing an alert colour', () => {
     fs.writeFileSync(
       path.join(tmpDir, THEMES_SUBDIR, `${DEFAULT_THEME}.css`),
-      ':root { --ccb-fg: #111111; }',
+      ':root { --cw-fg: #111111; }',
     );
     assert.throws(() => loadTheme(tmpDir), /alert-note-fg/);
   });
@@ -155,8 +155,8 @@ describe('themeVariables and themeFingerprint', () => {
 
   it('prefixes pandoc variable names', () => {
     assert.deepStrictEqual(themeVariables(theme), {
-      'ccb-fg': '#111111',
-      'ccb-alert-note-fg': '#0969da',
+      'cw-fg': '#111111',
+      'cw-alert-note-fg': '#0969da',
     });
   });
 

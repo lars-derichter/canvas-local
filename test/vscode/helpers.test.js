@@ -3184,7 +3184,7 @@ describe('helpers: shellQuote survives a real shell', () => {
     // legal name. Quoted by any rule that does not refuse it, csh reports
     // "Unmatched '" for the first line and then runs the second as a fresh
     // command. The marker is the proof, and the reason shellQuote throws.
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ccb-csh-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cw-csh-'));
     const marker = path.join(dir, 'ran');
     const value = `01-intro\ntouch ${marker}\nx`;
 

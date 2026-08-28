@@ -43,10 +43,10 @@ document/site", hand off to `/export-style-init`.
 
    | Request                  | Site, Canvas and PDF                                             | DOCX: `reference.docx`                                   |
    | ------------------------ | ---------------------------------------------------------------- | -------------------------------------------------------- |
-   | Heading colour           | `--ccb-heading` in the theme                                     | `Heading1/2/3` in `word/styles.xml`                      |
-   | Link/accent colour       | `--ccb-link`, `--ccb-accent` in the theme                        | `Hyperlink` colour                                       |
-   | Alert colours            | `--ccb-alert-<kind>-fg` / `-bg` in the theme                     | the per-kind `AlertTitle<Kind>`/`AlertBody<Kind>` styles |
-   | Body/muted/border colour | `--ccb-fg`, `--ccb-fg-muted`, `--ccb-border` in the theme        | the matching Word styles                                 |
+   | Heading colour           | `--cw-heading` in the theme                                      | `Heading1/2/3` in `word/styles.xml`                      |
+   | Link/accent colour       | `--cw-link`, `--cw-accent` in the theme                          | `Hyperlink` colour                                       |
+   | Alert colours            | `--cw-alert-<kind>-fg` / `-bg` in the theme                      | the per-kind `AlertTitle<Kind>`/`AlertBody<Kind>` styles |
+   | Body/muted/border colour | `--cw-fg`, `--cw-fg-muted`, `--cw-border` in the theme           | the matching Word styles                                 |
    | Heading font             | `show heading: set text(font:)` in `template.typ`                | `Heading1/2/3` in `word/styles.xml`                      |
    | Body font/size           | `font:`/`fontsize:` in `conf()`                                  | `Normal` + theme `<a:latin>`                             |
    | Margins / paper          | `margin:`/`paper:` in `conf()`                                   | `<w:pgMar>`/`<w:pgSz>`                                   |
@@ -62,7 +62,7 @@ document/site", hand off to `/export-style-init`.
 3. **Edit the theme and/or the Typst template** with the Edit tool. In
    `template.typ`, keep the `alert(...)`, `linkcard(...)`, `attachment(...)`
    helpers and the `alert-colors` map (the Lua filter calls them by name) and
-   keep the `pick("$ccb-…$", "#fallback")` calls, which are how theme colours
+   keep the `pick("$cw-…$", "#fallback")` calls, which are how theme colours
    reach the PDF. Do not replace a `pick(...)` with a literal colour; change the
    theme token instead.
 

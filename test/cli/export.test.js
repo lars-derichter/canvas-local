@@ -93,7 +93,7 @@ describe('buildLinkContext', () => {
   let file;
 
   beforeEach(() => {
-    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ccb-export-'));
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cw-export-'));
     file = path.join(dir, '.canvas-sync.json');
   });
 

@@ -166,7 +166,7 @@ Three layers:
     built-in `en`/`nl` label sets live in `lib/config/labels.js`, with optional
     per-label `labels:` overrides. Also the machine-readable answer to "what
     language is this course in".
-  - `theme` selects a CSS file of `--ccb-*` design tokens from `src/css/themes/`
+  - `theme` selects a CSS file of `--cw-*` design tokens from `src/css/themes/`
     (or a path). It is the **single source of truth for colour**:
     `lib/config/theme.js` parses it, and the preview site, Canvas HTML
     (`lib/convert/markdown-to-html.js`), the alert icons (`lib/canvas/icons.js`,

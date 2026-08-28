@@ -16,7 +16,7 @@ const { loadTheme } = require('./lib/config/theme');
 // updates never overwrite — unlike this file.
 const { title, tagline, language, labels } = loadCourseConfig(__dirname);
 
-// The selected theme declares the --ccb-* colour and font tokens that
+// The selected theme declares the --cw-* colour and font tokens that
 // custom.css maps onto Infima's variables, so it has to load first.
 const themeCss =
   './' +
@@ -32,8 +32,8 @@ const config = {
   // which knows it for whatever repository the build runs in, so nothing has to
   // be written into this file per course. A local build keeps the placeholders;
   // they only surface in absolute URLs such as the sitemap's.
-  url: process.env.CCB_SITE_URL || 'https://example.com',
-  baseUrl: process.env.CCB_BASE_URL || '/',
+  url: process.env.CW_SITE_URL || 'https://example.com',
+  baseUrl: process.env.CW_BASE_URL || '/',
 
   onBrokenLinks: 'throw',
 

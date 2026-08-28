@@ -308,11 +308,11 @@ the reasons the launcher spawns the host itself; the other is that a wedged
 extension host is a CI job that never finishes rather than one that fails, and
 neither `runTests()` nor Electron has a timeout.
 
-Two environment variables steer it. `CCB_VSCODE_VERSION` picks the VS Code to
+Two environment variables steer it. `CW_VSCODE_VERSION` picks the VS Code to
 run, defaulting to `1.93.0`, the floor in the extension's `engines.vscode`, so
 CI is reproducible and the floor is a claim the test actually makes rather than
 a number in a manifest. Running it against `stable` now and then is how you find
-out that the newest editor broke something. `CCB_VSCODE_TIMEOUT_MS` moves the
+out that the newest editor broke something. `CW_VSCODE_TIMEOUT_MS` moves the
 bound on the host run, which defaults to three minutes.
 
 **One case does not run on Windows, and says so.** Proving that the contributed

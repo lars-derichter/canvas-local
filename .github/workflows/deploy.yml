@@ -52,8 +52,8 @@ jobs:
       # base_path is "/your-repo" or "" — Docusaurus wants a trailing slash.
       - run: npm run build
         env:
-          CCB_SITE_URL: ${{ steps.pages.outputs.origin }}
-          CCB_BASE_URL: ${{ steps.pages.outputs.base_path }}/
+          CW_SITE_URL: ${{ steps.pages.outputs.origin }}
+          CW_BASE_URL: ${{ steps.pages.outputs.base_path }}/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: build

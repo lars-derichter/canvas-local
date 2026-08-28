@@ -17,17 +17,17 @@ function setOrDelete(key, value) {
 /** Load docusaurus.config.js under a given environment, then restore it. */
 function loadConfig({ siteUrl, baseUrl } = {}) {
   const previous = {
-    CCB_SITE_URL: process.env.CCB_SITE_URL,
-    CCB_BASE_URL: process.env.CCB_BASE_URL,
+    CW_SITE_URL: process.env.CW_SITE_URL,
+    CW_BASE_URL: process.env.CW_BASE_URL,
   };
-  setOrDelete('CCB_SITE_URL', siteUrl);
-  setOrDelete('CCB_BASE_URL', baseUrl);
+  setOrDelete('CW_SITE_URL', siteUrl);
+  setOrDelete('CW_BASE_URL', baseUrl);
   delete require.cache[CONFIG_PATH];
   try {
     return require(CONFIG_PATH);
   } finally {
-    setOrDelete('CCB_SITE_URL', previous.CCB_SITE_URL);
-    setOrDelete('CCB_BASE_URL', previous.CCB_BASE_URL);
+    setOrDelete('CW_SITE_URL', previous.CW_SITE_URL);
+    setOrDelete('CW_BASE_URL', previous.CW_BASE_URL);
     delete require.cache[CONFIG_PATH];
   }
 }
@@ -87,11 +87,11 @@ describe('the deploy workflow', () => {
   it('passes the Pages address to the build', () => {
     assert.match(
       workflow,
-      /CCB_SITE_URL:\s*\$\{\{\s*steps\.pages\.outputs\.origin\s*\}\}/,
+      /CW_SITE_URL:\s*\$\{\{\s*steps\.pages\.outputs\.origin\s*\}\}/,
     );
     assert.match(
       workflow,
-      /CCB_BASE_URL:\s*\$\{\{\s*steps\.pages\.outputs\.base_path\s*\}\}\//,
+      /CW_BASE_URL:\s*\$\{\{\s*steps\.pages\.outputs\.base_path\s*\}\}\//,
     );
   });
 

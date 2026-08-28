@@ -94,7 +94,7 @@ describe('VS Code extension: the tree, read', () => {
   let realReaddirSync;
 
   before(() => {
-    workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'ccb-tree-'));
+    workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'cw-tree-'));
 
     realResolve = Module._resolveFilename;
     Module._resolveFilename = function (request, ...rest) {

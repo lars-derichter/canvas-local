@@ -259,7 +259,7 @@ describe('loadState and saveState', () => {
   let file;
 
   beforeEach(() => {
-    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ccb-state-'));
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cw-state-'));
     file = path.join(dir, '.canvas-sync.json');
   });
 
@@ -1106,7 +1106,7 @@ describe('renamePaths', () => {
     assert.equal(state.modules['01-mod'].items['01-mod/02-b.md'].canvas_id, 2);
     assert.ok(
       !Object.keys(state.modules['01-mod'].items).some((p) =>
-        p.includes('__ccb_rename_'),
+        p.includes('__cw_rename_'),
       ),
     );
   });

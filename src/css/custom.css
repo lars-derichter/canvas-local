@@ -2,7 +2,7 @@
  *
  * Every colour and the font stack come from the active theme in
  * src/css/themes/, which docusaurus.config.js loads before this file. This
- * file only maps those --ccb-* tokens onto Infima's --ifm-* variables and
+ * file only maps those --cw-* tokens onto Infima's --ifm-* variables and
  * styles the components; it holds no colour values of its own. To change a
  * colour, edit the theme — the site, Canvas and PDF exports all read it.
  */
@@ -13,21 +13,21 @@
 
 :root {
   /* Primary ramp */
-  --ifm-color-primary: var(--ccb-accent);
-  --ifm-color-primary-dark: var(--ccb-accent-dark);
-  --ifm-color-primary-darker: var(--ccb-accent-darker);
-  --ifm-color-primary-darkest: var(--ccb-accent-darkest);
-  --ifm-color-primary-light: var(--ccb-accent-light);
-  --ifm-color-primary-lighter: var(--ccb-accent-lighter);
-  --ifm-color-primary-lightest: var(--ccb-accent-lightest);
+  --ifm-color-primary: var(--cw-accent);
+  --ifm-color-primary-dark: var(--cw-accent-dark);
+  --ifm-color-primary-darker: var(--cw-accent-darker);
+  --ifm-color-primary-darkest: var(--cw-accent-darkest);
+  --ifm-color-primary-light: var(--cw-accent-light);
+  --ifm-color-primary-lighter: var(--cw-accent-lighter);
+  --ifm-color-primary-lightest: var(--cw-accent-lightest);
 
   /* Typography */
-  --ifm-font-family-base: var(--ccb-font-sans);
-  --ifm-font-family-monospace: var(--ccb-font-mono);
-  --ifm-font-size-base: var(--ccb-font-size-base);
-  --ifm-font-weight-base: var(--ccb-font-weight-base);
-  --ifm-line-height-base: var(--ccb-line-height-base);
-  --ifm-heading-font-weight: var(--ccb-heading-font-weight);
+  --ifm-font-family-base: var(--cw-font-sans);
+  --ifm-font-family-monospace: var(--cw-font-mono);
+  --ifm-font-size-base: var(--cw-font-size-base);
+  --ifm-font-weight-base: var(--cw-font-weight-base);
+  --ifm-line-height-base: var(--cw-line-height-base);
+  --ifm-heading-font-weight: var(--cw-heading-font-weight);
   --ifm-font-weight-semibold: 600;
   --ifm-font-weight-bold: 600;
 
@@ -36,32 +36,32 @@
   --ifm-code-border-radius: 3px;
   --ifm-code-padding-horizontal: 0.35rem;
   --ifm-code-padding-vertical: 0.1rem;
-  --ifm-code-background: var(--ccb-code-bg);
+  --ifm-code-background: var(--cw-code-bg);
 
   /* Headings */
-  --ifm-heading-color: var(--ccb-heading);
+  --ifm-heading-color: var(--cw-heading);
 
   /* Links */
-  --ifm-link-color: var(--ccb-link);
+  --ifm-link-color: var(--cw-link);
   --ifm-link-decoration: underline;
   --ifm-link-hover-decoration: underline;
 
   /* Layout */
   --ifm-global-radius: 4px;
-  --ifm-color-emphasis-300: var(--ccb-border);
+  --ifm-color-emphasis-300: var(--cw-border);
   --doc-sidebar-width: 17rem;
 
   /* Backgrounds */
-  --ifm-background-color: var(--ccb-surface);
-  --ifm-color-content-secondary: var(--ccb-fg-muted);
-  --ifm-font-color-base: var(--ccb-fg);
+  --ifm-background-color: var(--cw-surface);
+  --ifm-color-content-secondary: var(--cw-fg-muted);
+  --ifm-font-color-base: var(--cw-fg);
 
   /* Navbar */
-  --ifm-navbar-background-color: var(--ccb-surface);
+  --ifm-navbar-background-color: var(--cw-surface);
   --ifm-navbar-shadow: none;
 
   /* Footer */
-  --ifm-footer-background-color: var(--ccb-secondary);
+  --ifm-footer-background-color: var(--cw-secondary);
   --ifm-footer-color: #ffffff;
 }
 
@@ -71,7 +71,7 @@
 
 strong,
 b {
-  color: var(--ccb-secondary);
+  color: var(--cw-secondary);
   font-weight: 600;
 }
 
@@ -87,7 +87,7 @@ h6 {
 }
 
 h2 {
-  border-bottom: 1px solid var(--ccb-border);
+  border-bottom: 1px solid var(--cw-border);
   padding-bottom: 0.4rem;
 }
 
@@ -96,8 +96,8 @@ h2 {
    --------------------------------------------------------------------------- */
 
 code {
-  background: var(--ccb-code-bg);
-  color: var(--ccb-fg);
+  background: var(--cw-code-bg);
+  color: var(--cw-fg);
   border: none;
 }
 
@@ -128,7 +128,7 @@ div[class*='codeBlockTitle'] {
    --------------------------------------------------------------------------- */
 
 .navbar {
-  border-bottom: 1px solid var(--ccb-border);
+  border-bottom: 1px solid var(--cw-border);
 }
 
 .navbar__brand,
@@ -137,7 +137,7 @@ div[class*='codeBlockTitle'] {
 }
 
 .navbar__title {
-  color: var(--ccb-accent);
+  color: var(--cw-accent);
   font-weight: 400;
   font-size: 1.3rem;
 }
@@ -156,18 +156,18 @@ div[class*='codeBlockTitle'] {
    --------------------------------------------------------------------------- */
 
 .theme-doc-sidebar-container {
-  background: var(--ccb-surface-subtle);
-  border-right: 1px solid var(--ccb-border) !important;
+  background: var(--cw-surface-subtle);
+  border-right: 1px solid var(--cw-border) !important;
 }
 
 nav.menu {
-  background: var(--ccb-surface-subtle);
+  background: var(--cw-surface-subtle);
   padding: 1rem;
 }
 
 /* Sidebar links */
 .menu__link {
-  color: var(--ccb-fg);
+  color: var(--cw-fg);
   text-decoration: none;
   font-weight: 300;
   border-radius: 0;
@@ -182,10 +182,10 @@ nav.menu {
 
 /* Active sidebar item — orange left bar */
 .menu__link--active:not(.menu__link--sublist) {
-  color: var(--ccb-accent);
+  color: var(--cw-accent);
   font-weight: 400;
   background: transparent;
-  border-left: 4px solid var(--ccb-accent);
+  border-left: 4px solid var(--cw-accent);
 }
 
 /* Subcategory labels (collapsible) */
@@ -294,7 +294,7 @@ article {
 }
 
 .markdown {
-  --ifm-link-color: var(--ccb-accent);
+  --ifm-link-color: var(--cw-accent);
 }
 
 .markdown a {
@@ -306,18 +306,18 @@ article {
    --------------------------------------------------------------------------- */
 
 .table-of-contents {
-  border-left: 3px solid var(--ccb-border);
+  border-left: 3px solid var(--cw-border);
   font-size: 0.85rem;
 }
 
 .table-of-contents__link {
-  color: var(--ccb-fg);
+  color: var(--cw-fg);
   text-decoration: none;
 }
 
 .table-of-contents__link--active,
 .table-of-contents__link:hover {
-  color: var(--ccb-accent);
+  color: var(--cw-accent);
 }
 
 /* ---------------------------------------------------------------------------
@@ -336,7 +336,7 @@ article {
   border-left: 5px solid;
   border-radius: 0;
   padding: 1.25rem 1.5rem;
-  --ifm-alert-foreground-color: var(--ccb-fg);
+  --ifm-alert-foreground-color: var(--cw-fg);
 }
 
 .markdown-alert {
@@ -371,60 +371,60 @@ article {
    [class*=] selector next to it is the stable fallback. */
 .alert--secondary,
 .alert--info {
-  border-left-color: var(--ccb-alert-note-fg);
-  background: var(--ccb-alert-note-bg);
+  border-left-color: var(--cw-alert-note-fg);
+  background: var(--cw-alert-note-bg);
 }
 
 .alert--secondary [class*='admonitionHeading'],
 .alert--info [class*='admonitionHeading'] {
-  color: var(--ccb-alert-note-fg);
+  color: var(--cw-alert-note-fg);
 }
 
 .alert--secondary svg,
 .alert--info svg {
-  fill: var(--ccb-alert-note-fg);
+  fill: var(--cw-alert-note-fg);
 }
 
 .alert--success,
 .alert--tip {
-  border-left-color: var(--ccb-alert-tip-fg);
-  background: var(--ccb-alert-tip-bg);
+  border-left-color: var(--cw-alert-tip-fg);
+  background: var(--cw-alert-tip-bg);
 }
 
 .alert--success [class*='admonitionHeading'],
 .alert--tip [class*='admonitionHeading'] {
-  color: var(--ccb-alert-tip-fg);
+  color: var(--cw-alert-tip-fg);
 }
 
 .alert--success svg,
 .alert--tip svg {
-  fill: var(--ccb-alert-tip-fg);
+  fill: var(--cw-alert-tip-fg);
 }
 
 .alert--warning {
-  border-left-color: var(--ccb-alert-warning-fg);
-  background: var(--ccb-alert-warning-bg);
+  border-left-color: var(--cw-alert-warning-fg);
+  background: var(--cw-alert-warning-bg);
 }
 
 .alert--warning [class*='admonitionHeading'] {
-  color: var(--ccb-alert-warning-fg);
+  color: var(--cw-alert-warning-fg);
 }
 
 .alert--warning svg {
-  fill: var(--ccb-alert-warning-fg);
+  fill: var(--cw-alert-warning-fg);
 }
 
 .alert--danger {
-  border-left-color: var(--ccb-alert-caution-fg);
-  background: var(--ccb-alert-caution-bg);
+  border-left-color: var(--cw-alert-caution-fg);
+  background: var(--cw-alert-caution-bg);
 }
 
 .alert--danger [class*='admonitionHeading'] {
-  color: var(--ccb-alert-caution-fg);
+  color: var(--cw-alert-caution-fg);
 }
 
 .alert--danger svg {
-  fill: var(--ccb-alert-caution-fg);
+  fill: var(--cw-alert-caution-fg);
 }
 
 /* ---------------------------------------------------------------------------
@@ -432,51 +432,51 @@ article {
    --------------------------------------------------------------------------- */
 
 .markdown-alert-note {
-  border-left-color: var(--ccb-alert-note-fg);
-  background: var(--ccb-alert-note-bg);
+  border-left-color: var(--cw-alert-note-fg);
+  background: var(--cw-alert-note-bg);
 }
 .markdown-alert-note .markdown-alert-title {
-  color: var(--ccb-alert-note-fg);
+  color: var(--cw-alert-note-fg);
 }
 
 .markdown-alert-tip {
-  border-left-color: var(--ccb-alert-tip-fg);
-  background: var(--ccb-alert-tip-bg);
+  border-left-color: var(--cw-alert-tip-fg);
+  background: var(--cw-alert-tip-bg);
 }
 .markdown-alert-tip .markdown-alert-title {
-  color: var(--ccb-alert-tip-fg);
+  color: var(--cw-alert-tip-fg);
 }
 
 .markdown-alert-important {
-  border-left-color: var(--ccb-alert-important-fg);
-  background: var(--ccb-alert-important-bg);
+  border-left-color: var(--cw-alert-important-fg);
+  background: var(--cw-alert-important-bg);
 }
 .markdown-alert-important .markdown-alert-title {
-  color: var(--ccb-alert-important-fg);
+  color: var(--cw-alert-important-fg);
 }
 
 .markdown-alert-warning {
-  border-left-color: var(--ccb-alert-warning-fg);
-  background: var(--ccb-alert-warning-bg);
+  border-left-color: var(--cw-alert-warning-fg);
+  background: var(--cw-alert-warning-bg);
 }
 .markdown-alert-warning .markdown-alert-title {
-  color: var(--ccb-alert-warning-fg);
+  color: var(--cw-alert-warning-fg);
 }
 
 .markdown-alert-caution {
-  border-left-color: var(--ccb-alert-caution-fg);
-  background: var(--ccb-alert-caution-bg);
+  border-left-color: var(--cw-alert-caution-fg);
+  background: var(--cw-alert-caution-bg);
 }
 .markdown-alert-caution .markdown-alert-title {
-  color: var(--ccb-alert-caution-fg);
+  color: var(--cw-alert-caution-fg);
 }
 
 .markdown-alert-check {
-  border-left-color: var(--ccb-alert-check-fg);
-  background: var(--ccb-alert-check-bg);
+  border-left-color: var(--cw-alert-check-fg);
+  background: var(--cw-alert-check-bg);
 }
 .markdown-alert-check .markdown-alert-title {
-  color: var(--ccb-alert-check-fg);
+  color: var(--cw-alert-check-fg);
 }
 
 /* ---------------------------------------------------------------------------
@@ -484,7 +484,7 @@ article {
    --------------------------------------------------------------------------- */
 
 .pagination-nav {
-  border-top: 1px solid var(--ccb-border);
+  border-top: 1px solid var(--cw-border);
   padding-top: 1.5rem;
 }
 
@@ -501,17 +501,17 @@ article {
 }
 
 .pagination-nav__link:hover .pagination-nav__label {
-  color: var(--ccb-accent);
+  color: var(--cw-accent);
 }
 
 .pagination-nav__sublabel {
   font-size: 0.85rem;
-  color: var(--ccb-fg);
+  color: var(--cw-fg);
 }
 
 .pagination-nav__label {
   font-size: 1.1rem;
-  color: var(--ccb-fg);
+  color: var(--cw-fg);
   font-weight: 400;
 }
 
@@ -528,7 +528,7 @@ article {
    --------------------------------------------------------------------------- */
 
 ::selection {
-  background: color-mix(in srgb, var(--ccb-accent) 22%, transparent);
+  background: color-mix(in srgb, var(--cw-accent) 22%, transparent);
 }
 
 /* ---------------------------------------------------------------------------
@@ -536,8 +536,8 @@ article {
    --------------------------------------------------------------------------- */
 
 .external-url-card {
-  border: 1px solid var(--ccb-border);
-  border-left: 4px solid var(--ccb-accent);
+  border: 1px solid var(--cw-border);
+  border-left: 4px solid var(--cw-accent);
   border-radius: var(--ifm-global-radius);
   padding: 1.5rem 2rem;
   margin: 1rem 0;
@@ -545,7 +545,7 @@ article {
 
 .external-url-label {
   font-weight: 600;
-  color: var(--ccb-accent);
+  color: var(--cw-accent);
   margin-bottom: 0.25rem;
   font-size: 0.9rem;
   text-transform: uppercase;
@@ -565,8 +565,8 @@ article {
    --------------------------------------------------------------------------- */
 
 .file-item-card {
-  border: 1px solid var(--ccb-border);
-  border-left: 4px solid var(--ccb-secondary);
+  border: 1px solid var(--cw-border);
+  border-left: 4px solid var(--cw-secondary);
   border-radius: var(--ifm-global-radius);
   padding: 1.5rem 2rem;
   margin: 1rem 0;
@@ -574,7 +574,7 @@ article {
 
 .file-item-label {
   font-weight: 600;
-  color: var(--ccb-secondary);
+  color: var(--cw-secondary);
   margin-bottom: 0.25rem;
   font-size: 0.9rem;
   text-transform: uppercase;
@@ -611,8 +611,8 @@ article {
    --------------------------------------------------------------------------- */
 
 .reference-item-card {
-  border: 1px solid var(--ccb-border);
-  border-left: 4px solid var(--ccb-fg-muted);
+  border: 1px solid var(--cw-border);
+  border-left: 4px solid var(--cw-fg-muted);
   border-radius: var(--ifm-global-radius);
   padding: 1.5rem 2rem;
   margin: 1rem 0;
@@ -620,7 +620,7 @@ article {
 
 .reference-item-label {
   font-weight: 600;
-  color: var(--ccb-fg-muted);
+  color: var(--cw-fg-muted);
   margin-bottom: 0.25rem;
   font-size: 0.9rem;
   text-transform: uppercase;
@@ -636,7 +636,7 @@ article {
 }
 
 .reference-item-notice {
-  color: var(--ccb-fg-muted);
+  color: var(--cw-fg-muted);
   font-size: 0.95rem;
   max-width: 46rem;
 }

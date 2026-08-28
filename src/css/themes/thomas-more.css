@@ -20,54 +20,54 @@
 
 :root {
   /* --- Accent (orange) --------------------------------------------------- */
-  --ccb-accent: #fa6432;
-  --ccb-accent-dark: #f94d14;
-  --ccb-accent-darker: #ef4209;
-  --ccb-accent-darkest: #c53707;
-  --ccb-accent-light: #fb7d52;
-  --ccb-accent-lighter: #fb8a63;
-  --ccb-accent-lightest: #fcab8e;
+  --cw-accent: #fa6432;
+  --cw-accent-dark: #f94d14;
+  --cw-accent-darker: #ef4209;
+  --cw-accent-darkest: #c53707;
+  --cw-accent-light: #fb7d52;
+  --cw-accent-lighter: #fb8a63;
+  --cw-accent-lightest: #fcab8e;
 
   /* --- Secondary (navy) -------------------------------------------------- */
-  --ccb-secondary: #00283c;
+  --cw-secondary: #00283c;
 
   /* --- Neutrals ---------------------------------------------------------- */
-  --ccb-fg: #000a1e;
-  --ccb-fg-muted: #595959;
-  --ccb-border: #e8ebee;
-  --ccb-surface: #ffffff;
-  --ccb-surface-subtle: #f2f5f8;
-  --ccb-surface-sunken: #dee1e4;
-  --ccb-code-bg: #e8ebee;
+  --cw-fg: #000a1e;
+  --cw-fg-muted: #595959;
+  --cw-border: #e8ebee;
+  --cw-surface: #ffffff;
+  --cw-surface-subtle: #f2f5f8;
+  --cw-surface-sunken: #dee1e4;
+  --cw-code-bg: #e8ebee;
 
   /* --- Headings and links ------------------------------------------------ */
-  --ccb-heading: #fa6432;
-  --ccb-link: #fa6432;
+  --cw-heading: #fa6432;
+  --cw-link: #fa6432;
 
   /* --- Alerts ------------------------------------------------------------ */
   /* Backgrounds are the flat equivalents of the 6% tints the site used before
      tokens existed, so one hex value can serve both the site and the PDF. */
-  --ccb-alert-note-fg: #4bafe1;
-  --ccb-alert-note-bg: #f4fafd;
-  --ccb-alert-tip-fg: #64c8c8;
-  --ccb-alert-tip-bg: #f6fcfc;
-  --ccb-alert-important-fg: #967dc8;
-  --ccb-alert-important-bg: #f9f7fc;
-  --ccb-alert-warning-fg: #ffc87d;
-  --ccb-alert-warning-bg: #fffcf7;
-  --ccb-alert-caution-fg: #fa6432;
-  --ccb-alert-caution-bg: #fff6f3;
-  --ccb-alert-check-fg: #00283c;
-  --ccb-alert-check-bg: #f5f6f7;
+  --cw-alert-note-fg: #4bafe1;
+  --cw-alert-note-bg: #f4fafd;
+  --cw-alert-tip-fg: #64c8c8;
+  --cw-alert-tip-bg: #f6fcfc;
+  --cw-alert-important-fg: #967dc8;
+  --cw-alert-important-bg: #f9f7fc;
+  --cw-alert-warning-fg: #ffc87d;
+  --cw-alert-warning-bg: #fffcf7;
+  --cw-alert-caution-fg: #fa6432;
+  --cw-alert-caution-bg: #fff6f3;
+  --cw-alert-check-fg: #00283c;
+  --cw-alert-check-bg: #f5f6f7;
 
   /* --- Typography -------------------------------------------------------- */
-  --ccb-font-sans:
+  --cw-font-sans:
     'Nunito', 'Century Gothic', CenturyGothic, AppleGothic, 'Gill Sans',
     sans-serif;
-  --ccb-font-mono:
+  --cw-font-mono:
     'Inconsolata', Consolas, Menlo, Monaco, 'Courier New', monospace;
-  --ccb-font-size-base: 1.2rem;
-  --ccb-font-weight-base: 300;
-  --ccb-heading-font-weight: 400;
-  --ccb-line-height-base: 1.75;
+  --cw-font-size-base: 1.2rem;
+  --cw-font-weight-base: 300;
+  --cw-heading-font-weight: 400;
+  --cw-line-height-base: 1.75;
 }

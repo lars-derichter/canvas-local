@@ -289,7 +289,7 @@ describe('VS Code extension: activated, and run', () => {
   let collectUnhandled;
 
   before(() => {
-    workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'ccb-runner-'));
+    workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'cw-runner-'));
     fs.mkdirSync(path.join(workspace, 'cli'));
     fs.mkdirSync(path.join(workspace, 'course'));
     fs.writeFileSync(path.join(workspace, 'cli', 'index.js'), '', 'utf8');
@@ -525,13 +525,13 @@ describe('VS Code extension: activated, and run', () => {
   });
 
   it('spawns node on the workspace CLI with the options it means to', async () => {
-    process.env.CCB_LIVE_PROBE = 'probe value';
+    process.env.CW_LIVE_PROBE = 'probe value';
     const before = { ...process.env };
     plan = () => ({ stdout: 'ok\n' });
     try {
       await runCli(['rename-item', '--path', 'x']);
     } finally {
-      delete process.env.CCB_LIVE_PROBE;
+      delete process.env.CW_LIVE_PROBE;
     }
 
     assert.equal(spawns.length, 1);
@@ -547,7 +547,7 @@ describe('VS Code extension: activated, and run', () => {
     // assertion passes here and fails the Windows leg. The probe is a variable
     // this test controls, and the key lookup below is done the way a program
     // reading the child block has to do it.
-    assert.equal(spawn.options.env.CCB_LIVE_PROBE, 'probe value');
+    assert.equal(spawn.options.env.CW_LIVE_PROBE, 'probe value');
     const pathKey = Object.keys(spawn.options.env).find(
       (key) => key.toLowerCase() === 'path',
     );
@@ -558,7 +558,7 @@ describe('VS Code extension: activated, and run', () => {
       'the child needs the environment a hand-run command would have had',
     );
     assert.deepEqual(
-      { ...process.env, CCB_LIVE_PROBE: 'probe value' },
+      { ...process.env, CW_LIVE_PROBE: 'probe value' },
       before,
       'building the child environment must not edit this process',
     );
@@ -1023,7 +1023,7 @@ describe('VS Code extension: activated, and run', () => {
       .map((event) => event.args[2]);
 
   it('restores the TOC-ready state from the file, on activation', () => {
-    const fresh = fs.mkdtempSync(path.join(os.tmpdir(), 'ccb-toc-'));
+    const fresh = fs.mkdtempSync(path.join(os.tmpdir(), 'cw-toc-'));
     fs.mkdirSync(path.join(fresh, 'course'));
     const original = vscodeStub.workspace.workspaceFolders;
     try {

@@ -100,13 +100,13 @@ Note, Tip, Important, Warning, Caution, and Check, plus `Link Card Title`,
 
 `template.typ` never hardcodes a palette. The exporter reads the theme file,
 keeps every token whose value is a plain hex colour, and passes them to pandoc
-as variables named after the token: `--ccb-alert-note-fg` becomes
-`ccb-alert-note-fg`. The template reads them through a small `pick()` helper
-that falls back to a literal when the variable is absent, so the file still
-compiles on its own:
+as variables named after the token: `--cw-alert-note-fg` becomes
+`cw-alert-note-fg`. The template reads them through a small `pick()` helper that
+falls back to a literal when the variable is absent, so the file still compiles
+on its own:
 
 ```typst
-#let fg = pick("$ccb-fg$", "#1f2328")
+#let fg = pick("$cw-fg$", "#1f2328")
 ```
 
 > [!NOTE]

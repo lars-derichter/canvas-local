@@ -2577,7 +2577,7 @@ describe('VS Code extension: runInTerminal quotes for the terminal it picks', ()
       vscode,
       pickTerminal,
       shellQuote,
-      TERMINAL_BASE_NAME: 'CCB',
+      TERMINAL_BASE_NAME: 'CW',
       workspaceRoot: '/ws',
       currentFlavour: () => 'posix',
       terminalPool: [],
@@ -2621,7 +2621,7 @@ describe('VS Code extension: runInTerminal quotes for the terminal it picks', ()
   it('stamps a new terminal with the flavour it was created under', () => {
     const h = loadRunInTerminal({ currentFlavour: () => 'powershell' });
     h.run((q) => `npx course search ${q("it's")}`);
-    assert.deepStrictEqual(h.created, ['CCB']);
+    assert.deepStrictEqual(h.created, ['CW']);
     assert.equal(h.pool[0].flavour, 'powershell');
     assert.deepStrictEqual(h.typed, ["npx course search 'it''s'"]);
   });
@@ -2630,7 +2630,7 @@ describe('VS Code extension: runInTerminal quotes for the terminal it picks', ()
     // The regression this shape exists for: the author started a terminal
     // under Command Prompt and has since switched the default to PowerShell.
     const typed = [];
-    const pool = [pooled('CCB', 'cmd', false, typed)];
+    const pool = [pooled('CW', 'cmd', false, typed)];
     const h = loadRunInTerminal({
       terminalPool: pool,
       currentFlavour: () => 'powershell',
@@ -2648,7 +2648,7 @@ describe('VS Code extension: runInTerminal quotes for the terminal it picks', ()
     // handed one back anyway.
     const typed = [];
     const pool = [1, 2, 3, 4, 5].map((n) =>
-      pooled(n === 1 ? 'CCB' : `CCB ${n}`, 'cmd', false, typed),
+      pooled(n === 1 ? 'CW' : `CW ${n}`, 'cmd', false, typed),
     );
     const h = loadRunInTerminal({
       terminalPool: pool,
@@ -2665,7 +2665,7 @@ describe('VS Code extension: runInTerminal quotes for the terminal it picks', ()
     // profile is the guess — and it must be a guess that still quotes.
     const typed = [];
     const pool = [1, 2, 3, 4, 5].map((n) =>
-      pooled(n === 1 ? 'CCB' : `CCB ${n}`, null, true, typed),
+      pooled(n === 1 ? 'CW' : `CW ${n}`, null, true, typed),
     );
     const h = loadRunInTerminal({
       terminalPool: pool,
@@ -2680,7 +2680,7 @@ describe('VS Code extension: runInTerminal quotes for the terminal it picks', ()
     // A module folder named with a line break. csh would run the second line
     // as a command, so the line is never built and never sent.
     const typed = [];
-    const pool = [pooled('CCB', 'csh', false, typed)];
+    const pool = [pooled('CW', 'csh', false, typed)];
     const h = loadRunInTerminal({
       terminalPool: pool,
       currentFlavour: () => 'csh',
@@ -2707,7 +2707,7 @@ describe('VS Code extension: runInTerminal quotes for the terminal it picks', ()
     // refusal is still right; naming that shell as fact would not be.
     const typed = [];
     const pool = [1, 2, 3, 4, 5].map((n) =>
-      pooled(n === 1 ? 'CCB' : `CCB ${n}`, null, true, typed),
+      pooled(n === 1 ? 'CW' : `CW ${n}`, null, true, typed),
     );
     const h = loadRunInTerminal({
       terminalPool: pool,

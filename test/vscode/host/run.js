@@ -40,10 +40,10 @@ const {
  *   process tree when the bound is reached.
  *
  * Environment:
- * - `CCB_VSCODE_VERSION` — which VS Code to run. Defaults to the floor in the
+ * - `CW_VSCODE_VERSION` — which VS Code to run. Defaults to the floor in the
  *   extension's `engines.vscode`, so CI is reproducible and the floor is a
  *   claim the test actually makes. `stable` is worth a run now and then.
- * - `CCB_VSCODE_TIMEOUT_MS` — the bound on the host run.
+ * - `CW_VSCODE_TIMEOUT_MS` — the bound on the host run.
  */
 
 const ROOT = path.join(__dirname, '..', '..', '..');
@@ -77,7 +77,7 @@ const CACHE_DIR = path.join(ROOT, '.vscode-test');
  * characters. Length alone is not the rule, and this does not claim to know
  * what is; it keeps the path short and stays out of the way.
  */
-const USER_DATA_DIR = path.join(os.tmpdir(), 'ccb-smoke-user-data');
+const USER_DATA_DIR = path.join(os.tmpdir(), 'cw-smoke-user-data');
 
 /**
  * Where the `.vsix` is installed, and the path whose location is an assertion
@@ -94,7 +94,7 @@ const USER_DATA_DIR = path.join(os.tmpdir(), 'ccb-smoke-user-data');
  * passed. Out here the same edit fails at activation, which is what an install
  * does.
  */
-const EXTENSIONS_DIR = path.join(os.tmpdir(), 'ccb-smoke-extensions');
+const EXTENSIONS_DIR = path.join(os.tmpdir(), 'cw-smoke-extensions');
 
 const HARNESS_DIR = path.join(__dirname, 'harness');
 const SMOKE_PATH = path.join(__dirname, 'smoke.js');
@@ -223,9 +223,9 @@ async function main() {
     );
   }
 
-  const version = process.env.CCB_VSCODE_VERSION || DEFAULT_VERSION;
+  const version = process.env.CW_VSCODE_VERSION || DEFAULT_VERSION;
   const timeoutMs =
-    Number(process.env.CCB_VSCODE_TIMEOUT_MS) || DEFAULT_TIMEOUT_MS;
+    Number(process.env.CW_VSCODE_TIMEOUT_MS) || DEFAULT_TIMEOUT_MS;
 
   const executable = await downloadAndUnzipVSCode({
     version,

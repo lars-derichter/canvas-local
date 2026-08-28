@@ -36,7 +36,7 @@ source is not a document, URL, or stylesheet.
      the default you will fork: the `conf(...)` signature (font, codefont,
      fontsize, margin, paper, logo), the `pick(...)` helper that reads theme
      colours, and the `alert-colors` map.
-   - The active theme, for the `--ccb-*` colour tokens: the file `theme:` in
+   - The active theme, for the `--cw-*` colour tokens: the file `theme:` in
      `course.config.yml` selects, e.g.
      [`src/css/themes/github.css`](../../../src/css/themes/github.css).
    - The custom paragraph styles inside the style's `reference.docx`: the six
@@ -60,16 +60,16 @@ source is not a document, URL, or stylesheet.
 3. **Present the style spec** as a table, one row per decision with where it
    applies:
 
-   | Decision           | Value | Where it goes                                | DOCX (reference.docx)             |
-   | ------------------ | ----- | -------------------------------------------- | --------------------------------- |
-   | Body font          | …     | `font:` in `conf()`                          | `Normal` + theme `<a:latin>`      |
-   | Heading font       | …     | `show heading` rule                          | `Heading1/2/3`                    |
-   | Heading colour     | …     | `--ccb-heading` in the theme                 | `Heading1/2/3` colour             |
-   | Body size          | …     | `fontsize:` in `conf()`                      | `Normal` size                     |
-   | Link/accent colour | …     | `--ccb-link` / `--ccb-accent` in the theme   | `Hyperlink` colour                |
-   | Alert colours      | …     | `--ccb-alert-<kind>-fg` / `-bg` in the theme | per-kind `AlertTitle`/`AlertBody` |
-   | Margins            | …     | `margin:` in `conf()`                        | `<w:pgMar>`                       |
-   | Paper              | …     | `paper:` in `conf()`                         | `<w:pgSz>`                        |
+   | Decision           | Value | Where it goes                               | DOCX (reference.docx)             |
+   | ------------------ | ----- | ------------------------------------------- | --------------------------------- |
+   | Body font          | …     | `font:` in `conf()`                         | `Normal` + theme `<a:latin>`      |
+   | Heading font       | …     | `show heading` rule                         | `Heading1/2/3`                    |
+   | Heading colour     | …     | `--cw-heading` in the theme                 | `Heading1/2/3` colour             |
+   | Body size          | …     | `fontsize:` in `conf()`                     | `Normal` size                     |
+   | Link/accent colour | …     | `--cw-link` / `--cw-accent` in the theme    | `Hyperlink` colour                |
+   | Alert colours      | …     | `--cw-alert-<kind>-fg` / `-bg` in the theme | per-kind `AlertTitle`/`AlertBody` |
+   | Margins            | …     | `margin:` in `conf()`                       | `<w:pgMar>`                       |
+   | Paper              | …     | `paper:` in `conf()`                        | `<w:pgSz>`                        |
 
    When the reference implies new colours, say which theme you will write them
    to: a copy of the active theme under `sources/` (then set `theme:` to that
@@ -91,7 +91,7 @@ source is not a document, URL, or stylesheet.
    If the spec includes colours, also copy the active theme (`<theme>` from
    `theme:` in `course.config.yml`):
    `cp src/css/themes/<theme>.css sources/theme.css`, set
-   `theme: sources/theme.css` in `course.config.yml`, and edit the `--ccb-*`
+   `theme: sources/theme.css` in `course.config.yml`, and edit the `--cw-*`
    tokens there.
 
 5. **Edit `sources/export-style/template.typ`** (PDF): change the `conf()`
@@ -104,8 +104,8 @@ source is not a document, URL, or stylesheet.
 
    Keep the `alert(...)`, `linkcard(...)`, `attachment(...)` helpers and the
    `alert-colors` map: the Lua filter calls them by name. Keep the
-   `pick("$ccb-…$", "#fallback")` calls too: they are how theme colours reach
-   the PDF. Change a colour by editing the theme and, if you want the standalone
+   `pick("$cw-…$", "#fallback")` calls too: they are how theme colours reach the
+   PDF. Change a colour by editing the theme and, if you want the standalone
    fallback to match, the literal second argument.
 
 6. **Edit `sources/export-style/reference.docx`** by editing its XML, never in

@@ -388,7 +388,7 @@ describe('gatherLocal: a file item and the binary behind it', () => {
 
 /**
  * A process killed outright between the two halves of `reorderLocalModule`
- * never runs its unwind, so files stay parked under `__ccb_order_*`.
+ * never runs its unwind, so files stay parked under `__cw_order_*`.
  * `scanCourse` skips every `_`-prefixed name, so without recovery the next run
  * reads those items as locally deleted — and `push --prune-canvas` offers to
  * delete the Canvas objects behind them. Hence: before the scan, in every
@@ -399,7 +399,7 @@ describe('gatherLocal: recovering an interrupted renumbering', () => {
 
   it('puts a parked file back under its own name before scanning', () => {
     const dir = tempCourse({
-      '01-intro/__ccb_order_01-welcome.md': '---\ntitle: Welcome\n---\n\nA.\n',
+      '01-intro/__cw_order_01-welcome.md': '---\ntitle: Welcome\n---\n\nA.\n',
       '01-intro/02-theory.md': '---\ntitle: Theory\n---\n\nB.\n',
     });
 
@@ -414,7 +414,7 @@ describe('gatherLocal: recovering an interrupted renumbering', () => {
       'the parked file is restored',
     );
     assert.equal(
-      fs.existsSync(path.join(dir, '01-intro/__ccb_order_01-welcome.md')),
+      fs.existsSync(path.join(dir, '01-intro/__cw_order_01-welcome.md')),
       false,
     );
     // The item is in the scan, which is the whole point: it is not reported as
@@ -429,7 +429,7 @@ describe('gatherLocal: recovering an interrupted renumbering', () => {
 
   it('reaches a parked file one level further down, inside a subfolder', () => {
     const dir = tempCourse({
-      '01-intro/02-theory/__ccb_order_01-types.md':
+      '01-intro/02-theory/__cw_order_01-types.md':
         '---\ntitle: Types\n---\n\nC.\n',
       '01-intro/02-theory/_category_.json': '{ "label": "Theory" }\n',
     });
@@ -450,9 +450,9 @@ describe('gatherLocal: recovering an interrupted renumbering', () => {
     // A subfolder is a text header, so a reorder parks directories too — and one
     // rename takes the whole subtree back with it.
     const dir = tempCourse({
-      '01-intro/__ccb_order_02-theory/_category_.json':
+      '01-intro/__cw_order_02-theory/_category_.json':
         '{ "label": "Theory" }\n',
-      '01-intro/__ccb_order_02-theory/01-types.md':
+      '01-intro/__cw_order_02-theory/01-types.md':
         '---\ntitle: Types\n---\n\nD.\n',
     });
 
@@ -473,7 +473,7 @@ describe('gatherLocal: recovering an interrupted renumbering', () => {
     // work, so neither is touched. The occupant is scanned as usual, which is
     // what keeps the run from reporting the item as deleted.
     const dir = tempCourse({
-      '01-intro/__ccb_order_01-welcome.md': 'the parked copy\n',
+      '01-intro/__cw_order_01-welcome.md': 'the parked copy\n',
       '01-intro/01-welcome.md': '---\ntitle: Welcome\n---\n\nthe occupant\n',
     });
 
@@ -484,7 +484,7 @@ describe('gatherLocal: recovering an interrupted renumbering', () => {
 
     assert.equal(
       fs.readFileSync(
-        path.join(dir, '01-intro/__ccb_order_01-welcome.md'),
+        path.join(dir, '01-intro/__cw_order_01-welcome.md'),
         'utf8',
       ),
       'the parked copy\n',
@@ -497,7 +497,7 @@ describe('gatherLocal: recovering an interrupted renumbering', () => {
     assert.equal(warnings.length, 1);
     assert.match(
       warnings[0],
-      /01-intro\/__ccb_order_01-welcome\.md .*occupied.*Nothing was deleted/s,
+      /01-intro\/__cw_order_01-welcome\.md .*occupied.*Nothing was deleted/s,
     );
   });
 
@@ -1143,12 +1143,12 @@ describe('gatherLocal: what the whole course embeds', () => {
   });
 
   it('refuses to claim the set is whole when an item is still parked', () => {
-    // A file left under `__ccb_order_*` that recovery could not put back is an
+    // A file left under `__cw_order_*` that recovery could not put back is an
     // item `scanCourse` never sees, so whatever it embedded is missing from the
     // set. That is precisely the shape of a false "nothing references this".
     const dir = tempCourse({
       '01-intro/01-welcome.md': '---\ntitle: Welcome\n---\n\nA.\n',
-      '01-intro/__ccb_order_01-welcome.md':
+      '01-intro/__cw_order_01-welcome.md':
         '---\ntitle: Welcome\n---\n\n![Logo](./_files/logo.png)\n',
     });
 

@@ -6,13 +6,13 @@
 
    THIS FILE IS THE SOURCE OF TRUTH FOR COLOUR. Everything downstream reads it:
 
-     - the preview site        src/css/custom.css maps --ccb-* onto --ifm-*
+     - the preview site        src/css/custom.css maps --cw-* onto --ifm-*
      - Canvas HTML             lib/convert/markdown-to-html.js
      - the alert icons         lib/canvas/icons.js, src/plugins/remark-gfm-alerts.js
      - PDF exports             injected into template.typ as pandoc variables
 
    Every token whose value is a plain hex colour is passed to Typst as
-   `-V ccb-<name>=<value>`, so changing a colour here changes the PDF too.
+   `-V cw-<name>=<value>`, so changing a colour here changes the PDF too.
    DOCX is the exception: Word styles are baked into reference.docx and cannot
    be injected. See docs/export-styling.md.
 
@@ -23,32 +23,32 @@
 :root {
   /* --- Accent ------------------------------------------------------------ */
   /* Links, active navigation, the primary ramp Docusaurus derives its UI from. */
-  --ccb-accent: #0969da;
-  --ccb-accent-dark: #0860c4;
-  --ccb-accent-darker: #0858b7;
-  --ccb-accent-darkest: #064894;
-  --ccb-accent-light: #1b7ceb;
-  --ccb-accent-lighter: #2f88ee;
-  --ccb-accent-lightest: #58a0f2;
+  --cw-accent: #0969da;
+  --cw-accent-dark: #0860c4;
+  --cw-accent-darker: #0858b7;
+  --cw-accent-darkest: #064894;
+  --cw-accent-light: #1b7ceb;
+  --cw-accent-lighter: #2f88ee;
+  --cw-accent-lightest: #58a0f2;
 
   /* --- Secondary --------------------------------------------------------- */
   /* The "weight" colour: bold text, the footer, file cards. Near-black here;
      a branded theme would use its dark brand colour. */
-  --ccb-secondary: #1f2328;
+  --cw-secondary: #1f2328;
 
   /* --- Neutrals ---------------------------------------------------------- */
-  --ccb-fg: #1f2328;
-  --ccb-fg-muted: #59636e;
-  --ccb-border: #d1d9e0;
-  --ccb-surface: #ffffff;
-  --ccb-surface-subtle: #f6f8fa;
-  --ccb-surface-sunken: #eef1f4;
-  --ccb-code-bg: #eff1f3;
+  --cw-fg: #1f2328;
+  --cw-fg-muted: #59636e;
+  --cw-border: #d1d9e0;
+  --cw-surface: #ffffff;
+  --cw-surface-subtle: #f6f8fa;
+  --cw-surface-sunken: #eef1f4;
+  --cw-code-bg: #eff1f3;
 
   /* --- Headings and links ------------------------------------------------ */
   /* Headings stay near-black: colour carries meaning in alerts and links only. */
-  --ccb-heading: #1f2328;
-  --ccb-link: #0969da;
+  --cw-heading: #1f2328;
+  --cw-link: #0969da;
 
   /* --- Alerts ------------------------------------------------------------ */
   /* `fg` is the left rule and the title; `bg` fills the box. Values are
@@ -57,28 +57,28 @@
      GitHub has no `check` kind — it is this project's extra alert for
      checklists and self-tests. Neutral grey keeps it distinct from the five
      semantic kinds without inventing a seventh hue. */
-  --ccb-alert-note-fg: #0969da;
-  --ccb-alert-note-bg: #ddf4ff;
-  --ccb-alert-tip-fg: #1a7f37;
-  --ccb-alert-tip-bg: #dafbe1;
-  --ccb-alert-important-fg: #8250df;
-  --ccb-alert-important-bg: #fbefff;
-  --ccb-alert-warning-fg: #9a6700;
-  --ccb-alert-warning-bg: #fff8c5;
-  --ccb-alert-caution-fg: #cf222e;
-  --ccb-alert-caution-bg: #ffebe9;
-  --ccb-alert-check-fg: #59636e;
-  --ccb-alert-check-bg: #f6f8fa;
+  --cw-alert-note-fg: #0969da;
+  --cw-alert-note-bg: #ddf4ff;
+  --cw-alert-tip-fg: #1a7f37;
+  --cw-alert-tip-bg: #dafbe1;
+  --cw-alert-important-fg: #8250df;
+  --cw-alert-important-bg: #fbefff;
+  --cw-alert-warning-fg: #9a6700;
+  --cw-alert-warning-bg: #fff8c5;
+  --cw-alert-caution-fg: #cf222e;
+  --cw-alert-caution-bg: #ffebe9;
+  --cw-alert-check-fg: #59636e;
+  --cw-alert-check-bg: #f6f8fa;
 
   /* --- Typography -------------------------------------------------------- */
   /* Site only. PDF and DOCX typography belongs to the export style — see
      export-styles/<style>/template.typ. */
-  --ccb-font-sans:
+  --cw-font-sans:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-  --ccb-font-mono:
+  --cw-font-mono:
     ui-monospace, Menlo, Consolas, 'DejaVu Sans Mono', 'Courier New', monospace;
-  --ccb-font-size-base: 1.05rem;
-  --ccb-font-weight-base: 400;
-  --ccb-heading-font-weight: 600;
-  --ccb-line-height-base: 1.65;
+  --cw-font-size-base: 1.05rem;
+  --cw-font-weight-base: 400;
+  --cw-heading-font-weight: 600;
+  --cw-line-height-base: 1.65;
 }

@@ -18,38 +18,38 @@ $endif$
   rgb(if value == "" { fallback } else { value })
 }
 
-#let fg = pick("$ccb-fg$", "#1f2328")
-#let fg-muted = pick("$ccb-fg-muted$", "#59636e")
-#let border = pick("$ccb-border$", "#d1d9e0")
-#let surface-subtle = pick("$ccb-surface-subtle$", "#f6f8fa")
-#let code-bg = pick("$ccb-code-bg$", "#eff1f3")
-#let heading-color = pick("$ccb-heading$", "#1f2328")
-#let link-color = pick("$ccb-link$", "#0969da")
+#let fg = pick("$cw-fg$", "#1f2328")
+#let fg-muted = pick("$cw-fg-muted$", "#59636e")
+#let border = pick("$cw-border$", "#d1d9e0")
+#let surface-subtle = pick("$cw-surface-subtle$", "#f6f8fa")
+#let code-bg = pick("$cw-code-bg$", "#eff1f3")
+#let heading-color = pick("$cw-heading$", "#1f2328")
+#let link-color = pick("$cw-link$", "#0969da")
 
 #let alert-colors = (
   note: (
-    fg: pick("$ccb-alert-note-fg$", "#0969da"),
-    bg: pick("$ccb-alert-note-bg$", "#ddf4ff"),
+    fg: pick("$cw-alert-note-fg$", "#0969da"),
+    bg: pick("$cw-alert-note-bg$", "#ddf4ff"),
   ),
   tip: (
-    fg: pick("$ccb-alert-tip-fg$", "#1a7f37"),
-    bg: pick("$ccb-alert-tip-bg$", "#dafbe1"),
+    fg: pick("$cw-alert-tip-fg$", "#1a7f37"),
+    bg: pick("$cw-alert-tip-bg$", "#dafbe1"),
   ),
   important: (
-    fg: pick("$ccb-alert-important-fg$", "#8250df"),
-    bg: pick("$ccb-alert-important-bg$", "#fbefff"),
+    fg: pick("$cw-alert-important-fg$", "#8250df"),
+    bg: pick("$cw-alert-important-bg$", "#fbefff"),
   ),
   warning: (
-    fg: pick("$ccb-alert-warning-fg$", "#9a6700"),
-    bg: pick("$ccb-alert-warning-bg$", "#fff8c5"),
+    fg: pick("$cw-alert-warning-fg$", "#9a6700"),
+    bg: pick("$cw-alert-warning-bg$", "#fff8c5"),
   ),
   caution: (
-    fg: pick("$ccb-alert-caution-fg$", "#cf222e"),
-    bg: pick("$ccb-alert-caution-bg$", "#ffebe9"),
+    fg: pick("$cw-alert-caution-fg$", "#cf222e"),
+    bg: pick("$cw-alert-caution-bg$", "#ffebe9"),
   ),
   check: (
-    fg: pick("$ccb-alert-check-fg$", "#59636e"),
-    bg: pick("$ccb-alert-check-bg$", "#f6f8fa"),
+    fg: pick("$cw-alert-check-fg$", "#59636e"),
+    bg: pick("$cw-alert-check-bg$", "#f6f8fa"),
   ),
 )
 

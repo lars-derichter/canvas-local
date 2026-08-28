@@ -408,7 +408,7 @@ describe('buildCombinedMarkdown — items straight from the scanner', () => {
   let courseDir;
 
   before(() => {
-    courseDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ccb-assemble-scan-'));
+    courseDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cw-assemble-scan-'));
     const mod = path.join(courseDir, '01-a');
     fs.mkdirSync(path.join(mod, '_files'), { recursive: true });
     fs.writeFileSync(path.join(mod, '_files', 'd.png'), 'binary');

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **The design tokens are now `--cw-*`.** The theme CSS custom properties, the
+  pandoc variables the Typst templates read, the deploy workflow's
+  `CW_SITE_URL`/`CW_BASE_URL`, and the smoke test's `CW_VSCODE_*` switches all
+  drop the old `ccb` prefix (Canvas Course Builder) for `cw`, finishing the
+  rename below. There is no compatibility shim: a custom theme or a forked
+  `template.typ` in `sources/export-style/` keeps its old names and silently
+  falls back to default colours, so rename `--ccb-` to `--cw-` in the theme and
+  `$ccb-` to `$cw-` in the template.
 - **The project is now Coursewright.** Same tool, new name: the site, the
   PDF/DOCX exports and the AI skills never needed Canvas, so the name no longer
   claims it. The repository lives at `lars-derichter/coursewright` (GitHub

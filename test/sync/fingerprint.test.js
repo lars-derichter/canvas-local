@@ -178,7 +178,7 @@ describe('hashLocalFile and hashBinaryFile', () => {
   let dir;
 
   beforeEach(() => {
-    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ccb-fingerprint-'));
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cw-fingerprint-'));
   });
 
   afterEach(() => {

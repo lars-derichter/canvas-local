@@ -197,13 +197,13 @@ Built-in themes live in [`src/css/themes/`](../src/css/themes/):
 | [`github.css`](../src/css/themes/github.css)           | The default. GitHub's light-mode palette, near-black headings, a blue accent, and a system font stack with no web-font request. |
 | [`thomas-more.css`](../src/css/themes/thomas-more.css) | Orange accent, navy secondary, Nunito and Inconsolata from Google Fonts, and the pastel alert set.                              |
 
-Every token is prefixed `--ccb-` and sits under a comment saying what it
-colours, so [`github.css`](../src/css/themes/github.css) reads as the token
-reference. Two groups are worth knowing before you open it: the alert colours
-come as a `--ccb-alert-<kind>-fg` / `-bg` pair for each of `note`, `tip`,
-`important`, `warning`, `caution` and `check`, where `fg` is the left rule and
-the title and `bg` fills the box; and the font tokens set the website's
-typography only: export typography belongs to the export style below.
+Every token is prefixed `--cw-` and sits under a comment saying what it colours,
+so [`github.css`](../src/css/themes/github.css) reads as the token reference.
+Two groups are worth knowing before you open it: the alert colours come as a
+`--cw-alert-<kind>-fg` / `-bg` pair for each of `note`, `tip`, `important`,
+`warning`, `caution` and `check`, where `fg` is the left rule and the title and
+`bg` fills the box; and the font tokens set the website's typography only:
+export typography belongs to the export style below.
 
 To make a theme of your own, copy one into `sources/` and point `theme:` at the
 path:
@@ -226,7 +226,7 @@ Canvas pages pick it up on the next run.
 > injected. Use `/export-style-update` to recolour it to match.
 
 [`src/css/custom.css`](../src/css/custom.css) holds no colours of its own: it
-maps the `--ccb-*` tokens onto Docusaurus's `--ifm-*` variables and styles the
+maps the `--cw-*` tokens onto Docusaurus's `--ifm-*` variables and styles the
 components. The site title and navbar label come from `title` in
 `course.config.yml`, above.
 

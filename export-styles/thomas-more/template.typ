@@ -17,13 +17,13 @@ $endif$
   rgb(if value == "" { fallback } else { value })
 }
 
-#let tm-orange = pick("$ccb-accent$", "#FA6432")
-#let tm-navy = pick("$ccb-secondary$", "#00283C")
-#let tm-link = pick("$ccb-link$", "#00637C")
-#let tm-grey = pick("$ccb-code-bg$", "#E8EBEE")
-#let tm-muted = pick("$ccb-fg-muted$", "#595959")
-#let tm-tableline = pick("$ccb-border$", "#AABDCA")
-#let heading-color = pick("$ccb-heading$", "#FA6432")
+#let tm-orange = pick("$cw-accent$", "#FA6432")
+#let tm-navy = pick("$cw-secondary$", "#00283C")
+#let tm-link = pick("$cw-link$", "#00637C")
+#let tm-grey = pick("$cw-code-bg$", "#E8EBEE")
+#let tm-muted = pick("$cw-fg-muted$", "#595959")
+#let tm-tableline = pick("$cw-border$", "#AABDCA")
+#let heading-color = pick("$cw-heading$", "#FA6432")
 
 // Century Gothic first: Microsoft Office installs it, and the exporter points
 // Typst at Office's font directory. Nunito ships in this style's fonts/ folder
@@ -45,28 +45,28 @@ $endif$
 // styles in reference.docx.
 #let alert-colors = (
   note: (
-    fg: pick("$ccb-alert-note-fg$", "#4bafe1"),
-    bg: pick("$ccb-alert-note-bg$", "#f4fafd"),
+    fg: pick("$cw-alert-note-fg$", "#4bafe1"),
+    bg: pick("$cw-alert-note-bg$", "#f4fafd"),
   ),
   tip: (
-    fg: pick("$ccb-alert-tip-fg$", "#64c8c8"),
-    bg: pick("$ccb-alert-tip-bg$", "#f6fcfc"),
+    fg: pick("$cw-alert-tip-fg$", "#64c8c8"),
+    bg: pick("$cw-alert-tip-bg$", "#f6fcfc"),
   ),
   important: (
-    fg: pick("$ccb-alert-important-fg$", "#967dc8"),
-    bg: pick("$ccb-alert-important-bg$", "#f9f7fc"),
+    fg: pick("$cw-alert-important-fg$", "#967dc8"),
+    bg: pick("$cw-alert-important-bg$", "#f9f7fc"),
   ),
   warning: (
-    fg: pick("$ccb-alert-warning-fg$", "#ffc87d"),
-    bg: pick("$ccb-alert-warning-bg$", "#fffcf7"),
+    fg: pick("$cw-alert-warning-fg$", "#ffc87d"),
+    bg: pick("$cw-alert-warning-bg$", "#fffcf7"),
   ),
   caution: (
-    fg: pick("$ccb-alert-caution-fg$", "#fa6432"),
-    bg: pick("$ccb-alert-caution-bg$", "#fff6f3"),
+    fg: pick("$cw-alert-caution-fg$", "#fa6432"),
+    bg: pick("$cw-alert-caution-bg$", "#fff6f3"),
   ),
   check: (
-    fg: pick("$ccb-alert-check-fg$", "#00283c"),
-    bg: pick("$ccb-alert-check-bg$", "#f5f6f7"),
+    fg: pick("$cw-alert-check-fg$", "#00283c"),
+    bg: pick("$cw-alert-check-bg$", "#f5f6f7"),
   ),
 )
 
