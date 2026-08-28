@@ -20,31 +20,32 @@ below are provisional; they firm up when someone builds one.
 
 ### Course Quality
 
-- **/accessibility-pass**: alt-texts present and meaningful, heading hierarchy,
-  contrast in embedded images, link texts that work for screenreaders. Canvas's
-  own checker is weak; doing it at the markdown source is more durable.
+- **`/accessibility-pass`**: alt-texts present and meaningful, heading
+  hierarchy, contrast in embedded images, link texts that work for
+  screenreaders. Canvas's own checker is weak; doing it at the markdown source
+  is more durable.
 
 ### Teaching Cycle
 
-- **/semester-plan**: map lessons onto the academic calendar (holidays, exam
+- **`/semester-plan`**: map lessons onto the academic calendar (holidays, exam
   weeks), propose which lesson lands on which date, generate a schedule page.
   Re-run when a lesson is cancelled.
-- **/announcement-draft**: draft the weekly "what changed / what's coming"
+- **`/announcement-draft`**: draft the weekly "what changed / what's coming"
   student announcement from the git log and the calendar; push as a Canvas
   announcement (needs a small `lib/canvas/announcements.js`, the API is simple).
 
 ### Content Intake
 
-- **/slides-import**: convert an existing slide deck or PDF (most courses start
-  from a pile of these) into a draft module: one page per topic, images
+- **`/slides-import`**: convert an existing slide deck or PDF (most courses
+  start from a pile of these) into a draft module: one page per topic, images
   extracted, speaker notes as prose. Big adoption lever; hard to do well.
-- **/module-import**: restructure a legacy course-page dump, for example content
-  scraped from another LMS, into Coursewright conventions: numbering,
+- **`/module-import`**: restructure a legacy course-page dump, for example
+  content scraped from another LMS, into Coursewright conventions: numbering,
   frontmatter, link rewriting.
 
 ### Meta
 
-- **/academic-year-rollover**: interactive wrapper around the
+- **`/academic-year-rollover`**: interactive wrapper around the
   [new academic year](new-academic-year.md) guide: archive the previous year's
   `evaluations/` folder, reset sync state, update dates in homework frontmatter,
   re-run `/course-context-init`.
@@ -129,7 +130,7 @@ returns keeps only a boolean per id, so `annotateSubmissions` in
 beside it. `isNewQuizAssignment` and the wording in `newQuizNotice` are already
 there to reuse.
 
-### Bundling dotenv Into the Extension
+### Bundling dotenv into the Extension
 
 The extension parses `.env` itself, in `helpers.js`, while every CLI command
 reads that same file through `dotenv`. Shipping a copy of dotenv inside the

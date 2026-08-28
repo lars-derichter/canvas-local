@@ -70,12 +70,12 @@ published: true
 
 | Field              | Type     | Default | Description                                                                                                                           |
 | ------------------ | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `points_possible`  | number   | —       | Maximum score for the assignment.                                                                                                     |
-| `submission_types` | string[] | —       | How students submit. Options: `online_upload`, `online_text_entry`, `online_url`, `media_recording`, `none`. Multiple values allowed. |
-| `due_at`           | string   | —       | Due date in ISO 8601 format (e.g. `2026-03-20T23:59:00Z`).                                                                            |
-| `lock_at`          | string   | —       | Date after which submissions are no longer accepted. ISO 8601.                                                                        |
-| `unlock_at`        | string   | —       | Date when the assignment becomes available. ISO 8601.                                                                                 |
-| `published`        | boolean  | —       | Whether the assignment is visible to students.                                                                                        |
+| `points_possible`  | number   | –       | Maximum score for the assignment.                                                                                                     |
+| `submission_types` | string[] | –       | How students submit. Options: `online_upload`, `online_text_entry`, `online_url`, `media_recording`, `none`. Multiple values allowed. |
+| `due_at`           | string   | –       | Due date in ISO 8601 format (e.g. `2026-03-20T23:59:00Z`).                                                                            |
+| `lock_at`          | string   | –       | Date after which submissions are no longer accepted. ISO 8601.                                                                        |
+| `unlock_at`        | string   | –       | Date when the assignment becomes available. ISO 8601.                                                                                 |
+| `published`        | boolean  | –       | Whether the assignment is visible to students.                                                                                        |
 
 ## Discussion
 
@@ -97,11 +97,11 @@ into markdown. Replies stay in Canvas and never appear here.
 
 | Field                  | Type    | Default | Description                                                                                       |
 | ---------------------- | ------- | ------- | ------------------------------------------------------------------------------------------------- |
-| `discussion_type`      | string  | —       | `threaded` (replies to replies), `not_threaded`, or `side_comment`. Canvas decides when left out. |
-| `require_initial_post` | boolean | —       | Students must post before they can read other replies.                                            |
-| `delayed_post_at`      | string  | —       | When the topic becomes visible. ISO 8601.                                                         |
-| `lock_at`              | string  | —       | When the topic closes for new posts. ISO 8601.                                                    |
-| `published`            | boolean | —       | Whether the topic is visible to students.                                                         |
+| `discussion_type`      | string  | –       | `threaded` (replies to replies), `not_threaded`, or `side_comment`. Canvas decides when left out. |
+| `require_initial_post` | boolean | –       | Students must post before they can read other replies.                                            |
+| `delayed_post_at`      | string  | –       | When the topic becomes visible. ISO 8601.                                                         |
+| `lock_at`              | string  | –       | When the topic closes for new posts. ISO 8601.                                                    |
+| `published`            | boolean | –       | Whether the topic is visible to students.                                                         |
 
 > [!WARNING]
 >
@@ -199,7 +199,7 @@ new_tab: true
 
 | Field          | Type    | Default | Description                                                                         |
 | -------------- | ------- | ------- | ----------------------------------------------------------------------------------- |
-| `external_url` | string  | —       | **Required.** The URL to link to. Must be a valid absolute URL.                     |
+| `external_url` | string  | –       | **Required.** The URL to link to. Must be a valid absolute URL.                     |
 | `new_tab`      | boolean | `true`  | Open the link in a new browser tab. Set `false` to open it inside the Canvas frame. |
 
 External URL items appear in the Canvas module as clickable links. They have no
@@ -222,7 +222,7 @@ item, with no markdown body.
 
 | Field          | Type    | Default        | Description                                                                                                                             |
 | -------------- | ------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `external_url` | string  | —              | **Required.** The tool's launch URL. This, not a tool id, is what Canvas resolves the tool from.                                        |
+| `external_url` | string  | –              | **Required.** The tool's launch URL. This, not a tool id, is what Canvas resolves the tool from.                                        |
 | `new_tab`      | boolean | Canvas decides | Launch in a new browser tab. Left out, the field is not sent and Canvas's own default applies (the tool opens inside the Canvas frame). |
 
 Before it creates the item, push asks Canvas whether any installed tool claims

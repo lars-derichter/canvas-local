@@ -49,9 +49,8 @@ export:
   SIL Open Font License (see [THIRD-PARTY.md](../THIRD-PARTY.md)).
 - The **theme** is a CSS file in [`src/css/themes/`](../src/css/themes/) and
   owns colour. The exporter parses it and passes every colour to Typst as a
-  pandoc variable, so the PDF, the preview site, Canvas pages and the alert
-  icons all read one file. [Customisation](customisation.md#branding) lists
-  every token.
+  pandoc variable, so the PDF, the website, Canvas pages and the alert icons all
+  read one file. [Customisation](customisation.md#branding) lists every token.
 
 The two combine freely: `theme: thomas-more` with `export.style: generic` gives
 the institution's colours in the neutral layout.
@@ -82,15 +81,15 @@ files, the root of `export-styles/`). `sources/` is protected during
 them, which is how you change one part of a shipped style without forking the
 rest.
 
-| File             | Where     | Renderer    | Controls                                                                                                                                                                                                                                                                   |
-| ---------------- | --------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `template.typ`   | per style | PDF (Typst) | Fonts, sizes, margins, title page, TOC, alert/link-card/attachment styling, page-break behaviour. Reads its colours from the theme.                                                                                                                                        |
-| `reference.docx` | per style | DOCX (Word) | All Word paragraph and character styles: `Normal`, `Heading 1/2/3`, `Hyperlink`, and the custom styles listed below, including their colours.                                                                                                                              |
-| `logo.png`       | per style | PDF (Typst) | Cover logo. The filename is fixed. Optional: without it the cover simply has no logo.                                                                                                                                                                                      |
-| `fonts/`         | per style | PDF (Typst) | Fonts shipped with the style. The exporter points Typst at this directory via `TYPST_FONT_PATHS`, so they render on machines where the font is not installed. Only put a font here if its licence allows redistribution. `generic` has none and relies on Helvetica/Arial. |
-| `defaults.yml`   | shared    | both        | Pandoc defaults shared by every export (TOC depth). Layout defaults deliberately live in `template.typ` instead, so `--var` can override them. Heading numbering is native to both templates, so `number-sections` stays `false`.                                          |
-| `filter.lua`     | shared    | both        | Maps the exporter's `.alert`, `.link-card`, `.attachment`, and `.page-break` divs onto Typst function calls (PDF) or custom-style paragraphs (DOCX). Rarely needs editing.                                                                                                 |
-| `sample.md`      | shared    | both        | The kitchen-sink preview document (see [Previewing a style](#previewing-a-style)).                                                                                                                                                                                         |
+| File             | Where     | Renderer    | Controls                                                                                                                                                                                                                          |
+| ---------------- | --------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `template.typ`   | per style | PDF (Typst) | Fonts, sizes, margins, title page, TOC, alert/link-card/attachment styling, page-break behaviour. Reads its colours from the theme.                                                                                               |
+| `reference.docx` | per style | DOCX (Word) | All Word paragraph and character styles: `Normal`, `Heading 1/2/3`, `Hyperlink`, and the custom styles listed below, including their colours.                                                                                     |
+| `logo.png`       | per style | PDF (Typst) | Cover logo. The filename is fixed. Optional: without it the cover simply has no logo.                                                                                                                                             |
+| `fonts/`         | per style | PDF (Typst) | Fonts shipped with the style, passed to Typst via `TYPST_FONT_PATHS` so they render where not installed. Ship only fonts whose licence allows redistribution; `generic` ships none and relies on Helvetica/Arial.                 |
+| `defaults.yml`   | shared    | both        | Pandoc defaults shared by every export (TOC depth). Layout defaults deliberately live in `template.typ` instead, so `--var` can override them. Heading numbering is native to both templates, so `number-sections` stays `false`. |
+| `filter.lua`     | shared    | both        | Maps the exporter's `.alert`, `.link-card`, `.attachment`, and `.page-break` divs onto Typst function calls (PDF) or custom-style paragraphs (DOCX). Rarely needs editing.                                                        |
+| `sample.md`      | shared    | both        | The kitchen-sink preview document (see [Previewing a style](#previewing-a-style)).                                                                                                                                                |
 
 The custom Word styles `reference.docx` must define (pandoc matches on the
 spaced display names): `Alert Title <Kind>` and `Alert Body <Kind>` for each of
@@ -119,7 +118,7 @@ compiles on its own:
 > `reference.docx` as the one place holding its own copy of the alert colours.
 > Everything else derives from the theme.
 
-## Overriding Layout With `--var`
+## Overriding Layout with `--var`
 
 `--var key=value` passes a variable straight into the Typst template, so you can
 tweak the PDF without editing any file:
@@ -168,7 +167,7 @@ machine without one of them, Typst prints a `unknown font family` warning and
 uses the next in the list; that is informational, not an error. Silence it with
 `--var mainfont=Arial`, or drop font files into `sources/export-style/fonts/`.
 
-## Deriving a Style From a Reference
+## Deriving a Style from a Reference
 
 Two skills automate the editing described above:
 

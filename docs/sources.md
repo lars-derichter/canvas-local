@@ -49,7 +49,7 @@ These conventions are defaults, not requirements: the skills follow whatever
 
 ## Conventions
 
-- **Naming:** lowercase-hyphenated (e.g., `sorting-algorithms-overview.md`).
+- **Naming:** lowercase-hyphenated (e.g. `sorting-algorithms-overview.md`).
   Numeric prefixes are optional: use them only when ordering matters.
 - **Any file type** is welcome: `.md`, `.pdf`, `.png`, `.js`, `.py`, etc.
 
@@ -64,5 +64,5 @@ tags: [topic-a, topic-b]
 ```
 
 All fields are optional. `url` is useful for bookmarking external articles or
-videos. `tags` help with searching across sources (e.g.,
+videos. `tags` help with searching across sources (e.g.
 `grep -r "tags:.*topic" sources/`).

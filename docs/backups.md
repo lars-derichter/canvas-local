@@ -1,4 +1,4 @@
-# Backing up a Canvas Course
+# Backing Up a Canvas Course
 
 Nothing in Coursewright undoes a delete **on Canvas**, and your repository
 cannot help: git holds every version of what you wrote and nothing at all of
@@ -40,7 +40,7 @@ It does **not** carry student submissions, grades, or announcements sent to
 students. If those matter, back the course up before anyone submits anything, or
 export the gradebook separately from **Grades > Export**.
 
-## Route 2: Copy the Course Into a Sandbox
+## Route 2: Copy the Course into a Sandbox
 
 A copy gives you a working Canvas course to compare against, rather than a file
 you have to import before you can look at it.
@@ -97,15 +97,15 @@ your markdown. Only a Canvas export or a course copy protects the course.
 The routes above protect different things, and the command you are about to run
 decides which one you need.
 
-| Command                                      | What it can destroy                                                                                                                           | What protects you                               |
-| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| `push`                                       | the Canvas copy of anything a local file tracks, overwritten with what the file says                                                          | a course export or a course copy                |
-| `sync`                                       | the Canvas copy and the local copy of anything the sync state tracks, each replaced by whichever side changed it last                         | a course export or a course copy, plus a commit |
-| `push --prune-canvas`, `sync --prune-canvas` | the Canvas modules, pages, assignments, discussions and files you deleted locally, and (with each assignment or graded discussion) its grades | a course export **and** the gradebook           |
-| `pull --prune-local`, `sync --prune-local`   | the local files and folders Canvas no longer holds                                                                                            | git: a commit                                   |
-| `sync --prune`                               | both prune rows above, in one run                                                                                                             | a course export, the gradebook **and** a commit |
-| `reset-canvas`                               | every module, page, assignment and file in the course, including content this tool never created, and every grade                             | a course export **and** the gradebook           |
-| `pull --force`                               | your local markdown, overwritten with the Canvas version, uncommitted work included; with `--prune-local`, deleted rather than overwritten    | git: a commit, not a Canvas backup              |
+| Command                                      | What it can destroy                                                                                                                        | What protects you                               |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------- |
+| `push`                                       | the Canvas copy of anything a local file tracks, overwritten with what the file says                                                       | a course export or a course copy                |
+| `sync`                                       | the Canvas copy and the local copy of anything the sync state tracks, each replaced by whichever side changed it last                      | a course export or a course copy, plus a commit |
+| `push --prune-canvas`, `sync --prune-canvas` | the Canvas modules and items you deleted locally, and (for each assignment or graded discussion) its grades                                | a course export **and** the gradebook           |
+| `pull --prune-local`, `sync --prune-local`   | the local files and folders Canvas no longer holds                                                                                         | git: a commit                                   |
+| `sync --prune`                               | both prune rows above, in one run                                                                                                          | a course export, the gradebook **and** a commit |
+| `reset-canvas`                               | every module, page, assignment and file in the course, including content this tool never created, and every grade                          | a course export **and** the gradebook           |
+| `pull --force`                               | your local markdown, overwritten with the Canvas version, uncommitted work included; with `--prune-local`, deleted rather than overwritten | git: a commit, not a Canvas backup              |
 
 The assignment row is the one that bites. A course export carries assignments
 but not submissions or grades, so an export taken before a prune restores the

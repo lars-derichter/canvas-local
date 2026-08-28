@@ -23,7 +23,7 @@ the tree alone, so a folder is all it will take. The item and module commands
 never read Canvas either. All of them exit non-zero rather than reporting a
 clean course. Run `ls course/` for the names.
 
-### "got no answer — the input stream ended before one arrived"
+### "got no answer"
 
 An interactive command asked a question and the input stream ended before an
 answer arrived: a pipe that ran dry, `< /dev/null`, a CI step, an editor task
@@ -41,7 +41,7 @@ silence as "no" and cancel.
 
 ## The Website
 
-### Build Fails With Broken Links
+### Build Fails with Broken Links
 
 The site is configured to fail the build on a broken internal link
 (`onBrokenLinks: 'throw'` in `docusaurus.config.js`), in the local build and in
@@ -73,7 +73,7 @@ warning is normal on a machine without them. Silence it by picking a font
 `typst fonts` lists (`--var mainfont=Arial`), or drop font files into
 `sources/export-style/fonts/`.
 
-### An SVG Image Is Missing From the Word Document
+### An SVG Image Is Missing from the Word Document
 
 For DOCX, pandoc needs `rsvg-convert` on the PATH to rasterise inline SVG (it
 ships with librsvg: `brew install librsvg`); without it the image is dropped
@@ -127,7 +127,7 @@ Admin role in the Canvas course.
 
 ## Push Issues
 
-### A Stale Id on the Sync Row (404 on Update)
+### A Stale ID on the Sync Row (404 on Update)
 
 If a page, assignment or discussion was deleted directly in Canvas, the id
 `.canvas-sync.json` holds for that file goes stale. The update comes back 404,
@@ -232,13 +232,13 @@ refuses is answering a different question than the one it advertises.
 
 ### Corrupted .canvas-sync.json
 
-A sync file that is there and cannot be parsed stops the commands that act on
+A sync state that is there and cannot be parsed stops the commands that act on
 the ids in it, rather than passing for a course that was never synced, so a run
 that hit this changed nothing. The message names the file and says whether git
 conflict markers are still in it, which is the usual reason.
 
-The sync file is committed, so the first answer is git rather than the CLI. Take
-the last good copy back:
+The sync state is committed, so the first answer is git rather than the CLI.
+Take the last good copy back:
 
 ```bash
 git checkout -- .canvas-sync.json
@@ -278,7 +278,7 @@ Two ways out, and which one is right depends on what you meant:
 
 - **You did not mean to switch.** Put the original course id back in `.env`.
   This is the usual case: a `CANVAS_COURSE_ID=` you edited to try something, a
-  one-off override that wrote the sync file, or, now that the sync file is
+  one-off override that wrote the sync state, or, now that the sync state is
   committed, a clone or a branch that arrived already describing another course.
 - **You did mean to switch.** Run `npx course reset-sync-state`, then push.
   Check first whether the new course already holds a copy. Push adopts by type
@@ -322,7 +322,7 @@ Claude Code finds no skills; no error is shown anywhere.
 
 To fix:
 
-1. Enable Developer Mode (Settings → System → For developers).
+1. Enable Developer Mode (Settings > System > For developers).
 2. Run `git config core.symlinks true` in the repo.
 3. Restore the checkout: `git checkout -- .claude` (or re-clone).
 

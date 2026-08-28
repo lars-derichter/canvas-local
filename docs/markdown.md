@@ -1,7 +1,7 @@
 # Markdown
 
 Standard
-[GitHub Flavoured Markdown](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax)
+[GitHub Flavored Markdown](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax)
 is supported.
 
 ## Internal Links
@@ -55,7 +55,7 @@ These references work in every output:
 - **Docusaurus**: relative paths work natively.
 - **Export**: images are embedded in the PDF or Word document.
 - **Push to Canvas**: files are uploaded to Canvas file storage and paths are
-  rewritten to Canvas file URLs. Files in `_files/` are NOT added as module
+  rewritten to Canvas file URLs. Files in `_files/` are **not** added as module
   items. They only appear inline.
 - **Pull from Canvas**: Canvas file URLs are downloaded to `_files/` and
   converted back to relative paths. A download onto a path git reports as

@@ -2,11 +2,11 @@
 
 The template ships as a working example: a README about the tooling, English
 student-facing labels, an English writing style guide, and a neutral look for
-the preview site and the exports. Together they show what a fully configured
-course looks like, but they are starting points, not requirements. This page
-covers replacing each of them with your own language, course name, README,
-course context, branding, and licence, in that order, because the language you
-pick decides which of the later templates you want.
+the website and the exports. Together they show what a fully configured course
+looks like, but they are starting points, not requirements. This page covers
+replacing each of them with your own language, course name, README, course
+context, branding, and licence, in that order, because the language you pick
+decides which of the later templates you want.
 
 > [!NOTE]
 >
@@ -43,14 +43,14 @@ you can edit yourself.
 
 `course.config.yml` sets the language of every generated student-facing label:
 alert titles ("Note"/"Info"), link and file cards, export labels, the glossary
-heading, and the locale of the preview site.
+heading, and the locale of the website.
 
 ```yml
 language: nl # built-in label sets: en, nl
 ```
 
 The shipped default is `en`. Change it to `nl`, restart `npm start`, and the
-preview site and all generated labels switch to Dutch. Individual labels can be
+website and all generated labels switch to Dutch. Individual labels can be
 overridden under `labels:`; the file contains a commented block showing every
 overridable key.
 
@@ -63,8 +63,8 @@ alerts (`npx course push`) and regenerate the glossary pages
 
 ## The Course Name
 
-`course.config.yml` holds the name of the course. It titles the preview site and
-its navbar, and heads the cover of a full-course PDF or Word export:
+`course.config.yml` holds the name of the course. It titles the website and its
+navbar, and heads the cover of a full-course PDF or Word export:
 
 ```yml
 title: Programming Fundamentals
@@ -186,7 +186,7 @@ the complete house style.
 ### Colour: The Theme
 
 A theme is a CSS file of custom properties, and it is the single source of truth
-for colour. The preview site, the alert colours in Canvas pages, the alert icons
+for colour. The website, the alert colours in Canvas pages, the alert icons
 uploaded to Canvas, and PDF exports all read the same file, so a colour you
 change in one place changes everywhere.
 
@@ -202,7 +202,7 @@ colours, so [`github.css`](../src/css/themes/github.css) reads as the token
 reference. Two groups are worth knowing before you open it: the alert colours
 come as a `--ccb-alert-<kind>-fg` / `-bg` pair for each of `note`, `tip`,
 `important`, `warning`, `caution` and `check`, where `fg` is the left rule and
-the title and `bg` fills the box; and the font tokens set the preview site's
+the title and `bg` fills the box; and the font tokens set the website's
 typography only: export typography belongs to the export style below.
 
 To make a theme of your own, copy one into `sources/` and point `theme:` at the
@@ -299,7 +299,7 @@ readable in the
 so you can consult it, or copy it back, long after your own course has replaced
 it. To keep it locally without publishing it, rename the folder with a leading
 underscore (`_01-getting-started`), which excludes it from Canvas syncing while
-the preview site still ignores it too.
+the website still ignores it too.
 
 ## Files That Belong to the Tooling Project
 

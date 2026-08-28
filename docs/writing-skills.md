@@ -2,9 +2,7 @@
 
 The bundled [skills](ai-assistants.md) don't cover everything, and they don't
 have to: a skill is a plain markdown file, and your AI assistant can write one
-for you. This page is the reference for doing that: the file layout, the shared
-template, and the naming rules that keep skills predictable for both the reader
-and the model.
+for you, following the file layout, shared template and naming rules below.
 
 Using the bundled skills needs none of this. Start at
 [AI assistants](ai-assistants.md) instead.
@@ -66,31 +64,37 @@ predictable for both the reader and the model:
 - **Temp files** go to the session scratchpad, never `/tmp`. Build zips and
   binaries there and copy them into the repo (cloud-synced folders can reject
   direct writes).
-- **Naming**: `<object>-<verb>`, object first, so skills about the same thing
-  share a prefix and sort together: `/lesson` finds the whole authoring
-  pipeline, `/issue` the whole queue. The object comes first because it is what
-  you reliably know; which verb an author picked is what you would have to
-  guess, and prefix matching only keys on the first segment. The verb comes
-  last, from a small vocabulary: `design` for gated interactive authoring,
-  `build` for generation from an approved source, `init` for building a
-  configuration from ground truth (the repo, an interview, a reference
-  document), `update` for changing a configuration already in place, whether
-  from a direct instruction (`/export-style-update`) or from decisions you
-  settled during the session (`/writing-style-update`), `report` and `fix` for
-  the intake and work-through ends of the issue queue, `summarize` for a
-  condensed derivation of an approved source, and `retro` for the after-teaching
-  debrief. An `init` skill is not one-shot: re-running it after the course
-  changes is expected. `setup` sits outside that vocabulary, and `/course-setup`
-  is the only skill that carries it: where an `init` skill builds one
-  configuration file, setup configures the project as a whole, and the name
-  matches the `npx course setup` command it drives. There is one project to set
-  up, so the verb stays a single case rather than a pattern to follow. Prefer an
-  existing verb for a new skill; coin one only when none fits. Read-only report
-  skills take a result noun instead of a verb (`consistency-check`,
-  `coverage-map`, `image-todos`). Three names stay bare verbs because they are
-  single words in universal use, and because what they act on is whatever you
-  hand them rather than a course object worth putting first: `/commit`,
-  `/proofread`, and `/translate`.
 
-Contributing a skill back to the template itself? See
+## Naming
+
+Skill names are `<object>-<verb>`, object first, so skills about the same thing
+share a prefix and sort together: `/lesson` finds the whole authoring pipeline,
+`/issue` the whole queue. The object comes first because it is what you reliably
+know; which verb an author picked is what you would have to guess, and prefix
+matching only keys on the first segment.
+
+The verb comes last, from a small vocabulary: `design` for gated interactive
+authoring, `build` for generation from an approved source, `init` for building a
+configuration from ground truth (the repo, an interview, a reference document),
+`update` for changing a configuration already in place, whether from a direct
+instruction (`/export-style-update`) or from decisions you settled during the
+session (`/writing-style-update`), `report` and `fix` for the intake and
+work-through ends of the issue queue, `summarize` for a condensed derivation of
+an approved source, and `retro` for the after-teaching debrief. An `init` skill
+is not one-shot: re-running it after the course changes is expected. Prefer an
+existing verb for a new skill; coin one only when none fits.
+
+Two kinds of name sit outside the pattern. Read-only report skills take a result
+noun instead of a verb (`consistency-check`, `coverage-map`, `image-todos`). And
+three names stay bare verbs because they are single words in universal use, and
+because what they act on is whatever you hand them rather than a course object
+worth putting first: `/commit`, `/proofread` and `/translate`.
+
+`setup` sits outside the verb vocabulary too, and `/course-setup` is the only
+skill that carries it: where an `init` skill builds one configuration file,
+setup configures the project as a whole, and the name matches the
+`npx course setup` command it drives. There is one project to set up, so the
+verb stays a single case rather than a pattern to follow.
+
+To contribute a skill back to the template itself, see
 [Contributing](contributing.md).

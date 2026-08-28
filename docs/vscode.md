@@ -129,7 +129,7 @@ Items** asks for source and target instead) and the module-scoped Canvas actions
 Module to Canvas...**). Either way the actual work is done by the `npx course`
 CLI, so renumbering and Canvas sync state behave exactly like the terminal
 commands. Full output of the background commands is available in the
-**Coursewright** output channel (View → Output).
+**Coursewright** output channel (View > Output).
 
 Three row types carry less than the rest. Rename, move and delete are
 contributed for pages, assignments, external URLs, files and subheaders, and
@@ -317,7 +317,7 @@ invites.
   standard error raises a warning notification with the same button, because a
   warning that only reached the log would go unread: the case this exists for is
   a delete whose renumbering strands a Canvas object. Either way the full output
-  is in that output channel (View → Output).
+  is in that output channel (View > Output).
 - Background runs are serialised: one at a time, in the order they were started,
   because two of them would renumber the same directory and rewrite
   `.canvas-sync.json` on top of each other. A ten-row drop is ten queued runs.

@@ -182,10 +182,10 @@ at all.
 loaded outside VS Code, so it reads its source as text and matches patterns
 against it. It walks the extension directory rather than naming files, so a new
 one is covered the day it is added, and most assertions run over every source
-joined together — which of the extension's files a line lives in is not what
-they are about. Prettier decides where those lines wrap, so any pattern there
-has to span newlines: use `[\s\S]*?` rather than `.*` or `[^\n]*`, and allow for
-a trailing comma inside a wrapped call. Assert on what the extension does, never
+joined together: which of the extension's files a line lives in is not what they
+are about. Prettier decides where those lines wrap, so any pattern there has to
+span newlines: use `[\s\S]*?` rather than `.*` or `[^\n]*`, and allow for a
+trailing comma inside a wrapped call. Assert on what the extension does, never
 on how it is laid out.
 
 ## The Extension and CLI Contract Test
@@ -264,21 +264,21 @@ for before dotenv could be bundled.
 **The extensions directory it installs into is outside this repository**, in the
 system temp directory. Node resolves a `require` by walking up from the
 requiring file, so an extension installed anywhere inside this checkout reaches
-the repository's own `node_modules` a few levels up — and then a dependency that
+the repository's own `node_modules` a few levels up, and then a dependency that
 is missing from the package resolves anyway and the test passes. Measured: with
 the extensions directory under `.vscode-test/`, an unbundled `require('dotenv')`
 added to `helpers.js` activated cleanly and every case passed. The user-data
 directory is out there too, for the duller reason that throwaway window state
 does not belong in a checkout, which leaves `.vscode-test/` holding the
-downloaded editor and nothing else — the only part worth caching in CI. Its name
+downloaded editor and nothing else, the only part worth caching in CI. Its name
 is kept short as a precaution and not as a fix: VS Code warns when the Unix
 domain socket it opens in there passes the 103-character limit, but it survives
 that, and a 210-character path under the checkout still ran every case green on
 macOS 1.93.
 
 **`test/vscode/host/harness/` is an empty extension**, and it is what puts the
-window into extension development mode — VS Code runs `--extensionTestsPath`
-only there. Pointing that at the real extension would load it as a development
+window into extension development mode: VS Code runs `--extensionTestsPath` only
+there. Pointing that at the real extension would load it as a development
 extension instead of an installed one, which is the thing being avoided.
 
 **It reaches the extension's modules through the require cache, never by
@@ -287,8 +287,8 @@ rebuilding their paths.** Two cases wrap a method on
 only works on the module object the host actually loaded. `ext.extensionPath` is
 VS Code's spelling of that path, out of a URI; the require cache is keyed by
 Node's, out of module resolution; and the two are not guaranteed to agree. On
-macOS they already disagree — `/var/folders/…` against `/private/var/folders/…`
-— and it works anyway only because Node resolves symlinks on the way in, so both
+macOS they already disagree (`/var/folders/…` against `/private/var/folders/…`),
+and it works anyway only because Node resolves symlinks on the way in, so both
 land on one entry. Windows offers two spelling axes with no such reconciliation:
 the drive letter, which VS Code lower-cases and Node does not, and 8.3 short
 names, which `os.tmpdir()` hands back on a GitHub runner. A `require` built from
@@ -309,7 +309,7 @@ extension host is a CI job that never finishes rather than one that fails, and
 neither `runTests()` nor Electron has a timeout.
 
 Two environment variables steer it. `CCB_VSCODE_VERSION` picks the VS Code to
-run, defaulting to `1.93.0` — the floor in the extension's `engines.vscode`, so
+run, defaulting to `1.93.0`, the floor in the extension's `engines.vscode`, so
 CI is reproducible and the floor is a claim the test actually makes rather than
 a number in a manifest. Running it against `stable` now and then is how you find
 out that the newest editor broke something. `CCB_VSCODE_TIMEOUT_MS` moves the
@@ -322,9 +322,9 @@ draw on: the pane never appeared, and the case sat through its whole bound
 waiting for a read on a machine that had run the other eight cases in 120ms.
 Linux is fine because it goes through xvfb, which is a display even if nobody is
 looking at it. So the check is split. One case proves the binding with no pixels
-at all — handing a provider to `createTreeView` makes VS Code subscribe to its
+at all (handing a provider to `createTreeView` makes VS Code subscribe to its
 `onDidChangeTreeData` there and then, and nothing else in the extension
-subscribes to that emitter — and that one runs everywhere. The other reveals the
+subscribes to that emitter), and that one runs everywhere. The other reveals the
 view and catches the read, and where the pane never draws it reports itself as
 `skip`, with the reason, its own line in the summary and a
 `# NOT VERIFIED HERE:` line after it. It is not allowed to skip quietly: if the
@@ -337,8 +337,8 @@ Code offers no way to ask "is this command in the palette right now", so the
 palette assertions are made against the manifest **as the installed extension
 carries it**, plus the fact that the commands are registered. Where the sidebar
 does not draw, "bound to a tree view" is covered but "bound to _this_ view id"
-is not — pointing `createTreeView` at `courseTreeX` is caught only by the case
-that needs a rendered pane. Nothing here runs a CLI command — the workspace it
+is not: pointing `createTreeView` at `courseTreeX` is caught only by the case
+that needs a rendered pane. Nothing here runs a CLI command: the workspace it
 opens is this repository, `.env` and all, so a case that executed a sync would
 sync a real Canvas course. And a `when` clause that is malformed rather than
 merely wrong is invisible: VS Code 1.93 accepts

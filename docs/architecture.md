@@ -161,8 +161,8 @@ touch.
 Pruning a `file` item has one more check in it. Canvas deduplicates uploads, so
 the Canvas file behind a wrapper can be the same file a page embeds or a second
 wrapper names. Prune deletes the file only when no other row in
-`.canvas-sync.json` still holds its id — the same `fileStillReferenced` sweep
-every file delete in `lib/sync/apply.js` runs — and otherwise removes only the
+`.canvas-sync.json` still holds its id (the same `fileStillReferenced` sweep
+every file delete in `lib/sync/apply.js` runs), and otherwise removes only the
 module item, naming the row that kept the file in the verbose log.
 
 Before it asks for confirmation, prune checks whether the items on its list
@@ -338,7 +338,7 @@ Re-planning is free, because nothing is fetched again. It also means the answer
 is applied to the same course it was asked about, rather than to a state that
 moved on while the terminal waited.
 
-### What a Run Writes Into Your Tree
+### What a Run Writes into Your Tree
 
 Pull writes files, and it never renames them. A Canvas title lands in the file's
 frontmatter as `title:`, a Canvas module name lands in the folder's
@@ -519,5 +519,5 @@ relative link).
   at most the action in flight: every Canvas id already handed out is on disk,
   so the next run recognises the objects behind it instead of creating them a
   second time. Only the end-of-run save stamps `last_sync`.
-- **Atomic writes**: sync file uses write-to-tmp-then-rename to prevent
+- **Atomic writes**: the sync state is saved write-to-tmp-then-rename to prevent
   corruption.

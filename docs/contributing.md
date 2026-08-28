@@ -1,9 +1,10 @@
 # Contributing
 
-Found a bug? Have an idea for an improvement? Contributions are welcome, whether
-that's a bug report, a feature suggestion, or a pull request with a fix.
-Everyone taking part is expected to follow the
-[code of conduct](../CODE_OF_CONDUCT.md).
+Contributions are welcome: a bug report, a feature suggestion, or a pull request
+with a fix. Everyone taking part is expected to follow the
+[code of conduct](../CODE_OF_CONDUCT.md). For a technical overview of the
+codebase (the three layers, the sync state, the reconcile engine the four sync
+commands share, and link resolution), start at [architecture](architecture.md).
 
 ## Reporting an Issue
 
@@ -42,8 +43,8 @@ A good issue report includes:
 
 ## Suggesting Improvements
 
-Have an idea for a new feature or a better workflow? Open an issue the same way,
-but describe:
+For a new feature or a better workflow, open an issue the same way, but
+describe:
 
 - **What you'd like**: the feature or change you have in mind
 - **Why it would help**: the use case or problem it solves
@@ -51,7 +52,7 @@ but describe:
 
 Check the [ideas list](roadmap.md) first: your idea may already be there.
 
-## Contributing With a Pull Request
+## Contributing with a Pull Request
 
 If you'd like to contribute a fix or improvement yourself, follow these steps:
 
@@ -107,9 +108,9 @@ If you'd like to contribute a fix or improvement yourself, follow these steps:
 
 > [!TIP]
 >
-> Not sure if your idea is worth a pull request? Open an issue first to discuss
-> it. That way you won't spend time on something that might not fit the project
-> direction.
+> If you are not sure your idea is worth a pull request, open an issue first to
+> discuss it. That way you won't spend time on something that might not fit the
+> project direction.
 
 The tooling is [MIT licensed](../LICENSE); by opening a pull request you agree
 your contribution is released under the same licence.
@@ -208,9 +209,3 @@ sentence-case headings, because that is Dutch convention. Leave both sets that
 way. Prettier does reflow their prose and normalise their list markers, but it
 changes neither language nor heading case, so what the exception protects is
 untouched.
-
-## Understanding the Codebase
-
-See [Architecture](architecture.md) for a technical overview of the three-layer
-design, the sync state format, the reconcile engine the four sync commands share
-(there is no separate push or pull algorithm), and link resolution.

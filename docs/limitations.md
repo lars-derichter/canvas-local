@@ -123,7 +123,7 @@ What that leaves you with:
 If your course leans heavily on Canvas quizzes, Coursewright carries their place
 in the course and nothing else.
 
-## An LTI Install Cannot Be Rebuilt From This Repository
+## An LTI Install Cannot Be Rebuilt from This Repository
 
 An `external_tool` item is a launch URL in a module. Canvas resolves which
 installed tool answers that URL every time a student clicks it, which is why the
@@ -371,7 +371,7 @@ The scanner is strict, and quiet about most of it:
 
 - **Only top-level directories under `course/` are modules.** Loose markdown at
   the root of `course/` is ignored, including `course/index.md`, which is why
-  that file appears on the preview site but never in Canvas.
+  that file appears on the website but never in Canvas.
 - **One level of nesting, and one only.** A subfolder inside a module becomes a
   text header. A folder inside _that_ is **dropped**, along with everything in
   it. The drop is announced, not silent: `sync`, `push`, `pull`, `status`,
@@ -406,7 +406,7 @@ The scanner is strict, and quiet about most of it:
 See [User guide](user-guide.md#course-structure) for the layout the scanner
 expects.
 
-## Two Identical Files Can Trade Places With a Deleted One
+## Two Identical Files Can Trade Places with a Deleted One
 
 A curiosity rather than a fault, and worth knowing only because it looks like a
 bug when you meet it.
