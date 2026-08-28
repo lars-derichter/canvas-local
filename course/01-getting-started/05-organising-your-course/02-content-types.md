@@ -103,12 +103,13 @@ tree makes one, and so does `npx course new-item --type file`.
 
 Canvas and the exports take both shapes. The website shows only the wrapper,
 because it builds its pages from markdown files, so use the wrapper when the
-file has to appear there. This module has two:
-[Workflow Diagram](../02-workflow-diagram.md) in the module root, and
-[Example PDF](../08-publishing/04-example-pdf.md) inside a subsection, which
-works exactly the same way. Open the Workflow Diagram and you’ll see the image
-itself above the download card: image, video and audio files show their content
-right on the page.
+file has to appear there. This module has three:
+[Workflow Diagram](../02-workflow-diagram.md) in the module root, plus this
+course [as a PDF](../12-download-this-course/01-course-as-pdf.md) and
+[as a Word document](../12-download-this-course/02-course-as-word.md) in the
+subsection at the end, which works exactly the same way. Open the Workflow
+Diagram and you’ll see the image itself above the download card: image, video
+and audio files show their content right on the page.
 
 > [!NOTE]
 >

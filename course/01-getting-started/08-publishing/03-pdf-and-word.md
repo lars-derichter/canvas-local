@@ -102,8 +102,11 @@ and the
 [export styling guide](https://github.com/lars-derichter/coursewright/blob/main/docs/export-styling.md)
 cover the rest.
 
-The item after this one, [Example PDF](04-example-pdf.md), is a finished handout
-sitting in the module as a file item, which is how a student downloads one.
+This course has been through both routes itself. The results sit at the end of
+the module, in the **Download This Course** subsection. Everything you are
+reading is there as a [PDF](../12-download-this-course/01-course-as-pdf.md) and
+as a [Word document](../12-download-this-course/02-course-as-word.md), each one
+a file item, which is how a student downloads a handout.
 
 ## Try It
 

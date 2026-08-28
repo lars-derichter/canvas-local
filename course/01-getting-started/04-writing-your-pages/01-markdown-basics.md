@@ -83,13 +83,14 @@ You can link to any file in `_files/` the same way, handy for handouts,
 templates, or starter files students should download:
 
 ```markdown
-[Example document](../_files/example-document.docx)
+[Course notes](../_files/coursewright.docx)
 ```
 
 Like images, linked files are uploaded to Canvas during push and the link is
 rewritten to the Canvas file URL. A PDF or Word export leaves the link as you
 wrote it, since a document on paper has nowhere to put a download. Try it:
-[example document](../_files/example-document.docx).
+[course notes](../_files/coursewright.docx), which is this whole course as a
+Word document.
 
 One special case: in the local preview, a link to an `.html` file opens that
 file in a new browser tab. Try it with this

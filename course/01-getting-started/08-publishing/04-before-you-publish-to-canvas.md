@@ -118,4 +118,4 @@ students have submitted to.
 >
 > The terminal reports nothing to fix, or names exactly what to fix. Either way
 > you now know what you are about to push, so on to
-> [Canvas Syncing](./06-canvas-syncing.md).
+> [Canvas Syncing](./05-canvas-syncing.md).

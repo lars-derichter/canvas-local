@@ -47,7 +47,7 @@ frontmatter names: see
 > Push does not rebuild a module from scratch. An item you added in Canvas by
 > hand is matched to a local file of the same type and title, and left where it
 > is when nothing matches. See
-> [Before You Publish to Canvas](./05-before-you-publish-to-canvas.md).
+> [Before You Publish to Canvas](./04-before-you-publish-to-canvas.md).
 
 ## Commit the Sync State
 

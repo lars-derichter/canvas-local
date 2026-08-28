@@ -204,6 +204,22 @@ external URL and file items, one of them inside a subsection. The other two are
 not in it. A quiz and an external tool are references to Canvas objects a fresh
 course does not have, so neither can ship as a working example.
 
+Two of those file items are the course exported to PDF and to Word, committed
+under `course/01-getting-started/_files/`, so the module demonstrates the export
+route with its own output. They go stale the moment you edit a page in it, and
+nothing in CI notices, so regenerate both after any change under
+`course/01-getting-started/`, once Prettier has run:
+
+```bash
+npx course export -f pdf -o course/01-getting-started/_files/coursewright.pdf
+npx course export -f docx -o course/01-getting-started/_files/coursewright.docx
+```
+
+Each document ends with an attachment card pointing at itself, because the two
+file items are part of what gets exported. That is intended, and it settles
+after one run: the wrappers do not change, so a second export has the same
+content as the first.
+
 The per-course guides in `context/` govern course content. A course author is
 free to rewrite them; the project's own docs are not theirs to restyle, because
 an upstream update overwrites them.

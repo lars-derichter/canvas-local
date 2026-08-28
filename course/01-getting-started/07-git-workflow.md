@@ -63,7 +63,7 @@ and find what you are after. Messages like these do the job:
 If you publish to Canvas, your project gains one file you did not write:
 `.canvas-sync.json`, in the project root. It is not ignored, and it has to be
 committed along with everything else.
-[Canvas Syncing](08-publishing/06-canvas-syncing.md) explains why.
+[Canvas Syncing](08-publishing/05-canvas-syncing.md) explains why.
 
 ## Viewing History and Getting Things Back
 
