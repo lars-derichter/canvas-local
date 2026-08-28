@@ -14,6 +14,18 @@
   year follow the same shape. The README's Quick Start installs the extension
   before the setup wizard, and the docs index moves the VS Code page into
   Getting Started.
+- **Installing pandoc and Typst no longer assumes a package manager.** The
+  instructions were one `brew` line, one `winget` line and a shrug at Linux,
+  which takes for granted that the reader has a package manager and knows what
+  one is. Pandoc has a double-click installer on all three platforms, so that
+  leads now, with the choice macOS forces (`arm64` against `x86_64`) spelled
+  out. Typst has no installer anywhere, so that is said rather than glossed, and
+  each package manager is explained instead of assumed: Homebrew has to be
+  installed first, winget already ships with Windows, and the Typst snap can be
+  clicked in Ubuntu's App Center. The old Linux advice was wrong as well, since
+  Typst is in neither apt nor dnf. The CLI's own hints, the ones you meet when
+  an export fails, say the same. A Word export needing pandoc alone is now said
+  up front, because it is the route that costs a single double-click.
 - **A CLI reference page.** `docs/cli-reference.md` holds every `npx course`
   command, every flag each one declares, the npm scripts, and the list of
   capabilities that have no route through the extension: the prune flags,
