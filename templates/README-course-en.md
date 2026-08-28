@@ -42,7 +42,9 @@ line in place.
   walkthrough of the tool, kept readable there after you remove your copy
 - [Your first course](docs/first-course.md): the step-by-step beginner
   walkthrough
+- [VS Code extension](docs/vscode.md): visual sidebar commands
 - [User guide](docs/user-guide.md): full Coursewright documentation
+- [CLI reference](docs/cli-reference.md): every command and flag
 - [Markdown guide](docs/markdown.md): supported syntax and alerts
 - [Frontmatter guide](docs/frontmatter.md): page and assignment metadata
 - [Hosting](docs/hosting.md): the course website on GitHub Pages
@@ -52,7 +54,6 @@ line in place.
 - [Limitations](docs/limitations.md): what the tool does not do
 - [Customisation](docs/customisation.md): README, language, branding, and
   licence
-- [VS Code extension](docs/vscode.md): visual sidebar commands
 - [Troubleshooting](docs/troubleshooting.md): common issues and fixes
 
 ---

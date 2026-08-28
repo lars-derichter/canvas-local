@@ -30,7 +30,8 @@ Open `.env` and change `CANVAS_COURSE_ID` to the new value:
 CANVAS_COURSE_ID=67890
 ```
 
-Alternatively, re-run the interactive setup:
+Alternatively, re-run the interactive setup: **Course: Init (Canvas Setup)**
+from the command palette, or from the terminal:
 
 ```bash
 npx course init
@@ -118,14 +119,16 @@ new course's objects, and that belongs in a commit too.
 
 ## 6. Push to Canvas
 
-Push all course materials to the new Canvas course:
+Push all course materials to the new Canvas course: **Course: Push to Canvas**
+in the panel's `…` dropdown, or from the terminal:
 
 ```bash
 npx course push
 ```
 
 Since there are no existing Canvas IDs, every module and item will be created
-from scratch. Use `--dry-run` first if you want to preview what will happen:
+from scratch. Preview what will happen first with **Course: Push to Canvas (Dry
+Run)** from the command palette, or `--dry-run` in the terminal:
 
 ```bash
 npx course push --dry-run
@@ -133,7 +136,8 @@ npx course push --dry-run
 
 ## 7. Verify
 
-Confirm everything synced correctly:
+Confirm everything synced correctly: **Course: Status** in the panel's `…`
+dropdown, or from the terminal:
 
 ```bash
 npx course status

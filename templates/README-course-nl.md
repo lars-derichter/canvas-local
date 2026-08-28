@@ -44,7 +44,9 @@ en deze regel staan.
   hebt
 - [Je eerste cursus](docs/first-course.md): de stap-voor-stap handleiding voor
   wie hier nieuw is
+- [VS Code-extensie](docs/vscode.md): commando's in de zijbalk
 - [Gebruikersgids](docs/user-guide.md): de volledige Coursewright-documentatie
+- [CLI-referentie](docs/cli-reference.md): elk commando en elke flag
 - [Markdown-gids](docs/markdown.md): ondersteunde syntax en alerts
 - [Frontmatter-gids](docs/frontmatter.md): metadata voor pagina's en opdrachten
 - [Hosting](docs/hosting.md): de cursuswebsite op GitHub Pages
@@ -54,7 +56,6 @@ en deze regel staan.
   synchroniseert
 - [Beperkingen](docs/limitations.md): wat de tool niet doet
 - [Aanpassen](docs/customisation.md): README, taal, huisstijl en licentie
-- [VS Code-extensie](docs/vscode.md): commando's in de zijbalk
 - [Problemen oplossen](docs/troubleshooting.md): veelvoorkomende problemen en
   hun oplossing
 

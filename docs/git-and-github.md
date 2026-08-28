@@ -120,8 +120,15 @@ your course materials (without exposing `evaluations/`). See the
 
 ## Basic Git Workflow
 
-As you work on your course materials, use these three commands to save your
-changes:
+Open the Source Control panel: the branch icon in the activity bar, or
+**Ctrl+Shift+G** (Windows, Linux) / **Cmd+Shift+G** (macOS). It lists every file
+you have changed. Stage a file with the **+** beside it, or everything with the
+**+** beside **Changes**. Type a message in the box, click **Commit**, then
+click **Sync Changes** to push it to GitHub.
+
+### From the Terminal
+
+The same three steps, typed:
 
 1. **Stage your changes.** Tell Git which files to include in the next save
    point:

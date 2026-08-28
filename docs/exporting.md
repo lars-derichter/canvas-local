@@ -1,10 +1,10 @@
 # Exporting to PDF and DOCX
 
-`npx course export` turns course materials into a printable PDF or an editable
-Word document: a handout for one lesson, a module as a chapter, or the whole
-course as a styled course text with your institution's branding. Exports are
-generated from the same markdown the website and Canvas read, so a handout never
-drifts from the course it came from.
+Turn course materials into a printable PDF or an editable Word document: a
+handout for one lesson, a module as a chapter, or the whole course as a styled
+course text with your institution's branding. Exports are generated from the
+same markdown the website and Canvas read, so a handout never drifts from the
+course it came from.
 
 ## What You Need
 
@@ -24,45 +24,45 @@ On Linux, install pandoc with your package manager and download Typst from
 
 ## Exporting
 
+Right-click an item and choose **Course: Export Item to PDF/DOCX...**, or a
+module and choose **Course: Export Module to PDF/DOCX...**. Select several items
+first (Ctrl/Cmd-click or Shift-click in the tree) and the item export combines
+them into one document. Either way you then pick PDF or Word.
+
+For the whole course, open the panel's `…` dropdown and choose **Course: Export
+Course to PDF/DOCX...**. It offers three scopes: the full course, only the items
+flagged `export: true`, or a curated table of contents. Choosing the
+table-of-contents option writes `exports/toc.md` and opens it for editing;
+delete the lines you do not want, and once the file exists, **Course: Export via
+TOC...** appears in the `…` dropdown to render it.
+
+The flagged scope, `--flagged` on the terminal, reads the `export: true`
+frontmatter flag, so you can mark the exam-relevant items once and keep
+exporting just those. See [Frontmatter](frontmatter.md#common-fields).
+
+Output lands in `exports/` (gitignored). A whole-course export takes its title,
+and its filename, from `title` in `course.config.yml`
+(`exports/programming-fundamentals.pdf`); a module export is titled after the
+module. Multiple items combine into one document with a title page, a generated
+table of contents, and a page break between chapters. Non-markdown items keep
+their place: an external URL becomes a link card, a file item an attachment
+reference, and an image file item is embedded above its attachment line.
+
+### From the Terminal
+
 ```bash
 npx course export course/01-intro/03-alerts.md   # one item
 npx course export -m 01-intro                    # a whole module
 npx course export                                # the full course
 npx course export -m 01-intro -f docx            # Word instead of PDF
 npx course export --flagged                      # only items with export: true
+npx course export-toc                            # writes exports/toc.md
+npx course export --toc exports/toc.md           # render a curated selection
 ```
 
-Multiple items combine into one document with a title page, a generated table of
-contents, and a page break between chapters. Non-markdown items keep their
-place: an external URL becomes a link card, a file item an attachment reference,
-and an image file item is embedded above its attachment line.
-
-Output lands in `exports/` (gitignored). A whole-course export takes its title,
-and its filename, from `title` in `course.config.yml`
-(`exports/programming-fundamentals.pdf`); a module export is titled after the
-module. `--title` and `--subtitle` override the cover text, and `-o` the output
-path.
-
-`--flagged` reads the `export: true` frontmatter flag, so you can mark the
-exam-relevant items once and keep exporting just those. See
-[Frontmatter](frontmatter.md#common-fields).
-
-## A Curated Selection
-
-For hand-picked content, generate a table of contents, delete the lines you do
-not want, then export what remains:
-
-```bash
-npx course export-toc                    # writes exports/toc.md
-# …edit exports/toc.md, delete unwanted lines…
-npx course export --toc exports/toc.md
-```
-
-## From VS Code
-
-The [VS Code extension](vscode.md) carries the same commands: export an item, a
-module or the course from the tree or the palette, and multi-select several
-items in the tree to combine them into one document.
+`-o`, `--title`, `--subtitle`, `--style` and `--var` are terminal-only: the
+panel has no route to any of them. See [CLI reference](cli-reference.md#export)
+for the full flag list.
 
 ## Changing the Look
 

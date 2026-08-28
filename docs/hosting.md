@@ -1,9 +1,10 @@
 # Hosting Your Course on the Web
 
-Your course is a website from the first `npm start`: Docusaurus serves it
-locally while you write. Publishing that same site on **GitHub Pages** is one
-repository setting and gives your students a stable, free URL for the materials,
-whether or not the course uses Canvas at all.
+Your course is a website from the first local preview: Docusaurus serves it
+while you write, started with **Course: Preview** in the Course Manager panel's
+title bar (`npm start` is the terminal equivalent). Publishing that same site on
+**GitHub Pages** is one repository setting and gives your students a stable,
+free URL for the materials, whether or not the course uses Canvas at all.
 
 Coursewright's own site, [coursewright.md](https://coursewright.md/), is the
 project repository's `course/` folder published exactly this way, custom domain
@@ -70,7 +71,8 @@ If the deploy fails, open the failed run under the **Actions** tab to read the
 log. The most common cause is a **broken link**: the site is configured to fail
 the build on broken internal links (`onBrokenLinks: 'throw'` in
 `docusaurus.config.js`), so a wrong link path stops the deploy. Run
-`npm run build` locally to catch the same error before pushing.
+`npm run build` locally to catch the same error before pushing; it has no
+extension equivalent, so type it in the terminal.
 
 If a run succeeds but nothing is published, and every job after the first is
 greyed out as skipped, Pages is not enabled yet or its source is still set to a

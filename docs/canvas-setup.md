@@ -68,24 +68,39 @@ For more information, see the Canvas documentation:
 
 ## Next Steps
 
-Once you have all three values, either:
+Once you have all three values, open the command palette and run **Course: Init
+(Canvas Setup)**. It runs in the shared `Coursewright` terminal and asks the
+same three questions there.
 
-- Run `npx course init` for an interactive setup (`npx course setup` offers this
-  as its last question, so you may have done it already), or
-- Copy the example file and fill in the values by hand:
+> [!TIP]
+>
+> **Terminal:** `npx course init` runs the same interactive setup
+> (`npx course setup` offers this as its last question, so you may have done it
+> already).
 
-  ```bash
-  cp .env.example .env
-  ```
+You can also skip both and fill in the values by hand:
 
-  ```
-  CANVAS_API_URL=https://school.instructure.com
-  CANVAS_API_TOKEN=your-token-here
-  CANVAS_COURSE_ID=12345
-  ```
+```bash
+cp .env.example .env
+```
+
+```
+CANVAS_API_URL=https://school.instructure.com
+CANVAS_API_TOKEN=your-token-here
+CANVAS_COURSE_ID=12345
+```
 
 Then pick up where you left off: the
 [Canvas route in your first course](first-course.md#canvas) walks the first
 push, and [Canvas sync](user-guide.md#canvas-sync) in the user guide is the full
 command reference. Before that first push to a course that already holds
 content, take a [backup](backups.md).
+
+## A Missing or Wrong `.env`
+
+The two routes notice a missing or wrong `.env` at different moments. The
+extension only checks when you use **Open in Canvas**: finding no Canvas
+configuration, it tells you to run **Course: Init (Canvas Setup)** first. The
+CLI checks on every command instead, and fails with
+`CANVAS_COURSE_ID is not set`. Either way, see
+[Canvas connection errors](troubleshooting.md#canvas-connection-errors).
