@@ -269,10 +269,12 @@ public site at `https://YOUR-USERNAME.github.io/your-project-name/`.
 
 ### A PDF or Word Handout
 
-Install the two converters once (`brew install pandoc typst` on macOS; see
-[exporting](exporting.md) for Windows and Linux). Right-click your module in the
-tree and choose **Course: Export Module to PDF/DOCX...**, then pick PDF or Word.
-The styled file lands in `exports/`.
+A Word export needs only pandoc, a free tool with a double-click installer on
+every platform; a PDF export also needs Typst, which is more work to install.
+[Exporting](exporting.md#what-you-need) has both, per platform.
+
+Then right-click your module in the tree and choose **Course: Export Module to
+PDF/DOCX...**, and pick PDF or Word. The styled file lands in `exports/`.
 
 > [!TIP]
 >

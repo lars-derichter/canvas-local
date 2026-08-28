@@ -8,19 +8,35 @@ course it came from.
 
 ## What You Need
 
-DOCX export needs [pandoc](https://pandoc.org/); PDF export also needs
+DOCX export needs only [pandoc](https://pandoc.org/); PDF export also needs
 [Typst](https://typst.app/). Both are free, and nothing else in Coursewright
 needs either, so you can skip this until your first export.
 
-```bash
-# macOS (with Homebrew)
-brew install pandoc typst
-# Windows
-winget install --id JohnMacFarlane.Pandoc --id Typst.Typst
-```
+Pandoc ships a real installer on every platform, downloaded from
+[pandoc.org/installing.html](https://pandoc.org/installing.html):
 
-On Linux, install pandoc with your package manager and download Typst from
-[its releases page](https://github.com/typst/typst/releases).
+- **macOS:** a `.pkg`. Two are offered, and the choice matters: `arm64` for
+  Apple Silicon (M1 and later), `x86_64` for an Intel Mac; there is no universal
+  package. Apple menu > About This Mac names which: "Apple M…" is Apple Silicon,
+  "Intel" is Intel.
+- **Windows:** a `.msi`, which installs pandoc and adds it to the PATH.
+- **Linux:** a `.deb` for Debian and Ubuntu (amd64 and arm64), opened by the
+  graphical app installer on double-click. There is no `.rpm`; on Fedora the
+  package is `pandoc-cli`.
+
+Typst ships no installer, on any platform: every release is an archive, never a
+`.pkg`, `.msi` or `.deb`. It has to come from a package manager instead:
+
+- **macOS:** `brew install typst`, via [Homebrew](https://brew.sh), the standard
+  package manager for developer tools on a Mac. It is not installed by default.
+- **Windows:** `winget install --id Typst.Typst`. Winget ships with Windows 11
+  and current Windows 10 as part of "App Installer", so it is usually already
+  present; a terminal is still needed to run it.
+- **Linux:** `sudo snap install typst`, an official snap published by Typst
+  GmbH, or install "Typst" from the Ubuntu App Center with no terminal at all.
+
+Neither `apt install typst` nor `dnf install typst` exists: Typst is in neither
+Debian/Ubuntu's nor Fedora's repositories.
 
 ## Exporting
 

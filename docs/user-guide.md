@@ -49,9 +49,9 @@ for how to keep it locally without publishing it.
 
 ### Optional: Pandoc and Typst
 
-Only needed to export course materials to PDF or Word. The
-[exporting guide](exporting.md#what-you-need) has the install commands per
-platform.
+Only needed to export course materials to PDF or Word, and a Word export needs
+pandoc alone. The [exporting guide](exporting.md#what-you-need) covers
+installing both, per platform.
 
 ## Course Structure
 
