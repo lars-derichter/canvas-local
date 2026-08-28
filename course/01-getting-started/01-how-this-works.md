@@ -54,7 +54,8 @@ manuscript and never the manuscript itself.
 > [!TIP]
 >
 > Nothing here is permanent. The whole module can be removed from your course
-> with one answer during `npx course setup`, and it stays readable at
+> with one answer during **Course: Setup (First-Run Wizard)** (terminal:
+> `npx course setup`), and it stays readable at
 > [coursewright.md](https://coursewright.md/) afterwards.
 
 ## A Word on the Signs
