@@ -3,13 +3,13 @@
 > [!TIP]
 >
 > This is the README template for your course repository, in English. Copy this
-> file over the `README.md` in your project root (which describes the Canvas
-> Course Builder tooling), change `Course Name` to the name of your course, fill
+> file over the `README.md` in your project root (which describes the
+> Coursewright tooling), change `Course Name` to the name of your course, fill
 > in the sections below, and delete this tip. Dutch-language courses want
 > [`README-course-nl.md`](README-course-nl.md) instead.
 
-Course materials for **Course Name**, written in markdown and synced with Canvas
-LMS using [Coursewright](https://github.com/lars-derichter/coursewright).
+Course materials for **Course Name**, written in markdown and published with
+[Coursewright](https://github.com/lars-derichter/coursewright).
 
 ## Course Overview
 
@@ -41,11 +41,13 @@ line in place.
 - [Your first course](docs/first-course.md): the step-by-step beginner
   walkthrough
 - [User guide](docs/user-guide.md): full Coursewright documentation
+- [Markdown guide](docs/markdown.md): supported syntax and alerts
+- [Frontmatter guide](docs/frontmatter.md): page and assignment metadata
+- [Hosting](docs/hosting.md): the course website on GitHub Pages
+- [Exporting](docs/exporting.md): PDF and DOCX handouts
 - [Canvas setup](docs/canvas-setup.md): API credentials and course ID
 - [Backups](docs/backups.md): protecting the Canvas course before you sync
 - [Limitations](docs/limitations.md): what the tool does not do
-- [Markdown guide](docs/markdown.md): supported syntax and alerts
-- [Frontmatter guide](docs/frontmatter.md): page and assignment metadata
 - [Customisation](docs/customisation.md): README, language, branding, and
   licence
 - [VS Code extension](docs/vscode.md): visual sidebar commands

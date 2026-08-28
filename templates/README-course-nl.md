@@ -3,15 +3,14 @@
 > [!TIP]
 >
 > This is the README template for your course repository, in Dutch. Copy this
-> file over the `README.md` in your project root (which describes the Canvas
-> Course Builder tooling), change `Naam van de cursus` to the name of your
-> course, fill in the sections below, and delete this tip. English-language
-> courses want [`README-course-en.md`](README-course-en.md) instead. The guides
-> under `docs/` that this template links to are in English.
+> file over the `README.md` in your project root (which describes the
+> Coursewright tooling), change `Naam van de cursus` to the name of your course,
+> fill in the sections below, and delete this tip. English-language courses want
+> [`README-course-en.md`](README-course-en.md) instead. The guides under `docs/`
+> that this template links to are in English.
 
 Cursusmateriaal voor **Naam van de cursus**, geschreven in markdown en
-gesynchroniseerd met Canvas LMS via
-[Coursewright](https://github.com/lars-derichter/coursewright).
+gepubliceerd met [Coursewright](https://github.com/lars-derichter/coursewright).
 
 ## Overzicht
 
@@ -42,14 +41,15 @@ en deze regel staan.
 
 - [Je eerste cursus](docs/first-course.md): de stap-voor-stap handleiding voor
   wie hier nieuw is
-- [Gebruikersgids](docs/user-guide.md): de volledige documentatie van Canvas
-  Course Builder
+- [Gebruikersgids](docs/user-guide.md): de volledige Coursewright-documentatie
+- [Markdown-gids](docs/markdown.md): ondersteunde syntax en alerts
+- [Frontmatter-gids](docs/frontmatter.md): metadata voor pagina's en opdrachten
+- [Hosting](docs/hosting.md): de cursuswebsite op GitHub Pages
+- [Exporteren](docs/exporting.md): hand-outs als PDF of Word-document
 - [Canvas instellen](docs/canvas-setup.md): API-sleutel en course-ID
 - [Back-ups](docs/backups.md): je Canvas-cursus beveiligen voor je
   synchroniseert
 - [Beperkingen](docs/limitations.md): wat de tool niet doet
-- [Markdown-gids](docs/markdown.md): ondersteunde syntax en alerts
-- [Frontmatter-gids](docs/frontmatter.md): metadata voor pagina's en opdrachten
 - [Aanpassen](docs/customisation.md): README, taal, huisstijl en licentie
 - [VS Code-extensie](docs/vscode.md): commando's in de zijbalk
 - [Problemen oplossen](docs/troubleshooting.md): veelvoorkomende problemen en
