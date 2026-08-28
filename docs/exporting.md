@@ -1,16 +1,18 @@
-# Exporting to PDF and DOCX
+# Exporting to PDF, DOCX and Markdown
 
 Turn course materials into a printable PDF or an editable Word document: a
 handout for one lesson, a module as a chapter, or the whole course as a styled
-course text with your institution's branding. Exports are generated from the
-same markdown the website and Canvas read, so a handout never drifts from the
-course it came from.
+course text with your institution's branding. A third format writes plain
+markdown instead: one text file, meant to be attached to a chatbot as a study
+pack or read as it is. Exports are generated from the same markdown the website
+and Canvas read, so a handout never drifts from the course it came from.
 
 ## What You Need
 
 DOCX export needs only [pandoc](https://pandoc.org/); PDF export also needs
 [Typst](https://typst.app/). Both are free, and nothing else in Coursewright
-needs either, so you can skip this until your first export.
+needs either, so you can skip this until your first export. The markdown format
+(`-f md`) needs neither.
 
 Pandoc ships a real installer on every platform, downloaded from
 [pandoc.org/installing.html](https://pandoc.org/installing.html):
@@ -76,9 +78,48 @@ npx course export-toc                            # writes exports/toc.md
 npx course export --toc exports/toc.md           # render a curated selection
 ```
 
-`-o`, `--title`, `--subtitle`, `--style` and `--var` are terminal-only: the
-panel has no route to any of them. See [CLI reference](cli-reference.md#export)
-for the full flag list.
+`-o`, `--title`, `--subtitle`, `--style`, `--var` and `-f md` are terminal-only:
+the panel has no route to any of them. See
+[CLI reference](cli-reference.md#export) for the full flag list.
+
+### Markdown
+
+`-f md` writes the export as a plain markdown file rather than a rendered
+document. It takes the same scopes as PDF and Word, one item, a module, the
+whole course, `--flagged` or a curated TOC file, and it needs neither pandoc nor
+Typst.
+
+```bash
+npx course export -f md                   # the whole course as one file
+npx course export -m 01-intro -f md       # one module
+npx course export --flagged -f md         # only items with export: true
+```
+
+The result is meant to be read as text. A student attaches it to ChatGPT, Claude
+or Gemini and asks the chatbot questions about the course; you can also read it
+yourself as one file instead of clicking through the site. The document opens
+with a header: the title as a first-level heading, the subtitle and the course
+name on one italic line, then the date. The items follow at the same heading
+levels the PDF uses, module titles as H1 and items as H2 for a whole course,
+items as H1 for a module. A single item is copied as it stands, with no header,
+the way it gets no title page in PDF.
+
+Everything the chatbot cannot follow is taken out. Images become their alt text
+in italics, and disappear when they have none. Links to other pages, to
+`#anchors` and to files in `_files/` become plain text, while web and mailto
+links keep their href. HTML comments go, image TODOs and notes to yourself
+included, and frontmatter goes with them. Alerts survive as written, `> [!NOTE]`
+and the rest, being readable markdown already. A file item becomes a heading and
+an `Attachment:` line naming the file, an external URL a heading and the URL, a
+quiz or an external tool a heading and the notice that it is managed in Canvas.
+Nothing pandoc-specific reaches the file: no `:::` blocks, no `{#anchor}`
+attributes, no YAML.
+
+Output lands in `exports/<slug>.md`, next to the PDFs. `-o` writes it anywhere
+else, `course/01-intro/_files/study-pack.md` for instance, when the file should
+ship with the course as a download. One combination is refused: a curated export
+without `-o`, whose default filename is `exports/toc.md`, the TOC file the run
+just read.
 
 ## Changing the Look
 

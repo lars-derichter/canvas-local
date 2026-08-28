@@ -132,7 +132,8 @@ The [docs folder](docs/README.md) has the full map. Start with:
   scripts
 - [Markdown guide](docs/markdown.md): supported syntax, links, and alerts
 - [Hosting](docs/hosting.md): the course website on GitHub Pages
-- [Exporting](docs/exporting.md): PDF and DOCX handouts and course texts
+- [Exporting](docs/exporting.md): PDF, DOCX and markdown handouts and course
+  texts
 - [Canvas setup](docs/canvas-setup.md): connecting a Canvas course
 - [Limitations](docs/limitations.md): what the tool does not do
 - [Backups](docs/backups.md): protecting a Canvas course before you sync

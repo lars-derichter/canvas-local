@@ -356,7 +356,8 @@ By default only `course/` is searched.
 
 ### `export`
 
-Export course materials to PDF or DOCX (needs pandoc and typst).
+Export course materials to PDF, DOCX or plain markdown (PDF and DOCX need pandoc
+and typst).
 
 ```bash
 npx course export [options] [paths...]
@@ -367,7 +368,7 @@ npx course export [options] [paths...]
 | `-m, --module <folder>`  | Export one full module                              |
 | `--toc <file>`           | Export the items listed in a TOC file               |
 | `--flagged`              | Only include items with frontmatter `export: true`  |
-| `-f, --format <format>`  | Output format: pdf or docx (default: pdf)           |
+| `-f, --format <format>`  | Output format: pdf, docx or md (default: pdf)       |
 | `-o, --output <path>`    | Output file path                                    |
 | `--title <text>`         | Title-page title                                    |
 | `--subtitle <text>`      | Title-page subtitle                                 |
@@ -377,6 +378,10 @@ npx course export [options] [paths...]
 | `--var <key=value>`      | Pandoc variable (repeatable)                        |
 | `--keep-markdown`        | Also write the intermediate combined markdown       |
 | `--sample`               | Export the kitchen-sink style sample                |
+
+`-f md` writes the same selection as a plain markdown file, needs neither pandoc
+nor typst, and ignores `--style`, `--template`, `--reference-doc`, `--var` and
+`--keep-markdown`.
 
 With no path, module, TOC or `--flagged` scope, `export` renders the whole
 course. See [Exporting](exporting.md) for the install requirements and every
@@ -476,7 +481,7 @@ every flag. These have no route through the sidebar or the palette:
 | `sync --conflict`, `sync --order`, `sync -y`                                                                      | yes           |
 | `pull --force`                                                                                                    | yes           |
 | `search -C`, `--evaluations`, `--sources`, `--case-sensitive`                                                     | yes           |
-| `export -o`, `--title`, `--subtitle`, `--style`, `--var`                                                          | yes           |
+| `export -o`, `--title`, `--subtitle`, `--style`, `--var`, `-f md`                                                 | yes           |
 | `build-glossary --check`, `-m`, `-g`                                                                              | yes           |
 | `reset-canvas --dry-run`                                                                                          | yes           |
 | `new-item --position` and `new-module --position` (the panel appends; reorder afterwards with move or drag)       | yes           |

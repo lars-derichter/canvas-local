@@ -85,6 +85,12 @@ so they are verified by hand rather than in the automated suite:
 - `npx course export -m 01-getting-started`: a module with alerts, a discussion,
   an SVG file item, an external URL, a subfolder and a file item inside a
   subsection renders as one document.
+- `npx course export -m 01-getting-started -f md`: the same module as one plain
+  markdown file. Alerts are still `> [!NOTE]` blocks, images are down to their
+  alt text, and file items read as `Attachment:` lines.
+  `grep -nE ':::|\{#|/Users/|<!--' exports/01-getting-started.md` returns
+  nothing. A bare `---` does turn up, because the tutorial teaches horizontal
+  rules and shows frontmatter inside code blocks, so do not grep for it.
 - The two-step TOC flow: `npx course export-toc`, delete some lines, then
   `npx course export --toc exports/toc.md`.
 - `npx course export --flagged` after setting `export: true` on a few items.

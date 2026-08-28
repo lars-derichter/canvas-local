@@ -37,7 +37,8 @@ routes, and a working example of every content type (source:
 
 - [Hosting](hosting.md): the course website, published with one GitHub Pages
   setting
-- [Exporting](exporting.md): PDF and DOCX handouts, chapters, and course texts
+- [Exporting](exporting.md): PDF, DOCX and markdown handouts, chapters, and
+  course texts
 - [Canvas setup](canvas-setup.md): API URL, access token, and course ID
 - [Canvas sync](user-guide.md#canvas-sync): `sync`, `push`, `pull` and `status`,
   the flags each one takes, and what deleting with a prune flag reaches
