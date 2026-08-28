@@ -10,6 +10,7 @@ const { preflight } = require('../lib/export/preflight');
 const { resolveStyle } = require('../lib/export/style-resolver');
 const { runPandoc, typstFontPaths } = require('../lib/export/pandoc');
 const { buildCombinedMarkdown } = require('../lib/export/assemble');
+const { buildPlainMarkdown } = require('../lib/export/plain-markdown');
 const { parseToc, validateTocPaths } = require('../lib/export/toc');
 const { loadCourseConfig } = require('../lib/config/course-config');
 const { loadTheme, themeVariables } = require('../lib/config/theme');
@@ -30,6 +31,22 @@ function collectVar(value, previous = {}) {
   const key = value.slice(0, eq).trim();
   const val = value.slice(eq + 1);
   return { ...previous, [key]: val };
+}
+
+/**
+ * Normalize the `-f` value to one of the three output formats.
+ *
+ * @param {string} [value] - Raw flag value; empty means the pdf default.
+ * @returns {string} 'pdf', 'docx' or 'md'.
+ * @throws {Error} When the value names no format we write.
+ */
+function parseFormat(value) {
+  const format = String(value || '').toLowerCase();
+  if (!format) return 'pdf';
+  if (format !== 'pdf' && format !== 'docx' && format !== 'md') {
+    throw new Error(`Unknown format "${value}". Use pdf, docx or md.`);
+  }
+  return format;
 }
 
 /**
@@ -347,15 +364,150 @@ function resolveMode(paths, options, index, labels = getLabels(), course = {}) {
   };
 }
 
+/** Today's date as YYYY-MM-DD in local time, for the document's date line. */
+function todayLocalIso() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
+    now.getDate(),
+  ).padStart(2, '0')}`;
+}
+
 /**
- * Export course materials to PDF or DOCX.
+ * The metadata both flavours share: what the document is called, which course
+ * it was cut from, and when it was made. The pandoc path adds the keys only
+ * pandoc reads (`labels`, `toc`) on top of this.
+ *
+ * @param {object} mode - Result of resolveMode.
+ * @param {object} options - CLI options.
+ * @param {object} course - { title, language } from course.config.yml.
+ * @returns {object} { regime, lang, date, title?, subtitle?, course? }
  */
-async function exportCmd(paths = [], options = {}) {
-  const format = (options.format || 'pdf').toLowerCase();
-  if (format !== 'pdf' && format !== 'docx') {
-    log.error(`[export] Unknown format "${format}". Use pdf or docx.`);
+function documentMeta(mode, options, { title, language }) {
+  const meta = {
+    regime: mode.regime,
+    lang: language,
+    date: todayLocalIso(),
+  };
+  if (mode.regime !== 'bare') {
+    meta.title = options.title || mode.defaultTitle;
+    const subtitle = options.subtitle || mode.defaultSubtitle;
+    if (subtitle) meta.subtitle = subtitle;
+    // The cover prints `course` under the document title, so a module or a
+    // selection says which course it was cut from. Skipped when the document is
+    // already titled after the course, which would print the name twice. No
+    // title means no cover at all (template.typ gates the whole block on it).
+    if (meta.title !== title) meta.course = title;
+  }
+  return meta;
+}
+
+/**
+ * Where an `-f md` export writes: `-o` when given, else exports/<slug>.md.
+ *
+ * A curated export slugs to `toc`, so `--toc exports/toc.md` without `-o`
+ * resolves to the file the run just read, and writing there would replace the
+ * item list with the pack built from it. Refused rather than written.
+ *
+ * @param {string} slug - The mode's default output slug.
+ * @param {object} [options] - CLI options; `output` and `toc` are read.
+ * @param {string} [exportsDir] - Injection point for tests.
+ * @returns {string} Absolute output path.
+ * @throws {Error} When the output would land on the TOC file.
+ */
+function resolveMarkdownOutput(slug, options = {}, exportsDir = EXPORTS_DIR) {
+  const output = options.output
+    ? path.resolve(options.output)
+    : path.join(exportsDir, `${slug}.md`);
+  if (options.toc && path.resolve(output) === path.resolve(options.toc)) {
+    throw new Error(
+      `That would overwrite the TOC file ${options.toc}; pass -o to write elsewhere.`,
+    );
+  }
+  return output;
+}
+
+/**
+ * Export to plain markdown: the study pack of ../lib/export/plain-markdown.js,
+ * written straight to disk. No pandoc, no typst, no style and no theme.
+ */
+function exportMarkdown(paths, options) {
+  if (options.sample) {
+    log.error(
+      '[export] --sample renders the style sample, which has no markdown form.',
+    );
     process.exit(1);
   }
+
+  // Layout flags decide nothing about a markdown file. Said out loud rather
+  // than refused: whoever typed --style should hear it did nothing without
+  // re-running under -v, and a script passing a fixed set of flags should
+  // still get its pack.
+  const ignored = [
+    ['--style', options.style],
+    ['--template', options.template],
+    ['--reference-doc', options.referenceDoc],
+    ['--keep-markdown', options.keepMarkdown],
+    ['--var', options.var && Object.keys(options.var).length > 0],
+  ]
+    .filter(([, given]) => given)
+    .map(([flag]) => flag);
+  if (ignored.length > 0) {
+    const tail =
+      ignored.length === 1
+        ? 'it only applies to pdf and docx'
+        : 'they only apply to pdf and docx';
+    log.warn(`[export] Ignoring ${ignored.join(', ')}: ${tail}.`);
+  }
+
+  const { title, tagline, language, labels } = loadCourseConfig();
+
+  let mode;
+  try {
+    mode = resolveMode(paths, options, indexCourse(), labels, {
+      title,
+      tagline,
+    });
+  } catch (err) {
+    log.error(`[export] ${err.message}`);
+    process.exit(1);
+  }
+
+  const meta = documentMeta(mode, options, { title, language });
+  const combined = buildPlainMarkdown(mode.groups, meta, {
+    courseDir: COURSE_DIR,
+    labels,
+  });
+
+  let output;
+  try {
+    output = resolveMarkdownOutput(mode.defaultSlug, options);
+  } catch (err) {
+    log.error(`[export] ${err.message}`);
+    process.exit(1);
+  }
+
+  // dirname, not EXPORTS_DIR: -o may point anywhere, a module's _files/
+  // included.
+  fs.mkdirSync(path.dirname(output), { recursive: true });
+  fs.writeFileSync(output, combined, 'utf8');
+  log.info(`[export] Wrote ${path.relative(process.cwd(), output)}`);
+}
+
+/**
+ * Export course materials to PDF, DOCX or plain markdown.
+ */
+async function exportCmd(paths = [], options = {}) {
+  let format;
+  try {
+    format = parseFormat(options.format);
+  } catch (err) {
+    log.error(`[export] ${err.message}`);
+    process.exit(1);
+  }
+
+  // Before the preflight: markdown needs neither pandoc nor typst, and neither
+  // a style nor a theme, so none of them may stand between it and its file.
+  if (format === 'md') return exportMarkdown(paths, options);
 
   try {
     const versions = await preflight({ format });
@@ -428,29 +580,13 @@ async function exportCmd(paths = [], options = {}) {
     process.exit(1);
   }
 
-  const now = new Date();
-  const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
-    now.getDate(),
-  ).padStart(2, '0')}`;
   const meta = {
-    regime: mode.regime,
-    lang: language,
-    date: localDate,
+    ...documentMeta(mode, options, { title, language }),
     // Rendered labels travel as pandoc metadata so filter.lua and template.typ
     // pick them up without hardcoding any language themselves.
     labels: { ...labels.alerts, attachment: labels.export.attachment },
   };
-  if (mode.regime !== 'bare') {
-    meta.title = options.title || mode.defaultTitle;
-    const subtitle = options.subtitle || mode.defaultSubtitle;
-    if (subtitle) meta.subtitle = subtitle;
-    meta.toc = true;
-    // The cover prints `course` under the document title, so a module or a
-    // selection says which course it was cut from. Skipped when the document is
-    // already titled after the course, which would print the name twice. No
-    // title means no cover at all (template.typ gates the whole block on it).
-    if (meta.title !== title) meta.course = title;
-  }
+  if (meta.regime !== 'bare') meta.toc = true;
 
   const { linkMap, courseId } = buildLinkContext();
   const combined = buildCombinedMarkdown(mode.groups, meta, {
@@ -521,4 +657,6 @@ module.exports = exportCmd;
 module.exports.buildLinkContext = buildLinkContext;
 module.exports.collectVar = collectVar;
 module.exports.exportSlug = exportSlug;
+module.exports.parseFormat = parseFormat;
+module.exports.resolveMarkdownOutput = resolveMarkdownOutput;
 module.exports.resolveMode = resolveMode;

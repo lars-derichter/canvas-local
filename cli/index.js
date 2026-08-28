@@ -303,12 +303,12 @@ program
 program
   .command('export [paths...]')
   .description(
-    'Export course materials to PDF or DOCX (needs pandoc and typst)',
+    'Export course materials to PDF, DOCX or plain markdown (PDF and DOCX need pandoc and typst)',
   )
   .option('-m, --module <folder>', 'Export one full module')
   .option('--toc <file>', 'Export the items listed in a TOC file')
   .option('--flagged', 'Only include items with frontmatter export: true')
-  .option('-f, --format <format>', 'Output format: pdf or docx', 'pdf')
+  .option('-f, --format <format>', 'Output format: pdf, docx or md', 'pdf')
   .option('-o, --output <path>', 'Output file path')
   .option('--title <text>', 'Title-page title')
   .option('--subtitle <text>', 'Title-page subtitle')

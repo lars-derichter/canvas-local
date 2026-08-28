@@ -4,7 +4,12 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { buildLinkContext, exportSlug } = require('../../cli/export');
+const {
+  buildLinkContext,
+  exportSlug,
+  parseFormat,
+  resolveMarkdownOutput,
+} = require('../../cli/export');
 const { getLabels } = require('../../lib/config/labels');
 const { rewriteCrossLinks } = require('../../lib/export/preprocess');
 const { SCHEMA_VERSION } = require('../../lib/sync/state');
@@ -44,6 +49,80 @@ describe('exportSlug', () => {
   });
 });
 
+describe('parseFormat', () => {
+  it('accepts md', () => {
+    assert.equal(parseFormat('md'), 'md');
+  });
+
+  it('is case-insensitive', () => {
+    assert.equal(parseFormat('MD'), 'md');
+    assert.equal(parseFormat('Docx'), 'docx');
+  });
+
+  it('defaults to pdf when nothing was asked for', () => {
+    assert.equal(parseFormat(undefined), 'pdf');
+    assert.equal(parseFormat(''), 'pdf');
+  });
+
+  it('names the three formats when it refuses one', () => {
+    assert.throws(() => parseFormat('epub'), /pdf, docx or md/);
+  });
+});
+
+describe('resolveMarkdownOutput', () => {
+  const exportsDir = path.join(os.tmpdir(), 'cw-exports-fixed');
+
+  it('defaults to <exportsDir>/<slug>.md', () => {
+    assert.equal(
+      resolveMarkdownOutput('01-getting-started', {}, exportsDir),
+      path.join(exportsDir, '01-getting-started.md'),
+    );
+  });
+
+  it('lets -o win, resolved absolute', () => {
+    assert.equal(
+      resolveMarkdownOutput('toc', { output: 'pack.md' }, exportsDir),
+      path.resolve('pack.md'),
+    );
+  });
+
+  it('refuses to write over the TOC file it just read', () => {
+    // `--toc exports/toc.md` slugs to `toc`, so the default output is the very
+    // file the run read its item list from.
+    assert.throws(
+      () =>
+        resolveMarkdownOutput(
+          'toc',
+          { toc: path.join(exportsDir, 'toc.md') },
+          exportsDir,
+        ),
+      /would overwrite the TOC file/,
+    );
+  });
+
+  it('refuses it however the TOC path was spelled', () => {
+    const relative = path.relative(
+      process.cwd(),
+      path.join(exportsDir, 'toc.md'),
+    );
+    assert.throws(
+      () => resolveMarkdownOutput('toc', { toc: relative }, exportsDir),
+      /would overwrite the TOC file/,
+    );
+  });
+
+  it('allows a TOC export once -o points elsewhere', () => {
+    assert.equal(
+      resolveMarkdownOutput(
+        'toc',
+        { toc: path.join(exportsDir, 'toc.md'), output: 'pack.md' },
+        exportsDir,
+      ),
+      path.resolve('pack.md'),
+    );
+  });
+});
+
 describe('export label wiring', () => {
   // buildCombinedMarkdown falls back to getLabels(meta.lang) when the caller
   // passes no label set, which resolves the language but silently drops any
@@ -61,6 +140,23 @@ describe('export label wiring', () => {
     );
     const ctx = call.slice(0, call.indexOf('});'));
     assert.match(ctx, /^\s*labels,$/m);
+  });
+
+  it('hands them to buildPlainMarkdown too', () => {
+    // Same drop, same symptom, in the markdown flavour: without this the pack
+    // takes getLabels(meta.lang) and every per-label override is lost.
+    const call = source.slice(source.indexOf('buildPlainMarkdown(mode.groups'));
+    const ctx = call.slice(0, call.indexOf('});'));
+    assert.match(ctx, /^\s*labels,$/m);
+  });
+
+  it('dispatches to markdown before the pandoc preflight', () => {
+    // -f md needs no pandoc and no typst, so the preflight must never see it.
+    const body = source.slice(source.indexOf('async function exportCmd'));
+    assert.ok(
+      body.indexOf('exportMarkdown(') < body.indexOf('preflight('),
+      'the md dispatch has to sit above the preflight call',
+    );
   });
 });
 
