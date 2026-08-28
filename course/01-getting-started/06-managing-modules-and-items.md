@@ -1,5 +1,5 @@
 ---
-title: Managing Modules and Items
+title: 📘 Managing Modules and Items
 canvas_type: page
 ---
 

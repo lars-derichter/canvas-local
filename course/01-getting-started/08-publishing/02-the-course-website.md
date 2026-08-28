@@ -1,5 +1,5 @@
 ---
-title: The Course Website
+title: 📘 The Course Website
 canvas_type: page
 ---
 

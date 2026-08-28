@@ -1,5 +1,5 @@
 ---
-title: Canvas Syncing
+title: 📘 Canvas Syncing
 canvas_type: page
 ---
 

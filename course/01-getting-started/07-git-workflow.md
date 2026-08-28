@@ -1,5 +1,5 @@
 ---
-title: Git Workflow
+title: 📘 Git Workflow
 canvas_type: page
 ---
 

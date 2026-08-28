@@ -1,5 +1,5 @@
 ---
-title: Working With an AI Assistant
+title: 📘 Working With an AI Assistant
 canvas_type: page
 ---
 

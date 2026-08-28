@@ -1,5 +1,5 @@
 ---
-title: Content Types
+title: 📘 Content Types
 canvas_type: page
 ---
 

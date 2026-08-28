@@ -1,5 +1,5 @@
 ---
-title: Folder Layout
+title: 📘 Folder Layout
 canvas_type: page
 ---
 

@@ -1,5 +1,5 @@
 ---
-title: ❗️ Practice Assignment
+title: ❗️📅 Practice Assignment
 canvas_type: assignment
 points_possible: 10
 submission_types:

@@ -1,5 +1,5 @@
 ---
-title: Three Ways to Publish
+title: 📘 Three Ways to Publish
 canvas_type: page
 ---
 

@@ -1,5 +1,5 @@
 ---
-title: VS Code
+title: ⚙️ VS Code
 canvas_type: page
 ---
 

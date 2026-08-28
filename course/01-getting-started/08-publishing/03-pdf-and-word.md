@@ -1,5 +1,5 @@
 ---
-title: A PDF or Word Handout
+title: 📘 A PDF or Word Handout
 canvas_type: page
 export: true
 ---

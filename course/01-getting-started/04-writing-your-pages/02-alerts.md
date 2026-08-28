@@ -1,5 +1,5 @@
 ---
-title: Alerts
+title: 📘 Alerts
 canvas_type: page
 ---
 
