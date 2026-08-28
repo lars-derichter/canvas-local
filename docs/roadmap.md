@@ -59,6 +59,58 @@ assignment, lecture notes, quiz instructions, and so on. Templates would provide
 pre-filled frontmatter and boilerplate markdown tailored to common course item
 patterns.
 
+### Handouts Published on the Website
+
+The website and the export are built from the same tree and never meet: a
+student gets the handout only when you send it. The deploy workflow could run
+`npx course export` per module and place the PDFs in the built site, so every
+module page links its own printable version and both stay current on every push.
+The costs are real: pandoc and Typst installed in the workflow, a slower deploy,
+and fonts, because a CI runner has none of the machine-licensed typefaces the
+exporter finds locally, so a style leaning on Office fonts falls back to what it
+bundles (`thomas-more` to Nunito) and the published handout may not match the
+one exported at home.
+
+### EPUB Export
+
+pandoc already writes EPUB, and the export pipeline is pandoc with a per-format
+mapping in `filter.lua`: Typst calls for PDF, custom styles for DOCX. EPUB would
+be a third branch: a stylesheet in place of a template, the theme's colours
+injected as CSS custom properties the way Typst gets them as variables, and a
+decision per div kind, where alerts and link cards map well and a page break
+means nothing in reflowable text. The use case is course texts on phones and
+e-readers, which neither PDF nor DOCX serves.
+
+### One Export per Module in One Run
+
+`npx course export` produces one document per run: an item, a module, the whole
+course, or a curated selection, always combined. A `--split` flag would loop the
+modules and write one file each, named the way a module export already is.
+Mostly plumbing: the per-module path exists, and what is new is the loop, the
+output naming, and one report over all of it. Pairs naturally with publishing
+handouts on the website.
+
+### A Frozen Site per Academic Year
+
+The website shows the current state of the default branch, which is right during
+the year and wrong the day you start rewriting for the next one: returning
+students' links suddenly point at material they never had. A rollover step could
+deploy the year's final build to a subpath (`/2526/`) and keep the root for the
+current year. Docusaurus's own versioning is the heavy answer, a full copy of
+the docs per version inside the repo; the light one is archiving built sites,
+which costs the deploy workflow fetching each archived build and laying it under
+the fresh one on every publish, plus the `baseUrl` juggling per subpath.
+
+### Built-In Site Search
+
+Docusaurus ships search only as Algolia, an external service with an application
+process. `npx course search` covers the author; students on the website have
+nothing. A local-search plugin (the `docusaurus-search-local` family) indexes at
+build time and runs entirely in the browser, which is exactly what a GitHub
+Pages site can host. The open questions are index size on a large course and
+result quality per course language, which depends on the plugin's stemmer
+support; the lunr family does carry a Dutch one.
+
 ### Relinking Existing Canvas Objects
 
 An `npx course relink` command would pair local files with the Canvas objects
