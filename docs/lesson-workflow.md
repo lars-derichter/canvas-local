@@ -172,6 +172,12 @@ starts from. Written after, it is a report on what you happened to teach. The
 skills work either way and it is your call, but that is the difference the first
 section of this page is pointing at.
 
+What AI may do at each of those moments is a separate decision, written with
+`/ai-policy-build`: it interviews you per assessment moment and produces the
+page students read. `/ai-tutor-build` then hands them chatbot prompts and study
+packs that work inside those rules, and both are described in
+[Students and AI](ai-assistants.md#students-and-ai).
+
 ## After Teaching: The Retro
 
 `/lesson-retro` closes the loop. Right after a lesson, it interviews you (one

@@ -121,6 +121,10 @@ ship with the course as a download. One combination is refused: a curated export
 without `-o`, whose default filename is `exports/toc.md`, the TOC file the run
 just read.
 
+This is the format the [`/ai-tutor-build`](ai-assistants.md#students-and-ai)
+skill uses for its study packs, the files students attach to a chatbot together
+with a course prompt.
+
 ## Changing the Look
 
 `course.config.yml` picks the layout with `export.style` and the colours with

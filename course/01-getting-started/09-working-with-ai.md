@@ -63,6 +63,9 @@ course authoring. The main families:
   language without it sounding translated.
 - **Evaluation**: `/evaluation-design` blueprints an exam, `/quiz-build` turns a
   question list into a Canvas quiz, and `/rubric-build` writes a grading rubric.
+- **Students and AI**: `/ai-tutor-build` builds a module of copy-paste chatbot
+  prompts and study packs for your students, and `/ai-policy-build` writes the
+  page that tells them where AI is allowed in your course.
 - **Quality**: `/consistency-check` sweeps the whole course for dead links and
   drift, `/coverage-map` checks which learning goals are taught and tested, and
   `/image-todos` lists the artwork you still owe.

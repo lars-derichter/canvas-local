@@ -247,6 +247,31 @@ project whitelist.
   change edits the theme, and `reference.docx` alongside it: Word styles cannot
   read the theme. See [Customisation](customisation.md#branding).
 
+### Students and AI
+
+- **`/ai-tutor-build`** builds one AI module under `course/` for your students:
+  a page per prompt type (guardrailed tutor, concept explainer, error and
+  feedback interpreter, trace trainer, exam coach, quiz-me, extra exercises,
+  teach-back), each holding one prompt a student pastes into any chatbot as the
+  first message, plus a policy stub when the course has no AI-use page yet.
+  Alongside them go study packs, markdown exports of your own material made with
+  [`npx course export -f md`](exporting.md#markdown) and added as file items, so
+  the chatbot answers from the course instead of its training data. It asks you
+  to confirm that students may upload the material to a third-party service
+  before it generates a single pack, and it leaves the rest of `course/` alone.
+  A pack is a snapshot, so regenerate it after you edit a lesson; the report
+  prints the regenerate command for each one.
+- **`/ai-policy-build`** interviews you and writes the student-facing page that
+  says where AI may help in this course and where it may not, replacing the stub
+  `/ai-tutor-build` leaves. It offers three starting points: the AI Assessment
+  Scale (AIAS), the two-lane approach, or a custom policy from a deeper
+  interview when neither framework fits. The frameworks, their wording examples
+  and their references live in the skill's `references/frameworks.md`; the page
+  itself names a framework in one line and links its site. It never invents
+  institution policy: with none to name, it leaves a visible `TODO` where the
+  link goes. Afterwards it offers `/course-context-update` so the decisions land
+  under Assessment in `course-context.md`.
+
 ### Project
 
 - **`/course-setup`** turns a fresh copy of the template into your course. It
