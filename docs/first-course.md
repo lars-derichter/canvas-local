@@ -1,8 +1,11 @@
 # Your First Course, Step by Step
 
-This guide takes you from a computer with nothing installed to a course module
-published in Canvas. It assumes no experience with VS Code, the command line, or
-git. Every command is one you copy and paste.
+This guide takes you from a computer with nothing installed to a published
+course module: on a course website, as a PDF or Word handout, or in Canvas. You
+choose the route in the final step, and the built-in module you preview along
+the way is a working example of everything the tool can publish. It assumes no
+experience with VS Code, the command line, or git. Every command is one you copy
+and paste.
 
 Set aside about an hour for the first run. You do most of it once and never
 again.
@@ -70,6 +73,10 @@ git config --global user.name "Your Name"
 git config --global user.email "your.email@example.com"
 ```
 
+[Git and GitHub basics](git-and-github.md) explains what git is and what each
+git command in this guide does; copying them as they come is enough to follow
+along.
+
 > [!NOTE]
 >
 > **The terminal** is the panel where you type commands instead of clicking. VS
@@ -90,7 +97,8 @@ and the way you will pull in improvements to the tooling later.
 
 Coursewright is a **template**: you make your own copy, and your copy is yours.
 Changes you make never affect the original, and you can make one copy per
-course.
+course. On GitHub, each copy is a **repository**: one project's files together
+with their whole history.
 
 1. Open the
    [Coursewright project page](https://github.com/lars-derichter/coursewright).
@@ -116,11 +124,11 @@ before continuing.
 
 **Cloning** means downloading your project so you can work on it locally.
 
-1. On your project's GitHub page, click the green **Code** button and copy the
-   HTTPS URL.
-2. Open VS Code. From the **File** menu choose **Open Folder**, and pick (or
+1. Open VS Code. From the **File** menu choose **Open Folder**, and pick (or
    create) a folder where you keep your work: `Documents`, for example.
-3. Open the terminal with
+2. On your project's GitHub page, click the green **Code** button and copy the
+   HTTPS URL.
+3. Back in VS Code, open the terminal with
    **Ctrl+`** and run this, pasting your own URL after `git clone`:
 
    ```bash
@@ -157,8 +165,8 @@ module. Leave it running. It updates as you write.
 > **+** button at the top right of the terminal panel.
 
 Read the Getting Started module in the preview. It teaches markdown, the folder
-layout, and the daily commands, and it is a working example of everything this
-tool can publish.
+layout, and the daily commands, and every page in it survives the trip to each
+of the publish routes in step 11.
 
 ## 8. Make It Your Course
 
@@ -170,8 +178,8 @@ npx course setup
 
 It asks for your course name, the language of the labels students see, the look
 of the site and the exports, and whether to remove the built-in tutorial module.
-It ends by offering to connect Canvas; skip that for now, a later step covers
-it. Answer, and it writes the configuration for you.
+It ends by offering to connect Canvas; skip that for now, the Canvas route in
+step 11 comes back to it. Answer, and it writes the configuration for you.
 
 > [!TIP]
 >
@@ -196,37 +204,14 @@ npm run vscode:install
 Then reload VS Code (**Cmd/Ctrl+Shift+P**, type `reload window`). A book icon
 appears in the left-hand bar: that is the **Course Manager** panel, showing your
 modules and items as a tree. Right-click anything for the actions that apply to
-it. The panel deliberately carries no destructive command: `reset-canvas`,
-`reset-sync-state` and `build-glossary` are reachable from the palette only, and
-[Advanced commands](advanced-commands.md) covers what they do.
+it.
 
 If this step fails with a message about `code` not being found, go back to step
 1 and install the shell command.
 
 [VS Code integration](vscode.md) is the full reference for the panel.
 
-## 10. Back up the Canvas Course
-
-Before you connect Canvas, read [Backing up a Canvas course](backups.md). It
-takes five minutes and it is the one step in this guide you cannot undo by
-retrying.
-
-If your Canvas course already has content in it, export it first. If you can get
-an empty sandbox course, point the tool at that until you trust it. The tool
-does warn you before its first push to a course that already holds content, but
-a warning is not a backup.
-
-## 11. Connect Canvas
-
-```bash
-npx course init
-```
-
-It asks for three things: your Canvas web address, an access token, and the
-course ID. [Canvas setup](canvas-setup.md) shows where to find each one. They go
-into a `.env` file that stays on your computer and is never committed.
-
-## 12. Write Something and Publish It
+## 10. Write Something
 
 Create a module:
 
@@ -240,8 +225,52 @@ It asks for a name and a position and creates the folder. Add a page to it:
 npx course new-item
 ```
 
-Write in the file that appears, watch it in the preview, then check what would
-happen on Canvas before anything happens:
+Write in the file that appears and watch it change in the preview.
+
+## 11. Publish It
+
+The same files publish three ways. Pick the route your course needs today; the
+other two stay open.
+
+### A Website
+
+On GitHub, go to **Settings > Pages** and set **Source** to **GitHub Actions**;
+from then on, every push to GitHub (step 12 does the first one) rebuilds the
+public site at `https://YOUR-USERNAME.github.io/your-project-name/`.
+[Hosting](hosting.md) covers the paid-plan requirement for private repositories
+(free for educators) and what the site does and does not include.
+
+### A PDF or Word Handout
+
+Install the two converters once (`brew install pandoc typst` on macOS; see
+[exporting](exporting.md) for Windows and Linux), then export your module, using
+its folder name:
+
+```bash
+npx course export -m 01-your-module
+```
+
+The styled PDF lands in `exports/`. Add `-f docx` for Word, or drop `-m` to
+export the whole course as one document.
+
+### Canvas
+
+Before you connect Canvas, read [Backing up a Canvas course](backups.md). It
+takes five minutes and it is the one step in this guide you cannot undo by
+retrying. If your Canvas course already has content in it, export it first; if
+you can get an empty sandbox course, point the tool at that until you trust it.
+
+Then connect:
+
+```bash
+npx course init
+```
+
+It asks for three things: your Canvas web address, an access token, and the
+course ID. [Canvas setup](canvas-setup.md) shows where to find each one. They go
+into a `.env` file that stays on your computer and is never uploaded.
+
+Check what would happen on Canvas before anything happens:
 
 ```bash
 npx course push --dry-run
@@ -255,7 +284,10 @@ npx course push
 
 Open the course in Canvas. Your module is there.
 
-## 13. Save Your Work
+Whichever route you took, the other two read the same files: no route locks the
+others out, and nothing you wrote belongs to just one of them.
+
+## 12. Save Your Work
 
 Committing is how you keep a version you can return to. Three commands:
 
@@ -273,12 +305,12 @@ frequent commits are far easier to undo than one big one.
 
 ## Where to Go Next
 
-- **[User guide](user-guide.md)**: the course structure, every command, and the
-  export to PDF or Word.
+- **[User guide](user-guide.md)**: the course structure and every daily command.
 - **[Markdown guide](markdown.md)**: the formatting syntax, links, images, and
   the coloured alert boxes.
 - **[Lesson workflow](lesson-workflow.md)**: designing a course with an AI
   assistant, starting from what students should be able to do.
+- **[Hosting](hosting.md)** and **[exporting](exporting.md)**: the full guides
+  for the publish routes, including the ones you skipped today.
 - **[Limitations](limitations.md)**: what the tool will not do, and what to do
   instead.
-- **[Hosting](hosting.md)**: publish the preview as a free public website.
