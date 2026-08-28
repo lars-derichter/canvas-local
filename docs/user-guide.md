@@ -1,11 +1,11 @@
 # User Guide
 
 Coursewright lets you write course materials as markdown files on your own
-computer, preview them on a local website
-([Docusaurus](https://docusaurus.io/)), and sync them with
-[Canvas LMS](https://www.instructure.com/canvas) in one command. This guide
-covers the course structure and the daily workflow; the [docs index](README.md)
-lists every other guide. If anything fails along the way, check
+computer, preview them on a local website as you write, and publish them where
+you need them: a course website, PDF or Word handouts, or
+[Canvas LMS](https://www.instructure.com/canvas). This guide covers the course
+structure and the daily workflow; the [docs index](README.md) lists every other
+guide. If anything fails along the way, check
 [Troubleshooting](troubleshooting.md).
 
 ## Getting Started
@@ -22,7 +22,7 @@ cd your-project-name
 npm install
 npm start          # preview at localhost:3000
 npx course setup   # name, language, look, templates
-npx course init    # Canvas credentials
+npx course init    # Canvas credentials (only if you sync with Canvas)
 ```
 
 Node.js 24+ is the only requirement. `npx` runs the `course` tool that ships
@@ -30,18 +30,16 @@ with the project, so there is nothing else to install.
 
 > [!WARNING]
 >
-> If you plan to store evaluation materials (exams, tests) in the `evaluations/`
-> folder, make sure your project is **private**. Otherwise students can find
-> your materials on GitHub. See
-> [Keeping your project private](git-and-github.md#keeping-your-project-private)
-> for how to change this setting.
+> If you keep exams or tests in the `evaluations/` folder, make the repository
+> **private**: a public one is findable by students. See
+> [keeping your project private](git-and-github.md#keeping-your-project-private).
 
 `course/01-getting-started/` is a real module, so it would be published to your
 students along with your own. The setup wizard offers to remove it; see
 [the built-in tutorial module](customisation.md#the-built-in-tutorial-module)
 for how to keep it locally without publishing it.
 
-### Optional: pandoc and Typst
+### Optional: Pandoc and Typst
 
 Only needed to export course materials to PDF or Word. The
 [exporting guide](exporting.md#what-you-need) has the install commands per
@@ -49,7 +47,11 @@ platform.
 
 ## Course Structure
 
-### Course Modules (Sync With Canvas / Preview Locally With Docusaurus)
+### Course Modules (Published)
+
+Everything students see lives under `course/`, one folder per module. All three
+outputs read this one tree: the website serves it, an export walks it in order,
+and each file becomes one Canvas item when you sync.
 
 ```
 course/
@@ -74,21 +76,25 @@ course/
   private corner of the tree: the Canvas module name goes into
   `_category_.json`, and binaries embedded in a Canvas page are downloaded into
   `_files/`
-- Canvas item type is set via `canvas_type` in frontmatter (default: `page`)
-- Assignment frontmatter supports: `points_possible`, `submission_types`,
-  `due_at`
-- Discussion frontmatter supports: `discussion_type`, `require_initial_post`,
-  `delayed_post_at`, `lock_at`, `published`. The markdown body is the opening
-  message
-- External URL frontmatter requires: `external_url`; an LTI item
+- A markdown file's type lives in its frontmatter: `canvas_type` marks it as a
+  page (the default), assignment, discussion, external link, quiz reference or
+  file item. The website renders every type as a page; Canvas gets the matching
+  item
+- An assignment carries `points_possible`, `submission_types` and `due_at` in
+  frontmatter
+- A discussion's markdown body is the opening message; frontmatter supports
+  `discussion_type`, `require_initial_post`, `delayed_post_at`, `lock_at`,
+  `published`
+- A link item holds its address in `external_url`; an LTI item
   (`canvas_type: external_tool`) uses the same field for the tool's launch URL
-- Quiz frontmatter is a reference, not content: the file names a quiz that
-  already exists in Canvas, and `quiz_ref` points at the QTI zip it was imported
-  from (path from the repository root). The questions never sync
-- File item frontmatter requires: `file_ref` pointing to the binary in `_files/`
-  (e.g. `file_ref: _files/report.pdf`). The binary is uploaded to Canvas as a
-  module item. In Docusaurus, a styled file card with a download link is shown;
-  an image, video or audio file also shows the media itself above the card
+- A quiz file is a reference, not content: it names a quiz that already exists
+  in Canvas, and `quiz_ref` points at the QTI zip it was imported from (path
+  from the repository root). The questions never sync
+- A file item wraps a binary: `file_ref` points at it in `_files/` (e.g.
+  `file_ref: _files/report.pdf`). The website and exports show a styled file
+  card with a download link, and an image, video or audio file also shows the
+  media itself above the card; a push uploads the binary to Canvas as a module
+  item
 - Images and files in `_files/` can also be referenced from markdown content
   (`![Alt](_files/image.png)`): these are embedded in page content, not added as
   separate module items
@@ -264,17 +270,35 @@ Results are grouped per file with the module and item they belong to, line
 numbers, and a few lines of context around each match. By default only `course/`
 is searched; `--evaluations` and `--sources` widen the scope.
 
-### Docusaurus Preview
+## The Website
 
 ```bash
-npm start          # start Docusaurus dev server
-npm run build      # production build
+npm start          # live preview at localhost:3000 while you write
+npm run build      # production build, the same one publishing runs
 ```
 
-You can also publish the preview as a free public website on GitHub Pages, a
-handy fallback when Canvas is unavailable. See the [hosting guide](hosting.md).
+The preview served by [Docusaurus](https://docusaurus.io/) is the course
+website; publishing it is one GitHub Pages setting, after which every push to
+GitHub rebuilds the public site. See the [hosting guide](hosting.md).
 
-### Canvas Sync
+## Exporting to PDF or DOCX
+
+Turn course materials into printable PDFs or editable Word documents: one item,
+a module, the whole course, or a curated selection.
+
+```bash
+npx course export -m 01-intro       # one module as PDF
+npx course export -f docx           # the whole course as Word
+```
+
+This needs pandoc (and Typst for PDF). The [exporting guide](exporting.md)
+covers the install, every scope, the curated table-of-contents flow, where the
+output lands, and how to change the look.
+
+## Canvas Sync
+
+If you do not publish to Canvas, skip this whole section; nothing else in the
+tool depends on it.
 
 > [!WARNING]
 >
@@ -310,7 +334,7 @@ All three writing commands take `--dry-run`. `-m` scopes any of the four to
 named module folders; on `sync`, `pull` and `status` it is repeatable
 (`-m 01-intro -m 02-html`), on `push` it takes one folder.
 
-#### One Engine, Four Commands
+### One Engine, Four Commands
 
 Each of the four reads both sides, compares them against `.canvas-sync.json`
 (what was true at the last sync) and works out what changed where. They differ
@@ -356,7 +380,7 @@ this run. So does a run that could not report at all, from a missing course id
 to a `-m` naming no module. A script can read a non-zero `status` as a course
 that needs a person before anything is synced.
 
-#### Who Wins When Both Sides Moved
+### Who Wins When Both Sides Moved
 
 Neither `--conflict` nor `--order` comes up unless both sides moved. An item
 only you changed is pushed, an item only Canvas changed is pulled, and a module
@@ -378,7 +402,7 @@ A value neither flag recognises is an error rather than a fallback.
 exits without reading Canvas, because a typo silently degrading to "skip
 everything" would look like a clean run.
 
-#### Deleting What the Other Side No Longer Has
+### Deleting What the Other Side No Longer Has
 
 A run deletes nothing unless you ask for it.
 
@@ -405,7 +429,7 @@ Read [Backing up a Canvas course](backups.md) before the first one. Deleting an
 assignment takes its gradebook column and every grade in it, and no course
 export brings those back.
 
-#### Running Without a Terminal
+### Running without a Terminal
 
 A scripted run (CI, a cron job, a command with its input redirected) cannot
 answer a question. What each flag does then is worth knowing before you put one
@@ -432,40 +456,26 @@ in a script.
 `sync -y` behaves the same way in a terminal: it confirms the prune and skips
 the conflict and ordering questions rather than putting them to you.
 
-#### The Sync File Is Part of the Commit
+### The Sync State Is Part of the Commit
 
-`.canvas-sync.json` records which Canvas object each of your files is, and it is
-committed like everything else in the project. `status` only reads it; the other
-three keep it current, so a run leaves a change there to commit alongside the
-content that caused it. See
+The sync state, `.canvas-sync.json`, records which Canvas object each of your
+files is, and it is committed like everything else in the project. `status` only
+reads it; the other three keep it current, so a run leaves a change there to
+commit alongside the content that caused it. See
 [Commit the Canvas sync file](git-and-github.md#commit-the-canvas-sync-file) for
 why a second copy of the project is lost without it.
 
-#### Global Flags
+### Global Flags
 
 ```bash
 npx course --verbose <command>   # show API request details
 npx course --quiet <command>     # only show errors
 ```
 
-#### New Academic Year
+### New Academic Year
 
 See the [new academic year guide](new-academic-year.md) for switching your
 materials to a new Canvas course at the start of a new academic year.
-
-## Exporting to PDF or DOCX
-
-Turn course materials into printable PDFs or editable Word documents: one item,
-a module, the whole course, or a curated selection.
-
-```bash
-npx course export -m 01-intro       # one module as PDF
-npx course export -f docx           # the whole course as Word
-```
-
-This needs pandoc (and Typst for PDF). The [exporting guide](exporting.md)
-covers the install, every scope, the curated table-of-contents flow, where the
-output lands, and how to change the look.
 
 ## Advanced Commands
 
@@ -476,8 +486,3 @@ npx course reset-canvas          # delete all modules, pages, assignments, and f
 
 See [advanced commands](advanced-commands.md) for details on these destructive
 operations.
-
-## Further Guides
-
-The [docs index](README.md) lists every guide, grouped by what you are trying to
-do.
