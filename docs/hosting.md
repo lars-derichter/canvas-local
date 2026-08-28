@@ -1,13 +1,19 @@
 # Hosting Your Course on the Web
 
-Your course content lives as markdown and is served locally by Docusaurus with
-`npm start`. You can also publish it as a public website on **GitHub Pages** for
-free. This gives your students a stable URL to read the materials, handy as a
-fallback when Canvas is unavailable.
+Your course is a website from the first `npm start`: Docusaurus serves it
+locally while you write. Publishing that same site on **GitHub Pages** is one
+repository setting and gives your students a stable, free URL for the materials,
+whether or not the course uses Canvas at all.
 
 The website only contains your `course/` folder. The `evaluations/` and
 `sources/` folders are never built into the site, so your exam materials stay
 out of the public version even though they live in the same repository.
+
+This page assumes your course lives on GitHub, which
+[your first course](first-course.md) sets up and
+[git and GitHub basics](git-and-github.md) explains. One requirement carries a
+price tag: publishing from a **private** repository needs a paid GitHub plan,
+free for educators, as the next section explains.
 
 ## Public Site, Private Repository
 
@@ -65,13 +71,9 @@ branch. Set **Source** to **GitHub Actions** and push again.
 
 If every job is green, the deploy step ends in `Reported success!`, and the
 address still shows GitHub's own "Site not found" page, the publish hung after
-the build rather than in it. Ask GitHub how far the deployment got:
-
-```bash
-gh api repos/YOUR-USERNAME/your-project-name/pages/deployments/COMMIT-SHA
-```
-
-A status of `purging_cdn` that does not change within a few minutes means the
-site is stuck on GitHub's side. Re-running the workflow usually clears it. If it
-does not, set **Settings > Pages > Source** to **None**, save, set it back to
-**GitHub Actions**, and push again.
+the build rather than in it. Check how far the deployment got: open the
+**github-pages** entry under **Deployments** on your repository's front page.
+One sitting in the same in-progress state for more than a few minutes is stuck
+on GitHub's side. Re-running the workflow usually clears it. If it does not, set
+**Settings > Pages > Source** to **None**, save, set it back to **GitHub
+Actions**, and push again.

@@ -1,7 +1,9 @@
 # Canvas Setup
 
-This guide walks you through obtaining the three credentials needed to connect
-Coursewright to your Canvas LMS instance.
+Connecting Coursewright to Canvas takes three credentials: the API URL, an
+access token, and the course ID. They are only needed for the Canvas sync; a
+course that publishes to the website or as PDF and Word handouts never needs
+this page.
 
 ## Canvas API URL
 
@@ -40,7 +42,9 @@ create one:
 > [!WARNING]
 >
 > Treat your API token like a password. Do not commit it to version control. The
-> `.env` file where this token is stored is already listed in `.gitignore`.
+> `.env` file where this token is stored is already listed in `.gitignore`, so
+> git leaves it on your computer. New to those terms?
+> [Git and GitHub basics](git-and-github.md) explains them.
 
 For more information, see the Canvas documentation:
 [How do I manage API access tokens in my user account?](https://community.instructure.com/t5/Canvas-Basics-Guide/How-do-I-manage-API-access-tokens-in-my-user-account/ta-p/615312)
@@ -68,9 +72,20 @@ Once you have all three values, either:
 
 - Run `npx course init` for an interactive setup (`npx course setup` offers this
   as its last question, so you may have done it already), or
-- Copy `.env.example` to `.env` and fill in the values manually:
+- Copy the example file and fill in the values by hand:
+
+  ```bash
+  cp .env.example .env
+  ```
+
   ```
   CANVAS_API_URL=https://school.instructure.com
   CANVAS_API_TOKEN=your-token-here
   CANVAS_COURSE_ID=12345
   ```
+
+Then pick up where you left off: the
+[Canvas route in your first course](first-course.md#canvas) walks the first
+push, and [Canvas sync](user-guide.md#canvas-sync) in the user guide is the full
+command reference. Before that first push to a course that already holds
+content, take a [backup](backups.md).

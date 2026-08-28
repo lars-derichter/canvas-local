@@ -462,8 +462,8 @@ The sync state, `.canvas-sync.json`, records which Canvas object each of your
 files is, and it is committed like everything else in the project. `status` only
 reads it; the other three keep it current, so a run leaves a change there to
 commit alongside the content that caused it. See
-[Commit the Canvas sync file](git-and-github.md#commit-the-canvas-sync-file) for
-why a second copy of the project is lost without it.
+[Commit the sync state](git-and-github.md#commit-the-sync-state) for why a
+second copy of the project is lost without it.
 
 ### Global Flags
 

@@ -1,13 +1,13 @@
 # Backing up a Canvas Course
 
-Nothing in Coursewright undoes a delete, and your repository cannot help: git
-holds every version of what you wrote and nothing at all of what only ever
-existed in Canvas. Canvas itself has an `/undelete` endpoint that sometimes
-brings a deleted assignment back, though the submissions frequently do not come
-with it, which makes it a lifeline rather than a plan. So before you point this
-tool at a course that already holds content (a course you taught last year, a
-course a colleague handed over, any course with student work in it), take a
-backup.
+Nothing in Coursewright undoes a delete **on Canvas**, and your repository
+cannot help: git holds every version of what you wrote and nothing at all of
+what only ever existed in Canvas. Canvas itself has an `/undelete` endpoint that
+sometimes brings a deleted assignment back, though the submissions frequently do
+not come with it, which makes it a lifeline rather than a plan. So before you
+point this tool at a course that already holds content (a course you taught last
+year, a course a colleague handed over, any course with student work in it),
+take a backup.
 
 This takes a few minutes once. It is the difference between a bad afternoon and
 a bad semester.
@@ -80,11 +80,12 @@ sync commands
 everything, though: `reset-canvas` never opens the sync state, so it deletes
 whatever course `.env` names, mismatch or not.
 
-## What Git Backs up, and What It Does Not
+## What Git Backs Up, and What It Does Not
 
-[Git and GitHub](git-and-github.md) call your repository a backup, and for your
-own writing it is: every version of every markdown file, recoverable. That is
-the half of the problem git solves.
+[Git and GitHub](git-and-github.md) call your repository a backup, and for two
+of the three outputs it is the whole answer: the website and every export are
+rebuilt from the repository, so a commit is all the backup either one needs.
+That is the half of the problem git solves.
 
 It does not back up Canvas. Your repository knows nothing about the pages a
 colleague wrote in the web editor, the quiz you built by hand, the discussion

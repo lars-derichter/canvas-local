@@ -152,17 +152,18 @@ changes:
 
 > [!IMPORTANT]
 >
-> Git backs up your markdown, not your Canvas course. Backing up what only
-> exists in Canvas is a separate job: see
+> Git backs up your markdown, and with it the website and the exports, which are
+> rebuilt from it. It does not back up your Canvas course: backing up what only
+> exists in Canvas is a separate job. See
 > [Backing up a Canvas course](backups.md).
 
-### Commit the Canvas Sync File
+### Commit the Sync State
 
-Your project holds one file you did not write: `.canvas-sync.json`. Coursewright
-writes it when you connect the project to a Canvas course, and updates it on
-every push and pull after that. It records which Canvas page, assignment or
-discussion each of your markdown files became, and nothing else in your project
-does.
+Your project holds one file you did not write: `.canvas-sync.json`, the sync
+state. Coursewright writes it when you connect the project to a Canvas course,
+and updates it on every push and pull after that. It records which Canvas page,
+assignment or discussion each of your markdown files became, and nothing else in
+your project does.
 
 Commit it like any other file. `git add .` picks it up along with your markdown,
 so the three commands above already do the right thing. What you must not do is

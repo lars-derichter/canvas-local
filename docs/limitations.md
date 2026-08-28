@@ -9,6 +9,27 @@ than in week six.
 Read this before you commit a semester to it. Everything below is a description
 of how the tool works today, not a list of bugs.
 
+## The Website and the Exports Have Less Small Print
+
+Their short list, in full:
+
+- **Only `course/` is published.** The website and the exports read nothing
+  else: `evaluations/` and `sources/` never leave your repository, which is the
+  point of them.
+- **One level of nesting.** A subfolder inside a module becomes a section
+  heading; a folder one level deeper is dropped, with a warning naming it. The
+  scanner enforces this for every output, not just Canvas; see
+  [the folder structure is a contract](#the-folder-structure-is-a-contract).
+- **Word gives up a few things PDF keeps.** SVG images need an extra converter,
+  Word's table of contents starts empty until refreshed, and fonts must be
+  installed on the machine that opens the document. The
+  [DOCX degradations](export-styling.md#docx-degradations) list has all of it.
+
+Everything else on this page is about the Canvas sync. That is where the
+surprises live, because Canvas is the one output Coursewright does not build
+from scratch on every run: it reconciles against a live course that other
+people, and Canvas itself, can also change.
+
 ## Which Canvas Types Sync, and How Much of Them
 
 Every type of item a Canvas module can hold crosses in both directions. What
@@ -99,8 +120,8 @@ What that leaves you with:
 - **QTI carries no dates or time limit.** Set availability and the time limit in
   Canvas after importing.
 
-If your course leans heavily on Canvas quizzes, this tool carries their place in
-the course and nothing else.
+If your course leans heavily on Canvas quizzes, Coursewright carries their place
+in the course and nothing else.
 
 ## An LTI Install Cannot Be Rebuilt From This Repository
 
@@ -214,7 +235,7 @@ and only one of those kinds takes student work with it.
   its gradebook column and its submissions untouched.
 - **A quiz and an LTI link are only ever unlinked.** A prune and `reset-canvas`
   remove the module item for either one and stop there: the quiz, its questions
-  and every submission on it stay in Canvas, and so does the tool installation
+  and every submission on it stay in Canvas, and so does the LTI installation
   that other courses launch. Neither is this project's to delete.
 - **A discussion is deleted like a page.** It is authored content here, so a
   prune deletes the topic itself when you delete its local file, and the replies
@@ -533,10 +554,14 @@ See [Frontmatter reference](frontmatter.md) for the fields each type accepts.
 
 ## Not a Collaboration Tool
 
-The tool assumes one person owns the markdown. Two colleagues can absolutely
-work in one repository (that is what git is for), but there is no locking, and
-if you both push to the same Canvas course, the last push wins. Sort out who
-owns which module the way you would sort out who owns which file.
+Collaboration here is git collaboration. Two colleagues can share the
+repository, branch and review each other's changes, and the website and the
+exports rebuild from whatever is merged; what does not exist is real-time
+co-editing, or an in-browser editor for a colleague who will not touch git. On
+the Canvas side the assumption is stronger: one person owns the markdown. There
+is no locking, and if you both push to the same Canvas course, the last push
+wins. Sort out who owns which module the way you would sort out who owns which
+file.
 
 ## What to Do Instead
 

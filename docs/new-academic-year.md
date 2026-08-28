@@ -2,7 +2,9 @@
 
 How to switch your course materials to a new Canvas course at the start of a new
 academic year. Your markdown content stays the same: you just point it at the
-new course and push.
+new course and push. This page is the Canvas rollover; the
+[last section](#the-rest-of-the-year-change) covers the little the other outputs
+need.
 
 Most of your course rebuilds itself. Two types need a hand, and one of them
 needs your Canvas admin: read
@@ -218,26 +220,38 @@ find valid settings for this link".
 
 ## Quick Reference
 
-The full workflow in one block:
+The full workflow in one block, numbered as the steps above:
 
 ```bash
-# 1. Update .env with the new course ID
-# 2. Clean remote course if it has existing content
+# Steps 1-2: update .env with the new course ID
+# Step 3: clean the new course if it holds content
 npx course reset-canvas
 
-# 3. Update due_at / lock_at / unlock_at dates in assignment frontmatter
-# 4. Update external_url fields if needed
-# 5. Import every quiz's QTI zip by hand, under the same title as the markdown file
+# Step 4: update dates and external_url fields in frontmatter
+# Import every quiz's QTI zip by hand, under the same title as its file
 
-# 6. Reset local sync state
+# Step 5: reset the sync state
 npx course reset-sync-state
 
-# 7. Push to the new course
+# Step 6: push to the new course
 npx course push
 
-# 8. Verify
+# Step 7: verify
 npx course status
 ```
 
 Check the quiz and LTI items in Canvas afterwards: those are the two the push
 cannot guarantee on its own.
+
+## The Rest of the Year Change
+
+The Canvas rollover is the only part with steps. The other outputs need almost
+nothing:
+
+- **The website** rebuilds from your files on every push to GitHub; there is
+  nothing to repoint.
+- **Exports** are regenerated on demand, so a handout whose cover or body
+  carries dates is worth re-exporting once step 4 has updated them.
+- **Evaluations and sources** get their year folders as you need them: a fresh
+  `evaluations/<year>/` for this year's exams, and `sources/retros/<year>/` if
+  you keep after-teaching notes (see [the sources folder](sources.md)).
