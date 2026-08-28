@@ -102,8 +102,8 @@ file. Internal links to course pages must always use the `.md` path, never
 > [!NOTE]
 >
 > To make a file its own entry in the module list, instead of a link inside a
-> page, use a file item. [HTML Starter](04-html-starter.md), next door in this
-> subsection, is one: a wrapper around an `.html` file. See
+> page, use a file item. [Workflow Diagram](../02-workflow-diagram.md), near the
+> top of this module, is one: a wrapper around an SVG. See
 > [Content Types](../05-organising-your-course/02-content-types.md).
 
 ## Code Blocks
