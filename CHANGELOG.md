@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- **`npx course export -f md` writes the course as one plain markdown file.**
+  The export made documents to print or hand in, PDF and Word, and nothing to
+  read as text. Anyone who wanted to ask a chatbot about the course had to
+  upload a PDF, which arrives as layout rather than as the structure the
+  markdown had. The new format skips the rendering and assembles the same
+  selection as markdown, with the parts that only work in a rendered page taken
+  out: images come down to their alt text, links to other pages and to `_files/`
+  become plain text, HTML comments and frontmatter go. Alerts stay exactly as
+  written. Every scope behaves the same, one item, a module, the whole course,
+  `--flagged` or a TOC file, and none of it needs pandoc or Typst. `-o` writes
+  the file into a module's `_files/` folder when the pack should ship with the
+  course as a download. See [Exporting to markdown](docs/exporting.md#markdown).
 - **The tutorial module ships as its own PDF and Word document.** It used to
   demonstrate the export route with a synthetic handout that had nothing to do
   with the course around it, and only in PDF, so the Word route had no result to
