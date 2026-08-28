@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- **The beginner guides lead with the VS Code panel now.** The tutorial module
+  was rewritten sidebar-first and the guides were not, so a reader following
+  `docs/` and a reader following the module were handed two different tools.
+  Your first course installs the Course Manager panel at step 7 of 13 and tours
+  it at step 8, where it used to arrive at step 9 of 12, and every step after
+  that names the button or the palette entry with the terminal command in a tip
+  alongside; cloning goes through **Git: Clone** and committing through VS
+  Code's Source Control panel, so a novice never has to type git. The user
+  guide, Canvas setup, exporting, hosting, git and GitHub, and the new academic
+  year follow the same shape. The README's Quick Start installs the extension
+  before the setup wizard, and the docs index moves the VS Code page into
+  Getting Started.
+- **A CLI reference page.** `docs/cli-reference.md` holds every `npx course`
+  command, every flag each one declares, the npm scripts, and the list of
+  capabilities that have no route through the extension: the prune flags,
+  `--conflict`, `--order`, `pull --force`, the search scopes and the export
+  overrides. Every command is reachable from the panel or the palette, so what
+  the terminal has to itself is flags rather than commands, and the page says
+  so.
 - **The built-in tutorial module is a guided walk now, sidebar first.** It used
   to tour the tooling feature by feature; it now goes through the work in the
   order the work happens, with every step shown in the VS Code Course Manager
