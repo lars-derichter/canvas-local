@@ -51,3 +51,15 @@ describe('detectContentType (media extensions)', () => {
     assert.equal(detectContentType('track.m4a'), 'audio/mp4');
   });
 });
+
+describe('markdown files', () => {
+  // A study pack exported with `npx course export -f md` is uploaded to Canvas
+  // as a file item, so it needs a content type of its own.
+  it('uploads as text/markdown', () => {
+    assert.equal(detectContentType('pack.md'), 'text/markdown');
+  });
+
+  it('is not embeddable media', () => {
+    assert.equal(mediaKind('pack.md'), null);
+  });
+});
