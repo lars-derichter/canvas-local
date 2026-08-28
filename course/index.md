@@ -4,57 +4,68 @@ title: Coursewright
 sidebar_position: 0
 ---
 
-# Write Your Course in Markdown, Publish It to Canvas
+# Write Your Course in Markdown, Publish It Anywhere
 
-**Coursewright** moves your course out of the Canvas web editor and into plain
-files on your computer, with version control, search and replace, offline work,
-a local preview, and one command to publish.
+Course material tends to live wherever it was last edited: an LMS editor, a Word
+file, a slide deck. **Coursewright** makes plain markdown files on your computer
+the one source, and builds every output from it: the website your students read,
+the handout you print, the Canvas modules you publish.
 
-This site is the proof: it is a course built with the tool, previewed with the
-tool, and published straight from the repository.
+This site is the proof: a course built with the tool, live at
+[coursewright.md](https://coursewright.md/), previewed and published from its
+own repository. Every page of the Getting Started module is
+[a markdown file you can read](https://github.com/lars-derichter/coursewright/tree/main/course/01-getting-started).
 
 > [!TIP]
 >
-> New here? Head into the **Getting Started** module in the sidebar. It walks
-> through writing markdown, organising a course, syncing with Canvas, and
-> working with an AI assistant, and every page of it is a working example of
-> something the tool can publish.
+> New here? Head into the
+> [**Getting Started**](01-getting-started/01-how-this-works.md) module in the
+> sidebar. It walks the whole workflow from the VS Code sidebar: writing,
+> organising, saving with git, and publishing by any of the three routes. Every
+> page in it is a working example of something the tool can publish.
 
 ## The Problem It Solves
 
-The Canvas editor is fine for a page or two. Maintaining a whole course in it is
-another matter: no history, no search and replace across pages, no offline work,
-no way to review a change before students see it, and no way to reuse last
-year’s material without clicking through it all again.
+An LMS editor is fine for a page or two, and so is a Word file. Maintaining a
+whole course that way is another matter: no history, no search and replace
+across pages, no offline work, no way to review a change before students see it,
+and no way to reuse last year’s material without clicking through it all again.
 
-Coursewright treats your markdown as the source of truth and Canvas as a
-publishing target. You write in your own editor, review every change, and push
-when you are ready.
+Coursewright treats your markdown as the source of truth. The website, the
+handout and Canvas are where you publish it, in your own time and after your own
+review.
 
 ## What You Get
 
 - **Your own tools.** Write in VS Code or any editor, keep everything in git,
   and review every change before it goes live.
+- **A sidebar that covers the daily work.** The VS Code extension creates
+  modules and items, opens the preview, publishes and exports. The tutorial
+  teaches every step that way, so the terminal stays optional.
 - **Instant preview.** A local website shows your course as you write, in the
-  structure students will see. That is what you are looking at now.
-- **One-command Canvas sync.** `npx course push` creates and updates modules,
-  pages, assignments, and files. `pull` brings remote edits back into markdown,
-  and `status` shows what would change.
+  structure students will see. That is what you are looking at now, and one
+  GitHub Pages setting turns the same build into a public course website.
 - **PDF and Word export.** Hand out a styled course text or a single chapter,
   with your institution’s branding.
-- **A VS Code extension.** Every command in the sidebar, so daily work needs no
-  terminal.
-- **AI-assisted authoring.** Bundled skills help design lessons from their
-  learning goals, build student modules, generate Canvas quizzes, proofread, and
-  check a whole course for consistency.
+- **Two-way Canvas sync.** `npx course sync` reconciles modules, pages,
+  assignments, discussions and files both ways, newest change wins, and deletes
+  nothing unless you ask. `push` and `pull` pin a direction; `status` previews.
+- **AI-assisted authoring on a didactic backbone.** Bundled skills design
+  lessons, build student modules, generate quizzes, proofread and check a course
+  for consistency, with any coding agent that reads `AGENTS.md`. They start from
+  the learning goals, then the assessment that evidences them, then the lessons
+  ([didactic foundations](https://github.com/lars-derichter/coursewright/blob/main/docs/didactics.md)).
 - **A template that stays updatable.** Create your course from the template and
   keep pulling in tooling improvements; your content is never overwritten.
 
 ## Who It Is For
 
-Lecturers and teaching teams who maintain course material in Canvas and want the
-comfort of files, folders, and version control. You do not need to be technical:
-the beginner walkthrough starts from a computer with nothing installed.
+Lecturers and teaching teams who want course material in files, folders and
+version control, whatever it ends up published to: a course website, a printed
+reader, Canvas, or all three. You do not need to be technical. The beginner
+walkthrough starts from a computer with nothing installed, and the sidebar means
+you never have to type a command. (The tutorial names the commands anyway, for
+those who like typing.)
 
 It is also opinionated, and honest about it. Every Canvas item type crosses, but
 not all of them in the same way: pages, assignments, discussions and files live
@@ -67,11 +78,13 @@ six.
 ## Start Here
 
 - **[Your First Course, Step by Step](https://github.com/lars-derichter/coursewright/blob/main/docs/first-course.md)**:
-  from nothing installed to a published Canvas module.
+  from nothing installed to a published course, whichever route you take.
 - **[What It Does Not Do](https://github.com/lars-derichter/coursewright/blob/main/docs/limitations.md)**:
   read this before committing a semester to it.
 - **[The project on GitHub](https://github.com/lars-derichter/coursewright)**:
   the code, the documentation, and the **Use this template** button.
+- **[The source of this site](https://github.com/lars-derichter/coursewright/tree/main/course/01-getting-started)**:
+  compare any page here with the markdown that made it.
 
 The tooling is MIT licensed; the example course content on this site is CC
 BY-NC-SA 4.0.
