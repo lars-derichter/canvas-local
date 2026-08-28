@@ -20,13 +20,21 @@ The short version, for the impatient:
 git clone https://github.com/YOUR-USERNAME/your-project-name.git
 cd your-project-name
 npm install
-npm start          # preview at localhost:3000
-npx course setup   # name, language, look, templates
-npx course init    # Canvas credentials (only if you sync with Canvas)
+npm run vscode:install   # adds the Course Manager panel to VS Code
+npm start                # preview at localhost:3000
+npx course setup         # name, language, look, templates
+npx course init          # Canvas credentials (only if you sync with Canvas)
 ```
 
-Node.js 24+ is the only requirement. `npx` runs the `course` tool that ships
-with the project, so there is nothing else to install.
+`npm run vscode:install` installs through VS Code's `code` command, so that has
+to be on your PATH. Reload the window afterwards (**Developer: Reload Window**
+in the command palette) and a book icon appears in the activity bar: the
+**Course Manager** panel, showing your modules and items as a tree.
+
+That panel is the shorter route to everything below. Each section names the
+button or menu entry first and the command second, because the panel runs the
+same CLI underneath. Node.js 24+ is the only requirement, and `npx` runs the
+`course` tool that ships with the project, so there is nothing else to install.
 
 > [!WARNING]
 >
@@ -212,6 +220,24 @@ sources/
 
 ### Managing Modules
 
+**Course: New Module** sits in the Course Manager panel's title bar. It asks for
+a name and adds the module after the last one, writing the folder with the right
+numeric prefix and a `_category_.json` inside it. To put it somewhere else, move
+it afterwards.
+
+Reorder a module by dragging it onto another module in the tree, or right-click
+and choose **Course: Move Module** to pick a position instead. Rename one with
+**Course: Rename Module**, which updates the folder and the label in its
+`_category_.json` and pre-fills the current title. Delete one with **Course:
+Delete Module**, then confirm the modal; the remaining modules renumber to close
+the gap.
+
+None of this touches Canvas. A module you delete here stays on Canvas until a
+prune removes it, and every sync run names it under `Orphaned on Canvas` until
+one does.
+
+#### From the Terminal
+
 ```bash
 npx course new-module     # create a new module (asks for name and position)
 npx course move-module    # move a module to a different position
@@ -219,18 +245,48 @@ npx course rename-module  # rename a module
 npx course delete-module  # delete a module and renumber remaining
 ```
 
-These commands and the item commands below handle renumbering automatically.
-They ask for what they need, and each also takes flags that answer the questions
-instead; `npx course <command> --help` names the ones that command needs. A
-question that reaches the end of its input without an answer ends the run with
-an error and a non-zero exit rather than hanging, so a script has to pass the
-flags.
-
-None of them touches Canvas. A module or an item you delete here, or a source
-file you merge away, stays on Canvas until a prune removes it, and every run
-names it under `Orphaned on Canvas` until one does.
+Each command asks for what it needs, or takes flags that answer the questions
+instead; a question that reaches the end of its input without an answer ends the
+run with an error rather than hanging, so a script has to pass the flags. See
+[CLI reference](cli-reference.md#modules) for the full flag list.
 
 ### Managing Items
+
+Right-click a module or a subsection and choose **Course: New Item**. It asks
+which of five types it is and a name; an assignment also asks for its points, an
+external URL for its address, and a file item opens a file picker. The new item
+lands at the end, so reorder it afterwards if it belongs elsewhere.
+
+Reorder an item by dragging it up or down inside its module, or right-click and
+choose **Course: Move Item**. Move it to a different module, or one of that
+module's subsections, by dragging it there or with **Course: Move Item to
+Module**; a subsection can move the same way, always into a module root, since
+subsections never nest. Rename an item with **Course: Rename Item**, which
+updates both the filename and the `title` in its frontmatter. Delete one with
+**Course: Delete Item**, then confirm the modal; the remaining items renumber.
+
+Merging takes two right-clicks, on page and assignment rows only: **Merge: Set
+as Source** on the item that gets deleted, then **Merge with Source** on the
+item that keeps the content. A dialog names both files and confirms the source
+is deleted. Splitting runs the other way: put the cursor on the last line that
+should stay in the current file, right-click in the editor and choose **Course:
+Split Item at Cursor**, then give the new item a title.
+
+None of this touches Canvas either. An item you delete or merge away stays on
+Canvas until a prune removes it, and every sync run names it under
+`Orphaned on Canvas` until one does.
+
+A discussion, a quiz and an LTI link carry only the inline **Open in Canvas**
+button in the tree: they have no rename, move, delete or export entry in their
+right-click menu. **Course: New Item** does not create them either: it creates a
+page, an assignment, an external URL, a subsection or a file. A discussion, a
+quiz or an LTI link is a file you write yourself, following
+[Frontmatter](frontmatter.md#discussion). The command palette reaches all three
+regardless: its pickers list a module's items by filename, whatever type each
+one declares, so **Course: Rename Item** run from the palette works on a
+discussion or a quiz the same as it does on a page.
+
+#### From the Terminal
 
 ```bash
 npx course new-item           # create a page, assignment, url, subsection, or add a file
@@ -243,7 +299,8 @@ npx course split-item         # split an item into two files at a given line
 ```
 
 Item commands auto-detect the current module when run from inside a module
-folder. Items can be added to the module root or into subsections.
+folder. Items can be added to the module root or into subsections. See
+[CLI reference](cli-reference.md#items) for the full flag list.
 
 ### Generated Glossary Pages
 
@@ -257,7 +314,20 @@ If your course keeps a canonical glossary in
 glossary page per module. See the [lesson workflow](lesson-workflow.md) for the
 file format and how it fits the authoring flow.
 
+The command palette has a matching **Course: Build Glossary** entry. It is
+deliberately not in the Course Manager tree, in its title bar or in a
+right-click menu, so no stray click there can ever start it.
+
 ### Searching Course Content
+
+**Course: Search...** sits in the Course Manager panel's title bar. It asks for
+a word or phrase and streams every match to the shared terminal, grouped per
+file with the module and item it belongs to, line numbers, and a few lines of
+context around each match. As in the terminal, only `course/` is searched by
+default.
+
+The wider search options are terminal-only: more context, widening the search to
+`evaluations/` and `sources/`, and matching case exactly.
 
 ```bash
 npx course search "flexbox"                          # find a word or phrase in course/
@@ -266,16 +336,24 @@ npx course search "flexbox" --evaluations --sources  # also search those folders
 npx course search "Flexbox" --case-sensitive         # match upper/lower case exactly
 ```
 
-Results are grouped per file with the module and item they belong to, line
-numbers, and a few lines of context around each match. By default only `course/`
-is searched; `--evaluations` and `--sources` widen the scope.
+See [CLI reference](cli-reference.md#search) for the full flag list.
 
 ## The Website
+
+**Course: Preview** sits in the Course Manager panel's title bar. It starts the
+Docusaurus dev server, if it is not already running, and opens the course in
+your browser. The `courseManager.previewPort` setting (default `3000`) changes
+the port it uses, for when something else on your machine already holds that
+one.
 
 ```bash
 npm start          # live preview at localhost:3000 while you write
 npm run build      # production build, the same one publishing runs
 ```
+
+`npm start` is what **Course: Preview** runs behind the scenes, so the two are
+interchangeable. `npm run build` has no extension equivalent: run it from the
+terminal.
 
 The preview served by [Docusaurus](https://docusaurus.io/) is the course
 website; publishing it is one GitHub Pages setting, after which every push to
@@ -286,6 +364,14 @@ GitHub rebuilds the public site. See the [hosting guide](hosting.md).
 Turn course materials into printable PDFs or editable Word documents: one item,
 a module, the whole course, or a curated selection.
 
+Right-click an item and choose **Course: Export Item to PDF/DOCX...**, or a
+module and choose **Course: Export Module to PDF/DOCX...**. Select several items
+first (Ctrl/Cmd-click or Shift-click in the tree) and the item export combines
+them into one document. For the whole course, open the panel's `…` dropdown and
+choose **Course: Export Course to PDF/DOCX...**, which also offers only the
+items flagged `export: true`, or a curated table-of-contents selection. Either
+way you then pick PDF or Word.
+
 ```bash
 npx course export -m 01-intro       # one module as PDF
 npx course export -f docx           # the whole course as Word
@@ -293,12 +379,25 @@ npx course export -f docx           # the whole course as Word
 
 This needs pandoc (and Typst for PDF). The [exporting guide](exporting.md)
 covers the install, every scope, the curated table-of-contents flow, where the
-output lands, and how to change the look.
+output lands, and how to change the look. See
+[CLI reference](cli-reference.md#export) for the full flag list.
 
 ## Canvas Sync
 
 If you do not publish to Canvas, skip this whole section; nothing else in the
 tool depends on it.
+
+The Course Manager panel's `…` dropdown carries the whole-course versions:
+**Course: Sync with Canvas**, **Course: Push to Canvas**, **Course: Pull from
+Canvas**, **Course: Status** and **Course: Validate**. Right-click a single
+module in the tree for the same four, scoped to it: **Sync This Module with
+Canvas**, **Push This Module to Canvas**, **Pull This Module from Canvas** and
+**Status of This Module**. Either way the run streams into the shared terminal,
+which is where you answer any question it stops to ask.
+
+The three dry runs live in the command palette only: **Course: Sync with Canvas
+(Dry Run)**, **Course: Push to Canvas (Dry Run)** and **Course: Pull from Canvas
+(Dry Run)**. Run one before the real thing.
 
 > [!WARNING]
 >
@@ -333,6 +432,11 @@ npx course validate               # check course content for errors before pushi
 All three writing commands take `--dry-run`. `-m` scopes any of the four to
 named module folders; on `sync`, `pull` and `status` it is repeatable
 (`-m 01-intro -m 02-html`), on `push` it takes one folder.
+
+A prune flag, `--conflict`, `--order` and `pull --force` are terminal-only:
+neither the panel nor the palette has a route to any of them, so a run that
+needs one is a run you type. See
+[CLI reference](cli-reference.md#syncing-with-canvas) for the full flag list.
 
 ### One Engine, Four Commands
 
@@ -486,3 +590,11 @@ npx course reset-canvas          # delete all modules, pages, assignments, and f
 
 See [advanced commands](advanced-commands.md) for details on these destructive
 operations.
+
+The command palette has matching entries, **Course: Reset Sync State
+(Destructive)** and **Course: Reset Canvas (Deletes ALL Canvas Content)**.
+Neither is in the Course Manager tree, in its title bar or in a right-click
+menu: the tree is kept free of destructive commands by design, so no stray click
+there can start one. Both still run in the shared terminal, where the CLI's own
+y/N questions gate them. Back the course up first; see
+[Backing up a Canvas course](backups.md).
