@@ -1,74 +1,60 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 420" font-family="Nunito, sans-serif">
-  <!-- Background -->
-  <rect width="800" height="420" rx="12" fill="#f8f9fa"/>
-
-  <!-- Title -->
-  <text x="400" y="45" text-anchor="middle" font-size="22" font-weight="600" fill="#00283c">Course Development Workflow</text>
-
-  <!-- Step 1: Write -->
-  <rect x="40" y="80" width="160" height="120" rx="10" fill="#00283c"/>
-  <text x="120" y="125" text-anchor="middle" font-size="28" fill="#ffffff">&#9998;</text>
-  <text x="120" y="155" text-anchor="middle" font-size="16" font-weight="600" fill="#ffffff">Write</text>
-  <text x="120" y="178" text-anchor="middle" font-size="11" fill="#a0b4c0">Edit markdown in</text>
-  <text x="120" y="193" text-anchor="middle" font-size="11" fill="#a0b4c0">course/ folder</text>
-
-  <!-- Arrow 1→2 -->
-  <line x1="200" y1="140" x2="230" y2="140" stroke="#fa6432" stroke-width="3" marker-end="url(#arrow)"/>
-
-  <!-- Step 2: Preview -->
-  <rect x="230" y="80" width="160" height="120" rx="10" fill="#00283c"/>
-  <text x="310" y="125" text-anchor="middle" font-size="28" fill="#ffffff">&#128065;</text>
-  <text x="310" y="155" text-anchor="middle" font-size="16" font-weight="600" fill="#ffffff">Preview</text>
-  <text x="310" y="178" text-anchor="middle" font-size="11" fill="#a0b4c0">npm start</text>
-  <text x="310" y="193" text-anchor="middle" font-size="11" fill="#a0b4c0">(Docusaurus)</text>
-
-  <!-- Arrow 2→3 -->
-  <line x1="390" y1="140" x2="420" y2="140" stroke="#fa6432" stroke-width="3" marker-end="url(#arrow)"/>
-
-  <!-- Step 3: Push -->
-  <rect x="420" y="80" width="160" height="120" rx="10" fill="#fa6432"/>
-  <text x="500" y="125" text-anchor="middle" font-size="28" fill="#ffffff">&#9650;</text>
-  <text x="500" y="155" text-anchor="middle" font-size="16" font-weight="600" fill="#ffffff">Push</text>
-  <text x="500" y="178" text-anchor="middle" font-size="11" fill="#ffffff">npx course push</text>
-  <text x="500" y="193" text-anchor="middle" font-size="11" fill="#ffffff">(to Canvas)</text>
-
-  <!-- Arrow 3→4 -->
-  <line x1="580" y1="140" x2="610" y2="140" stroke="#fa6432" stroke-width="3" marker-end="url(#arrow)"/>
-
-  <!-- Step 4: Canvas -->
-  <rect x="610" y="80" width="160" height="120" rx="10" fill="#00283c"/>
-  <text x="690" y="125" text-anchor="middle" font-size="28" fill="#ffffff">&#127891;</text>
-  <text x="690" y="155" text-anchor="middle" font-size="16" font-weight="600" fill="#ffffff">Canvas</text>
-  <text x="690" y="178" text-anchor="middle" font-size="11" fill="#a0b4c0">Students see</text>
-  <text x="690" y="193" text-anchor="middle" font-size="11" fill="#a0b4c0">published content</text>
-
-  <!-- Pull arrow (return path) -->
-  <path d="M690,200 L690,260 L120,260 L120,200" fill="none" stroke="#fa6432" stroke-width="2" stroke-dasharray="8,4" marker-end="url(#arrow)"/>
-  <text x="400" y="280" text-anchor="middle" font-size="12" fill="#fa6432" font-weight="600">npx course pull (sync changes back)</text>
-
-  <!-- Bottom: file type legend -->
-  <text x="400" y="330" text-anchor="middle" font-size="14" font-weight="600" fill="#00283c">Content Types</text>
-
-  <!-- Legend items -->
-  <rect x="60" y="350" width="14" height="14" rx="3" fill="#00283c"/>
-  <text x="80" y="362" font-size="12" fill="#00283c">.md (page): wiki pages</text>
-
-  <rect x="260" y="350" width="14" height="14" rx="3" fill="#fa6432"/>
-  <text x="280" y="362" font-size="12" fill="#00283c">.md (assignment): graded work</text>
-
-  <rect x="500" y="350" width="14" height="14" rx="3" fill="#64c8c8"/>
-  <text x="520" y="362" font-size="12" fill="#00283c">.md (url): external links</text>
-
-  <rect x="60" y="380" width="14" height="14" rx="3" fill="#967dc8"/>
-  <text x="80" y="392" font-size="12" fill="#00283c">images, PDFs, etc.: file uploads</text>
-
-  <rect x="260" y="380" width="14" height="14" rx="3" fill="#ffc87d"/>
-  <text x="280" y="392" font-size="12" fill="#00283c">subfolder/: section headers</text>
-
-  <!-- Arrow marker -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 460" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
   <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#fa6432"/>
+    <marker id="arrow" viewBox="0 0 12 8" refX="12" refY="4" markerWidth="12" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M0,0 L12,4 L0,8 Z" fill="#0969da"/>
     </marker>
   </defs>
+
+  <!-- Background -->
+  <rect width="800" height="460" rx="12" fill="#f6f8fa"/>
+
+  <!-- Title -->
+  <text x="400" y="44" text-anchor="middle" font-size="22" font-weight="600" fill="#1f2328">One Source, Three Outputs</text>
+
+  <!-- Write (the single source) -->
+  <rect x="30" y="175" width="170" height="110" rx="10" fill="#0969da"/>
+  <text x="115" y="212" text-anchor="middle" font-size="17" font-weight="600" fill="#ffffff">Write</text>
+  <text x="115" y="236" text-anchor="middle" font-size="12" fill="#ffffff" fill-opacity="0.85">markdown in course/</text>
+  <text x="115" y="254" text-anchor="middle" font-size="12" fill="#ffffff" fill-opacity="0.85">VS Code sidebar</text>
+
+  <!-- Write to Preview -->
+  <line x1="204" y1="230" x2="246" y2="230" stroke="#0969da" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+  <!-- Preview -->
+  <rect x="250" y="175" width="180" height="110" rx="10" fill="#ffffff" stroke="#d1d9e0" stroke-width="1.5"/>
+  <text x="340" y="212" text-anchor="middle" font-size="17" font-weight="600" fill="#1f2328">Preview</text>
+  <text x="340" y="236" text-anchor="middle" font-size="12" fill="#59636e">Course: Preview</text>
+  <text x="340" y="254" text-anchor="middle" font-size="12" fill="#59636e">live at localhost:3000</text>
+
+  <!-- Fan from Preview to the three outputs -->
+  <path d="M434,230 H478" fill="none" stroke="#0969da" stroke-width="2.5"/>
+  <path d="M478,132 V328" fill="none" stroke="#0969da" stroke-width="2.5"/>
+  <line x1="478" y1="132" x2="556" y2="132" stroke="#0969da" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <line x1="478" y1="230" x2="556" y2="230" stroke="#0969da" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <line x1="478" y1="328" x2="556" y2="328" stroke="#0969da" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+  <!-- Output 1: Website -->
+  <rect x="560" y="92" width="210" height="80" rx="10" fill="#ffffff" stroke="#d1d9e0" stroke-width="1.5"/>
+  <text x="665" y="118" text-anchor="middle" font-size="16" font-weight="600" fill="#1f2328">Website</text>
+  <text x="665" y="138" text-anchor="middle" font-size="12" fill="#59636e">push to GitHub</text>
+  <text x="665" y="156" text-anchor="middle" font-size="12" fill="#59636e">GitHub Pages</text>
+
+  <!-- Output 2: PDF / Word -->
+  <rect x="560" y="190" width="210" height="80" rx="10" fill="#ffffff" stroke="#d1d9e0" stroke-width="1.5"/>
+  <text x="665" y="216" text-anchor="middle" font-size="16" font-weight="600" fill="#1f2328">PDF / Word</text>
+  <text x="665" y="236" text-anchor="middle" font-size="12" fill="#59636e">Course: Export&#8230;</text>
+  <text x="665" y="254" text-anchor="middle" font-size="12" fill="#59636e">a handout or course text</text>
+
+  <!-- Output 3: Canvas -->
+  <rect x="560" y="288" width="210" height="80" rx="10" fill="#ffffff" stroke="#d1d9e0" stroke-width="1.5"/>
+  <text x="665" y="314" text-anchor="middle" font-size="16" font-weight="600" fill="#1f2328">Canvas</text>
+  <text x="665" y="334" text-anchor="middle" font-size="12" fill="#59636e">Course: Sync with Canvas</text>
+  <text x="665" y="352" text-anchor="middle" font-size="12" fill="#59636e">modules, pages, files</text>
+
+  <!-- Return path: Canvas edits come back to the source -->
+  <path d="M665,368 V402 H115 V288" fill="none" stroke="#0969da" stroke-width="1.8" stroke-dasharray="7 5" stroke-linejoin="round" marker-end="url(#arrow)"/>
+  <text x="390" y="394" text-anchor="middle" font-size="12" fill="#59636e">sync brings Canvas edits back</text>
+
+  <!-- Footer -->
+  <text x="400" y="436" text-anchor="middle" font-size="13" fill="#59636e">The same files build all three.</text>
 </svg>
