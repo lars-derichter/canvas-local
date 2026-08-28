@@ -192,10 +192,10 @@ register: warm, direct, second person, CEFR B2, with the page-title emoji and
 callouts it defines for course pages. The getting-started module ships as a
 course, it is what a new user reads first, and it doubles as the end-to-end
 acceptance test for Canvas sync, so it has to keep exercising every content type
-a repository can create on its own: pages, assignments, external URLs and file
-items. The other three are not in it. A quiz and an external tool are references
-to Canvas objects a fresh course does not have, so neither can ship as a working
-example. A discussion could, and does not yet.
+a repository can create on its own: pages, an assignment, a discussion, an
+external URL and file items, one of them inside a subsection. The other two are
+not in it. A quiz and an external tool are references to Canvas objects a fresh
+course does not have, so neither can ship as a working example.
 
 The per-course guides in `context/` govern course content. A course author is
 free to rewrite them; the project's own docs are not theirs to restyle, because
