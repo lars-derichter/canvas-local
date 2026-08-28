@@ -43,7 +43,7 @@ The `export` command takes whatever you point it at and writes a document to the
 `exports/` folder:
 
 ```bash
-npx course export course/01-getting-started/05-vs-code.md  # one page
+npx course export course/01-getting-started/03-vs-code.md  # one page
 npx course export -m 01-getting-started                    # a whole module
 npx course export                                          # the full course
 npx course export -m 01-getting-started -f docx            # Word instead of PDF

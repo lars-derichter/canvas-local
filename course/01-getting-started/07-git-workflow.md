@@ -123,52 +123,10 @@ pull changes that were pushed from elsewhere:
 
 ## The Canvas Sync File
 
-Your project holds one file you did not write: `.canvas-sync.json`, in the
-project root. Coursewright creates it when you connect the project to a Canvas
-course, and updates it on every push, pull and sync after that. It records which
-Canvas page, assignment or discussion each of your markdown files became, and
-nothing else in your project does.
-
-Commit it. It is in the project on purpose and it is not ignored, so `git add .`
-picks it up along with your markdown, and so does the **+** next to **Changes**
-in the Source Control panel. What you must not do is add it to `.gitignore` to
-get it out of the way.
-
-A push, a pull or a sync leaves you two things to save: the content you wrote,
-and the sync state that records where it landed. Commit them together, so the
-record and the thing it records never drift apart in your history.
-
-It matters as soon as there is a second copy of your project: a clone on another
-laptop, a colleague’s checkout, or a fresh one you make after losing the
-original. That copy needs to know which Canvas objects the course already owns.
-With the file committed it does, and a push from it updates them. Without it,
-the copy falls back on matching titles, and anything whose title no longer
-matches is created a second time instead of updated.
-
-### If Git Reports a Conflict in It
-
-Push from two checkouts, or from a laptop and a desktop, and git can end up with
-two versions of the file and no way to choose. Do not merge the JSON by hand.
-Keep one side whole, mark the conflict resolved, and finish the merge:
-
-```bash
-# take one side of the file; either will do
-git checkout --ours -- .canvas-sync.json
-git add .canvas-sync.json
-```
-
-Then run `npx course push`. Which side you kept barely matters: push compares
-your files against Canvas, claims each object back by its type and title, and
-writes the rows again.
-
-> [!WARNING]
->
-> Never commit the file with the conflict markers still in it. The file stops
-> being readable, and until you repair it, `push`, `pull` and `sync` refuse to
-> run: each one names the file and tells you the markers are still there.
-> Resolve the merge as above and they run again. The troubleshooting guide
-> (`docs/troubleshooting.md` in your project folder, also readable on GitHub)
-> covers the repair under “Corrupted .canvas-sync.json”.
+If you publish to Canvas, your project gains one file you did not write:
+`.canvas-sync.json`, in the project root. It is not ignored, and it has to be
+committed along with everything else.
+[Canvas Syncing](08-publishing/06-canvas-syncing.md) explains why.
 
 ## Viewing History and Getting Things Back
 
@@ -211,7 +169,7 @@ From the terminal, you can also restore a specific file from a previous commit:
 git log --oneline
 
 # Restore a file from a specific commit
-git checkout abc1234 -- course/01-getting-started/03-writing-your-pages/01-markdown-basics.md
+git checkout abc1234 -- course/01-getting-started/04-writing-your-pages/01-markdown-basics.md
 ```
 
 Replace `abc1234` with the commit hash from `git log`. After restoring, stage
@@ -238,22 +196,6 @@ General > Danger Zone > Change repository visibility**.
 Educators are eligible for a **free GitHub Pro account**, which includes
 unlimited private repositories and other benefits. You can apply at
 [GitHub Education](https://education.github.com/discount_requests/application).
-
-## Publishing Your Course Online
-
-Since your repository is on GitHub anyway, you can also publish the Docusaurus
-site for free with GitHub Pages. Go to **Settings > Pages** and set **Source**
-to **GitHub Actions**. That is the whole setup: from then on, GitHub rebuilds
-and republishes the site every time you push. To serve it on your own domain
-instead of the default `github.io` address, enter that domain on the same
-settings page.
-
-> [!WARNING]
->
-> The published site is public, even if the repository itself is private. Only
-> `course/` is served (`evaluations/` and `sources/` are not part of the site),
-> but make sure you are comfortable with your course content being readable by
-> anyone before enabling this.
 
 ## Learning Resources
 

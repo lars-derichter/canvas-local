@@ -50,13 +50,13 @@ both the Docusaurus preview and Canvas: during push, they are automatically
 converted to Canvas internal URLs.
 
 - Same folder: `[Alerts](02-alerts.md)`
-- Subfolder: `[Folder Layout](../04-organising-your-course/01-folder-layout.md)`
+- Subfolder: `[Folder Layout](../05-organising-your-course/01-folder-layout.md)`
 - With heading anchor: `[Available Types](02-alerts.md#available-types)`
 
 Try them here:
 
 - [Alerts](02-alerts.md)
-- [Folder Layout](../04-organising-your-course/01-folder-layout.md)
+- [Folder Layout](../05-organising-your-course/01-folder-layout.md)
 - [Available Types](02-alerts.md#available-types)
 
 ## Images
@@ -100,7 +100,7 @@ file. Internal links to course pages must always use the `.md` path, never
 >
 > To make a file its own entry in the module list, instead of a link inside a
 > page, use a file item. See
-> [Content Types](../04-organising-your-course/02-content-types.md).
+> [Content Types](../05-organising-your-course/02-content-types.md).
 
 ## Code Blocks
 

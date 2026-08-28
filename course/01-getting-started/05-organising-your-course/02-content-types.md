@@ -143,10 +143,10 @@ covers both.
 
 This module contains three live examples: the
 [Workflow Diagram](../02-workflow-diagram.md) (SVG), the
-[Example PDF](../09-example-pdf.md), and the
-[HTML Starter](../13-html-starter.md). Open the Workflow Diagram and you'll see
-the image itself above the download card: image, video and audio files show
-their content right on the page.
+[Example PDF](../08-publishing/04-example-pdf.md), and the
+[HTML Starter](../04-writing-your-pages/04-html-starter.md). Open the Workflow
+Diagram and you'll see the image itself above the download card: image, video
+and audio files show their content right on the page.
 
 > [!NOTE]
 >

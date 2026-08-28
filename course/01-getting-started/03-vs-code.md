@@ -19,7 +19,7 @@ you need in one window:
 - **Built-in terminal**: run CLI commands like `npx course push` without leaving
   the editor
 - **Git integration**: the Source Control panel lets you stage, commit, and push
-  changes visually (see [Git Workflow](10-git-workflow.md) for a walkthrough)
+  changes visually (see [Git Workflow](07-git-workflow.md) for a walkthrough)
 - **Course Manager extension**: this project includes a custom VS Code extension
   that puts the course commands in the command palette, and the everyday ones in
   a sidebar, so you can manage your course without typing commands at all

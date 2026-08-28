@@ -72,21 +72,14 @@ npx course push
 This converts all your markdown to HTML and uploads it to Canvas. Each module
 becomes a Canvas module, and each file becomes whichever of the seven item types
 its frontmatter names: see
-[Content Types](../04-organising-your-course/02-content-types.md).
-
-Your markdown files carry no Canvas ids. The link between a file and the Canvas
-object it became lives in `.canvas-sync.json`, in the root of your project, and
-each row is keyed by the file’s path under `course/`.
-
-That file belongs in git like any other. A push, a pull or a sync changes it, so
-you normally have two things to commit afterwards: the content you wrote, and
-the sync state that records where it landed.
+[Content Types](../05-organising-your-course/02-content-types.md).
 
 > [!NOTE]
 >
 > Push does not rebuild a module from scratch. An item you added in Canvas by
 > hand is matched to a local file of the same type and title, and left where it
-> is when nothing matches. See [Before You Publish](./01-before-you-publish.md).
+> is when nothing matches. See
+> [Before You Publish to Canvas](./05-before-you-publish-to-canvas.md).
 
 ### Useful Flags
 
@@ -108,6 +101,41 @@ npx course push --module 01-getting-started
 # Push everything and clean up deleted items on Canvas
 npx course push --prune-canvas
 ```
+
+## Commit the Sync State
+
+Your markdown files carry no Canvas ids. The link between a file and the Canvas
+object it became lives in `.canvas-sync.json`, in the root of your project,
+keyed by the file’s path under `course/`. Nothing else in your project records
+it.
+
+Commit it with the content it records. It is not ignored, so `git add .` picks
+it up along with your markdown, and so does the **+** next to **Changes** in the
+Source Control panel. A push, a pull or a sync leaves you two things to save:
+the content you wrote, and the sync state that says where it landed. Never add
+the file to `.gitignore` to get it out of the way.
+
+It matters as soon as there is a second copy of your project: another laptop, a
+colleague’s checkout, a fresh clone after you lose the original. That copy needs
+to know which Canvas objects the course already owns. Without the file it falls
+back on matching titles, and anything you renamed is created a second time
+instead of updated.
+
+Push from two checkouts and git can end up with two versions of the file and no
+way to choose. Do not merge the JSON by hand. Keep one side whole, then run a
+push: it claims each object back by type and title and writes the rows again.
+
+```bash
+git checkout --ours -- .canvas-sync.json
+git add .canvas-sync.json
+```
+
+> [!WARNING]
+>
+> Never commit the file with the conflict markers still in it. Until you repair
+> it, `push`, `pull` and `sync` refuse to run, each one naming the file. The
+> [troubleshooting guide](https://github.com/lars-derichter/coursewright/blob/main/docs/troubleshooting.md#corrupted-canvas-syncjson)
+> covers the repair.
 
 ## Pulling From Canvas
 
@@ -165,10 +193,11 @@ Canvas edit is gone before the pull ever looks at it. Sync sees that item as a
 conflict, settles it on its own terms, and names it in the report.
 
 Deleting is not something sync does on its own, any more than push or pull do,
-bar the one small exception [Before You Publish](./01-before-you-publish.md)
-names. It takes a flag: `--prune-canvas` removes the Canvas items whose local
-file you deleted, `--prune-local` removes the local files Canvas no longer has,
-and `--prune` does both. Each of them lists what it is about to remove and asks
+bar the one small exception
+[Before You Publish to Canvas](./05-before-you-publish-to-canvas.md) names. It
+takes a flag: `--prune-canvas` removes the Canvas items whose local file you
+deleted, `--prune-local` removes the local files Canvas no longer has, and
+`--prune` does both. Each of them lists what it is about to remove and asks
 first. The rest of the flags will look familiar:
 
 ```bash

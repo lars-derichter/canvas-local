@@ -1,9 +1,9 @@
 ---
-title: ⚠️ Before You Publish
+title: ⚠️ Before You Publish to Canvas
 canvas_type: page
 ---
 
-# Before You Publish
+# Before You Publish to Canvas
 
 Publishing is the one part of this tool that can lose work, so it gets its own
 page before the page that shows you how.
@@ -106,4 +106,4 @@ students have submitted to.
   frontmatter that will not parse, and items missing a field their type needs,
   while all of that is still cheap to fix.
 
-With that out of the way, on to [Canvas Syncing](./02-canvas-syncing.md).
+With that out of the way, on to [Canvas Syncing](./06-canvas-syncing.md).

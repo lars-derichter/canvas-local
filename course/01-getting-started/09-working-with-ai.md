@@ -22,7 +22,7 @@ A skill is a ready-made workflow you trigger with a short command. Instead of
 explaining a whole task from scratch, you name the skill and the assistant
 follows instructions written for exactly that job. For example:
 
-- `/proofread course/01-getting-started/03-writing-your-pages/02-alerts.md`
+- `/proofread course/01-getting-started/04-writing-your-pages/02-alerts.md`
   checks a page against the project’s writing style and your spelling.
 - `/lesson-module-build lesson-03` turns a finished lesson plan into a complete
   set of student pages.
@@ -51,7 +51,7 @@ course authoring. The main families:
   `/image-todos` lists the artwork you still owe.
 - **Export styling**: `/export-style-init` derives a PDF or Word style from a
   reference document, and `/export-style-update` tweaks it in plain language
-  (see [Exporting to PDF or Word](08-exporting.md)).
+  (see [Exporting to PDF or Word](08-publishing/03-pdf-and-word.md)).
 
 You do not have to memorise these. Type `/` in Claude Code (or ask any assistant
 what skills it sees) to get the list, or just describe what you want and let it
