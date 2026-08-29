@@ -32,8 +32,10 @@ async function exportTocCmd(options = {}) {
     subtitle: options.subtitle || tagline,
   });
 
-  fs.mkdirSync(EXPORTS_DIR, { recursive: true });
   const output = options.output || path.join(EXPORTS_DIR, 'toc.md');
+  // dirname rather than EXPORTS_DIR: -o may point at a folder that does not
+  // exist yet, such as a fresh sources/study-packs/.
+  fs.mkdirSync(path.dirname(output), { recursive: true });
   fs.writeFileSync(output, body, 'utf8');
 
   const rel = path.relative(process.cwd(), output);
