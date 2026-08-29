@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **A markdown file item no longer trips a build warning.** A file item whose
+  `file_ref` names a `.md` file, the shape a study pack takes, built fine but
+  printed "couldn't be resolved" twice per build, and would have failed a course
+  that sets `onBrokenMarkdownLinks` to `throw`, because the docs plugin reads
+  every `.md` link as a page reference. The preview now emits the download link
+  for a markdown file the way it already did for `.html`: as an anchor the
+  resolver never sees. `npx course export-toc -o` also creates the folder it
+  writes into, so a fresh `sources/study-packs/` no longer makes it crash. See
+  [Frontmatter](docs/frontmatter.md#file-item).
 - **`/ai-tutor-build` turns any chatbot into a tutor for your course.** Telling
   students to use AI well is easy to say and hard to hand them: a plain chatbot
   gives away the answer the moment they ask, and it knows nothing about what
