@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **A prune now names a New Quiz among the items it is about to delete.**
+  `push --prune-canvas` and `sync --prune-canvas` listed one as the ordinary
+  assignment Canvas says it is, so the heaviest delete in the listing read like
+  the lightest. Deleting a New Quiz deletes its questions, and no markdown in
+  this repository could write them again; the grades, at least, survive in a
+  gradebook export. The item is now flagged in the listing, counted in a warning
+  line of its own and named in the question you answer, the way `reset-canvas`
+  already did. Nothing about the decision changed: a New Quiz is an assignment,
+  this project manages it as one, and a prune still deletes it like one. See
+  [Limitations](docs/limitations.md#what-the-warnings-tell-you).
 - **A markdown file item no longer trips a build warning.** A file item whose
   `file_ref` names a `.md` file, the shape a study pack takes, built fine but
   printed "couldn't be resolved" twice per build, and would have failed a course

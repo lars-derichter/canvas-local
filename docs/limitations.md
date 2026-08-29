@@ -265,9 +265,9 @@ and only one of those kinds takes student work with it.
   deletes the quiz, its questions and every submission on it, and nothing in
   this repo could rebuild the questions. A New Quiz has no markdown source here
   the way an assignment body does. `reset-canvas` names each one it is about to
-  delete, so a count of "n assignments" cannot hide it. A prune does not: it
-  lists the item as an ordinary assignment, which is the one place where the
-  warning is thinner than the loss.
+  delete, so a count of "n assignments" cannot hide it. A prune does the same:
+  it flags the item in its listing, counts it in a warning line of its own, and
+  names it in the question you answer before anything is deleted.
 
 Pages and files carry no grades, so pruning one costs you the content and
 nothing else, recoverable from git, or from a course export.
@@ -344,6 +344,17 @@ that content already holds student work:
   topic with replies in it is never listed as a bare path:
   `<-- 14 REPLIES FROM STUDENTS: no grades at stake, and deleting the topic still deletes every one of them`.
   An empty topic is listed plainly.
+- **A New Quiz is flagged for its questions.** Canvas holds it as an assignment
+  that launches an LTI tool, so a prune deletes it like any other assignment,
+  and the questions go with it. Nothing here could write them again, so the item
+  never reads as an ordinary path:
+  `<-- NEW QUIZ: deletes the quiz and its questions, which nothing here could rebuild`,
+  or, once students have handed work in,
+  `<-- NEW QUIZ WITH STUDENT SUBMISSIONS: deletes the quiz, its questions and every submission and grade on it; nothing here could rebuild the questions`.
+  It gets a warning line of its own, ahead of the submission counts:
+  `WARNING: 1 assignment being deleted is a New Quiz. Deleting it deletes the quiz, its questions and every submission on it, and nothing here could rebuild the questions.`
+  The question says it too:
+  `[push] Delete these from Canvas, including the questions of a New Quiz and the student submissions and grades? (y/N)`.
 - **`reset-canvas`** prints the same warning and lists the assignments by name,
   plus any New Quiz among them.
   [Advanced commands](advanced-commands.md#reset-canvas) shows the full output.
@@ -351,14 +362,13 @@ that content already holds student work:
   above, including under `--dry-run`, the only mode where the warning arrives
   before the change rather than with it.
 
-Two limits on all of that. A check that fails is reported as unknown, never as
+One limit on all of that. A check that fails is reported as unknown, never as
 safe (`SUBMISSION STATUS UNKNOWN`, or "could not determine whether 1 item being
 deleted has student submissions"), and silence from a failed check is not a
 clean bill of health, so treat an unknown as a yes. A topic that says it is
 graded but whose assignment Canvas does not list counts as unknown for the same
-reason. And the grade checks cover the two types that can carry a gradebook
-column, assignments and graded discussions; a **New Quiz** is the gap, because
-prune lists one as the ordinary assignment it is. Take a course export first.
+reason. The same call is what says an item is a New Quiz, so an unknown covers
+that too: the questions may be going as well. Take a course export first.
 
 All of the above is about Canvas. The tool can also destroy local work: `pull`
 overwrites whole files, `pull --prune-local` deletes the ones Canvas no longer
