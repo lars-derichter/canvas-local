@@ -197,10 +197,11 @@ All filenames and folder names are lowercase, hyphenated, and prefixed with a
 two-digit number (00-99) for ordering. The numeric prefix is stripped when
 deriving Canvas item titles and Docusaurus sidebar labels. Files and folders
 prefixed with `_` (underscore) are internal: `lib/convert/course-scanner.js`
-skips them, so none of them is ever a Canvas item. They are not excluded from
-sync, though. A local write puts the Canvas module name into `_category_.json`
-(`writeCategoryFile`) and downloads embedded binaries into `_files/`
-(`downloadReferencedFiles`), both in `lib/sync/local-write.js`.
+skips them, so none of them is ever a Canvas item. Names prefixed with `.`
+(`.DS_Store`) are skipped by the same `isInternal` check. They are not excluded
+from sync, though. A local write puts the Canvas module name into
+`_category_.json` (`writeCategoryFile`) and downloads embedded binaries into
+`_files/` (`downloadReferencedFiles`), both in `lib/sync/local-write.js`.
 
 See [`docs/architecture.md`](docs/architecture.md) for the reconcile engine the
 four sync commands share, state schema, resilience behaviour, content types,

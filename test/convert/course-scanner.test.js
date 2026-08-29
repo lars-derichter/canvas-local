@@ -16,6 +16,7 @@ const {
   scanCourse,
   extractPosition,
   displayTitle,
+  flattenItems,
 } = require('../../lib/convert/course-scanner');
 
 describe('extractPosition', () => {
@@ -97,6 +98,17 @@ describe('scanCourse', () => {
     fs.mkdirSync(path.join(mod1, '_files'));
     fs.writeFileSync(path.join(mod1, '_files', 'image.png'), 'fake-image');
 
+    // What Finder and an SMB share leave behind: a `.DS_Store` in a module
+    // and in a subfolder, an AppleDouble twin of a page, and a dot-folder at
+    // the top level. All of it should be skipped, like the underscore names.
+    fs.writeFileSync(path.join(mod1, '.DS_Store'), 'Bud1');
+    fs.writeFileSync(path.join(mod1, '._01-welcome.md'), '\0\x05\x16\x07');
+    fs.mkdirSync(path.join(tmpDir, '.hidden'));
+    fs.writeFileSync(
+      path.join(tmpDir, '.hidden', '01-page.md'),
+      '---\ntitle: Hidden\n---\n\nNot a module.',
+    );
+
     // Module 1 subfolder without _category_.json — exercises the
     // subheader fallback to displayTitle(folderName).
     const introSub = path.join(mod1, '03-recap');
@@ -105,6 +117,7 @@ describe('scanCourse', () => {
       path.join(introSub, '01-summary.md'),
       '---\ntitle: Summary\n---\n\nRecap.',
     );
+    fs.writeFileSync(path.join(introSub, '.DS_Store'), 'Bud1');
 
     // Module 2 with an assignment and a subfolder.
     // Has a _category_.json with a custom label that should win over the
@@ -195,6 +208,28 @@ describe('scanCourse', () => {
       (i) => i.title === 'Files' || (i.file && i.file.includes('_files')),
     );
     assert.equal(fileItem, undefined);
+  });
+
+  it('skips dot-prefixed entries the same way, at every level', () => {
+    const modules = scanCourse(tmpDir);
+
+    // `.hidden/` at the top level is not a module
+    assert.deepEqual(
+      modules.map((m) => m.folderName),
+      ['01-intro', '02-advanced'],
+    );
+
+    // `.DS_Store` in a module and in a subfolder, and the `._` twin of a page,
+    // are not items
+    const names = modules.flatMap((m) =>
+      flattenItems(m.items).map((i) => i.file || i.folderName),
+    );
+    assert.deepEqual(
+      names.filter((n) => n.startsWith('.')),
+      [],
+    );
+    assert.ok(names.includes('01-welcome.md'));
+    assert.ok(names.includes('01-summary.md'));
   });
 
   it('detects assignment type from frontmatter', () => {

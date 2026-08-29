@@ -115,6 +115,11 @@ because two of them are where a local write puts things. Examples:
 - `_draft-notes.md`: any file you want to keep local-only, which nothing here
   writes to
 
+Names that start with `.` are skipped the same way. That is for `.DS_Store` and
+its relatives, which Finder leaves in any folder it has shown and `.gitignore`
+hides from git but not from the scanner: without the skip, one would sync to
+Canvas as a file item. No course item starts with a dot, so nothing is lost.
+
 ## Custom Alerts
 
 Use GitHub-style blockquote alerts for callout boxes. These render with matching

@@ -84,6 +84,8 @@ course/
   private corner of the tree: the Canvas module name goes into
   `_category_.json`, and binaries embedded in a Canvas page are downloaded into
   `_files/`
+- Names starting with `.` (`.DS_Store` and its kin) are skipped the same way, so
+  a folder Finder has opened gains no phantom file item
 - A markdown file's type lives in its frontmatter: `canvas_type` marks it as a
   page (the default), assignment, discussion, external link, quiz reference or
   file item. The website renders every type as a page; Canvas gets the matching

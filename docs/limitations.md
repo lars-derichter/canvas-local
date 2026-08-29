@@ -405,9 +405,11 @@ The scanner is strict, and quiet about most of it:
 - **A leading underscore hides a path from the scanner, not from sync.**
   `_files/`, `_category_.json` and anything else you prefix with `_` is never
   read as a module item. Handy as a drafting mechanism; easy to trip over if you
-  did not mean it. It is not a private corner of the tree, though: sync and pull
-  write the Canvas module name into `_category_.json`, and download the binaries
-  a Canvas page embeds into `_files/`. Both writes stop at a file git reports as
+  did not mean it. A leading dot hides a path the same way: `.DS_Store` and its
+  kin are never read as items, so Finder cannot plant a phantom file item in a
+  module. It is not a private corner of the tree, though: sync and pull write
+  the Canvas module name into `_category_.json`, and download the binaries a
+  Canvas page embeds into `_files/`. Both writes stop at a file git reports as
   holding uncommitted work, which is why a pull sometimes refuses to touch a
   `_category_.json` it would otherwise have relabelled.
 - **Canvas item indent is 0 or 1.** Canvas supports five levels; this tool uses
