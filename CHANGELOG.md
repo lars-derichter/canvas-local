@@ -196,11 +196,10 @@
   it, repair a row by hand. The schema is version 4, and a file written by any
   other version is refused rather than guessed at, because v3 keyed items the
   other way round and misreading the mapping would push a duplicate of
-  everything. There is no migration: `reset-sync-state`, then `push`. Read
-  [The sync state moved to schema v4](docs/updating-your-project.md#the-sync-state-moved-to-schema-v4-one-off)
-  first. That push is the part to watch. A `canvas_id` an older version left in
-  your frontmatter is inert from now on, ignored by every command, stripped by
-  the next pull, and swept out of the tree by `reset-sync-state`.
+  everything. There is no migration: `reset-sync-state`, then `push`. That push
+  is the part to watch. A `canvas_id` an older version left in your frontmatter
+  is inert from now on, ignored by every command, stripped by the next pull, and
+  swept out of the tree by `reset-sync-state`.
 - **A Canvas object that is already there is claimed rather than copied a second
   time.** Under `push` or `pull`, an item that has no row yet is paired with the
   Canvas object of the same type and title in the same module, and the two are
@@ -606,9 +605,8 @@
   same way, entered on that page and read back at build time. Until you switch
   Pages on, the workflow starts on each push and skips, so a course that never
   publishes collects skipped runs rather than failed ones. If you already
-  publish, follow
-  [Publishing moved out of `docusaurus.config.js`](docs/updating-your-project.md#publishing-moved-out-of-docusaurusconfigjs-one-off)
-  and take upstream's version of both files.
+  publish, take upstream's version of both files: the address now comes from the
+  Pages setting.
 - **`/translate` puts a document or a passage into another language.** A source
   note in one language, a page a colleague needs in another, a fragment pasted
   mid-conversation: the request came up often enough, and every time the answer
@@ -674,17 +672,17 @@
   cover. The tagline subtitles those same covers. The point is where the setting
   lives: `docusaurus.config.js` belongs to the tooling project and is
   overwritten on update, `course.config.yml` is protected. Existing projects
-  need two small steps. See
-  [The course title moved](docs/updating-your-project.md#the-course-title-moved-into-courseconfigyml-one-off).
+  need two small steps: put the title and tagline into `course.config.yml`, and
+  take upstream's `docusaurus.config.js`.
 - **The style guide and course context moved to `context/`.** `docs/style.md`
   and `docs/course-context.md` are not documentation: they are per-course files
   you own and AI assistants read, and everything else in `docs/` belongs to the
   tooling project and gets overwritten on update. They now live in `context/`,
   which makes that split visible in the file tree, and the style guide is called
   `context/writing-style.md` so that nothing mistakes it for an export style.
-  Existing projects need a one-off manual move, because a protected file that
-  changes location is the one case the update script cannot prune safely. See
-  [Moving to `context/`](docs/updating-your-project.md#moving-to-context-one-off).
+  Existing projects need a one-off manual move (`git mv` both files to their new
+  paths), because a protected file that changes location is the one case the
+  update script cannot prune safely.
 - **A Dutch course README template.** `templates/README-course-nl.md` joins the
   English one, so a Dutch-language course no longer starts by translating its
   own README. The English template moved to `templates/README-course-en.md` to
