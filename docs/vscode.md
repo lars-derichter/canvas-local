@@ -124,16 +124,12 @@ output in the shared terminal instead:
   of those, at a prompt nobody can see.
 
 Most of these commands also work from the command palette; you then pick the
-module or item from a quick-pick list instead. When the active editor's file
-lies inside a module, that module (or the file itself) is offered first, marked
-as current, so Enter confirms it. The exceptions are the tree-bound commands the
-opening of this page names: the two-step merge (the palette's **Course: Merge
-Items** asks for source and target instead) and the module-scoped Canvas actions
-(the palette covers the whole course, and a single module with **Course: Push
-Module to Canvas...**). Either way the actual work is done by the `npx course`
-CLI, so renumbering and Canvas sync state behave exactly like the terminal
-commands. Full output of the background commands is available in the
-**Coursewright** output channel (View > Output).
+module or item from a quick-pick list, with the active editor's module (or the
+file itself) offered first and marked as current, so Enter confirms it. The
+tree-bound commands named at the top of this page are the exceptions. Either way
+the `npx course` CLI does the work, so renumbering and the sync state behave
+exactly as they do in the terminal, and the full output of a background command
+is in the **Coursewright** output channel (View > Output).
 
 Three row types carry less than the rest. Rename, move and delete are
 contributed for pages, assignments, external URLs, files and subheaders, and
@@ -265,9 +261,8 @@ margins.
 
 ### Advanced
 
-Palette only. None of these has a button, a menu entry or a tree row, and the
-two resets ask their own y/N questions in the terminal before they touch
-anything. Read [Advanced commands](advanced-commands.md) and
+Palette only, by design: see the top of this page. Read
+[Advanced commands](advanced-commands.md) and
 [Backing up a Canvas course](backups.md) first.
 
 | Command                                           | Description                                              |
@@ -301,13 +296,13 @@ invites.
   module-scoped Canvas actions on a module row, and all four export commands.
   One step inside Export Course is the exception: choosing the table-of-contents
   option writes `exports/toc.md` through the silent runner and opens it for
-  editing, and only the render that follows it, from **Course: Export via
-  TOC...**, reaches the terminal. The terminal is also where the two reset
-  commands ask their questions: Reset Canvas prints an inventory of what it is
-  about to delete and waits for y/N, Reset Sync State waits for y/N. A terminal
-  that is still running something is never reused (while Sync waits for an
-  answer about a reordering both sides made, a second command would be typed
-  straight into that prompt as its answer), so the next command opens
+  editing; only the render that follows, from **Course: Export via TOC...**,
+  reaches the terminal. The terminal is also where the two resets ask their y/N
+  question, Reset Canvas after printing an inventory of what it is about to
+  delete.
+- A terminal that is still running something is never reused: while Sync waits
+  for an answer about a reordering both sides made, a second command would be
+  typed straight into that prompt as its answer. The next command opens
   **Coursewright 2**, and so on up to five, before falling back to the most
   recently used one. Idle terminals are reused, lowest number first, and a
   closed terminal frees its number. Preview keeps a terminal of its own, outside
@@ -320,8 +315,8 @@ invites.
   the **Coursewright** output channel. A run that succeeds and still writes to
   standard error raises a warning notification with the same button, because a
   warning that only reached the log would go unread: the case this exists for is
-  a delete whose renumbering strands a Canvas object. Either way the full output
-  is in that output channel (View > Output).
+  a delete whose renumbering strands a Canvas object. The full output is in that
+  channel either way.
 - Background runs are serialised: one at a time, in the order they were started,
   because two of them would renumber the same directory and rewrite
   `.canvas-sync.json` on top of each other. A ten-row drop is ten queued runs.
