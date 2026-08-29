@@ -166,6 +166,13 @@ STALE_PATHS=(
   "templates/README-course.md"
   "cli/setup-pages.js"
   "test/cli/setup-pages.test.js"
+  "cli/diff.js"
+  "cli/sync-utils.js"
+  "src/plugins/remark-download-links.js"
+  "test/cli/pull-helpers.test.js"
+  "test/cli/sync-utils.test.js"
+  "test/plugins/remark-download-links.test.js"
+  "docs/improvement-ideas.md"
 )
 
 for path in "${STALE_PATHS[@]}"; do
