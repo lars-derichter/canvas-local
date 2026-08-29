@@ -56,8 +56,10 @@ CLI's reader and the extension's copy of its rule are each held to in their own
 test. `test/vscode/host/` holds no `*.test.js` either, because nothing in it
 runs under `node --test`: it is the extension-host smoke test, whose files are a
 launcher, the cases that run inside VS Code, and an empty extension manifest.
-And `test/source-hygiene.test.js` sits at the root because it covers the whole
-source tree rather than one directory.
+And `test/source-hygiene.test.js` and `test/release-hygiene.test.js` sit at the
+root because each covers the whole project rather than one directory: the first
+the source tree, the second the version number every release has to carry into
+three manifests at once.
 
 Coverage spans the config layer (`lib/config/`), the conversion layer
 (`lib/convert/`), the export layer (`lib/export/`), the reconcile engine
