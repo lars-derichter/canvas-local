@@ -74,23 +74,23 @@ If you'd like to contribute a fix or improvement yourself, follow these steps:
    git commit -m "Fix push failing when module folder contains spaces"
    ```
 
-4. **Test your changes** before submitting (see [Tests](tests.md) for details on
-   the test setup and how to write new tests):
+4. **Test your changes** (see [Tests](tests.md) for the test setup and how to
+   write new tests):
 
    ```bash
-   npm start          # check the Docusaurus preview
-   npm run build      # verify the production build succeeds
-   npm test           # run the automated tests
-   npm run lint       # report code defects
+   npm run build      # the production build publishing runs
+   npm test           # the automated tests
+   npm run lint       # code defects
    npm run format     # apply Prettier
-   npm run lint:links # check documentation links and anchors
+   npm run lint:links # documentation links and anchors
    ```
 
-   `npm run lint:links` needs [lychee](https://lychee.cli.rs/)
-   (`brew install lychee`, or a binary from its releases page) and is the only
-   check that covers links under `docs/`: the Docusaurus build only validates
-   what it builds, and its docs plugin is scoped to `course/`. Skip it if you
-   changed no markdown.
+   CI runs the first three, `npm run format:check`, and the extension-host smoke
+   test (`npm run test:vscode`). It does not run `npm run lint:links`, which is
+   the only check that covers links under `docs/`: the Docusaurus build
+   validates what it builds, and its docs plugin is scoped to `course/`. That
+   one needs [lychee](https://lychee.cli.rs/) (`brew install lychee`, or a
+   binary from its releases page); skip it if you changed no markdown.
 
 5. **Push** your branch to your fork:
 
@@ -109,9 +109,8 @@ If you'd like to contribute a fix or improvement yourself, follow these steps:
   easier to review and merge.
 - **Write a clear title and description**: explain what the change does and why.
   If there's a related issue, mention it (e.g. "Fixes #12").
-- **Test your changes**: make sure `npm run build`, `npm test` and
-  `npm run lint` pass before submitting, and that `npm run format` leaves
-  nothing to change. CI checks the last two.
+- **Run the checks in step 4 first**, and make sure `npm run format` leaves
+  nothing to change.
 
 > [!TIP]
 >
@@ -146,29 +145,29 @@ codebase, so only three options are set:
 
 - `proseWrap: always` wraps prose at 80 characters, the rule the next section
   describes.
-- `embeddedLanguageFormatting: off` keeps Prettier out of fenced code blocks. In
-  this repo those blocks are instructional content: a deliberately indented YAML
+- `embeddedLanguageFormatting: off` keeps Prettier out of fenced code blocks,
+  which in this repo are instructional content: a deliberately indented YAML
   example in [Frontmatter](frontmatter.md), or a course code sample showing a
-  particular style, has to render exactly as written. It switches off YAML
-  frontmatter formatting too, which is what lets the CLI splice a line into a
-  file's frontmatter without reformatting it and still pass `prettier --check`.
-  Under `auto`, Prettier normalises key spacing and the whitespace inside an
-  inline list, and moves a value onto its own line when that line also carries a
+  particular style, has to render exactly as written. It also switches off YAML
+  frontmatter formatting, which is what lets the CLI splice a line into a file's
+  frontmatter without reformatting it and still pass `prettier --check`. Under
+  `auto`, Prettier normalises key spacing and the whitespace inside an inline
+  list, and moves a value onto its own line when it shares that line with a
   comment.
 - YAML keeps double quotes; everything else uses single.
 
-`.prettierrc.json` is read at runtime as well as by `npm run format`. The CLI
+`.prettierrc.json` is read at runtime as well as by `npm run format`: the CLI
 formats every markdown file it writes into `course/` against the same resolved
-config, which is why `prettier` is a runtime dependency and not a development
-one: sync fingerprints files by their contents, so it needs a single canonical
-form of each. Changing an option above changes what a pull writes.
+config, which is why `prettier` is a runtime dependency rather than a
+development one. Sync fingerprints files by their contents, so it needs one
+canonical form of each, and changing an option above changes what a pull writes.
 
-One write is carved out of that. `writeTitleIfAbsent` in `lib/sync/apply.js`
-splices a `title:` line into a file that declares none, through
-`insertFrontmatterKey`, and formats nothing: the rest of the file is the
-author's and the run had otherwise only read it, so reformatting it would put
-changes they never made into their working tree. It costs nothing against
-`prettier --check`, because the option above leaves frontmatter alone.
+One write is carved out. `writeTitleIfAbsent` in `lib/sync/apply.js` splices a
+`title:` line into a file that declares none, through `insertFrontmatterKey`,
+and formats nothing: the rest of the file is the author's, the run had otherwise
+only read it, and reformatting it would put changes they never made into their
+working tree. It costs nothing against `prettier --check`, because the option
+above leaves frontmatter alone.
 
 `.editorconfig` covers the file types Prettier cannot parse:
 `update-from-upstream.sh`, `export-styles/filter.lua`, the Typst templates.
@@ -196,12 +195,12 @@ a compiler.
 
 `course/` and `evaluations/` follow the guide in full, in its **student-facing**
 register: warm, direct, second person, CEFR B2, with the page-title emoji and
-callouts it defines for course pages. The built-in tutorial module ships as a
-course, it is what a new user reads first, and it doubles as the end-to-end
+callouts it defines for course pages. The built-in tutorial module is a course
+in its own right, the first thing a new user reads, and the end-to-end
 acceptance test for Canvas sync, so it has to keep exercising every content type
 a repository can create on its own: pages, an assignment, a discussion, an
-external URL and file items, one of them inside a subsection. The other two are
-not in it. A quiz and an external tool are references to Canvas objects a fresh
+external URL and file items, one of them inside a subsection. The other two
+types, a quiz and an external tool, are references to Canvas objects a fresh
 course does not have, so neither can ship as a working example.
 
 Two of those file items are the course exported to PDF and to Word, committed

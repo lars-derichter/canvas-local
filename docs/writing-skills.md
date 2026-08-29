@@ -69,9 +69,9 @@ predictable for both the reader and the model:
 
 Skill names are `<object>-<verb>`, object first, so skills about the same thing
 share a prefix and sort together: `/lesson` finds the whole authoring pipeline,
-`/issue` the whole queue. The object comes first because it is what you reliably
-know; which verb an author picked is what you would have to guess, and prefix
-matching only keys on the first segment.
+`/issue` the whole queue. The object comes first because it is the part you
+know; the verb is the part you would have to guess, and prefix matching keys on
+the first segment.
 
 The verb comes last, from a small vocabulary: `design` for gated interactive
 authoring, `build` for generation from an approved source, `init` for building a
@@ -90,11 +90,10 @@ three names stay bare verbs because they are single words in universal use, and
 because what they act on is whatever you hand them rather than a course object
 worth putting first: `/commit`, `/proofread` and `/translate`.
 
-`setup` sits outside the verb vocabulary too, and `/course-setup` is the only
-skill that carries it: where an `init` skill builds one configuration file,
-setup configures the project as a whole, and the name matches the
-`npx course setup` command it drives. There is one project to set up, so the
-verb stays a single case rather than a pattern to follow.
+`setup` sits outside the verb vocabulary too, and only `/course-setup` carries
+it: an `init` skill builds one configuration file, setup configures the project
+as a whole, and the name matches the `npx course setup` command it drives. One
+project, one skill; a single case, not a pattern.
 
 To contribute a skill back to the template itself, see
 [Contributing](contributing.md).
