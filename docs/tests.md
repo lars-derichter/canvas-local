@@ -14,12 +14,41 @@ npm test
 ```
 
 ```bash
+npm run test:template
+```
+
+```bash
 npm run test:vscode
 ```
 
-The second one is the
+The second is [the template suite](#the-two-suites). The third is the
 [extension-host smoke test](#the-extension-host-smoke-test) and is deliberately
 not part of `npm test`: its first run downloads about 130MB of VS Code.
+
+### The Two Suites
+
+`npm test` has to pass in a course repository as well as in this one. A course
+author replaces `README.md`, `course/index.md` and both guides in `context/` —
+that is what the setup wizard is for — so a test asserting those files still
+hold shipped content passes here and fails everywhere the template is actually
+used.
+
+Those checks are worth keeping: they are what catches `context/writing-style.md`
+drifting from `templates/writing-style-en.md`, which would make
+`npx course setup` refuse to install a template into a fresh project. They just
+belong to this repository rather than to the tooling. So they live in
+`test/template/`, named `*.check.js` so the `test/**/*.test.js` glob does not
+reach them, and run as `npm run test:template`. CI runs both suites, so a real
+regression still fails loudly here.
+
+Two files are in there. `setup-integrity.check.js` holds the wizard's
+pristine-detection checks. `docs-labels.check.js` walks every tracked markdown
+file, a course's own pages included, so it would fail on any course that writes
+"Course:" in its material; both sides of what it compares are the tooling's own,
+so a course repository running it could catch nothing the author caused.
+
+The rule for a new check: if it reads a file the author owns, it belongs in
+`test/template/`.
 
 The glob in that script is double-quoted (`"test/**/*.test.js"`), and it has to
 stay that way. npm runs scripts through `cmd.exe` on Windows, and cmd does not
@@ -47,19 +76,20 @@ and `test/vscode/` for the bundled VS Code extension. Each file is named after
 what it covers, e.g. `test/convert/course-scanner.test.js` or
 `test/cli/push-helpers.test.js`.
 
-Three places break that pattern. `test/helpers/` holds no tests: it is the
-shared `canvas-mock.js`, which stands in for the Canvas API over `fetch`;
-`prettier-config.js`, which gives a temporary course tree the same Prettier
-settings the repo has, so a write in a test formats the way it does in
-production; and `points-cases.js`, the table of `--points` spellings that the
-CLI's reader and the extension's copy of its rule are each held to in their own
-test. `test/vscode/host/` holds no `*.test.js` either, because nothing in it
-runs under `node --test`: it is the extension-host smoke test, whose files are a
-launcher, the cases that run inside VS Code, and an empty extension manifest.
-And `test/source-hygiene.test.js` and `test/release-hygiene.test.js` sit at the
-root because each covers the whole project rather than one directory: the first
-the source tree, the second the version number every release has to carry into
-three manifests at once.
+Four places break that pattern. `test/template/` holds
+[the template suite](#the-two-suites), which `npm test` does not run.
+`test/helpers/` holds no tests: it is the shared `canvas-mock.js`, which stands
+in for the Canvas API over `fetch`; `prettier-config.js`, which gives a
+temporary course tree the same Prettier settings the repo has, so a write in a
+test formats the way it does in production; and `points-cases.js`, the table of
+`--points` spellings that the CLI's reader and the extension's copy of its rule
+are each held to in their own test. `test/vscode/host/` holds no `*.test.js`
+either, because nothing in it runs under `node --test`: it is the extension-host
+smoke test, whose files are a launcher, the cases that run inside VS Code, and
+an empty extension manifest. And `test/source-hygiene.test.js` and
+`test/release-hygiene.test.js` sit at the root because each covers the whole
+project rather than one directory: the first the source tree, the second the
+version number every release has to carry into three manifests at once.
 
 Coverage spans the config layer (`lib/config/`), the conversion layer
 (`lib/convert/`), the export layer (`lib/export/`), the reconcile engine

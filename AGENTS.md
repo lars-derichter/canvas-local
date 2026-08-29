@@ -39,10 +39,17 @@ Node.js 24 or later, CommonJS throughout.
 - `npm run format` (Prettier) and `npm run lint` (ESLint, defects only).
   Prettier owns code formatting and markdown wrapping alike; never hand-format
   code or hand-wrap prose. CI runs `lint` and `format:check`.
-- `npm test` and `npm run build`. CI runs both, plus the extension-host smoke
-  test (`npm run test:vscode`).
-- Two tests pin prose in `docs/`, and neither is obvious from the files.
-  `test/vscode/docs-labels.test.js` reads every tracked markdown file and
+- `npm test`, `npm run test:template` and `npm run build`. CI runs all three,
+  plus the extension-host smoke test (`npm run test:vscode`).
+- **`test/template/*.check.js` holds the checks that only pass here.** They read
+  the files a course author replaces — `README.md`, `course/index.md`, the two
+  guides in `context/` — so they are deliberately outside the
+  `test/**/*.test.js` glob: a course repository must be able to run `npm test`
+  green. Never put a check that reads author-owned content into `test/`, and
+  never assume the template suite ran just because `npm test` passed. See
+  [`docs/tests.md`](docs/tests.md#the-two-suites).
+- Two checks pin prose in `docs/`, and neither is obvious from the files.
+  `test/template/docs-labels.check.js` reads every tracked markdown file and
   requires each run of text starting with "Course:" to match a command title the
   VS Code extension manifest declares, character for character, and every
   declared title to appear in some markdown file.

@@ -26,6 +26,15 @@ const cp = require('node:child_process');
  *
  * The second is the one that catches a command shipped without a word written
  * about it, which is how a feature ends up reachable and undiscovered.
+ *
+ * This walks every tracked markdown file, a course author's own pages
+ * included, so rule 1 fails on any course that happens to write `Course:` in
+ * its material. Both sides of the check are the tooling's own — `docs/` and the
+ * extension manifest, replaced wholesale by an upstream update — so a course
+ * repository running it can catch nothing the author caused. It lives outside
+ * `npm test` for that reason and runs as `npm run test:template`, which keeps
+ * the walk over `course/` where that content is the tooling's to get right.
+ * See docs/tests.md.
  */
 
 const ROOT = path.resolve(__dirname, '../..');

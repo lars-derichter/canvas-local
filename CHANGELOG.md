@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- **`npm test` now passes in a course repository.** Four checks in
+  `test/cli/setup.test.js` asserted that `README.md`, `course/index.md` and the
+  two guides in `context/` still held shipped template content. That is true
+  here and false in every course made from this template, which is the whole
+  point of the setup wizard, so two of them failed outright in a real course and
+  the other two were waiting for the author to run `/writing-style-init`. The
+  checks are worth keeping — they catch `context/writing-style.md` drifting from
+  `templates/writing-style-en.md`, which would make `npx course setup` refuse to
+  install a template into a fresh project — so they moved to a second suite,
+  `test/template/*.check.js`, run by `npm run test:template` and by CI.
+  `docs-labels` moved with them: it scans every tracked markdown file for
+  "Course:", a course's own pages included, and would have failed any course
+  that wrote that string in its material. See
+  [Tests](docs/tests.md#the-two-suites).
 - **Two docs caught up with what a prune already warns about.** The frontmatter
   reference said a prune deletes a discussion without the submission check it
   gives assignments, and the backups guide said only `reset-canvas` names a New

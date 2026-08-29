@@ -39,6 +39,7 @@
     "vscode:package": "cd .vscode/extensions/course-manager && npx @vscode/vsce package -o coursewright.vsix",
     "pretest": "node scripts/check-test-glob.js \"test/**/*.test.js\"",
     "test": "node --test \"test/**/*.test.js\"",
+    "test:template": "node --test \"test/template/**/*.check.js\"",
     "test:vscode": "npm run vscode:package && node test/vscode/host/run.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

@@ -29,6 +29,9 @@ jobs:
           node-version: 24
       - run: npm ci
       - run: npm test
+      # Checks that only hold in this repository: they read the files a course
+      # author replaces, so they are not part of `npm test`. See docs/tests.md.
+      - run: npm run test:template
       - run: npm run build
 
       # The VS Code the extension-host smoke test boots: about 130MB to fetch
