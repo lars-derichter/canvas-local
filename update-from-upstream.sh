@@ -139,44 +139,17 @@ done
 # one. Upstream lists old paths here when a rename happens. Removal is safe:
 # git history keeps the old content, and the renamed successor arrives in
 # the same update.
+#
+# The list is empty as of 1.0.0: every path it used to hold was renamed before
+# the first release, so nothing that could still be carrying one exists. Add a
+# path here on the update that renames it.
 
-STALE_PATHS=(
-  ".claude/skills/initialize-style"
-  ".claude/skills/update-style"
-  ".claude/skills/create-export-style"
-  ".claude/skills/edit-export-style"
-  ".agents/skills/export-style-create"
-  ".agents/skills/export-style-edit"
-  ".agents/skills/design-lesson"
-  ".agents/skills/build-lesson-module"
-  ".agents/skills/summarize-lesson"
-  ".agents/skills/design-evaluation"
-  ".agents/skills/build-quiz"
-  ".agents/skills/rubric"
-  ".agents/skills/fix-issues"
-  ".agents/skills/report-issue"
-  ".agents/skills/initialize-course-context"
-  "docs/claude-code.md"
-  "docs/customization.md"
-  "templates/export/tm-logo.png"
-  "templates/export"
-  "templates/style-generic-en.md"
-  "templates/style-generic-nl-be.md"
-  "templates/style-generic-nl.md"
-  "templates/README-course.md"
-  "cli/setup-pages.js"
-  "test/cli/setup-pages.test.js"
-  "cli/diff.js"
-  "cli/sync-utils.js"
-  "src/plugins/remark-download-links.js"
-  "test/cli/pull-helpers.test.js"
-  "test/cli/sync-utils.test.js"
-  "test/plugins/remark-download-links.test.js"
-  "docs/improvement-ideas.md"
-  "docs/style.md"
-)
+STALE_PATHS=()
 
-for path in "${STALE_PATHS[@]}"; do
+# `[@]+"[@]"` is the set -u-safe way to iterate a possibly-empty array on bash
+# 3.2, which is what macOS ships and what an empty STALE_PATHS would otherwise
+# stop dead.
+for path in ${STALE_PATHS[@]+"${STALE_PATHS[@]}"}; do
   if [ -e "$path" ]; then
     echo "Removing stale path (renamed upstream): $path"
     git rm -r -q --cached --ignore-unmatch -- "$path" >/dev/null 2>&1 || true
@@ -281,39 +254,6 @@ if [ -n "$CONFLICTED" ]; then
   while read -r file; do
     [ -n "$file" ] && resolve_conflict "$file"
   done <<< "$CONFLICTED"
-fi
-
-# --- Migrate: protect per-course config files introduced upstream ---
-#
-# course.config.yml arrived after many instances forked, and their
-# update-from-upstream.conf is itself protected, so upstream cannot add it to
-# their protected_files. Once the file exists locally (the squash merge stages
-# upstream-only files silently), register it. This must only happen when the
-# file is actually present: the protection loop above deletes protected files
-# that are absent from HEAD, which would eat the incoming starter file.
-
-if [ -f course.config.yml ]; then
-  case " ${PROTECTED_FILES[*]} " in
-    *" course.config.yml "*) : ;;
-    *)
-      add_to_protected_files "course.config.yml"
-      echo "Added course.config.yml to protected_files in $(basename "$CONFIG_FILE")."
-      ;;
-  esac
-fi
-
-# AGENTS.md arrived when the template went agent-agnostic (CLAUDE.md became a
-# one-line import of it). Same situation as course.config.yml above: register
-# it once it exists locally.
-
-if [ -f AGENTS.md ]; then
-  case " ${PROTECTED_FILES[*]} " in
-    *" AGENTS.md "*) : ;;
-    *)
-      add_to_protected_files "AGENTS.md"
-      echo "Added AGENTS.md to protected_files in $(basename "$CONFIG_FILE")."
-      ;;
-  esac
 fi
 
 git add -A

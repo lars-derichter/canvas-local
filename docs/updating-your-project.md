@@ -117,12 +117,11 @@ upstream_branch = main
 
 > [!NOTE]
 >
-> When upstream introduces a new file that belongs in `protected_files`, the
-> script handles it in two steps: the first update brings the file in, and the
-> next run registers it in your `protected_files` automatically. Don't add a
-> file to `protected_files` by hand before it exists in your project; the
-> protection step deletes protected files that are absent from your history,
-> which would eat the incoming file.
+> When upstream introduces a new file you want protected, take the update that
+> brings it in first, then add it to `protected_files` and commit. Don't add it
+> by hand before it exists in your project: the protection step deletes
+> protected files that are absent from your history, so it would eat the
+> incoming file instead of keeping it.
 
 Because the config file is itself protected, edits you make here are never
 overwritten. Commit the file after changing it.
