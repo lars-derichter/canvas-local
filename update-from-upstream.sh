@@ -173,6 +173,7 @@ STALE_PATHS=(
   "test/cli/sync-utils.test.js"
   "test/plugins/remark-download-links.test.js"
   "docs/improvement-ideas.md"
+  "docs/style.md"
 )
 
 for path in "${STALE_PATHS[@]}"; do
