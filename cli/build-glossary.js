@@ -130,6 +130,13 @@ function renderBody(terms, lesson, config = DEFAULT_CONFIG) {
 /**
  * Dump transform: double-quote every string *value* (not keys), matching the
  * output of js-yaml 4's forceQuotes + quotingType '"'.
+ *
+ * `node.style` is the numeric `SCALAR_STYLE` enum, and assigning to it is the
+ * whole mechanism. js-yaml 5.4 replaced the object it used to be, and the old
+ * `node.style.doubleQuoted = true` became a silent no-op — a property set on a
+ * number primitive throws nothing and changes nothing — so the titles came out
+ * plain and only the tests said so. Read the constant off the module rather
+ * than writing `3`.
  */
 function quoteStringValues(documents) {
   const walk = (node) => {
@@ -139,7 +146,7 @@ function quoteStringValues(documents) {
     } else if (node.kind === 'sequence') {
       for (const item of node.items) walk(item);
     } else if (node.kind === 'scalar' && node.tag === 'tag:yaml.org,2002:str') {
-      node.style.doubleQuoted = true;
+      node.style = yaml.SCALAR_STYLE.DOUBLE_QUOTED;
     }
   };
   for (const doc of documents) walk(doc.contents);
