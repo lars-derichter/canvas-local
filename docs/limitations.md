@@ -187,22 +187,23 @@ only what differs is written.
   for what that flag reaches and what it costs.
 - **An item you deleted by hand in Canvas is not recreated once Canvas stops
   listing its module item.** Deleting the object usually removes the item with
-  it, though not always, and while the item is still listed the recovery in
+  it, though not always; while the item is still listed, the recovery in
   [A stale id on the sync row](troubleshooting.md#a-stale-id-on-the-sync-row-404-on-update)
   puts the object back by itself. Past that, the row in `.canvas-sync.json`
-  names an object no run can see, so push writes nothing and names the item
-  instead, on every run: under `Orphaned locally` while the local file is
-  unchanged, under `Needs a decision` once you have edited it. Putting a Canvas
-  deletion back is not the tool's call to make. Two routes out, and the report
-  names both: delete the local file, which `sync --prune-local` does for you in
-  the unchanged case, or take the item's row out of `.canvas-sync.json` and
-  push, which reads the file as new and creates a fresh Canvas object for it
-  under a new id. Check first that the object really is gone: this tool reads a
-  course through its modules, so one sitting outside every module reads exactly
-  like a deleted one, and pushing a row-less file at that state gives you a
-  second copy of it. See
-  [Frontmatter reference](frontmatter.md#adopting-an-item-you-made-by-hand-in-canvas)
-  for what those rows hold and for the objects a push cannot see.
+  names an object no run can see, so push writes nothing and names the item on
+  every run: under `Orphaned locally` while the local file is unchanged, under
+  `Needs a decision` once you have edited it. Putting a Canvas deletion back is
+  not the tool's call to make.
+
+The report names both routes out of that last case. Delete the local file, which
+`sync --prune-local` does for you in the unchanged case; or take the item's row
+out of `.canvas-sync.json` and push, which reads the file as new and creates a
+fresh Canvas object under a new id. Check first that the object really is gone:
+this tool reads a course through its modules, so one sitting outside every
+module reads exactly like a deleted one, and pushing a row-less file at that
+state gives you a second copy of it.
+[Frontmatter reference](frontmatter.md#adopting-an-item-you-made-by-hand-in-canvas)
+says what those rows hold and which objects a push cannot see.
 
 One thing does hold part of a push back: an item of a type this version does not
 recognise. The content and the membership of that module are still reconciled,
@@ -262,12 +263,11 @@ and only one of those kinds takes student work with it.
   an assignment that launches an LTI tool (`is_quiz_lti_assignment: true`, no
   `quiz_id`, no separate quiz object), so this project manages it as the
   assignment it is, and a prune and `reset-canvas` delete it like one. That
-  deletes the quiz, its questions and every submission on it, and nothing in
-  this repo could rebuild the questions. A New Quiz has no markdown source here
-  the way an assignment body does. `reset-canvas` names each one it is about to
-  delete, so a count of "n assignments" cannot hide it. A prune does the same:
-  it flags the item in its listing, counts it in a warning line of its own, and
-  names it in the question you answer before anything is deleted.
+  takes the quiz, its questions and every submission with it, and nothing in
+  this repo could rebuild the questions: a New Quiz has no markdown source here
+  the way an assignment body does. Both commands name each one they are about to
+  delete, so a count of "n assignments" cannot hide it; see
+  [What the warnings tell you](#what-the-warnings-tell-you).
 
 Pages and files carry no grades, so pruning one costs you the content and
 nothing else, recoverable from git, or from a course export.
@@ -344,10 +344,8 @@ that content already holds student work:
   topic with replies in it is never listed as a bare path:
   `<-- 14 REPLIES FROM STUDENTS: no grades at stake, and deleting the topic still deletes every one of them`.
   An empty topic is listed plainly.
-- **A New Quiz is flagged for its questions.** Canvas holds it as an assignment
-  that launches an LTI tool, so a prune deletes it like any other assignment,
-  and the questions go with it. Nothing here could write them again, so the item
-  never reads as an ordinary path:
+- **A New Quiz is flagged for its questions**, which go with it and which
+  nothing here could write again, so the item never reads as an ordinary path:
   `<-- NEW QUIZ: deletes the quiz and its questions, which nothing here could rebuild`,
   or, once students have handed work in,
   `<-- NEW QUIZ WITH STUDENT SUBMISSIONS: deletes the quiz, its questions and every submission and grade on it; nothing here could rebuild the questions`.
@@ -402,14 +400,13 @@ The scanner is strict, and quiet about most of it:
   The module-management commands are stricter than push: an unprefixed module
   folder is invisible to `new-item`, `move-module`, `rename-module`,
   `delete-module` and the VS Code sidebar, while push still syncs it.
-- **A leading underscore hides a path from the scanner, not from sync.**
+- **A leading underscore or dot hides a path from the scanner, not from sync.**
   `_files/`, `_category_.json` and anything else you prefix with `_` is never
-  read as a module item. Handy as a drafting mechanism; easy to trip over if you
-  did not mean it. A leading dot hides a path the same way: `.DS_Store` and its
-  kin are never read as items, so Finder cannot plant a phantom file item in a
-  module. It is not a private corner of the tree, though: sync and pull write
-  the Canvas module name into `_category_.json`, and download the binaries a
-  Canvas page embeds into `_files/`. Both writes stop at a file git reports as
+  read as a module item, handy for drafts and easy to trip over; `.DS_Store` and
+  its kin are skipped the same way, so Finder cannot plant a phantom file item
+  in a module. Neither prefix makes a private corner of the tree: sync and pull
+  write the Canvas module name into `_category_.json` and download the binaries
+  a Canvas page embeds into `_files/`. Both writes stop at a file git reports as
   holding uncommitted work, which is why a pull sometimes refuses to touch a
   `_category_.json` it would otherwise have relabelled.
 - **Canvas item indent is 0 or 1.** Canvas supports five levels; this tool uses
@@ -495,10 +492,9 @@ to merge against even in principle.
   project's spelling. See [Custom alerts](markdown.md#custom-alerts).
 - **A URL written with `&amp;` comes back written with `&`.** The two spellings
   are one URL to CommonMark and reach Canvas as the same link, but a pull reads
-  the address back off the attribute with a real HTML parser, so the markdown it
-  writes holds the decoded spelling. The link itself is unchanged; the file
-  settles on one way of writing it after the first pull and stays there. The
-  same goes for an image's alt text and a link's title. What this does rule out
+  the address back off the attribute with a real HTML parser and writes the
+  decoded spelling; the file settles on it after the first pull and stays there.
+  The same goes for an image's alt text and a link's title. What this rules out
   is an address meant to carry the six characters `&amp;` as text, because every
   cycle resolves one level of it: `&amp;amp;` becomes `&amp;` becomes `&`.
 - **A file referenced from raw HTML is neither uploaded nor rewritten.** An
