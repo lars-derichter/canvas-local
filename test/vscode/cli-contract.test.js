@@ -706,7 +706,7 @@ function scanSource(
    * says which one it was.
    */
   const resolveArgv = (node) => {
-    let bases = null;
+    let bases;
     const appended = [];
 
     if (node.type === 'Identifier') {
