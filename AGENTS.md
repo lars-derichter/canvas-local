@@ -67,7 +67,22 @@ Node.js 24 or later, CommonJS throughout.
   out, and `lychee.toml` says why.
 - `npx course validate` after touching `course/`.
 - A change in behaviour gets an entry under `## Unreleased` in `CHANGELOG.md`,
-  in the shape of the entries already there.
+  in the shape of the entries already there, **in the same commit as the change
+  itself**. The changelog is written as the work lands, never reconstructed from
+  the log at release time.
+
+## Branches
+
+Work goes on `develop`, directly or on a branch off it. `main` holds released
+states only, because it is the branch `update-from-upstream.sh` merges from and
+the branch `.github/workflows/deploy.yml` publishes to
+[coursewright.md](https://coursewright.md/): a commit on `main` is a commit
+every course project can pull and every visitor can see.
+
+So never commit to `main` outside a release, and never merge `develop` into it
+except as the release itself. That overrides any general "commit on main"
+default. [`docs/contributing.md`](docs/contributing.md#releasing) has the
+procedure.
 
 ## Commands
 

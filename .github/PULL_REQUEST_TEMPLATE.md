@@ -15,6 +15,7 @@ preview site, a Canvas page or an export, say where to look.
 
 ## Checklist
 
+- [ ] Base branch is `develop`, not `main` (GitHub offers `main` by default)
 - [ ] One fix or feature: anything unrelated went into its own pull request
 - [ ] `npm test` passes
 - [ ] `npm run build` succeeds

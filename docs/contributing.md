@@ -59,13 +59,15 @@ If you'd like to contribute a fix or improvement yourself, follow these steps:
 1. **Fork** the original Coursewright project. On the project page, click the
    **Fork** button in the top-right corner to create a copy under your account.
 
-2. **Create a branch** for your change:
+2. **Create a branch** off `develop`, not off `main`:
 
    ```bash
+   git checkout develop
    git checkout -b fix-push-spaces
    ```
 
    Use a short, descriptive branch name that reflects what the change does.
+   [Branches](#branches) explains why `develop` is the one to build on.
 
 3. **Make your changes** and commit them:
 
@@ -99,7 +101,9 @@ If you'd like to contribute a fix or improvement yourself, follow these steps:
    ```
 
 6. **Open a pull request**. Go to your fork on GitHub, and you'll see a banner
-   offering to create a pull request. Click **Compare & pull request**. The
+   offering to create a pull request. Click **Compare & pull request**. **Change
+   the base branch to `develop`**: GitHub offers `main`, because that is the
+   default branch, and a pull request against it will be asked to move. The
    description comes prefilled with a short template; write over the prompts and
    tick the checklist.
 
@@ -232,9 +236,31 @@ way. Prettier does reflow their prose and normalise their list markers, but it
 changes neither language nor heading case, so what the exception protects is
 untouched.
 
+## Branches
+
+Two branches, and the split is not a formality.
+
+- **`develop`** is where the work goes. Everything since the last release lives
+  here.
+- **`main`** holds released states only. It is the branch
+  [`update-from-upstream.sh`](updating-your-project.md) merges from, so every
+  commit on it is one every course project pulls, and the branch
+  [`.github/workflows/deploy.yml`](hosting.md) publishes to
+  [coursewright.md](https://coursewright.md/), so every commit on it is one
+  every visitor sees. It moves at a release and at no other time.
+
+`main` stays the repository's default branch, because **Use this template**
+copies whatever the default is and a new course should start from a release, not
+from work in progress. That is also why a pull request opens against `main` by
+default and has to be pointed at `develop` by hand.
+
+Every change carries its own `## Unreleased` entry in `CHANGELOG.md`, in the
+same commit as the change. Writing the changelog as the work lands is what makes
+a release a rename rather than an archaeology session.
+
 ## Releasing
 
-A release is one commit and one annotated tag on `main`. The version number
+A release merges `develop` into `main` and tags it there. The version number
 lives in three files: `package.json`, which `npx course --version` prints and an
 upstream update carries into every course project; `package-lock.json`, which
 repeats it; and the extension's
@@ -245,8 +271,9 @@ bumps the patch number, a new feature the minor, and a change that breaks an
 existing project (a `schema_version` bump in `.canvas-sync.json`, a renamed
 command) the major.
 
-1. In `CHANGELOG.md`, rename `## Unreleased` to the new version number. The next
-   change in behaviour opens a fresh `## Unreleased` above it.
+1. On `develop`, rename `## Unreleased` in `CHANGELOG.md` to the new version
+   number and today's date. The next change in behaviour opens a fresh
+   `## Unreleased` above it.
 
 2. Bump the version everywhere it lives. `npm version` also updates
    `package-lock.json`, which is why the number is not edited by hand:
@@ -257,16 +284,26 @@ command) the major.
    ```
 
 3. Run the checks in
-   [step 4 of the pull request guide](#contributing-with-a-pull-request), commit
-   as `Release 1.0.1`, tag the commit and push both:
+   [step 4 of the pull request guide](#contributing-with-a-pull-request) and
+   commit as `Release 1.0.1`.
+
+4. Fast-forward `main` onto that commit and tag it there. `--ff-only` is the
+   check that `main` holds nothing `develop` does not: if it refuses, something
+   was committed to `main` outside a release and has to be sorted out first.
 
    ```bash
+   git checkout main
+   git merge --ff-only develop
    git tag -a v1.0.1 -m "Release 1.0.1"
    git push --follow-tags
+   git checkout develop && git push
    ```
 
-4. On GitHub, create a release from the tag, with the changelog section as its
+5. On GitHub, create a release from the tag, with the changelog section as its
    notes.
+
+Pushing `main` is what publishes: it deploys the site and is what every course
+project's next update pulls. Nothing else about a release reaches anyone.
 
 The tag is what lets a course project name the release it is on. A project made
 with **Use this template** shares no history with this repository, so git there
