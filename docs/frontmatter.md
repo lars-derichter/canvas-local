@@ -108,10 +108,10 @@ into markdown. Replies stay in Canvas and never appear here.
 > A **graded** discussion keeps its grading in Canvas. Points, due date, grading
 > type and group set belong to the assignment Canvas puts behind the topic, and
 > nothing here reads or writes it: those keys have no effect in this file. Push
-> and pull both warn when the topic they touched is graded. Note also that
-> `push --prune-canvas` deletes a discussion whose local file you deleted,
-> replies and grades included, without the submission check it gives
-> assignments.
+> and pull both warn when the topic they touched is graded. A prune deletes a
+> discussion whose local file you deleted, replies and grades included; the
+> listing flags a topic that holds replies or grades before you confirm. See
+> [What the warnings tell you](limitations.md#what-the-warnings-tell-you).
 
 ## Clearing a Date
 

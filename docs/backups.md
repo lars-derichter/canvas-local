@@ -125,9 +125,9 @@ Quiz. `reset-canvas` skips those and names them; a prune refuses them and says
 why. Quiz and LTI items are only ever unlinked from their module, never deleted.
 A **New** Quiz has no such shield: Canvas builds it as an assignment with no
 separate quiz object behind it, so it is deleted like one, questions and
-submissions included, and only `reset-canvas` names it as a quiz in its warning.
-Nothing in this repo can rebuild either kind's questions; a course export is the
-only thing that brings them back. See
+submissions included. Both `reset-canvas` and a prune name it as a New Quiz in
+their warning. Nothing in this repo can rebuild either kind's questions; a
+course export is the only thing that brings them back. See
 [Destructive operations and student work](limitations.md#destructive-operations-and-student-work).
 
 Deleting the local file of a **graded** discussion deletes the topic, every

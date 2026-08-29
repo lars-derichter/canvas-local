@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **Two docs caught up with what a prune already warns about.** The frontmatter
+  reference said a prune deletes a discussion without the submission check it
+  gives assignments, and the backups guide said only `reset-canvas` names a New
+  Quiz in its warning. Both statements predate the checks. A prune resolves the
+  assignment behind a graded topic and flags its grades and reply count, and it
+  names a New Quiz in its listing, its warning and its question, as
+  `reset-canvas` does. See
+  [Limitations](docs/limitations.md#what-the-warnings-tell-you).
 - **A `.DS_Store` no longer syncs to Canvas as a file item.** The course scanner
   skipped names starting with `_` and nothing else, so the file Finder leaves in
   any folder it has shown scanned as a `file` item, `status` listed it as
