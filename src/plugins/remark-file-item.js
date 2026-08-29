@@ -57,13 +57,7 @@ function remarkFileItem(options = {}) {
     //          <p class="file-item-label">File</p>
     //          <p class="file-item-link">[fileName](url)</p>
     //        </div>
-    // The link is a plain mdast link node (not a JSX <a>) so transformLinks
-    // rewrites it into a webpack asset require() and adds target="_blank".
-    const linkNode = {
-      type: 'link',
-      url,
-      children: [{ type: 'text', value: fileName }],
-    };
+    const linkNode = buildCardLink(fileRef, fileName, url, absPath, vfile);
 
     const label = {
       type: 'mdxJsxFlowElement',
@@ -103,6 +97,77 @@ function remarkFileItem(options = {}) {
 }
 
 /**
+ * Extensions the docs plugin's markdown-link resolver claims for itself. It
+ * reads any link URL ending in `.md`/`.mdx` as a reference to another doc,
+ * `@site/`-aliased ones included, so a card link to a markdown binary never
+ * matches a page and warns once per compile ("couldn't be resolved"), or
+ * fails the build under `onBrokenMarkdownLinks: 'throw'`.
+ */
+const MARKDOWN_EXTENSIONS = new Set(['.md', '.mdx']);
+
+/**
+ * Build the JSX attribute value for a webpack `require()` of the referenced
+ * binary, the construction Docusaurus's own mdx-loader uses for asset hrefs.
+ * Shared by the media embed's `src` and the card link's `href`.
+ */
+function assetRequireValue(fileRef, absPath, vfile) {
+  const isServer = vfile.data && vfile.data.compilerName === 'server';
+  const fileLoader =
+    getFileLoaderUtils(isServer).loaders.inlineMarkdownLinkFileLoader;
+  const relativeAssetPath = absPath
+    ? `./${escapePath(path.relative(path.dirname(vfile.path), absPath))}`
+    : `./${escapePath(fileRef)}`;
+  return requireAttributeValue(`${fileLoader}${relativeAssetPath}`);
+}
+
+/**
+ * Build the card's download link. Normally a plain mdast link node (not a JSX
+ * `<a>`) so Docusaurus's transformLinks plugin rewrites it into a webpack asset
+ * require() and adds target="_blank" itself.
+ *
+ * A markdown binary, say a study pack from `npx course export -f md`, cannot
+ * take that route, because the docs plugin's link resolver treats the URL as a
+ * page reference (see MARKDOWN_EXTENSIONS). For those we emit the anchor
+ * ourselves, the way remark-html-links does for `.html` targets: an
+ * `<a href={require(...)}>` the resolver never inspects, marked with
+ * `data-noBrokenLinkCheck` so the broken-link checker skips it too. That needs
+ * the wrapper's path to resolve the require() against, so a vfile without one
+ * (unit tests) falls back to the plain link.
+ */
+function buildCardLink(fileRef, fileName, url, absPath, vfile) {
+  const isMarkdown = MARKDOWN_EXTENSIONS.has(
+    path.extname(fileName).toLowerCase(),
+  );
+  if (!isMarkdown || !vfile.path) {
+    return {
+      type: 'link',
+      url,
+      children: [{ type: 'text', value: fileName }],
+    };
+  }
+
+  return {
+    type: 'mdxJsxTextElement',
+    name: 'a',
+    attributes: [
+      {
+        type: 'mdxJsxAttribute',
+        name: 'href',
+        value: assetRequireValue(fileRef, absPath, vfile),
+      },
+      {
+        type: 'mdxJsxAttribute',
+        name: 'data-noBrokenLinkCheck',
+        value: 'true',
+      },
+      { type: 'mdxJsxAttribute', name: 'target', value: '_blank' },
+      { type: 'mdxJsxAttribute', name: 'rel', value: 'noopener noreferrer' },
+    ],
+    children: [{ type: 'text', value: fileName }],
+  };
+}
+
+/**
  * Build the media embed for an image, video or audio file item: a
  * `div.file-item-embed` wrapping the media element, or null when the file is
  * not embeddable media. An image becomes a plain mdast image node with the
@@ -133,12 +198,6 @@ function buildEmbed(fileRef, fileName, url, absPath, vfile) {
       ],
     };
   } else {
-    const isServer = vfile.data && vfile.data.compilerName === 'server';
-    const fileLoader =
-      getFileLoaderUtils(isServer).loaders.inlineMarkdownLinkFileLoader;
-    const relativeAssetPath = absPath
-      ? `./${escapePath(path.relative(path.dirname(vfile.path), absPath))}`
-      : `./${escapePath(fileRef)}`;
     media = {
       type: 'mdxJsxFlowElement',
       name: kind,
@@ -148,7 +207,7 @@ function buildEmbed(fileRef, fileName, url, absPath, vfile) {
         {
           type: 'mdxJsxAttribute',
           name: 'src',
-          value: requireAttributeValue(`${fileLoader}${relativeAssetPath}`),
+          value: assetRequireValue(fileRef, absPath, vfile),
         },
       ],
       children: [],

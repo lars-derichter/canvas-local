@@ -262,7 +262,10 @@ wrapper renders as a download card, with the media itself embedded above the
 card when the file is an image, video or audio file. A PDF or DOCX export embeds
 an image file item the same way, above its attachment line. Because the wrapper
 is a normal markdown file, it supports `title`, ordering via the filename
-prefix, and the `export` flag like any other item.
+prefix, and the `export` flag like any other item. A markdown file works as the
+binary too, a study pack written by `npx course export -f md` for instance: it
+is served as a download rather than as a page of the site. See
+[Exporting](exporting.md#markdown).
 
 Non-markdown files dropped directly into a module folder also work: the scanner
 detects them as file items automatically, with the filename as title. They carry

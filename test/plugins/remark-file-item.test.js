@@ -152,6 +152,92 @@ describe('remarkFileItem', () => {
     assert.equal(link.children[0].value, 'example.html');
   });
 
+  describe('markdown targets', () => {
+    it('renders a markdown file_ref as a require()-href anchor', () => {
+      const tree = makeTree([]);
+      transformAt(tree, { canvas_type: 'file', file_ref: '_files/pack.md' });
+
+      const link = tree.children[0].children[1].children[0];
+      assert.equal(link.type, 'mdxJsxTextElement');
+      assert.equal(link.name, 'a');
+
+      // The docs plugin's link resolver claims every .md URL as a page
+      // reference, so the anchor is built here instead of by transformLinks.
+      const href = attr(link, 'href').value;
+      assert.equal(href.type, 'mdxJsxAttributeValueExpression');
+      assert.match(
+        href.value,
+        /^require\(".*file-loader.*pack\.md"\)\.default$/,
+      );
+      assert.ok(href.data.estree);
+
+      assert.equal(attr(link, 'data-noBrokenLinkCheck').value, 'true');
+      assert.equal(attr(link, 'target').value, '_blank');
+      assert.equal(attr(link, 'rel').value, 'noopener noreferrer');
+      assert.equal(link.children[0].value, 'pack.md');
+    });
+
+    it('leaves the card label paragraph unchanged for a markdown file_ref', () => {
+      const tree = makeTree([]);
+      transformAt(tree, { canvas_type: 'file', file_ref: '_files/pack.md' });
+
+      assert.equal(tree.children.length, 1);
+      const card = tree.children[0];
+      assert.equal(attr(card, 'className').value, 'file-item-card');
+
+      const label = card.children[0];
+      assert.equal(label.name, 'p');
+      assert.equal(attr(label, 'className').value, 'file-item-label');
+      assert.equal(label.children[0].value, 'File');
+
+      const linkP = card.children[1];
+      assert.equal(linkP.name, 'p');
+      assert.equal(attr(linkP, 'className').value, 'file-item-link');
+    });
+
+    it('matches the extension case-insensitively', () => {
+      const tree = makeTree([]);
+      transformAt(tree, { canvas_type: 'file', file_ref: '_files/PACK.MD' });
+
+      const link = tree.children[0].children[1].children[0];
+      assert.equal(link.type, 'mdxJsxTextElement');
+      assert.match(attr(link, 'href').value.value, /PACK\.MD/);
+    });
+
+    it('treats an .mdx file_ref the same way', () => {
+      const tree = makeTree([]);
+      transformAt(tree, { canvas_type: 'file', file_ref: '_files/pack.mdx' });
+
+      assert.equal(
+        tree.children[0].children[1].children[0].type,
+        'mdxJsxTextElement',
+      );
+    });
+
+    it('keeps the plain link node for a non-markdown file_ref', () => {
+      const tree = makeTree([]);
+      transformAt(
+        tree,
+        { canvas_type: 'file', file_ref: '_files/report.pdf' },
+        { siteDir: fixtureDir },
+      );
+
+      const link = tree.children[0].children[1].children[0];
+      assert.equal(link.type, 'link');
+      assert.equal(link.url, '@site/_files/report.pdf');
+      assert.equal(link.children[0].value, 'report.pdf');
+    });
+
+    it('falls back to the plain link when the vfile has no path', () => {
+      const tree = makeTree([]);
+      transform(tree, { canvas_type: 'file', file_ref: '_files/pack.md' });
+
+      const link = tree.children[0].children[1].children[0];
+      assert.equal(link.type, 'link');
+      assert.equal(link.url, '_files/pack.md');
+    });
+  });
+
   it('leaves non-file pages unchanged', () => {
     const body = {
       type: 'paragraph',
