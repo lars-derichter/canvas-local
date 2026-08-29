@@ -231,3 +231,48 @@ sentence-case headings, because that is Dutch convention. Leave both sets that
 way. Prettier does reflow their prose and normalise their list markers, but it
 changes neither language nor heading case, so what the exception protects is
 untouched.
+
+## Releasing
+
+A release is one commit and one annotated tag on `main`. The version number
+lives in three files: `package.json`, which `npx course --version` prints and an
+upstream update carries into every course project; `package-lock.json`, which
+repeats it; and the extension's
+`.vscode/extensions/course-manager/package.json`, which VS Code shows next to
+Course Manager in the Extensions view. `test/release-hygiene.test.js` fails
+while they differ, so `npm test` catches a bump that reached only one. A bug fix
+bumps the patch number, a new feature the minor, and a change that breaks an
+existing project (a `schema_version` bump in `.canvas-sync.json`, a renamed
+command) the major.
+
+1. In `CHANGELOG.md`, rename `## Unreleased` to the new version number. The next
+   change in behaviour opens a fresh `## Unreleased` above it.
+
+2. Bump the version everywhere it lives. `npm version` also updates
+   `package-lock.json`, which is why the number is not edited by hand:
+
+   ```bash
+   npm version 1.0.1 --no-git-tag-version
+   npm --prefix .vscode/extensions/course-manager version 1.0.1 --no-git-tag-version
+   ```
+
+3. Run the checks in
+   [step 4 of the pull request guide](#contributing-with-a-pull-request), commit
+   as `Release 1.0.1`, tag the commit and push both:
+
+   ```bash
+   git tag -a v1.0.1 -m "Release 1.0.1"
+   git push --follow-tags
+   ```
+
+4. On GitHub, create a release from the tag, with the changelog section as its
+   notes.
+
+The tag is what lets a course project name the release it is on. A project made
+with **Use this template** shares no history with this repository, so git there
+has nothing but the tags to go on: `git fetch upstream` brings them along, and
+`update-from-upstream.sh` records the upstream commit it merged as
+`last-upstream-merge`, which `git describe` resolves against the nearest release
+tag. See
+[which version you are on](updating-your-project.md#which-version-you-are-on).
+Without the tag, a project knows its version only from `package.json`.
