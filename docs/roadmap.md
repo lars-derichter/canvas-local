@@ -66,10 +66,10 @@ student gets the handout only when you send it. The deploy workflow could run
 `npx course export` per module and place the PDFs in the built site, so every
 module page links its own printable version and both stay current on every push.
 The costs are real: pandoc and Typst installed in the workflow, a slower deploy,
-and fonts, because a CI runner has none of the machine-licensed typefaces the
-exporter finds locally, so a style leaning on Office fonts falls back to what it
-bundles (`thomas-more` to Nunito) and the published handout may not match the
-one exported at home.
+and fonts. A CI runner has none of the machine-licensed typefaces the exporter
+finds locally, so a style leaning on Office fonts falls back to what it bundles
+(`thomas-more` to Nunito), and the published handout may not match the one
+exported at home.
 
 ### EPUB Export
 
@@ -118,12 +118,12 @@ that already exist and record the links, rewriting no file bodies at all. `push`
 and `pull` already do most of that on their own: an item with no row in
 `.canvas-sync.json` is paired with the Canvas object of the same type and title
 in the same module, for every type, and the pair goes into the sync state
-(`planAdoptions` in `lib/sync/plan.js`). Three gaps are what a command would be
-for. Adoption matches within one module, so an object sitting in no module at
-all is invisible to it. It matches on an exact title, so a page renamed on one
-side only is created a second time rather than claimed. And it refuses an
-ambiguous pair rather than asking, which leaves a hand-edited row in
-`.canvas-sync.json` as the only way through (see
+(`planAdoptions` in `lib/sync/plan.js`). A command would close three gaps.
+Adoption matches within one module, so an object sitting in no module at all is
+invisible to it. It matches on an exact title, so a page renamed on one side
+only is created a second time rather than claimed. And it refuses an ambiguous
+pair rather than asking, which leaves a hand-edited row in `.canvas-sync.json`
+as the only way through (see
 [Frontmatter](frontmatter.md#adopting-an-item-you-made-by-hand-in-canvas)).
 Adoption also happens inside a run that is already writing; a command would let
 you see the pairs and settle them before anything is sent.
@@ -177,10 +177,10 @@ activation is not a degraded feature, it is the whole sidebar failing to load.
 And `node --test` cannot see that coming: it resolves `dotenv` against the
 repository's own `node_modules`, so a packaging mistake passes the full suite,
 both CI platforms and lint, then throws once installed. The
-[extension-host smoke test](tests.md#the-extension-host-smoke-test) closes that
-hole: `npm run test:vscode` installs the packaged `.vsix` outside the
-repository, so a dependency missing from the package fails visibly. That answers
-the second objection and leaves size as the remaining cost.
+[extension-host smoke test](tests.md#the-extension-host-smoke-test) has since
+closed that hole: `npm run test:vscode` installs the packaged `.vsix` outside
+the repository, so a dependency missing from the package fails visibly. That
+answers the second objection and leaves size as the remaining cost.
 
 What would still tip the decision: a `.env` shape the hand-rolled reader
 deliberately omits (its docstring lists them) turning up in a real course, since
