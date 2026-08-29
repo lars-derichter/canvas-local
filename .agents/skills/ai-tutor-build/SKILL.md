@@ -32,21 +32,30 @@ free text. Empty means: propose defaults.
    use the student-facing register),
    [`docs/frontmatter.md`](../../../docs/frontmatter.md), both `references/`
    files of this skill, the list of modules under `course/`, the lowest-numbered
-   module as the worked example for page conventions, and any existing AI-policy
-   page: search page titles for AI and policy words in the course language, and
-   ask when unsure.
+   module other than the AI module as the worked example for page conventions,
+   and any existing AI-policy page: search page titles for AI and policy words
+   in the course language, and ask when unsure. A policy page says what students
+   may and may not do per assessment moment; a page about using AI tools is not
+   one.
 
-2. **Classify the course** (code? exams or tests? writing?) and pick the
-   suggested prompt types from the catalogue's "suggest when" column. List the
-   remaining types in one line so the teacher can add them.
+2. **Classify the course** (code? exams or tests? writing?) and propose at most
+   four prompt types by default: the tutor always, then the best fits for the
+   course kind from the catalogue's "suggest when" column. List the rest in one
+   line so the teacher can add them.
 
 3. **Propose in chat**:
    - **The module**: prefix, slug and label. `00-` when the course keeps its
-     meta modules (agreements, practical information) ahead of the lessons, else
-     the next free `NN-`. Say that a `00-` folder is created by hand, because
-     `npx course new-module` refuses position 0. Label in the course language.
-   - **The pages**: filename and title per selected type (📘, per the legend in
-     `writing-style.md`), plus the policy stub, only when no policy page exists.
+     meta modules (agreements, practical information) ahead of the lessons, so
+     the AI module sits above the first lesson in the sidebar and in Canvas;
+     else the next free `NN-`. Label in the course language.
+   - **The pages**: the policy stub first, only when no policy page exists, as
+     `01-<slug>.md` with the slug the course-language word for "AI rules"
+     (`01-ai-rules.md`, `01-de-afspraken.md`) and a 📘 title in the course
+     language; `/ai-policy-build` replaces it in place under that filename, so
+     the name is fixed here once. Then the prompt pages from `02-`: filename and
+     title per selected type, 📘 by default, or the entry that fits the type
+     when the course's legend in `writing-style.md` has one (💪 practice, 🧩
+     extra exercise). Offer the catalogue's three recipes for the tutor page.
    - **The prompt scaffold**: the catalogue's shared boilerplate filled in with
      course facts (course name, language, level, scope boundaries, glossary
      terms, and the assessment criteria where a type needs them), shown once;
@@ -68,21 +77,27 @@ free text. Empty means: propose defaults.
 
 4. **Module folder** and `_category_.json`: a `label` and a `position` matching
    the prefix, pretty-printed the way Prettier leaves it, like the existing
-   modules'.
+   modules'. A `00-` module takes `"position": 0`, which Docusaurus honours, and
+   its folder is made by hand because `npx course new-module` refuses
+   position 0.
 
-5. **Policy stub page** (only when none exists): a short student-facing page
-   saying that the rules for AI use in this course are set by the institution
-   and the teacher, and where to find them, with this comment at the top for the
-   author:
+5. **Policy stub page** (only when none exists), under the filename proposed in
+   step 3: a short student-facing page saying that the rules for AI use in this
+   course are set by the institution and the teacher, and where to find them,
+   with this comment directly after the frontmatter block for the author:
    `<!-- TODO: replace this stub with the institution's policy, or run /ai-policy-build to write one. -->`.
-   The prompt pages link to it as the course rules.
+   An HTML comment renders neither in the preview nor on Canvas (the push passes
+   it into the page HTML and Canvas's sanitiser drops it), so it is an
+   author-only note. The prompt pages link to it as the course rules.
 
 6. **Prompt pages**, one per selected type, in this shape:
    - An intro paragraph: what the role does and why it helps learning.
    - A "How to use it" numbered list: open a chatbot of your choice (ChatGPT,
-     Claude, Gemini or another); start a new chat; attach the study pack for
-     what you are studying; paste the whole prompt as your first message; then
-     ask your question or paste your work.
+     Claude, Gemini or another); start a new chat; attach the study pack of the
+     module you are studying, one short step linking the study-packs intro page,
+     which alone carries the upload steps and the per-tool lines; paste the
+     whole prompt as your first message; then ask your question or paste your
+     work.
    - One line on where the course rules do not allow it, linking the policy
      page.
    - `## The prompt`: "copy everything in the box below", then the whole prompt
@@ -91,6 +106,8 @@ free text. Empty means: propose defaults.
      so it pastes unchanged.
    - A `[!WARNING]` that the AI can be wrong and that the course wins ties.
    - Cross-links to the sibling prompt pages.
+   - On the tutor page only, when the teacher wants them: the three recipes from
+     the catalogue, under a heading of their own.
 
    The section titles above are the model's, not the page's: page titles,
    headings and the prompt itself are all in the course language.
@@ -116,11 +133,13 @@ free text. Empty means: propose defaults.
 
 8. **The `NN-study-packs/` subsection**, last in the module: a
    `_category_.json`; an intro page (what a pack is and why to attach it, which
-   pack goes with which module, the upload steps from `attaching-files.md`, and
-   that a pack is a snapshot of the course at the date in its header) with the
-   exact regenerate commands in an HTML comment at the top, so the next author
-   finds them; and one file-item wrapper per pack (`canvas_type: file`,
-   `file_ref: ../_files/<pack>.md`, a title with the 📦 emoji), per
+   pack goes with which module, the five upload steps and the per-tool lines
+   from `attaching-files.md`, and that a pack is a snapshot of the course at the
+   date in its header) with the exact regenerate commands in an HTML comment
+   directly after the frontmatter block, so the next author finds them; and one
+   file-item wrapper per pack (`canvas_type: file`,
+   `file_ref: ../_files/<pack>.md`, a colon-free title with the 📦 emoji, since
+   a colon as in `📦 Study Pack: Getting Started` needs YAML quoting), per
    [`docs/frontmatter.md`](../../../docs/frontmatter.md#file-item). The
    tutorial's `12-download-this-course/` subsection is the worked example while
    the course still ships it. A `.md` file item works in the preview and on
@@ -129,8 +148,10 @@ free text. Empty means: propose defaults.
    Docusaurus routes `.md` links as pages and the Canvas push skips them. Never
    link a pack from a page body; ship it as a file item.
 
-9. **Checks**: `npm run lint:links` and `npm run build` must pass. Say to open
-   one wrapper with `npm start` to see the download card.
+9. **Checks**: `npm run lint:links` and `npm run build` must pass. A generated
+   pack passes lychee as it is, because the export unlinks every local link, so
+   no exclusion is needed. Say to open one wrapper with `npm start` to see the
+   download card.
 
 10. **Report in chat**: files by group (pages, wrappers, packs,
     `_category_.json`); the prompt types built; every pack with its regenerate

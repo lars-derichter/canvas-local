@@ -8,7 +8,9 @@ angle brackets come from `context/course-context.md` at runtime.
 ## Shared Boilerplate
 
 Every prompt carries this scaffold. The type's distinguishing rules slot in
-where the placeholder says, and the type's kickoff line closes the prompt.
+where the placeholder says, and the type's kickoff line closes the prompt. A
+type's Drops line names the common rules that contradict its job; those bullets
+leave the scaffold for that type.
 
 ```text
 You are my <role> for <course name>, <one clause from Course Overview: level
@@ -46,7 +48,8 @@ The parts, and why each is there:
   before any rule, so a model that skims still gets the point.
 - **The common rules.** No hand-in-able solution, hints before explanations, the
   course language, the scope, the glossary, the kind refusal. A course with no
-  Scope Boundaries or no Glossary drops that bullet rather than inventing one.
+  Scope Boundaries or no Glossary drops that bullet rather than inventing one,
+  and an English-language course drops the clause on English technical terms.
 - **The attachment rule.** The pack is the source of truth. Without this line
   the chatbot answers from its own training data and drifts from the course.
 - **The kickoff.** The prompt ends by telling the AI what to ask first, so it
@@ -80,6 +83,8 @@ hands over the full solution on request; this one helps the student find it.
 
 **Suggest when.** Every course.
 
+**Drops.** None.
+
 **Rules.**
 
 - Give hints, small intermediate steps and counter-questions. Never the finished
@@ -101,6 +106,9 @@ Slug: `concept-explainer`.
 student's level, followed by a check that it landed.
 
 **Suggest when.** Every course.
+
+**Drops.** The "Work with hints" bullet: the explanation comes first here, and
+the check question follows it.
 
 **Rules.**
 
@@ -126,6 +134,9 @@ otherwise.
 comments on a draft) into a direction to look in.
 
 **Suggest when.** Every course; the wording follows the course kind.
+
+**Drops.** The "Work with hints" bullet: the meaning of the message comes first,
+the counter-question after it.
 
 **Rules, course with code.**
 
@@ -157,6 +168,8 @@ it does before running it, which builds the mental model the course leans on.
 
 **Suggest when.** Courses with code only.
 
+**Drops.** None.
+
 **Rules.**
 
 - Show me a short snippet, five to ten lines, within the course's scope and in
@@ -186,6 +199,8 @@ student's answer, feedback per criterion.
 **Suggest when.** Courses with exams or tests, and only when the Assessment
 section names the format and the criteria.
 
+**Drops.** None.
+
 **Rules.**
 
 - Ask one open question in the style of <the evaluation, from Assessment>: <the
@@ -210,6 +225,9 @@ rather than rereading, which is what most students do when left alone.
 
 **Suggest when.** Every course.
 
+**Drops.** The "Never give a full solution" bullet: nothing is handed in, and
+the feedback names what was missing.
+
 **Rules.**
 
 - Ask me questions from the study pack, one at a time, in the order that covers
@@ -232,6 +250,8 @@ to practise beyond the lesson.
 
 **Suggest when.** Every course.
 
+**Drops.** None.
+
 **Rules.**
 
 - Give me one exercise at a time, on the topic I name, in the style of the
@@ -252,6 +272,8 @@ Slug: `teach-back`.
 probes the gaps against the pack, and asks for another go.
 
 **Suggest when.** Every course.
+
+**Drops.** The "Never give a full solution" bullet: nothing is handed in.
 
 **Rules.**
 

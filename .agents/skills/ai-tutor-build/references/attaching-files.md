@@ -7,8 +7,9 @@ quotes the last one to the teacher.
 
 ## The Upload Step
 
-Tool-agnostic wording, for the intro page and the "How to use it" list on every
-prompt page:
+Tool-agnostic wording, for the intro page only. A prompt page's "How to use it"
+list keeps one line, "attach the study pack of the module you are studying", and
+links the intro page for these steps and the per-tool lines below.
 
 1. Start a new chat.
 2. Use the attach control next to the message box, usually a paperclip or a plus
