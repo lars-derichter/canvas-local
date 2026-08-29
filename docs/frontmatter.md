@@ -18,11 +18,11 @@ external tool, write the file yourself with the frontmatter below.
 | `canvas_type` | string  | One of `page`, `assignment`, `discussion`, `quiz`, `external_url`, `external_tool`, `file`. Defaults to `page`.                                     |
 | `export`      | boolean | Set `true` to include this item in `npx course export --flagged`. See [Exporting](exporting.md).                                                    |
 
-The line is spliced in as text, nothing else in the file is touched, and a file
-that already declares a title is left alone. `push` writes it too: it is the one
-thing `push` puts in your working tree. Without it the Canvas item's name would
-keep tracking the filename, so renumbering a module would quietly rename items
-in Canvas. See
+That `title:` line is spliced in as text; nothing else in the file is touched,
+and a file that already declares a title is left alone. `push` writes it too,
+the one thing `push` puts in your working tree: without it the Canvas item's
+name would keep tracking the filename, and renumbering a module would quietly
+rename items in Canvas. See
 [One Engine, Four Commands](user-guide.md#one-engine-four-commands).
 
 One file cannot take it: one whose opening `---` has no closing fence. There is
@@ -37,6 +37,14 @@ No field here says which Canvas object a file became. That link lives in
 in frontmatter is not part of the format: the tool ignores it, pull strips it,
 and [`reset-sync-state`](advanced-commands.md#reset-sync-state) clears any that
 appear.
+
+Only the fields listed on this page reach Canvas; push ignores the rest
+silently, and [Limitations](limitations.md#which-fields-reach-canvas) says what
+that leaves out. Pull takes those same fields from Canvas, including clearing
+one that Canvas no longer has, and carries over every other key you added:
+`export`, `lesson`, anything of your own. `quiz_ref` is one of those: Canvas has
+never heard of the QTI package, so a pull leaves the path exactly as you wrote
+it.
 
 ## Page
 
@@ -339,14 +347,3 @@ what the file says. Either copy the Canvas text into the file first, or run
 `npx course pull` and let it write the file for you. For a quiz, an external URL
 or an external tool nothing is overwritten, because the file is only a
 reference.
-
-## Notes
-
-- Fields not recognised by Canvas are silently ignored during push. Only the
-  fields listed above reach Canvas. See
-  [Limitations](limitations.md#which-fields-reach-canvas) for what that leaves
-  out.
-- Pull takes the fields above from Canvas, including clearing one that Canvas no
-  longer has, and carries over every other key you added: `export`, `lesson`,
-  anything of your own. `quiz_ref` is one of those: Canvas has never heard of
-  the QTI package, so a pull leaves the path exactly as you wrote it.
