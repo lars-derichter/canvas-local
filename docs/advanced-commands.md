@@ -14,17 +14,12 @@ your files are, the other empties the Canvas course.
 npx course reset-sync-state
 ```
 
-Removes every trace of a Canvas identity from the working tree:
-
-1. Deletes `.canvas-sync.json`, the one record of which Canvas module, item,
-   uploaded icon and embedded file each folder and file is. That deletion is the
-   reset.
-2. Sweeps stray sync bookkeeping out of the tree: a `canvas_id` in a markdown
-   file's frontmatter and a `customProps.canvas_module_id` in a folder's
-   `_category_.json`. Neither is part of the format, and a leftover one is a
-   second answer to a question the sync state owns alone. `canvas_type` is left
-   alone: that is your declaration of what a file should become, not a record of
-   what Canvas did.
+Deletes `.canvas-sync.json`, the one record of which Canvas module, item,
+uploaded icon and embedded file each folder and file is. That deletion is the
+whole reset: no markdown file and no `_category_.json` carries a Canvas id, so
+there is nothing left in `course/` to clear. Your own frontmatter is untouched,
+`canvas_type` included: that is your declaration of what a file should become,
+not a record of what Canvas did.
 
 After running this command the project is back to a "never pushed" state: the
 next `push` will create everything fresh on Canvas.

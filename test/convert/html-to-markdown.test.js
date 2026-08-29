@@ -457,9 +457,9 @@ describe('canvasItemToMarkdown', () => {
       !md.includes('Stale local title'),
       'Expected the Canvas title to win',
     );
-    // A `canvas_id` an older version wrote is cleared, not carried over. It
-    // is a Canvas-owned key with no value any more, so it goes the way any
-    // owned key with no value goes — leaving it would leave a stale id in the
+    // A `canvas_id` written into a file by hand is cleared, not carried over.
+    // It is a Canvas-owned key that never has a value, so it goes the way any
+    // owned key with no value goes — leaving it would leave a second id in the
     // file to drift from the sync row for good.
     assert.ok(!md.includes('canvas_id'));
   });

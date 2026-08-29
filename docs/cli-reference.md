@@ -411,8 +411,7 @@ npx course export-toc [options]
 
 ### `reset-sync-state`
 
-Delete `.canvas-sync.json` and clear any Canvas ids older versions left in
-course files.
+Delete `.canvas-sync.json`, so the course forgets every Canvas id it holds.
 
 ```bash
 npx course reset-sync-state

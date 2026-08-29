@@ -34,9 +34,8 @@ no frontmatter block to add a line to, so the run warns and moves on.
 
 No field here says which Canvas object a file became. That link lives in
 `.canvas-sync.json`, keyed by the file's path under `course/`. A `canvas_id` key
-in frontmatter is not part of the format: the tool ignores it, pull strips it,
-and [`reset-sync-state`](advanced-commands.md#reset-sync-state) clears any that
-appear.
+in frontmatter is not part of the format: the tool ignores it, and pull strips
+it.
 
 Only the fields listed on this page reach Canvas; push ignores the rest
 silently, and [Limitations](limitations.md#which-fields-reach-canvas) says what

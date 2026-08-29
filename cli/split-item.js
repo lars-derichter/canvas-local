@@ -83,11 +83,10 @@ async function _splitFile(filePath, bodyLine, newTitle, targetDir) {
     }
   }
 
-  // Create new file with second part. A `canvas_id` is only ever there because
-  // an older version of this tool wrote one; the halves of a split must not
-  // both claim the same Canvas object, so it does not travel to the new file.
+  // Create new file with second part. Its frontmatter is the original's with a
+  // new title: identity lives in `.canvas-sync.json`, keyed by path, so the new
+  // path is a new item and nothing here has to be cleared to make that true.
   const newFrontmatter = { ...parsed.data, title: newTitle };
-  delete newFrontmatter.canvas_id;
   const slug = toSlug(newTitle);
   const newFileName = `${pad(newPosition)}-${slug}.md`;
   const newFilePath = path.join(targetDir, newFileName);

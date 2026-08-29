@@ -23,8 +23,8 @@ function makeVfile(frontMatter, filePath) {
  * Helper: run the plugin transform on a tree with given frontmatter.
  *
  * A `canvas_id` in the fixture's frontmatter is written into a sync row
- * instead, because that is where identity lives now. The tests keep naming it
- * the way an author thinks of it — this item's Canvas id — while exercising the
+ * instead, because that is where identity lives. The tests keep naming it the
+ * way an author thinks of it — this item's Canvas id — while exercising the
  * path the plugin actually reads.
  */
 function transform(tree, frontMatter, options = {}) {
@@ -172,8 +172,8 @@ describe('remarkReferenceItem', () => {
   });
 
   it('takes the quiz id from the sync state, not from the file', () => {
-    // A `canvas_id` left behind in an older file is the stale copy that made
-    // the two disagree. The state is the only thing that speaks for identity.
+    // A `canvas_id` written into a file by hand is a second answer that can
+    // only drift. The state is the only thing that speaks for identity.
     writeSyncItem(tmpDir, ITEM_PATH, { canvas_id: 987 });
 
     const tree = makeTree([]);

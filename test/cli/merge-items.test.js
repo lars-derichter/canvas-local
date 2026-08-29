@@ -44,13 +44,13 @@ describe('_mergeFiles', () => {
     createMdFile(
       tmpDir,
       '01-first.md',
-      { title: 'First', canvas_type: 'page', canvas_id: 'first-page' },
+      { title: 'First', canvas_type: 'page', lesson: 1 },
       'Content A',
     );
     createMdFile(
       tmpDir,
       '02-second.md',
-      { title: 'Second', canvas_type: 'assignment', canvas_id: 42 },
+      { title: 'Second', canvas_type: 'assignment', lesson: 2 },
       'Content B',
     );
 
@@ -62,7 +62,7 @@ describe('_mergeFiles', () => {
     const parsed = matter(fs.readFileSync(targetPath, 'utf8'));
     assert.equal(parsed.data.title, 'First');
     assert.equal(parsed.data.canvas_type, 'page');
-    assert.equal(parsed.data.canvas_id, 'first-page');
+    assert.equal(parsed.data.lesson, 1);
   });
 
   it('discards source frontmatter', async () => {
@@ -70,7 +70,7 @@ describe('_mergeFiles', () => {
     createMdFile(
       tmpDir,
       '02-second.md',
-      { title: 'Second', canvas_id: 'second-page' },
+      { title: 'Second', lesson: 2 },
       'Content B',
     );
 
@@ -81,9 +81,7 @@ describe('_mergeFiles', () => {
 
     const parsed = matter(fs.readFileSync(targetPath, 'utf8'));
     assert.equal(parsed.data.title, 'First');
-    assert.ok(
-      !parsed.data.canvas_id || parsed.data.canvas_id !== 'second-page',
-    );
+    assert.equal(parsed.data.lesson, undefined);
   });
 
   it('deletes the source file', async () => {

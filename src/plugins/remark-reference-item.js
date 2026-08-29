@@ -145,9 +145,9 @@ function cleanString(value) {
  * unlinked rather than guessing an address.
  *
  * The quiz id is read from the sync row rather than the frontmatter because
- * identity no longer lives in the file. A `canvas_id` left in an older file is
- * deliberately not consulted: it is exactly the stale copy that made the two
- * disagree, and pull strips it on the next run.
+ * identity lives in `.canvas-sync.json`, keyed by path. A `canvas_id` written
+ * into a file by hand is deliberately not consulted: it is a second answer that
+ * can only drift from the row, and pull strips it on the next run.
  */
 function resolveLink(frontMatter, canvas, referenceLabels, syncRow) {
   if (frontMatter.canvas_type === 'external_tool') {

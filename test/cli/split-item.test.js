@@ -79,7 +79,7 @@ describe('_splitFile', () => {
     createMdFile(
       tmpDir,
       '01-original.md',
-      { title: 'Original', canvas_type: 'page', canvas_id: 'original-page' },
+      { title: 'Original', canvas_type: 'page', lesson: 3 },
       'Line 1\nLine 2\nLine 3',
     );
 
@@ -95,14 +95,14 @@ describe('_splitFile', () => {
     );
     assert.equal(original.data.title, 'Original');
     assert.equal(original.data.canvas_type, 'page');
-    assert.equal(original.data.canvas_id, 'original-page');
+    assert.equal(original.data.lesson, 3);
   });
 
-  it('new file gets updated title and no canvas_id', async () => {
+  it('new file carries the frontmatter over under its own title', async () => {
     createMdFile(
       tmpDir,
       '01-original.md',
-      { title: 'Original', canvas_type: 'page', canvas_id: 'original-page' },
+      { title: 'Original', canvas_type: 'page', lesson: 3 },
       'Line 1\nLine 2\nLine 3',
     );
 
@@ -113,12 +113,15 @@ describe('_splitFile', () => {
       tmpDir,
     );
 
+    // The title is the only key the split changes: identity lives in
+    // `.canvas-sync.json` keyed by path, so the new path is a new item and
+    // nothing in the file has to be cleared to make that true.
     const newFile = matter(
       fs.readFileSync(path.join(tmpDir, '02-new-title.md'), 'utf8'),
     );
     assert.equal(newFile.data.title, 'New Title');
     assert.equal(newFile.data.canvas_type, 'page');
-    assert.equal(newFile.data.canvas_id, undefined);
+    assert.equal(newFile.data.lesson, 3);
   });
 
   it('new file is inserted at correct position with renumbering', async () => {
