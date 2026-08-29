@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **A `.DS_Store` no longer syncs to Canvas as a file item.** The course scanner
+  skipped names starting with `_` and nothing else, so the file Finder leaves in
+  any folder it has shown scanned as a `file` item, `status` listed it as
+  pending, and a `push` uploaded it to Canvas Files under the title ".DS Store".
+  The `._` twin a page grows on an SMB share or a USB stick was worse: it
+  scanned as a page and pushed its binary content. `.gitignore` never helped,
+  because the scanner reads the filesystem, not git. Names starting with `.` are
+  now skipped the same way as underscore names, at every level, silently. No
+  course item starts with a dot, so nothing else changes. See
+  [Markdown](docs/markdown.md#underscore-prefix-convention).
 - **A prune now names a New Quiz among the items it is about to delete.**
   `push --prune-canvas` and `sync --prune-canvas` listed one as the ordinary
   assignment Canvas says it is, so the heaviest delete in the listing read like
