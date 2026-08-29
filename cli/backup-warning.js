@@ -87,18 +87,33 @@ function countSubmissionRisk(states) {
  * listing whose only flagged entry is a discussion is a wrong line, not a
  * loose one. Both readings take the article "an".
  *
+ * `newQuizzes` gets a line of its own, and it goes first: a gradebook export
+ * still holds the grades a deleted quiz took with it, and nothing anywhere
+ * holds its questions, so it is the heavier loss of the two. That line says
+ * "assignment" whatever `noun` is, because a New Quiz is one. Only a prune
+ * counts them; `reset-canvas` passes no count and reads exactly as it did.
+ *
  * Returns an empty array when nothing being deleted carries that risk; the
  * caller prefixes each line with its own command tag.
  *
- * @param {{graded: number, unknown: number}} risk
+ * @param {{graded: number, unknown: number, newQuizzes: number}} risk
  * @param {string} [noun] - What is being counted, singular.
  * @returns {string[]}
  */
 function submissionWarningLines(
-  { graded = 0, unknown = 0 } = {},
+  { graded = 0, unknown = 0, newQuizzes = 0 } = {},
   noun = 'assignment',
 ) {
   const lines = [];
+  if (newQuizzes > 0) {
+    lines.push(
+      `WARNING: ${newQuizzes} assignment${newQuizzes === 1 ? '' : 's'} being ` +
+        `deleted ${newQuizzes === 1 ? 'is a New Quiz' : 'are New Quizzes'}. ` +
+        `Deleting ${newQuizzes === 1 ? 'it' : 'one'} deletes the quiz, its ` +
+        'questions and every submission on it, and nothing here could rebuild ' +
+        'the questions.',
+    );
+  }
   if (graded > 0) {
     lines.push(
       `WARNING: ${graded} ${noun}${graded === 1 ? '' : 's'} being deleted ` +
@@ -125,13 +140,29 @@ function submissionWarningLines(
  * thing read before typing "y" names the student work, not just the files.
  * Empty when no assignment being deleted carries any.
  *
- * @param {{graded: number, unknown: number}} risk
+ * A New Quiz among them is named first and separately, in the order the warning
+ * lines already use, because its questions are the one loss no export and no
+ * file in this repository could undo.
+ *
+ * @param {{graded: number, unknown: number, newQuizzes: number}} risk
  * @returns {string}
  */
-function submissionRiskSuffix({ graded = 0, unknown = 0 } = {}) {
-  if (graded > 0) return ', including the student submissions and grades';
-  if (unknown > 0) return ', including any student submissions and grades';
-  return '';
+function submissionRiskSuffix({
+  graded = 0,
+  unknown = 0,
+  newQuizzes = 0,
+} = {}) {
+  const parts = [];
+  if (newQuizzes > 0) {
+    parts.push(
+      newQuizzes === 1
+        ? 'the questions of a New Quiz'
+        : `the questions of ${newQuizzes} New Quizzes`,
+    );
+  }
+  if (graded > 0) parts.push('the student submissions and grades');
+  else if (unknown > 0) parts.push('any student submissions and grades');
+  return parts.length > 0 ? `, including ${parts.join(' and ')}` : '';
 }
 
 /**

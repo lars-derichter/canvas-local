@@ -31,6 +31,7 @@ describe('annotateSubmissions', () => {
   const states = new Map([
     ['500', { hasSubmissions: true, isNewQuiz: false }],
     ['501', { hasSubmissions: false, isNewQuiz: false }],
+    ['502', { hasSubmissions: false, isNewQuiz: true }],
   ]);
 
   it('flags a doomed assignment that has student submissions', async () => {
@@ -140,6 +141,81 @@ describe('annotateSubmissions', () => {
     });
 
     assert.equal(calls, 1);
+  });
+
+  // ---------------------------------------------------------------------------
+  // The New Quiz flag
+  //
+  // The states list already carries it, and it is the one deletion this
+  // repository could not undo: the markdown holds no questions to push back.
+  // ---------------------------------------------------------------------------
+
+  it('flags a doomed assignment that is a New Quiz', async () => {
+    const items = [
+      {
+        itemPath: '01-mod/04-quiz.md',
+        canvasType: 'assignment',
+        canvasId: 502,
+      },
+    ];
+
+    await annotateSubmissions(42, items, async () => states);
+
+    assert.equal(items[0].isNewQuiz, true);
+  });
+
+  it('does not flag an ordinary assignment as a New Quiz', async () => {
+    const items = [
+      {
+        itemPath: '01-mod/01-hw.md',
+        canvasType: 'assignment',
+        canvasId: 500,
+      },
+    ];
+
+    await annotateSubmissions(42, items, async () => states);
+
+    assert.equal(items[0].isNewQuiz, false);
+  });
+
+  it('treats an assignment Canvas no longer lists as no quiz either', async () => {
+    const items = [
+      {
+        itemPath: '01-mod/03-hw.md',
+        canvasType: 'assignment',
+        canvasId: 777,
+      },
+    ];
+
+    await annotateSubmissions(42, items, async () => states);
+
+    assert.equal(
+      items[0].isNewQuiz,
+      false,
+      'an id already gone from Canvas has no questions left to delete',
+    );
+  });
+
+  it('leaves the quiz flag unset when the lookup fails', async () => {
+    mock.method(console, 'warn', () => {});
+    const items = [
+      {
+        itemPath: '01-mod/04-quiz.md',
+        canvasType: 'assignment',
+        canvasId: 502,
+      },
+    ];
+
+    await annotateSubmissions(42, items, async () => {
+      throw new Error('403 Forbidden');
+    });
+
+    assert.equal(
+      items[0].isNewQuiz,
+      undefined,
+      'the unknown wording already says to assume the loss; a false here would ' +
+        'read as "not a quiz", which was never established',
+    );
   });
 });
 
@@ -415,6 +491,22 @@ describe('annotateSubmissions: discussions', () => {
     assert.equal(items[0].replyCount, undefined);
   });
 
+  it('never puts the New Quiz flag on a discussion', async () => {
+    const items = [discussion(88)];
+
+    await annotateSubmissions(
+      42,
+      items,
+      // Deliberately flagged, to prove the discussion branch never reads it: a
+      // graded topic is not a quiz, whatever the assignment behind it says.
+      async () => new Map([['500', { hasSubmissions: true, isNewQuiz: true }]]),
+      topics({ 88: { id: 88, assignment_id: 500 } }),
+    );
+
+    assert.equal(items[0].hasSubmissions, true);
+    assert.equal(items[0].isNewQuiz, undefined);
+  });
+
   it('fetches no topic that is not slated for deletion', async () => {
     const items = [
       {
@@ -473,6 +565,84 @@ describe('describeDoomedItem', () => {
 
     assert.match(line, /SUBMISSION STATUS UNKNOWN/);
     assert.match(line, /assume grades will be lost/);
+  });
+
+  it('names a New Quiz and the questions that go with it', () => {
+    const line = describeDoomedItem({
+      itemPath: '01-mod/04-quiz.md',
+      canvasType: 'assignment',
+      hasSubmissions: false,
+      isNewQuiz: true,
+    });
+
+    assert.equal(
+      line,
+      '  - 01-mod/04-quiz.md (assignment)  <-- NEW QUIZ: deletes the quiz and ' +
+        'its questions, which nothing here could rebuild',
+    );
+  });
+
+  it('names the submissions on a New Quiz as well as the questions', () => {
+    const line = describeDoomedItem({
+      itemPath: '01-mod/04-quiz.md',
+      canvasType: 'assignment',
+      hasSubmissions: true,
+      isNewQuiz: true,
+    });
+
+    assert.match(line, /NEW QUIZ WITH STUDENT SUBMISSIONS/);
+    assert.match(line, /every submission and grade on it/);
+    assert.match(
+      line,
+      /nothing here could rebuild the questions/,
+      'the grades are in a gradebook export; the questions are nowhere',
+    );
+  });
+
+  it('still names the questions when the submissions could not be checked', () => {
+    const line = describeDoomedItem({
+      itemPath: '01-mod/04-quiz.md',
+      canvasType: 'assignment',
+      hasSubmissions: null,
+      isNewQuiz: true,
+    });
+
+    assert.match(line, /NEW QUIZ, SUBMISSION STATUS UNKNOWN/);
+    assert.match(line, /deletes the quiz and its questions/);
+    assert.match(line, /assume grades will be lost too/);
+  });
+
+  it('says nothing about a quiz for an assignment that is not one', () => {
+    assert.equal(
+      describeDoomedItem({
+        itemPath: '01-mod/02-hw.md',
+        canvasType: 'assignment',
+        hasSubmissions: false,
+        isNewQuiz: false,
+      }),
+      '  - 01-mod/02-hw.md (assignment)',
+    );
+    assert.match(
+      describeDoomedItem({
+        itemPath: '01-mod/01-hw.md',
+        canvasType: 'assignment',
+        hasSubmissions: true,
+        isNewQuiz: false,
+      }),
+      /^ {2}- 01-mod\/01-hw\.md \(assignment\) {2}<-- HAS STUDENT SUBMISSIONS/,
+    );
+  });
+
+  it('keeps the old lines when the flag was never set', () => {
+    assert.match(
+      describeDoomedItem({
+        itemPath: '01-mod/03-hw.md',
+        canvasType: 'assignment',
+        hasSubmissions: null,
+      }),
+      /^ {2}- 01-mod\/03-hw\.md \(assignment\) {2}<-- SUBMISSION STATUS UNKNOWN/,
+      'a failed lookup leaves isNewQuiz unset, and that is not a quiz claim',
+    );
   });
 
   it('leaves other item types as they were', () => {

@@ -60,11 +60,17 @@ const log = require('./logger');
  * as "could not determine" — never as "safe". That holds for a topic fetch that
  * fails too: an unreadable topic may well be a graded one.
  *
+ * The same list answers a second question for an assignment, `isNewQuiz`, so
+ * the listing can say that a delete takes questions no markdown here could
+ * rebuild. It is left unset when the lookup failed: the unknown wording already
+ * says to assume the loss, and a third state would only dilute it. A discussion
+ * never carries the flag at all, because a graded topic is not a quiz.
+ *
  * @param {string|number} courseId
  * @param {object[]} actions        - The plan's `delete-canvas-item` actions;
- *                                    annotated in place with `hasSubmissions`
- *                                    and, for a readable discussion,
- *                                    `replyCount`.
+ *                                    annotated in place with `hasSubmissions`,
+ *                                    `isNewQuiz` on an assignment, and, for a
+ *                                    readable discussion, `replyCount`.
  * @param {Function} [fetchStates]  - Injection point for tests.
  * @param {Function} [fetchTopic]   - Injection point for tests.
  * @param {object} [options]
@@ -138,12 +144,12 @@ async function annotateSubmissions(
   }
 
   // An id Canvas no longer lists is already gone, so there is no student work
-  // left to lose: that is a real "no", not an unknown.
+  // left to lose and no quiz left to delete: both are a real "no", not an
+  // unknown.
   for (const action of assignments) {
-    const key = String(action.canvasId);
-    action.hasSubmissions = states.has(key)
-      ? states.get(key).hasSubmissions
-      : false;
+    const state = states.get(String(action.canvasId));
+    action.hasSubmissions = state ? state.hasSubmissions : false;
+    action.isNewQuiz = state ? state.isNewQuiz : false;
   }
   // That reasoning does not carry over to a discussion. The item being deleted
   // is the topic, and the topic was just fetched, so it plainly exists and
@@ -206,6 +212,27 @@ function describeDoomedItem(action) {
     return line;
   }
   if (action.canvasType !== 'assignment') return line;
+  // A New Quiz is read before its submissions, because it is the heavier loss
+  // of the two: grades survive in a gradebook export, the questions survive
+  // nowhere, and this repository holds nothing that could write them again.
+  if (action.isNewQuiz === true) {
+    if (action.hasSubmissions === true)
+      return (
+        `${line}  <-- NEW QUIZ WITH STUDENT SUBMISSIONS: deletes the quiz, ` +
+        'its questions and every submission and grade on it; nothing here ' +
+        'could rebuild the questions'
+      );
+    if (action.hasSubmissions === null)
+      return (
+        `${line}  <-- NEW QUIZ, SUBMISSION STATUS UNKNOWN: deletes the quiz ` +
+        'and its questions, which nothing here could rebuild; assume grades ' +
+        'will be lost too'
+      );
+    return (
+      `${line}  <-- NEW QUIZ: deletes the quiz and its questions, which ` +
+      'nothing here could rebuild'
+    );
+  }
   if (action.hasSubmissions === true)
     return `${line}  <-- HAS STUDENT SUBMISSIONS: deletes the gradebook column and every grade in it`;
   if (action.hasSubmissions === null)
@@ -244,7 +271,8 @@ function submissionRiskNoun(actions) {
  *                               are picked out here.
  * @param {object} options
  * @param {string} options.tag - The calling command's log tag.
- * @returns {Promise<{count: number, risk: {graded: number, unknown: number}}>}
+ * @returns {Promise<{count: number, risk: {graded: number, unknown: number,
+ *   newQuizzes: number}}>}
  */
 async function describeCanvasPrune(courseId, actions, { tag }) {
   const doomedModules = actions.filter(
@@ -262,7 +290,7 @@ async function describeCanvasPrune(courseId, actions, { tag }) {
   const count = doomedModules.length + doomedItems.length + doomedFiles.length;
   if (count === 0) {
     log.info(`\n[${tag}] Prune: nothing to remove from Canvas.`);
-    return { count, risk: { graded: 0, unknown: 0 } };
+    return { count, risk: { graded: 0, unknown: 0, newQuizzes: 0 } };
   }
 
   if (doomedModules.length > 0) {
@@ -286,9 +314,15 @@ async function describeCanvasPrune(courseId, actions, { tag }) {
     (action) =>
       action.canvasType === 'assignment' || action.canvasType === 'discussion',
   );
-  const risk = countSubmissionRisk(
-    gradable.map((action) => action.hasSubmissions),
-  );
+  // The New Quiz count is taken here rather than in `countSubmissionRisk`: that
+  // one splits a list of submission states, and being a New Quiz is not one of
+  // them. It rides in the same risk object because it goes to the same two
+  // places, the warning lines and the question.
+  const risk = {
+    ...countSubmissionRisk(gradable.map((action) => action.hasSubmissions)),
+    newQuizzes: doomedItems.filter((action) => action.isNewQuiz === true)
+      .length,
+  };
 
   if (doomedItems.length > 0) {
     log.info(

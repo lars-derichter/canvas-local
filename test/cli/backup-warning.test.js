@@ -107,6 +107,61 @@ describe('submissionWarningLines', () => {
     assert.match(line, /could not determine whether 1 item being deleted has/);
     assert.match(line, /deleting an item takes its gradebook column/);
   });
+
+  it('warns that a New Quiz takes its questions with it', () => {
+    const [line, ...rest] = submissionWarningLines({ newQuizzes: 1 });
+    assert.equal(rest.length, 0);
+    assert.equal(
+      line,
+      'WARNING: 1 assignment being deleted is a New Quiz. Deleting it deletes ' +
+        'the quiz, its questions and every submission on it, and nothing here ' +
+        'could rebuild the questions.',
+    );
+  });
+
+  it('agrees with more than one New Quiz', () => {
+    const [line] = submissionWarningLines({ newQuizzes: 2 });
+    assert.equal(
+      line,
+      'WARNING: 2 assignments being deleted are New Quizzes. Deleting one ' +
+        'deletes the quiz, its questions and every submission on it, and ' +
+        'nothing here could rebuild the questions.',
+    );
+  });
+
+  it('puts the New Quiz line first, ahead of the grade lines', () => {
+    const lines = submissionWarningLines({
+      graded: 1,
+      unknown: 1,
+      newQuizzes: 1,
+    });
+    assert.equal(lines.length, 3);
+    assert.match(
+      lines[0],
+      /is a New Quiz/,
+      'the questions are the loss no export could undo, so they are read first',
+    );
+    assert.match(lines[1], /has student submissions/);
+    assert.match(lines[2], /could not determine/);
+  });
+
+  it('says "assignment" for a New Quiz whatever the caller counts', () => {
+    const [line] = submissionWarningLines({ newQuizzes: 1 }, 'item');
+    assert.match(
+      line,
+      /1 assignment being deleted is a New Quiz/,
+      'a New Quiz is an assignment, whatever else the prune is counting',
+    );
+  });
+
+  it('says nothing about a New Quiz when there is none to name', () => {
+    assert.deepEqual(submissionWarningLines({ newQuizzes: 0 }), []);
+    assert.deepEqual(
+      submissionWarningLines({ graded: 1, unknown: 0 }),
+      submissionWarningLines({ graded: 1, unknown: 0, newQuizzes: 0 }),
+      'reset-canvas passes no count, and reads exactly as it did',
+    );
+  });
 });
 
 describe('submissionRiskSuffix', () => {
@@ -127,6 +182,36 @@ describe('submissionRiskSuffix', () => {
   it('adds nothing when no grades are at stake', () => {
     assert.equal(submissionRiskSuffix({ graded: 0, unknown: 0 }), '');
     assert.equal(submissionRiskSuffix(), '');
+  });
+
+  it('names the questions of a New Quiz on its own', () => {
+    assert.equal(
+      submissionRiskSuffix({ newQuizzes: 1 }),
+      ', including the questions of a New Quiz',
+    );
+  });
+
+  it('counts more than one New Quiz', () => {
+    assert.equal(
+      submissionRiskSuffix({ newQuizzes: 2 }),
+      ', including the questions of 2 New Quizzes',
+    );
+  });
+
+  it('names the questions before the grades that do exist', () => {
+    assert.equal(
+      submissionRiskSuffix({ graded: 1, newQuizzes: 1 }),
+      ', including the questions of a New Quiz and the student submissions ' +
+        'and grades',
+    );
+  });
+
+  it('hedges the grades and keeps the questions firm', () => {
+    assert.equal(
+      submissionRiskSuffix({ unknown: 2, newQuizzes: 1 }),
+      ', including the questions of a New Quiz and any student submissions ' +
+        'and grades',
+    );
   });
 });
 
