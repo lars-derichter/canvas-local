@@ -22,13 +22,15 @@ course/  (markdown)
 3. **Canvas sync**: the CLI converts markdown to HTML (push) or HTML to markdown
    (pull) and communicates with the Canvas REST API.
 
+## Course Configuration
+
 All three layers read `course.config.yml` at the project root through
-`lib/config/course-config.js`: it resolves the course title and tagline, and the
-course language plus optional per-label overrides against the built-in label
-sets in `lib/config/labels.js` (English fallback when the file is missing; an
-unset title falls back to that language's `export.course_title` label). The CLI
-loads it for push (alert titles), pull (untitled fallback), export (metadata
-labels, document language, default titles), and the glossary builder;
+`lib/config/course-config.js`, which resolves the course title and tagline, and
+the course language plus optional per-label overrides against the built-in label
+sets in `lib/config/labels.js`. A missing file means English, and an unset title
+falls back to that language's `export.course_title` label. The CLI loads it for
+push (alert titles), pull (the untitled fallback), export (metadata labels,
+document language, default titles) and the glossary builder;
 `docusaurus.config.js` loads it for the site title and navbar, the tagline, the
 site locale and the remark plugin labels.
 
@@ -127,11 +129,12 @@ Key properties:
 - **icons**, one entry per alert type: the Canvas file id, the preview URL the
   HTML converter embeds, and a fingerprint of the theme the SVG was painted in,
   so a theme change re-uploads the icons and an unchanged theme does not.
-- **files**: embedded file (images, PDFs) Canvas URLs and IDs, plus a SHA-256
-  content hash used to re-upload files when their content changes. A row vouches
-  that the file lives in this course, so a pull that meets a file embedded from
-  another course downloads the binary without writing one; the next push of the
-  embedding page uploads the file into this course and records it then.
+- **files**: one row per embedded binary (an image, a PDF) with its Canvas file
+  id and URL and a SHA-256 of its content, so a changed file is re-uploaded and
+  an unchanged one is not. A row vouches that the file lives in this course, so
+  a pull that meets a file embedded from another course downloads the binary
+  without writing one; the next push of the embedding page uploads the file into
+  this course and records it then.
 - **last_sync**: stamped at the end of any `sync`, `push` or `pull` that ran to
   completion, including one that found nothing to do. A `--dry-run` and a
   `status` never write it, and a run that stopped before the end leaves the
@@ -383,7 +386,7 @@ with the rest, lists what it refused and why, and exits non-zero.
 
 ## Link Resolution
 
-Bidirectional link resolution happens in `link-resolver.js`:
+Bidirectional link resolution happens in `lib/convert/link-resolver.js`:
 
 **Push (relative -> Canvas URL):**
 
@@ -402,7 +405,7 @@ URLs, fragment-only links, and non-`.md` links pass through unchanged.
 
 ## Content Conversion
 
-**Markdown to HTML** (`markdown-to-html.js`):
+**Markdown to HTML** (`lib/convert/markdown-to-html.js`):
 
 - Strips YAML frontmatter
 - Uses `marked` with GFM extensions
@@ -417,30 +420,29 @@ URLs, fragment-only links, and non-`.md` links pass through unchanged.
   says the same thing in words, right beside it
 - Custom link/image renderers resolve internal references
 - Every outside value the converter interpolates is HTML-escaped, in an
-  attribute or in element content. A `"` or a `<` in a filename would otherwise
-  end the attribute early and lose the rest of the URL; a `&` in a query string
-  is not an attribute-breaking character but is read as the start of an entity,
-  so it has to be escaped as well. The alert title is the content case: it comes
-  from a `labels:` override in `course.config.yml`, and raw it could open a tag
-  in the page. One escaper serves both positions, because the four characters an
-  attribute needs are a superset of the three content needs
+  attribute and in element content alike. A `"` or a `<` in a filename would
+  otherwise end the attribute early; a `&` in a query string starts an entity.
+  The alert title is the content case: it comes from a `labels:` override in
+  `course.config.yml`, and raw it could open a tag. One escaper serves both
+  positions, because the characters an attribute needs are a superset of what
+  content needs
 - A value that came out of a markdown token is entity-decoded before it is
   escaped, because `marked` hands the renderer a link destination, an image's
   alt text and either one's title as raw source text: `?a=1&b=2` and
-  `?a=1&amp;b=2` are the same URL to CommonMark, and both go to Canvas as the
-  one attribute value that resolves back to `?a=1&b=2`. Skipping the decode
-  would send `&amp;amp;` and Canvas would serve a query parameter named `amp;b`,
-  or print the six characters `&amp;` in an image's alt text. Only the five
-  entities the escaper itself produces and numeric references are decoded; a
-  name like `&copy;` stays literal text. A resolver's output is not decoded: it
-  is assembled from ids in `.canvas-sync.json`, so there is no encoding there to
-  undo
-- Push, pull, push therefore sends the same HTML twice, in either spelling. A
-  pull reads the value back off the attribute with a real HTML parser, so the
+  `?a=1&amp;b=2` are the same URL to CommonMark, and both reach Canvas as the
+  one attribute value that resolves back to `?a=1&b=2`. Without the decode,
+  Canvas would serve a query parameter named `amp;b`. Only the five entities the
+  escaper produces and numeric references are decoded; `&copy;` stays literal. A
+  resolver's output is not decoded: it is assembled from ids in
+  `.canvas-sync.json`, so there is no encoding to undo
+- A pull reads the value back off the attribute with a real HTML parser, so the
   markdown it writes holds the decoded spelling, which pushes to the HTML that
-  was already there
+  was already there: push, pull, push sends the same HTML twice, in either
+  spelling.
+  [Push and pull are not a merge](limitations.md#push-and-pull-are-not-a-merge)
+  has the worked example
 
-**HTML to Markdown** (`html-to-markdown.js`):
+**HTML to Markdown** (`lib/convert/html-to-markdown.js`):
 
 - Uses `turndown` with atx headings and fenced code blocks
 - Custom rules convert alert divs back to GFM alert syntax
@@ -448,44 +450,45 @@ URLs, fragment-only links, and non-`.md` links pass through unchanged.
 
 ## Docusaurus Content Filtering
 
-Not all Canvas content types map naturally to Docusaurus pages. Two mechanisms
-handle the mismatches:
+Not every Canvas type maps to a Docusaurus page, and one kind of link needs
+help. Four remark plugins in `src/plugins/` handle it, wired in
+`docusaurus.config.js` with the course language's labels.
 
-**External URL items**: Markdown files with `canvas_type: external_url` have no
-meaningful body content (they just point to an external URL). The
-`remark-external-url` plugin (`src/plugins/remark-external-url.js`) intercepts
-these during rendering and replaces the entire document body with a styled link
-card showing the URL. The page still appears in the autogenerated sidebar, but
-visitors see only the link, not the raw frontmatter or an empty page.
+**External URL items**: a file with `canvas_type: external_url` has no body
+worth rendering. `remark-external-url.js` replaces the document body with a
+styled link card showing the URL, so the page keeps its place in the
+autogenerated sidebar and visitors see the link rather than raw frontmatter.
 
-**File items**: Files synced from Canvas as binary items (`.svg`, `.pdf`, etc.)
-are stored as markdown wrappers with `canvas_type: file` frontmatter and a
-`file_ref` field pointing to the actual binary in `_files/`. The
-`remark-file-item` plugin (`src/plugins/remark-file-item.js`) intercepts these
-during rendering and replaces the document body with a styled file card showing
-a download link. When the binary is an image, video or audio file (classified by
+**Reference items**: a quiz or an external tool is authored in Canvas, and the
+markdown file only records where it belongs. `remark-reference-item.js` gives
+the page a card naming the type and a notice saying where the item is edited. A
+quiz card links to its Canvas page when `.canvas-sync.json` holds the course's
+address and the file's id, an external tool to the launch URL in its
+frontmatter; a fresh clone has neither, and the card renders unlinked rather
+than guessing.
+
+**File items**: a binary synced from Canvas is stored as a markdown wrapper with
+`canvas_type: file` and a `file_ref` pointing at the binary in `_files/`.
+`remark-file-item.js` replaces the body with a styled file card and a download
+link. When the binary is an image, video or audio file (classified by
 `lib/convert/media-types.js`, the same table the Canvas upload stamps its
-content types from), the media itself renders above the card: an image inline,
-video and audio with a `<video controls>` / `<audio controls>` player. This way
-file items appear in the Docusaurus sidebar at the correct position, matching
-the Canvas module structure. PDF/DOCX exports embed images the same way: the
-picture sits above the item's attachment line (`lib/export/assemble.js`), while
-video and audio keep the attachment line alone.
+content types from), the media renders above the card: an image inline, video
+and audio with a `<video controls>` / `<audio controls>` player. PDF/DOCX
+exports embed images the same way, above the item's attachment line
+(`lib/export/assemble.js`); video and audio keep the attachment line alone.
 
-**Inline `.html` links**: Docusaurus's built-in `transformLinks` remark plugin
-deliberately skips relative links ending in `.md`, `.mdx`, or `.html`, assuming
-they are page references rather than assets. For `.md`/`.mdx` that is correct,
-but it leaves inline `.html` links (e.g. `[starter](_files/starter.html)` on a
-normal page) broken. The `remark-html-links` plugin
-(`src/plugins/remark-html-links.js`) runs before the default plugins and
-rewrites such links (relative, to an existing local `.html`/`.htm` file) into an
-`<a href={require(...)}>` anchor. Webpack then bundles the file. By default the
-anchor gets `target="_blank"`, so the browser renders the file in a new tab;
-with `download: true` in the page's frontmatter it gets a `download` attribute
-instead and the browser saves the file under its original name. External,
-absolute, `@site/`, anchor-only (`.html#…`), and non-existent targets are left
-untouched, as is the Canvas sync path (the source markdown keeps its plain
-relative link).
+**Inline `.html` links**: Docusaurus's built-in `transformLinks` plugin skips
+relative links ending in `.md`, `.mdx` or `.html`, taking them for page
+references. Right for `.md` and `.mdx`, wrong for
+`[starter](_files/starter.html)` on a normal page. `remark-html-links.js` runs
+before the default plugins and rewrites such a link (relative, to an existing
+local `.html` or `.htm` file) into an `<a href={require(...)}>` anchor that
+webpack bundles. The anchor gets `target="_blank"` by default; with
+`download: true` in the page's frontmatter it gets a `download` attribute
+instead, so the browser saves the file under its original name. External,
+absolute, `@site/`, anchor-only (`.html#…`) and non-existent targets are left
+alone, and so is the Canvas sync path: the source markdown keeps its plain
+relative link.
 
 ## Error Recovery
 
