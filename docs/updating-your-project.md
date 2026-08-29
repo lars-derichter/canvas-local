@@ -54,7 +54,8 @@ The script:
 4. Prompts you for any **other** file that changed on both sides. For each
    conflict you choose what to do (see
    [Resolving conflicts](#resolving-conflicts) below).
-5. Tags the merge point so you can see which upstream version you're on.
+5. Tags the merge point so you can see
+   [which upstream version you're on](#which-version-you-are-on).
 
 After running the script, install any updated dependencies:
 
@@ -67,6 +68,26 @@ Then push your updated branch to GitHub:
 ```bash
 git push
 ```
+
+## Which Version You Are On
+
+`npx course --version` prints the version of the tooling in your project. It
+reads `package.json`, which every update brings along, so the number is current
+after each run of the script, and it works in a fresh clone of your project too.
+
+The tag the script leaves, `last-upstream-merge`, says more precisely where you
+stand. Releases of the original project are tagged `v1.0.0`, `v1.0.1` and so on,
+and `git fetch upstream` brings those tags along, so git can name the release
+your last update came from:
+
+```bash
+git describe --tags --match 'v*' last-upstream-merge
+```
+
+`v1.0.1` means your last update took that release exactly; `v1.0.1-7-g3f2a9c1`
+means it took seven commits more. The [changelog](../CHANGELOG.md) lists what
+each release changed. The tag lives only on the machine that ran the update, so
+on another clone fall back to `npx course --version`.
 
 ## Configuring What's Protected
 
