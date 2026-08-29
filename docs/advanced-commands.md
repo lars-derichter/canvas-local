@@ -1,7 +1,7 @@
 # Advanced Commands
 
-Commands for managing sync state and Canvas content. These commands modify state
-destructively. Only use them if you know what you are doing.
+Two commands that destroy state on purpose: one forgets which Canvas objects
+your files are, the other empties the Canvas course.
 
 > [!WARNING]
 >
@@ -14,7 +14,7 @@ destructively. Only use them if you know what you are doing.
 npx course reset-sync-state
 ```
 
-Removes all instance-specific sync artifacts from the local codebase:
+Removes every trace of a Canvas identity from the working tree:
 
 1. Deletes `.canvas-sync.json`, the one record of which Canvas module, item,
    uploaded icon and embedded file each folder and file is. That deletion is the
@@ -67,9 +67,7 @@ content this tool created:
 Deleting an assignment deletes its gradebook column and the student submissions
 on it. Canvas's `/undelete` sometimes brings an assignment back, but the
 submissions frequently do not come with it, so grades are lost for good. Export
-the gradebook first. See [Backing up a Canvas course](backups.md). For which
-deletions cost grades and which cost only content, see
-[Destructive operations and student work](limitations.md#destructive-operations-and-student-work).
+the gradebook first. See [Backing up a Canvas course](backups.md).
 
 Classic quizzes, discussions, announcements and rubrics survive, but the modules
 that linked them do not.
@@ -83,7 +81,7 @@ Quiz gets no such shield: it is genuinely an assignment, with no separate quiz
 object for the guard to protect, so the command deletes it like one and names
 every one it is about to take, questions and submissions included.
 [Destructive operations and student work](limitations.md#destructive-operations-and-student-work)
-has the full picture.
+says which deletions cost grades and which cost only content.
 
 The command lists what the course holds, names the assignments that students
 have already submitted to, the ones it is skipping and the New Quizzes it is
