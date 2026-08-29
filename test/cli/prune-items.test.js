@@ -29,8 +29,8 @@ describe('annotateSubmissions', () => {
   });
 
   const states = new Map([
-    ['500', true],
-    ['501', false],
+    ['500', { hasSubmissions: true, isNewQuiz: false }],
+    ['501', { hasSubmissions: false, isNewQuiz: false }],
   ]);
 
   it('flags a doomed assignment that has student submissions', async () => {
@@ -150,8 +150,8 @@ describe('annotateSubmissions: discussions', () => {
 
   // 500 is the assignment behind the graded topic 88; 501 the one behind 89.
   const states = new Map([
-    ['500', true],
-    ['501', false],
+    ['500', { hasSubmissions: true, isNewQuiz: false }],
+    ['501', { hasSubmissions: false, isNewQuiz: false }],
   ]);
 
   /** A doomed discussion item as prune collects it: canvasId is the topic id. */

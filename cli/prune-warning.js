@@ -141,7 +141,9 @@ async function annotateSubmissions(
   // left to lose: that is a real "no", not an unknown.
   for (const action of assignments) {
     const key = String(action.canvasId);
-    action.hasSubmissions = states.has(key) ? states.get(key) : false;
+    action.hasSubmissions = states.has(key)
+      ? states.get(key).hasSubmissions
+      : false;
   }
   // That reasoning does not carry over to a discussion. The item being deleted
   // is the topic, and the topic was just fetched, so it plainly exists and
@@ -149,7 +151,9 @@ async function annotateSubmissions(
   // inconsistency in Canvas's own answer, not evidence that the topic is safe.
   // Unknown, therefore — the same as a graded topic that named no id at all.
   for (const [action, key] of gradedDiscussions) {
-    action.hasSubmissions = states.has(key) ? states.get(key) : null;
+    action.hasSubmissions = states.has(key)
+      ? states.get(key).hasSubmissions
+      : null;
   }
   return actions;
 }

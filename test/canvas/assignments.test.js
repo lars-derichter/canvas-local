@@ -177,9 +177,33 @@ describe('getSubmissionStates', () => {
       1,
       'one list call answers it for the whole course',
     );
-    assert.equal(states.get('500'), true);
-    assert.equal(states.get('501'), false);
-    assert.equal(states.get('502'), null);
+    assert.equal(states.get('500').hasSubmissions, true);
+    assert.equal(states.get('501').hasSubmissions, false);
+    assert.equal(states.get('502').hasSubmissions, null);
+  });
+
+  it('carries the New Quiz flag beside the submission state', async () => {
+    mock.method(global, 'fetch', async () =>
+      fakeResponse([
+        {
+          id: 600,
+          name: 'Chapter test',
+          is_quiz_lti_assignment: true,
+          has_submitted_submissions: true,
+        },
+        { id: 601, name: 'Essay', has_submitted_submissions: true },
+      ]),
+    );
+
+    const states = await getSubmissionStates(42);
+
+    assert.equal(
+      states.get('600').isNewQuiz,
+      true,
+      'the list response already carries the flag, so nothing has to ask twice',
+    );
+    assert.equal(states.get('600').hasSubmissions, true);
+    assert.equal(states.get('601').isNewQuiz, false);
   });
 
   it('keys the map by string so numeric sync-state ids match', async () => {
@@ -189,7 +213,7 @@ describe('getSubmissionStates', () => {
 
     const states = await getSubmissionStates(42);
 
-    assert.equal(states.get(String(999)), true);
+    assert.equal(states.get(String(999)).hasSubmissions, true);
     assert.equal(states.has('123'), false, 'unlisted ids are simply absent');
   });
 
