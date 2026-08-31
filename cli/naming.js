@@ -1,6 +1,6 @@
 const path = require('path');
 
-const { toSlug } = require('./module-utils');
+const { toSlug, truncateSlug } = require('./module-utils');
 
 /**
  * Create a numbered folder name from a module name and position.
@@ -24,12 +24,21 @@ function toFileName(title, position) {
  * Slugify a filename while preserving its extension.
  * Unlike toSlug, dots are kept so the extension survives.
  * "diagram.svg" -> "diagram.svg", "My File.PDF" -> "my-file.pdf"
+ *
+ * The length cap `toSlug` applies is applied here too, but to the stem alone:
+ * a truncated extension is a file the operating system opens with the wrong
+ * application, which is a worse outcome than a long name. `path.extname`
+ * decides where the stem ends, so a dotfile — which it reports as having no
+ * extension — is capped whole.
  */
 function toFileSlug(name) {
-  return name
+  const slug = name
     .toLowerCase()
     .replace(/[^a-z0-9.]+/g, '-')
     .replace(/^-+|-+$/g, '');
+  const ext = path.extname(slug);
+  const stem = ext ? slug.slice(0, -ext.length) : slug;
+  return truncateSlug(stem) + ext;
 }
 
 /**

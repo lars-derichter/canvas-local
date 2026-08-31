@@ -14,6 +14,14 @@
   never wrote. Both of its jobs are now guarded on the repository name, so a
   fork of the tooling keeps its CI while a course skips it.
 
+- Generated folder and file names are capped at 60 characters, cut on a word
+  boundary. A Canvas title can be a whole sentence — a text header telling the
+  author what to put in the module is a real example — and uncapped it became a
+  folder name of nearly 200 characters. Two of those nested under `course/`
+  carried a course past Windows' 260-character path limit, where `git clone`
+  fails outright and the repository cannot be checked out on Windows at all.
+  Only newly generated names are affected; nothing already on disk is renamed.
+
 - A `Course checks` workflow takes its place in a course project, running
   `npx course validate` and `npm run build` on every push. It reports on the
   material rather than on the tooling, and unlike the Pages deploy it runs on

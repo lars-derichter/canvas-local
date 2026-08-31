@@ -194,14 +194,57 @@ function createRL(hint) {
 }
 
 /**
+ * How long a generated slug may get.
+ *
+ * A Canvas title is not a filename and nobody promised it would be short: a
+ * text header reading "put an overview of every evaluation that counts towards
+ * the final mark here, with the date and the percentage" is a real one, and
+ * uncapped it became a folder name of nearly 200 characters. Two of those
+ * nested under `course/` carried a repository past Windows' 260-character
+ * `MAX_PATH`, and that is not a cosmetic problem: `git clone` fails outright,
+ * so the course could not be checked out on Windows at all.
+ *
+ * 60 is the budget, and it is spent like this. A worst-case item sits three
+ * segments deep — module, text-header subfolder, file — each carrying a
+ * two-digit prefix and a hyphen, so 63 apiece; with `course/` and `.md` that is
+ * 209. A GitHub runner then puts `D:\a\<repo>\<repo>\` in front of it, which
+ * for a repository name of 20 characters is another 47. Tight, but inside 260,
+ * and the failure it replaces was total.
+ */
+const MAX_SLUG_LENGTH = 60;
+
+/**
+ * Cut a slug to `MAX_SLUG_LENGTH`, on a word boundary where there is one.
+ *
+ * The cut lands on the last hyphen at or before the limit, so what survives is
+ * whole words and still reads as the title it came from. A first word already
+ * longer than the limit offers no boundary and is cut through: the point here
+ * is the length, not the prettiness.
+ *
+ * Truncation can leave two siblings sharing a slug. Their paths still differ,
+ * because every generated name carries the two-digit position in front of it,
+ * and the one case where that stops being true — a renumber sliding one onto
+ * the other's path — is already settled by `dropRowsRenumberedOver` in
+ * `cli/sync-renames.js`.
+ */
+function truncateSlug(slug) {
+  if (slug.length <= MAX_SLUG_LENGTH) return slug;
+  const cut = slug.slice(0, MAX_SLUG_LENGTH);
+  const boundary = cut.lastIndexOf('-');
+  return (boundary > 0 ? cut.slice(0, boundary) : cut).replace(/-+$/, '');
+}
+
+/**
  * Convert a name to a folder slug: lowercase, hyphenated.
  * "My New Module" -> "my-new-module"
  */
 function toSlug(name) {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+  return truncateSlug(
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, ''),
+  );
 }
 
 /**
@@ -249,6 +292,8 @@ module.exports = {
   prompt,
   getExistingModules,
   pad,
+  MAX_SLUG_LENGTH,
+  truncateSlug,
   toSlug,
   renameModule,
   createRL,

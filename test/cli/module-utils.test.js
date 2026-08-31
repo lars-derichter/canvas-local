@@ -6,10 +6,13 @@ const { spawnSync } = require('child_process');
 
 const {
   EOF,
+  MAX_SLUG_LENGTH,
   UnanswerableError,
   ask,
   createRL,
   prompt,
+  toSlug,
+  truncateSlug,
 } = require('../../cli/module-utils');
 const { _promptPosition: promptPosition } = require('../../cli/new-item');
 
@@ -24,6 +27,57 @@ beforeEach(() => {
 });
 afterEach(() => {
   process.exitCode = 0;
+});
+
+/**
+ * The cap exists because a Canvas title is not a filename. A text header whose
+ * title is a whole instruction sentence produced a folder name of nearly 200
+ * characters, and two of those nested under `course/` put a real course past
+ * Windows' 260-character `MAX_PATH` — where the failure is not a warning but
+ * `git clone` refusing to create the directory, so the repository could not be
+ * checked out on Windows at all.
+ */
+describe('toSlug length cap', () => {
+  const sentence =
+    'Put an overview of every evaluation that counts towards the final mark ' +
+    'here, with the date and the percentage, ready for the first lesson';
+
+  it('leaves a name inside the cap exactly as it was', () => {
+    assert.equal(toSlug('My New Module'), 'my-new-module');
+    assert.equal(truncateSlug('short-enough'), 'short-enough');
+  });
+
+  it('caps a title that is really a sentence', () => {
+    const slug = toSlug(sentence);
+    assert.ok(
+      slug.length <= MAX_SLUG_LENGTH,
+      `expected at most ${MAX_SLUG_LENGTH} characters, got ${slug.length}`,
+    );
+  });
+
+  it('cuts on a word boundary, so what survives still reads', () => {
+    assert.equal(
+      toSlug(sentence),
+      'put-an-overview-of-every-evaluation-that-counts-towards-the',
+    );
+  });
+
+  it('leaves no trailing hyphen when the cut lands on one', () => {
+    // The 60th character is the hyphen after `aaa`, so the naive cut keeps it.
+    const slug = truncateSlug(`${'a'.repeat(56)}-bbbb-cccc`);
+    assert.equal(slug, 'a'.repeat(56));
+    assert.doesNotMatch(slug, /-$/);
+  });
+
+  it('cuts through a first word that is longer than the cap', () => {
+    const slug = toSlug('a'.repeat(200));
+    assert.equal(slug.length, MAX_SLUG_LENGTH);
+    assert.equal(slug, 'a'.repeat(MAX_SLUG_LENGTH));
+  });
+
+  it('still yields a usable slug for a name that is all punctuation', () => {
+    assert.equal(toSlug('--- ... ---'), '');
+  });
 });
 
 describe('prompt', () => {
