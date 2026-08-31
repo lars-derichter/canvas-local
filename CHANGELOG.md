@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- The emoji legend in the writing-style guides gains `🔑` for a solution page,
+  in all four language variants. Courses that publish worked solutions were
+  already using it and each picked their own marker.
+
 ## 1.0.0 (2026-08-30)
 
 First public release. Write your course as markdown, preview it as a Docusaurus

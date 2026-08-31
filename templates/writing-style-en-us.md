@@ -254,6 +254,7 @@ with its meaning.
 - 🧪 try it yourself / experiment
 - 🔎 research
 - 💪 practice
+- 🔑 solution
 - 🚸 extra help
 - 🧩 extra exercise
 - 📘 explanation / reference

@@ -257,6 +257,7 @@ een andere; keert die terug, zet hem dan hier in de lijst met zijn betekenis.
 - 🧪 zelf proberen / experiment
 - 🔎 onderzoeken
 - 💪 oefenen
+- 🔑 oplossing
 - 🚸 extra hulp
 - 🧩 extra oefening
 - 📘 uitleg / referentie
