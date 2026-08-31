@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.1 (2026-08-31)
 
 - The course home page leads with the tutorial module. Its **Start Here** list
   opened by sending a first-time visitor back out to the documentation on
