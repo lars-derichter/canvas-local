@@ -1,6 +1,5 @@
 const fs = require('fs');
 const path = require('path');
-const matter = require('gray-matter');
 const { prompt, pad, toSlug, createRL, COURSE_DIR } = require('./module-utils');
 const {
   getItems,
@@ -10,6 +9,7 @@ const {
 } = require('./item-utils');
 const { renumberUp } = require('./renumber');
 const { writeMarkdown } = require('../lib/convert/format-markdown');
+const { serializeFrontmatter } = require('../lib/convert/frontmatter');
 const { recordRenames } = require('./sync-renames');
 
 const VALID_TYPES = ['page', 'assignment', 'url', 'subsection', 'file'];
@@ -202,8 +202,9 @@ async function createEntry(
   }
 
   const createdName = `${pad(position)}-${toSlug(name)}.md`;
-  // matter.stringify produces valid YAML for titles with colons, quotes, ...
-  const content = matter.stringify(`\n# ${name}\n`, frontmatterData);
+  // serializeFrontmatter produces valid YAML for a title holding a colon, a
+  // quote, an emoji, or anything else a name can be given.
+  const content = serializeFrontmatter(frontmatterData, `\n# ${name}\n`);
   await writeMarkdown(path.join(targetDir, createdName), content);
   return createdName;
 }

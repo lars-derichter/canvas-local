@@ -132,4 +132,20 @@ describe('rename-item', () => {
       'New Name',
     );
   });
+
+  it('writes an emoji title as itself', async () => {
+    // Of the four commands that re-serialise frontmatter this is the one that
+    // does it to a file the author already had, so it is where a `\U0001F3E5`
+    // escape would appear in a file that did not have one.
+    write('01-original.md', { title: 'Original' }, LONG);
+    const renamed = await _renameEntry(
+      dir,
+      '01-original.md',
+      '\u{1F3E5} Afwezig',
+    );
+    const raw = fs.readFileSync(path.join(dir, renamed), 'utf8');
+
+    assert.match(raw, /title: \u{1F3E5} Afwezig/u);
+    assert.ok(!raw.includes('\\U'), `escaped the emoji: ${raw}`);
+  });
 });

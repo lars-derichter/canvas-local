@@ -83,6 +83,23 @@ describe('serializeFrontmatter', () => {
     const result = serializeFrontmatter({}, 'Content only.');
     assert.match(result, /Content only\./);
   });
+
+  it('writes an emoji as itself rather than as a \\U escape', () => {
+    // gray-matter bundles a js-yaml 3 of its own, and that dumper walks a
+    // string by UTF-16 code unit: each half of an emoji's surrogate pair reads
+    // as unprintable, so the whole title is forced into double quotes and comes
+    // out as `title: "\U0001F3E5 Afwezig"`. Every parser reads that back, which
+    // is why the round-trip test above never caught it. What it costs is the
+    // author who opens the file, and the Course Manager tree that shows the
+    // escape where the icon should be.
+    const result = serializeFrontmatter(
+      { title: '\u{1F3E5} Afwezig' },
+      'Body.',
+    );
+
+    assert.match(result, /title: \u{1F3E5} Afwezig/u);
+    assert.ok(!result.includes('\\U'), `escaped the emoji: ${result}`);
+  });
 });
 
 describe('insertFrontmatterKey', () => {
@@ -129,7 +146,8 @@ describe('insertFrontmatterKey', () => {
     // into spaces (`displayTitle` in lib/convert/course-scanner.js), so it is
     // not a string anybody sanitised for YAML. Each of these breaks a bare
     // scalar in a different way: `Yes` and `2024` change type, `#` opens a
-    // comment, `:` ends the key, padding is eaten, a newline ends the line.
+    // comment, `:` ends the key, padding is eaten, a newline ends the line, and
+    // an emoji is the one gray-matter's own dumper would escape.
     const titles = [
       'Welcome',
       'Notes: Part One',
@@ -149,6 +167,8 @@ describe('insertFrontmatterKey', () => {
       'Tab\tSep',
       'Line\nBreak',
       '---',
+      '\u{1F3E5} Afwezig',
+      '\u{1F233} Symboolgebruik [Verwijderen als je dit niet doet]',
     ];
 
     for (const title of titles) {

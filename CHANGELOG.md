@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- Frontmatter is written with the emoji intact. `gray-matter` bundles a js-yaml
+  3 of its own, whose dumper walks a string by UTF-16 code unit, so a page
+  pulled from Canvas with an emoji in its title landed on disk as
+  `title: "\U0001F3E5 Afwezig"`. Nothing was lost — every parser reads the
+  escape back — but the file was unreadable, its diffs were noise, and the
+  Course Manager tree showed the escape where the icon should be. Every
+  frontmatter write now dumps through the top-level js-yaml, `new-item`,
+  `rename-item`, `split-item` and `merge-items` included. Files already on disk
+  keep their escapes until something rewrites them.
+
 ## 1.0.1 (2026-08-31)
 
 - The course home page leads with the tutorial module. Its **Start Here** list

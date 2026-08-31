@@ -16,6 +16,7 @@ const {
 } = require('./item-utils');
 const { recordRenames } = require('./sync-renames');
 const { writeMarkdown } = require('../lib/convert/format-markdown');
+const { serializeFrontmatter } = require('../lib/convert/frontmatter');
 
 /**
  * Core rename: renames a file or subsection folder inside targetDir,
@@ -63,7 +64,7 @@ async function renameEntry(targetDir, entryName, newName) {
     const raw = fs.readFileSync(oldPath, 'utf8');
     const parsed = matter(raw);
     parsed.data.title = newName;
-    const updated = matter.stringify(parsed.content, parsed.data);
+    const updated = serializeFrontmatter(parsed.data, parsed.content);
     await writeMarkdown(oldPath, updated);
   }
 

@@ -276,6 +276,24 @@ describe('canvasItemToMarkdown', () => {
     assert.match(md, /Hello world\./);
   });
 
+  it('keeps an emoji in the Canvas title literal', () => {
+    // A course whose page titles lead with an emoji is the common case, not the
+    // exotic one, and a pull that escaped it wrote `title: "\U0001F3E5 Afwezig"`
+    // into a file the author then had to read.
+    const md = canvasItemToMarkdown(
+      {
+        title: '\u{1F3E5} Afwezig',
+        page_id: 101,
+        url: 'afwezig',
+        body: '<p>Hi.</p>',
+      },
+      'page',
+    );
+
+    assert.match(md, /title: \u{1F3E5} Afwezig/u);
+    assert.ok(!md.includes('\\U'), `escaped the emoji: ${md}`);
+  });
+
   it('writes title and canvas_type and no identity at all', () => {
     // The whole of what a pull puts in the frontmatter about identity: what the
     // file is called, and what kind of Canvas object it should be. Which object

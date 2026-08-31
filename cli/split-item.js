@@ -10,6 +10,7 @@ const {
 } = require('./item-utils');
 const { renumberUp } = require('./renumber');
 const { writeMarkdown } = require('../lib/convert/format-markdown');
+const { serializeFrontmatter } = require('../lib/convert/frontmatter');
 const { recordRenames } = require('./sync-renames');
 
 /**
@@ -58,7 +59,10 @@ async function _splitFile(filePath, bodyLine, newTitle, targetDir) {
   const secondPart = bodyLines.slice(bodyLine).join('\n');
 
   // Write first part back to original file
-  const firstResult = matter.stringify('\n' + firstPart + '\n', parsed.data);
+  const firstResult = serializeFrontmatter(
+    parsed.data,
+    '\n' + firstPart + '\n',
+  );
   await writeMarkdown(filePath, firstResult);
   console.log(
     `[split-item] Updated ${path.basename(filePath)} (lines 1-${bodyLine})`,
@@ -90,9 +94,9 @@ async function _splitFile(filePath, bodyLine, newTitle, targetDir) {
   const slug = toSlug(newTitle);
   const newFileName = `${pad(newPosition)}-${slug}.md`;
   const newFilePath = path.join(targetDir, newFileName);
-  const secondResult = matter.stringify(
-    '\n' + secondPart + '\n',
+  const secondResult = serializeFrontmatter(
     newFrontmatter,
+    '\n' + secondPart + '\n',
   );
   await writeMarkdown(newFilePath, secondResult);
   console.log(`[split-item] Created ${newFileName} (remaining lines)`);

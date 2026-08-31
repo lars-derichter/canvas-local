@@ -10,6 +10,7 @@ const {
 } = require('./item-utils');
 const { renumberSequential } = require('./renumber');
 const { writeMarkdown } = require('../lib/convert/format-markdown');
+const { serializeFrontmatter } = require('../lib/convert/frontmatter');
 const { dropRowsRenumberedOver, recordRenames } = require('./sync-renames');
 
 /**
@@ -42,7 +43,7 @@ async function _mergeFiles(targetPath, sourcePath, targetDir, options = {}) {
   const merged = targetContent + '\n\n' + sourceContent;
 
   // Write merged content back to target (keeps target's frontmatter)
-  const result = matter.stringify(merged, targetParsed.data);
+  const result = serializeFrontmatter(targetParsed.data, merged);
   await writeMarkdown(targetPath, result);
   console.log(`[merge-items] Merged content into ${path.basename(targetPath)}`);
 

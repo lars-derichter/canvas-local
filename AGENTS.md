@@ -147,7 +147,11 @@ alerts, link resolution and embedded files.
   `discussions` and `files` with full CRUD, `quizzes` and `external-tools`
   read-only by design, `icons` for the alert icons a theme uploads.
 - `lib/convert/`: markdown to Canvas HTML and back, link resolution, and
-  `course-scanner.js`, which reads the `course/` tree for every command.
+  `course-scanner.js`, which reads the `course/` tree for every command. Every
+  frontmatter write goes through `serializeFrontmatter` in `frontmatter.js`,
+  never `matter.stringify` directly: gray-matter bundles a js-yaml 3 whose
+  dumper escapes an emoji into `\U0001F4D8`, so that function swaps the
+  top-level js-yaml in for the dump and keeps gray-matter's parser.
 - `lib/sync/`: the reconcile engine. Every sync decision lives here; the four
   commands only choose a policy for it. `gather.js` reads the three inputs (the
   `course/` tree, the Canvas course, and one `git status` per run);
