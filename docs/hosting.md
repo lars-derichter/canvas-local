@@ -53,6 +53,21 @@ Until you switch Pages on, the workflow still starts on every push, sees that
 publishing is off, and skips the build. A course that never publishes collects
 skipped runs rather than failed ones.
 
+## The Two Other Workflows
+
+Your project ships with two more workflows, and only one of them is yours.
+
+**Course checks** runs on every push, whether or not Pages is on. It validates
+your course material and builds the site, which is how a page that cannot
+compile reaches you on the push that wrote it rather than as a failed deploy
+months later. When it goes red, something in `course/` needs fixing, and the log
+names the file.
+
+**Checks** is the test suite of the tooling itself, and it is switched off in
+your project. It only runs in the Coursewright repository, because it reads
+files you are meant to replace. You will see it listed as skipped; that is
+correct and needs nothing from you.
+
 ## Using Your Own Domain
 
 If you own a domain and want to use it instead of the `github.io` address, enter

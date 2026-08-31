@@ -50,6 +50,18 @@ so a course repository running it could catch nothing the author caused.
 The rule for a new check: if it reads a file the author owns, it belongs in
 `test/template/`.
 
+CI carries the same split, and for a while it did not. Every course project
+inherits `.github/workflows/test.yml` along with the rest of the template, and
+that workflow ran the template suite everywhere — so a course author, who is
+told to replace exactly the files it reads, got failure mail from a workflow
+they never wrote. Both jobs in it are now guarded by
+`if: endsWith(github.repository, '/coursewright')`. Matching the repository name
+rather than the whole `owner/name` is what keeps a fork working: a contributor's
+fork keeps the name, a course does not. `course-checks.yml` is the workflow that
+runs in a course, and it asks about the course rather than about the tooling —
+`npx course validate` and `npm run build`. That one is ungated, so a break in it
+fails here before every course inherits it.
+
 The glob in that script is double-quoted (`"test/**/*.test.js"`), and it has to
 stay that way. npm runs scripts through `cmd.exe` on Windows, and cmd does not
 strip single quotes the way `sh` does, so the single-quoted form arrives at

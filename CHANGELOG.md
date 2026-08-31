@@ -6,6 +6,21 @@
   in all four language variants. Courses that publish worked solutions were
   already using it and each picked their own marker.
 
+- The tooling's own test workflow no longer runs in course projects. Every
+  project created from the template inherited `.github/workflows/test.yml`, and
+  it ran the template-only suite: the checks that read the README, the course
+  home page and the two guides in `context/`, every one of which a course author
+  is told to replace. The result was failure mail about a workflow the author
+  never wrote. Both of its jobs are now guarded on the repository name, so a
+  fork of the tooling keeps its CI while a course skips it.
+
+- A `Course checks` workflow takes its place in a course project, running
+  `npx course validate` and `npm run build` on every push. It reports on the
+  material rather than on the tooling, and unlike the Pages deploy it runs on
+  every branch and without Pages being switched on, so a page that cannot
+  compile is caught where it was written rather than at a deploy the project may
+  not reach for months.
+
 ## 1.0.0 (2026-08-30)
 
 First public release. Write your course as markdown, preview it as a Docusaurus

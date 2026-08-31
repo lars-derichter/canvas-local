@@ -12,6 +12,19 @@ jobs:
   # only Windows end-to-end the project has. `fail-fast: false` keeps a red leg
   # on one OS from cancelling the other, so a single run always reports both.
   test:
+    # Only where this tooling lives. Every course project created from the
+    # template inherits this file, and there the job tests nothing the author
+    # owns: `test:template` below deliberately reads the files the setup wizard
+    # replaces, so it fails by design, and the rest fails for reasons that are
+    # the tool's — arriving as mail about a workflow the author never wrote,
+    # from a project they are not developing. `course-checks.yml` is the one
+    # that has something to say about a course.
+    #
+    # Matching the repository name rather than the whole `owner/name` is what
+    # keeps a fork working: a contributor's fork keeps the name and so keeps
+    # its CI, while a course, named after the course, skips. A skipped job
+    # sends no failure mail.
+    if: endsWith(github.repository, '/coursewright')
     runs-on: ${{ matrix.os }}
     # The smoke test bounds the extension host it boots, but not the npm and
     # packaging steps around it, and GitHub's own default is six hours. This
@@ -64,6 +77,11 @@ jobs:
   # `.gitattributes` pins those to LF on every platform, so a second run on
   # Windows would spend minutes reaching a verdict already known.
   lint:
+    # Gated for the same reason as `test`, and it has to be said twice: `if` is
+    # a job-level key, so a workflow-level guard does not exist. ESLint and
+    # Prettier judge this repository's own source and its own config; a course
+    # author's prose is not what they are here for.
+    if: endsWith(github.repository, '/coursewright')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
