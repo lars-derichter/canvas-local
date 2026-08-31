@@ -15,6 +15,29 @@ function createMdFile(dir, name, frontmatter, body) {
   fs.writeFileSync(path.join(dir, name), content, 'utf8');
 }
 
+/**
+ * Point the sync-state half of a merge at the fixture instead of the project.
+ *
+ * Without this the renumber at the end of `_mergeFiles` reaches
+ * `recordRenames`, which falls back to `PROJECT_ROOT/.canvas-sync.json` — the
+ * real one. In this repository that file does not exist and the call returns
+ * early, so the tests passed; in any course project that has synced with Canvas
+ * it does exist, and the mismatch guard refuses the whole run because the state
+ * describes a different course than the fake credentials set below. `npm test`
+ * has to pass in a course repository too (`docs/tests.md`), so the fixture owns
+ * its state file the way `test/cli/sync-renames.test.js` does.
+ *
+ * Given to every `_mergeFiles` call, not only the one that renumbers: the
+ * others are safe today because an empty rename batch returns before the load,
+ * which makes their safety a property of the arguments rather than of the test.
+ */
+function isolated(dir) {
+  return {
+    courseDir: path.dirname(dir),
+    file: path.join(dir, '.canvas-sync.json'),
+  };
+}
+
 describe('_mergeFiles', () => {
   let tmpDir;
 
@@ -33,7 +56,7 @@ describe('_mergeFiles', () => {
     const targetPath = path.join(tmpDir, '01-first.md');
     const sourcePath = path.join(tmpDir, '02-second.md');
 
-    await _mergeFiles(targetPath, sourcePath, tmpDir);
+    await _mergeFiles(targetPath, sourcePath, tmpDir, isolated(tmpDir));
 
     const result = fs.readFileSync(targetPath, 'utf8');
     assert.ok(result.includes('Content A'));
@@ -57,7 +80,7 @@ describe('_mergeFiles', () => {
     const targetPath = path.join(tmpDir, '01-first.md');
     const sourcePath = path.join(tmpDir, '02-second.md');
 
-    await _mergeFiles(targetPath, sourcePath, tmpDir);
+    await _mergeFiles(targetPath, sourcePath, tmpDir, isolated(tmpDir));
 
     const parsed = matter(fs.readFileSync(targetPath, 'utf8'));
     assert.equal(parsed.data.title, 'First');
@@ -77,7 +100,7 @@ describe('_mergeFiles', () => {
     const targetPath = path.join(tmpDir, '01-first.md');
     const sourcePath = path.join(tmpDir, '02-second.md');
 
-    await _mergeFiles(targetPath, sourcePath, tmpDir);
+    await _mergeFiles(targetPath, sourcePath, tmpDir, isolated(tmpDir));
 
     const parsed = matter(fs.readFileSync(targetPath, 'utf8'));
     assert.equal(parsed.data.title, 'First');
@@ -91,7 +114,7 @@ describe('_mergeFiles', () => {
     const targetPath = path.join(tmpDir, '01-first.md');
     const sourcePath = path.join(tmpDir, '02-second.md');
 
-    await _mergeFiles(targetPath, sourcePath, tmpDir);
+    await _mergeFiles(targetPath, sourcePath, tmpDir, isolated(tmpDir));
 
     assert.ok(!fs.existsSync(sourcePath));
   });
@@ -104,7 +127,7 @@ describe('_mergeFiles', () => {
     const targetPath = path.join(tmpDir, '01-first.md');
     const sourcePath = path.join(tmpDir, '02-second.md');
 
-    await _mergeFiles(targetPath, sourcePath, tmpDir);
+    await _mergeFiles(targetPath, sourcePath, tmpDir, isolated(tmpDir));
 
     const files = fs.readdirSync(tmpDir).sort();
     assert.deepStrictEqual(files, ['01-first.md', '02-third.md']);
@@ -117,7 +140,7 @@ describe('_mergeFiles', () => {
     const targetPath = path.join(tmpDir, '01-first.md');
     const sourcePath = path.join(tmpDir, '02-second.md');
 
-    await _mergeFiles(targetPath, sourcePath, tmpDir);
+    await _mergeFiles(targetPath, sourcePath, tmpDir, isolated(tmpDir));
 
     const parsed = matter(fs.readFileSync(targetPath, 'utf8'));
     const body = parsed.content.trim();
@@ -125,6 +148,76 @@ describe('_mergeFiles', () => {
     assert.ok(body.includes('Line 3\nLine 4'));
     // Should have a blank line between the two parts
     assert.ok(body.includes('Line 2\n\nLine 3'));
+  });
+
+  it('carries the renumber into the state file it was handed', async () => {
+    createMdFile(tmpDir, '01-first.md', { title: 'First' }, 'A');
+    createMdFile(tmpDir, '02-second.md', { title: 'Second' }, 'B');
+    createMdFile(tmpDir, '03-third.md', { title: 'Third' }, 'C');
+
+    const { file } = isolated(tmpDir);
+    const folder = path.basename(tmpDir);
+    const key = (name) => `${folder}/${name}`;
+    const row = (canvasId) => ({
+      canvas_type: 'page',
+      canvas_id: canvasId,
+      page_url: `p${canvasId}`,
+      module_item_id: canvasId + 1000,
+    });
+    fs.writeFileSync(
+      file,
+      JSON.stringify({
+        schema_version: SCHEMA_VERSION,
+        canvas_base_url: CANVAS_URL,
+        course_id: Number(COURSE_ID),
+        last_sync: null,
+        modules: {
+          [folder]: {
+            canvas_module_id: 100,
+            item_order: ['01-first.md', '02-second.md', '03-third.md'].map(key),
+            items: {
+              [key('01-first.md')]: row(1),
+              [key('02-second.md')]: row(2),
+              [key('03-third.md')]: row(3),
+            },
+          },
+        },
+        icons: {},
+        files: {},
+      }) + '\n',
+      'utf8',
+    );
+
+    // The merge deletes 02 and renumbers 03 to 02-third.md — the slug stays,
+    // only the number moves, so nothing collides here. The source's own row
+    // stays behind on purpose: its Canvas page is still live, and that row is
+    // what reports it as orphaned and lets a prune offer it.
+    silence();
+    await _mergeFiles(
+      path.join(tmpDir, '01-first.md'),
+      path.join(tmpDir, '02-second.md'),
+      tmpDir,
+      isolated(tmpDir),
+    );
+
+    const items = JSON.parse(fs.readFileSync(file, 'utf8')).modules[folder]
+      .items;
+    assert.deepEqual(Object.keys(items).sort(), [
+      key('01-first.md'),
+      key('02-second.md'),
+      key('02-third.md'),
+    ]);
+    assert.equal(
+      items[key('02-third.md')].canvas_id,
+      3,
+      'the renamed item should have taken its Canvas id to the new path',
+    );
+    assert.equal(
+      items[key('02-second.md')].canvas_id,
+      2,
+      'the merged-away source keeps its row, so its live Canvas page is ' +
+        'still reported as orphaned rather than silently written back',
+    );
   });
 });
 

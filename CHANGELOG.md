@@ -14,6 +14,12 @@
   never wrote. Both of its jobs are now guarded on the repository name, so a
   fork of the tooling keeps its CI while a course skips it.
 
+- `npm test` no longer fails in a course project that has synced with Canvas.
+  One test of `merge-items` reached past its own fixture and loaded the
+  project's real `.canvas-sync.json`, where the mismatch guard refused it for
+  describing a different course than the test's fake credentials. The command
+  itself was never affected; only the test read the wrong file.
+
 - Generated folder and file names are capped at 60 characters, cut on a word
   boundary. A Canvas title can be a whole sentence — a text header telling the
   author what to put in the module is a real example — and uncapped it became a

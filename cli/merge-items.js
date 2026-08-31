@@ -24,8 +24,12 @@ const { dropRowsRenumberedOver, recordRenames } = require('./sync-renames');
  * @param {string} targetPath - Absolute path to the target file (keeps frontmatter).
  * @param {string} sourcePath - Absolute path to the source file (appended, then deleted).
  * @param {string} targetDir  - Directory containing both files.
+ * @param {object} [options]
+ * @param {string} [options.courseDir] - Injection point for tests.
+ * @param {string} [options.file]      - Injection point for tests.
  */
-async function _mergeFiles(targetPath, sourcePath, targetDir) {
+async function _mergeFiles(targetPath, sourcePath, targetDir, options = {}) {
+  const { courseDir, file } = options;
   const targetRaw = fs.readFileSync(targetPath, 'utf8');
   const sourceRaw = fs.readFileSync(sourcePath, 'utf8');
 
@@ -67,9 +71,9 @@ async function _mergeFiles(targetPath, sourcePath, targetDir) {
         renames,
       },
     ],
-    { tag: 'merge-items' },
+    { tag: 'merge-items', courseDir, file },
   );
-  recordRenames([{ fromDir: targetDir, renames }]);
+  recordRenames([{ fromDir: targetDir, renames }], { courseDir, file });
   if (renames.length > 0) {
     console.log('[merge-items] Renumbered remaining items:');
     for (const r of renames) {
