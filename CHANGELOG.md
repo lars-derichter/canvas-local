@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.2 (2026-08-31)
 
 - Frontmatter is written with the emoji intact. `gray-matter` bundles a js-yaml
   3 of its own, whose dumper walks a string by UTF-16 code unit, so a page
