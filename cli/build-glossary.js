@@ -120,11 +120,16 @@ function renderBody(terms, lesson, config = DEFAULT_CONFIG) {
  * force the canonical title, default canvas_type, then append the generated
  * body.
  *
- * Every string value is double-quoted with the emoji kept literal (via the
+ * Every string value is double-quoted, with the emoji kept literal (via the
  * js-yaml 5 dump transform below; the v4 forceQuotes option no longer exists).
- * Docusaurus trips over an unquoted emoji title, and gray-matter's bundled
- * js-yaml 3.x would mangle the emoji into a `\U..` escape — hence neither
- * default js-yaml output nor serializeFrontmatter works here.
+ *
+ * The uniform quoting is this generated page's own style, not a requirement.
+ * Docusaurus reads an unquoted emoji title without complaint — the tutorial
+ * module's pages are written that way — and `serializeFrontmatter` keeps an
+ * emoji literal too, since it dumps through the top-level js-yaml rather than
+ * gray-matter's bundled js-yaml 3. What that writer will not do is quote a
+ * value YAML does not need quoted, which is the only reason this path is still
+ * its own.
  */
 
 /**
