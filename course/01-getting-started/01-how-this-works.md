@@ -38,7 +38,8 @@ manuscript and never the manuscript itself.
 
 ## What You Will Do in This Module
 
-1. Set up VS Code and the Course Manager sidebar.
+1. Install what you need, make your own copy of the project, and set up the
+   Course Manager sidebar.
 2. Write pages in markdown, with headings, images, code and coloured callouts.
 3. Organise them into modules and subsections, and learn which file becomes
    which kind of item.

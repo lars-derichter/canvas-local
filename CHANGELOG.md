@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- The tutorial module now starts from a computer with nothing installed. A
+  **Setting Up** subsection covers VS Code, Node.js, git and a GitHub account,
+  then **Use this template**, `git clone` and `npm install`, so a reader who
+  lands on the module can follow it through instead of being sent to the
+  documentation for the first half. The old **VS Code** page moves in as **The
+  Course Manager** and keeps the extension install and the panel tour.
+  `docs/first-course.md` is unchanged and remains the same path as one page,
+  with the per-system detail the module links out to.
+
 - The emoji legend in the writing-style guides gains `🔑` for a solution page,
   in all four language variants. Courses that publish worked solutions were
   already using it and each picked their own marker.

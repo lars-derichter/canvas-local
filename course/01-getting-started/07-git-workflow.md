@@ -10,9 +10,11 @@ project. This page shows you how to use Git as part of your daily workflow:
 saving your work, backing it up to GitHub, and getting things back when you need
 to.
 
-If you still need to set up Git or GitHub, work through the
+If you still need any of those, go back to
+[What You Need](03-setting-up/01-what-you-need.md) and
+[Your Course Project](03-setting-up/02-your-course-project.md). The
 [git and GitHub guide](https://github.com/lars-derichter/coursewright/blob/main/docs/git-and-github.md)
-first.
+explains what git is doing underneath.
 
 ## Saving Your Work
 

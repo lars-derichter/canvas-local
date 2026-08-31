@@ -76,7 +76,7 @@ terminal.
 > **Terminal:**
 >
 > ```bash
-> npx course export course/01-getting-started/03-vs-code.md  # one page
+> npx course export course/01-getting-started/07-git-workflow.md  # one page
 > npx course export -m 01-getting-started    # a whole module
 > npx course export                          # the full course
 > npx course export --flagged                # only the flagged items

@@ -1,25 +1,14 @@
 ---
-title: ⚙️ VS Code
+title: ⚙️ The Course Manager
 canvas_type: page
 ---
 
-# VS Code
+# The Course Manager
 
-Visual Studio Code is the free editor this module assumes, and it runs on
-Windows, macOS and Linux. The Course Manager extension that ships with this
-project puts your course in its sidebar, so every step from here on is a click,
-with the terminal there for anyone who would rather type.
-
-## Installing VS Code
-
-Download it from [code.visualstudio.com](https://code.visualstudio.com/) and
-install it with the defaults. On macOS there is one extra step worth doing while
-you are there: step 1 of the
-[first-course guide](https://github.com/lars-derichter/coursewright/blob/main/docs/first-course.md#1-install-vs-code)
-adds the `code` shell command, which the extension install below needs.
-
-Then use **File > Open Folder** and pick your project folder itself, not a
-folder above it.
+The Course Manager extension ships with your project and puts your course in VS
+Code’s sidebar, so every step from here on is a click, with the terminal there
+for anyone who would rather type. Your project folder should be the one open in
+VS Code before you start.
 
 ## Installing the Extension
 
@@ -33,7 +22,7 @@ Then run **Developer: Reload Window** from the command palette. Do both again
 whenever the extension is updated. This is the one command everybody types; the
 rest of this page is buttons.
 
-## The Course Manager Panel
+## The Panel
 
 Click the book icon in the activity bar, down the left edge of the window. The
 panel shows your course as a tree: modules, the subsections inside them, and the
@@ -85,8 +74,8 @@ Right-click a row for the commands that act on it.
   **Pull This Module from Canvas** and **Status of This Module**, module rows
   only.
 
-[Managing Modules and Items](06-managing-modules-and-items.md) walks through the
-tasks themselves. This is only the map.
+[Managing Modules and Items](../06-managing-modules-and-items.md) walks through
+the tasks themselves. This is only the map.
 
 ### Drag and Drop
 
