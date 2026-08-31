@@ -21,6 +21,12 @@
   in all four language variants. Courses that publish worked solutions were
   already using it and each picked their own marker.
 
+- Prettier leaves `.canvas-sync.json` alone. `lib/sync/state.js` writes that
+  file, and `JSON.stringify` does not lay out a single-element array the way
+  Prettier would, so every sync left a course repository failing
+  `npm run format:check` on a file nobody had edited by hand. Running Prettier
+  over it held only until the next sync.
+
 - The tooling's own test workflow no longer runs in course projects. Every
   project created from the template inherited `.github/workflows/test.yml`, and
   it ran the template-only suite: the checks that read the README, the course
