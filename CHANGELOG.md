@@ -14,6 +14,13 @@
   never wrote. Both of its jobs are now guarded on the repository name, so a
   fork of the tooling keeps its CI while a course skips it.
 
+- A pull no longer writes markdown the preview cannot build. Text a Canvas page
+  held as `&lt;tel nr&gt;` came back as a bare `<tel nr>`, which MDX reads as an
+  unclosed tag, so `npm run build` failed on a page the author never wrote. The
+  same escape fixes the push: unescaped, that text went back to Canvas as markup
+  and the words disappeared from the page. A spaced comparison like `a < b` is
+  left alone, since MDX only starts a tag on a non-space.
+
 - `npm test` no longer fails in a course project that has synced with Canvas.
   One test of `merge-items` reached past its own fixture and loaded the
   project's real `.canvas-sync.json`, where the mismatch guard refused it for

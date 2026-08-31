@@ -822,6 +822,63 @@ describe('escaping on the way down from Canvas', () => {
       );
     }
   });
+
+  // Turndown's escape table has no `<` rule, which is right for CommonMark and
+  // wrong here twice: the preview is MDX, which reads `<` as a tag whenever the
+  // next character is not whitespace, and an unescaped one goes back to Canvas
+  // on the next push as markup rather than as the words it was.
+  it('escapes an angle bracket that would open a tag', () => {
+    assert.equal(
+      htmlToMarkdown('<p>Whatsapp ons op &lt;tel nr&gt;.</p>'),
+      'Whatsapp ons op \\<tel nr>.',
+    );
+    assert.equal(
+      htmlToMarkdown('<p>Emoji &lt;3, and x&lt;y, and &lt;/close.</p>'),
+      'Emoji \\<3, and x\\<y, and \\</close.',
+    );
+  });
+
+  it('leaves a spaced comparison alone, which is most prose', () => {
+    // The guard against over-reaching. MDX starts a tag only on a non-space,
+    // so escaping these would be backslash noise on every maths-shaped line
+    // for no gain at all.
+    assert.equal(
+      htmlToMarkdown('<p>Compare a &lt; b and c &gt; d.</p>'),
+      'Compare a < b and c > d.',
+    );
+    assert.equal(
+      htmlToMarkdown('<p>As a &lt; type of user &gt;, I want …</p>'),
+      'As a < type of user >, I want …',
+    );
+  });
+
+  it('leaves markup inside a code span raw', () => {
+    // Only text nodes reach the escaper, so a code span keeps the angle
+    // brackets an author needs to show markup at all.
+    assert.equal(
+      htmlToMarkdown('<p>Use <code>&lt;div&gt;</code> for a block.</p>'),
+      'Use `<div>` for a block.',
+    );
+  });
+
+  it('round-trips an angle bracket back to the text Canvas sent', () => {
+    // The push-side half. Unescaped, `<tel nr>` reaches Canvas as a tag and
+    // the words vanish from the page; escaped, it comes back as `&lt;tel nr&gt;`.
+    const rt = roundTrips('Whatsapp ons op \\<tel nr>.\n');
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.md2, /\\<tel nr>/);
+    assert.match(markdownToHtml(rt.md2), /&lt;tel nr&gt;/);
+  });
+
+  it('round-trips a link wrapped in angle brackets', () => {
+    // The second shape a real Canvas import produced, and the one whose MDX
+    // error named `[` rather than a tag name.
+    const rt = roundTrips(
+      'Verzameld door \\<[DOCENT](https://example.com)\\>\n',
+    );
+    assertSurvivesRoundTrip(rt);
+    assert.match(rt.md2, /\\</);
+  });
 });
 
 describe('round trip through push and pull: block structure', () => {
