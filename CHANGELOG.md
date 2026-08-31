@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- The course home page leads with the tutorial module. Its **Start Here** list
+  opened by sending a first-time visitor back out to the documentation on
+  GitHub, while the module the site exists to show off was a tip halfway up the
+  page. The module is the first entry now, the tip shrinks to a nudge, and
+  `docs/first-course.md` follows as the same path in one page.
+
 - The tutorial module now starts from a computer with nothing installed. A
   **Setting Up** subsection covers VS Code, Node.js, git and a GitHub account,
   then **Use this template**, `git clone` and `npm install`, so a reader who

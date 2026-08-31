@@ -18,11 +18,9 @@ own repository. Every page of the Getting Started module is
 
 > [!TIP]
 >
-> New here? Head into the
+> New here? Start with the
 > [**Getting Started**](01-getting-started/01-how-this-works.md) module in the
-> sidebar. It walks the whole workflow from the VS Code sidebar: writing,
-> organising, saving with git, and publishing by any of the three routes. Every
-> page in it is a working example of something the tool can publish.
+> sidebar.
 
 ## The Problem It Solves
 
@@ -62,10 +60,10 @@ review.
 
 Lecturers and teaching teams who want course material in files, folders and
 version control, whatever it ends up published to: a course website, a printed
-reader, Canvas, or all three. You do not need to be technical. The beginner
-walkthrough starts from a computer with nothing installed, and the sidebar means
-you never have to type a command. (The tutorial names the commands anyway, for
-those who like typing.)
+reader, Canvas, or all three. You do not need to be technical. The tutorial
+starts from a computer with nothing installed, and the sidebar means you never
+have to type a command. (It names the commands anyway, for those who like
+typing.)
 
 It is also opinionated, and honest about it. Every Canvas item type crosses, but
 not all of them in the same way: pages, assignments, discussions and files live
@@ -77,8 +75,13 @@ six.
 
 ## Start Here
 
+- **[Getting Started](01-getting-started/01-how-this-works.md)**: the tutorial
+  module in the sidebar. It takes you from nothing installed to a published
+  course: setting up, writing, organising, saving with git, and publishing by
+  whichever of the three routes you pick. Every page in it is a working example
+  of something the tool can publish.
 - **[Your First Course, Step by Step](https://github.com/lars-derichter/coursewright/blob/main/docs/first-course.md)**:
-  from nothing installed to a published course, whichever route you take.
+  the same path as one long page, with the per-system detail spelled out.
 - **[What It Does Not Do](https://github.com/lars-derichter/coursewright/blob/main/docs/limitations.md)**:
   read this before committing a semester to it.
 - **[The project on GitHub](https://github.com/lars-derichter/coursewright)**:
