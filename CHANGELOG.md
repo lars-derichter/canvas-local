@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1.0 (2026-09-01)
 
 - A file reused across modules gets a home: `course/_files/`, a shared assets
   folder at the root of the course tree, with subfolders welcome
