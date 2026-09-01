@@ -719,7 +719,10 @@ describe('VS Code extension: export commands', () => {
       (m) => m.command === 'course.exportItem',
     );
     assert.ok(exportItem, 'course.exportItem needs a context menu entry');
-    assert.match(exportItem.when, /page\|assignment\|external_url\|file/);
+    assert.match(
+      exportItem.when,
+      /page\|assignment\|discussion\|external_url\|file/,
+    );
     const exportModule = itemContextMenus.find(
       (m) => m.command === 'course.exportModule',
     );
@@ -983,6 +986,71 @@ describe('VS Code extension: subsection move support', () => {
       /isSubsection\s*=[\s\S]*?statSync\([^)]*\)\.isDirectory\(\)/,
     );
     assert.match(allSource, /isSubsection\s*\?\s*\[\]\s*:/);
+  });
+});
+
+describe('VS Code extension: the item menu on a discussion row', () => {
+  const itemContextMenus = packageJson.contributes.menus['view/item/context'];
+
+  // Rename, move, move-to-module, delete and export. Merge is deliberately
+  // absent: its two halves stay pages and assignments only.
+  const MANAGEMENT = [
+    'course.renameItem',
+    'course.moveItem',
+    'course.moveItemToModule',
+    'course.deleteItem',
+    'course.exportItem',
+  ];
+
+  it('offers every entry a page row gets', () => {
+    // A discussion is authored content here — the markdown file is the topic's
+    // opening message — and the CLI behind all five is type-blind, which the
+    // palette already proves: its pickers list a module's entries by filename,
+    // so Course: Rename Item run from there has always worked on one. The
+    // clauses were written when a discussion was sync-only, and left the row
+    // with nothing but Open in Canvas, so the tree could create a discussion it
+    // could not then rename or delete.
+    for (const id of MANAGEMENT) {
+      const entry = itemContextMenus.find((m) => m.command === id);
+      assert.ok(entry, `${id} should have a view/item/context menu entry`);
+      assert.ok(
+        admits(entry.when, 'discussion'),
+        `"${entry.when}" leaves a discussion row without ${id}`,
+      );
+      assert.ok(
+        admits(entry.when, 'page'),
+        `"${entry.when}" has to keep admitting page rows`,
+      );
+    }
+  });
+
+  it('leaves the two merge halves where they were', () => {
+    // Merging folds one item's body into another and deletes the source. On a
+    // discussion that would take the Canvas topic and its replies with it, and
+    // the handler has no branch for that.
+    for (const id of ['course.mergeSetSource', 'course.mergeWithSource']) {
+      const entry = itemContextMenus.find((m) => m.command === id);
+      assert.ok(entry, `${id} should have a view/item/context menu entry`);
+      assert.ok(
+        !admits(entry.when, 'discussion'),
+        `"${entry.when}" offers ${id} on a discussion row`,
+      );
+    }
+  });
+
+  it('still refuses the types that carry no content of their own', () => {
+    // A quiz and an LTI link are references to a Canvas object: the local file
+    // says which one belongs here and holds nothing to rename, export or move
+    // the content of. They stay out, so this reads as the rule it is.
+    for (const id of MANAGEMENT) {
+      const entry = itemContextMenus.find((m) => m.command === id);
+      for (const row of ['quiz', 'external_tool']) {
+        assert.ok(
+          !admits(entry.when, row),
+          `"${entry.when}" offers ${id} on a ${row} row`,
+        );
+      }
+    }
   });
 });
 

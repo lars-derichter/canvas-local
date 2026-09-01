@@ -12,6 +12,16 @@
   are added by hand, because a value nobody chose written into a new file reads
   exactly like one that was.
 
+- A discussion row in the Course Manager tree offers the same right-click menu a
+  page row does: **Rename Item**, **Move Item**, **Move Item to Module**,
+  **Delete Item** and **Export Item**. The clauses gating those five were
+  written when a discussion was sync-only and never widened, so the row carried
+  nothing but **Open in Canvas** — and the tree could now create a discussion it
+  could not then rename or delete. The CLI behind all five was never the
+  problem: it reads files by name whatever type they declare, which is why the
+  same commands have always worked on a discussion from the command palette.
+  Merge is unchanged and stays pages and assignments only.
+
 ## 1.1.0 (2026-09-01)
 
 - A file reused across modules gets a home: `course/_files/`, a shared assets

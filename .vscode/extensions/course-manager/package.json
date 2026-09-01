@@ -338,17 +338,17 @@
         },
         {
           "command": "course.renameItem",
-          "when": "view == courseTree && viewItem =~ /^(page|assignment|external_url|file|subheader)$/",
+          "when": "view == courseTree && viewItem =~ /^(page|assignment|discussion|external_url|file|subheader)$/",
           "group": "1_edit"
         },
         {
           "command": "course.moveItem",
-          "when": "view == courseTree && viewItem =~ /^(page|assignment|external_url|file|subheader)$/",
+          "when": "view == courseTree && viewItem =~ /^(page|assignment|discussion|external_url|file|subheader)$/",
           "group": "1_edit"
         },
         {
           "command": "course.moveItemToModule",
-          "when": "view == courseTree && viewItem =~ /^(page|assignment|external_url|file|subheader)$/",
+          "when": "view == courseTree && viewItem =~ /^(page|assignment|discussion|external_url|file|subheader)$/",
           "group": "1_edit"
         },
         {
@@ -373,7 +373,7 @@
         },
         {
           "command": "course.deleteItem",
-          "when": "view == courseTree && viewItem =~ /^(page|assignment|external_url|file|subheader)$/",
+          "when": "view == courseTree && viewItem =~ /^(page|assignment|discussion|external_url|file|subheader)$/",
           "group": "2_danger"
         },
         {
@@ -383,7 +383,7 @@
         },
         {
           "command": "course.exportItem",
-          "when": "view == courseTree && viewItem =~ /^(page|assignment|external_url|file)$/",
+          "when": "view == courseTree && viewItem =~ /^(page|assignment|discussion|external_url|file)$/",
           "group": "3_export"
         },
         {
