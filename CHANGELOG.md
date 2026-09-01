@@ -15,6 +15,17 @@
   Copies already on disk are not removed; delete them by hand, and note that a
   foreign-course one is the only thing in `_files/` with no row of its own.
 
+- The alert icons upload under their own names again, so re-uploading them
+  replaces the six in the Canvas `/course-icons` folder instead of adding six
+  more. The theme-coloured copy went up from a temp file whose name carried the
+  process id, and Canvas matches `on_duplicate=overwrite` on the name, so only a
+  run that happened to draw the same pid ever matched. Every other run orphaned
+  the previous six — still referenced by every page not pushed since — and left
+  `course-icon-20452-info.svg` and its siblings in the author's own Files area.
+  The run's uniqueness moved to the temp directory, where it costs nothing.
+  Uploads from earlier versions are not cleaned up; delete them from the Canvas
+  Files area if you want them gone.
+
 ## 1.0.2 (2026-08-31)
 
 - Frontmatter is written with the emoji intact. `gray-matter` bundles a js-yaml

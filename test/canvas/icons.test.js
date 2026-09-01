@@ -42,14 +42,19 @@ function uploadRoutes() {
 
 /** Upload every icon under one `CANVAS_API_URL`, and hand back the rows. */
 async function uploadedIcons(apiUrl) {
+  return (await uploadRun(apiUrl)).icons;
+}
+
+/** The same run, with the recorded requests as well as the rows. */
+async function uploadRun(apiUrl) {
   const original = process.env.CANVAS_API_URL;
   process.env.CANVAS_API_URL = apiUrl;
   try {
     silence();
-    mockCanvas(uploadRoutes());
+    const calls = mockCanvas(uploadRoutes());
     const syncData = { icons: {} };
     await ensureIcons(COURSE_ID, syncData);
-    return syncData.icons;
+    return { icons: syncData.icons, calls };
   } finally {
     process.env.CANVAS_API_URL = original;
   }
@@ -77,6 +82,25 @@ describe('ensureIcons', () => {
       assert.equal(icons.note.preview_url, PREVIEW);
     });
   }
+
+  it('uploads each icon under its own name', async () => {
+    // Canvas matches `on_duplicate: overwrite` on the name it is given, and
+    // `uploadFile` takes that name off the path. A temp filename made unique
+    // per run — `course-icon-<pid>-info.svg` — therefore only ever matched a
+    // run that drew the same pid: every other one added six more files to
+    // `/course-icons` instead of replacing the six that were there, and left
+    // the pid in the author's own Files area. The uniqueness belongs to the
+    // directory, which is why this asserts on the name Canvas is handed.
+    const { calls } = await uploadRun('https://canvas.example.com');
+    const grants = calls.filter(
+      (call) =>
+        call.method === 'POST' && call.url.includes('/files') && call.body,
+    );
+    assert.deepEqual(
+      grants.map((call) => call.body.name),
+      ICON_TYPES.map((type) => ICON_FILES[type]),
+    );
+  });
 
   it('records a preview URL for every icon', async () => {
     const icons = await uploadedIcons('https://canvas.example.com/');
