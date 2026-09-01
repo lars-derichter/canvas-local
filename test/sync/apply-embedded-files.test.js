@@ -11,6 +11,11 @@ process.env.CANVAS_API_TOKEN = 'test-token-123';
 
 const { applyPlan } = require('../../lib/sync/apply');
 const { COURSE_DIR } = require('../../cli/module-utils');
+const { plan } = require('../../lib/sync/plan');
+const { gatherCanvas, gatherLocal } = require('../../lib/sync/gather');
+const { seedPrettierConfig } = require('../helpers/prettier-config');
+const { ICON_FILES } = require('../../lib/convert/alert-icons');
+const { loadTheme, themeFingerprint } = require('../../lib/config/theme');
 
 /**
  * Where the binary behind an embedded image ends up.
@@ -971,5 +976,146 @@ describe('an embedded binary nothing points at any more', () => {
 
     assert.deepEqual(outcome.errors, []);
     assert.deepEqual(calls, [], 'a swept row must cost nothing to re-sweep');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Which Canvas folder an embedded binary goes up into
+// ---------------------------------------------------------------------------
+
+/**
+ * A binary under a module uploads into that module's folder, as always. A
+ * shared one — under the root `course/_files/` — has no module, and taking the
+ * referencing page's would take a different one depending on which page pushed
+ * first: a later edit re-uploaded from another module's page then lands in
+ * another folder, where `on_duplicate=overwrite` cannot see the previous
+ * upload, so Canvas mints a new id and the old file is stranded for good. The
+ * folder must come from the ref's own path — `shared/`, mirroring the tree
+ * under `course/_files/` — so every push resolves it alike.
+ */
+
+describe('the Canvas folder an embedded binary uploads into', () => {
+  it('mirrors a shared file under shared/, and keeps a module file in its module', async () => {
+    silence();
+    const courseDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shared-files-'));
+    seedPrettierConfig(courseDir);
+    const tree = {
+      '01-intro/_category_.json': '{ "label": "Intro", "position": 1 }\n',
+      '01-intro/01-welcome.md':
+        '---\ntitle: Welcome\n---\n\n' +
+        '![Local](./_files/local.png)\n\n' +
+        '![Shared](../_files/logo.png)\n\n' +
+        '![Nested](../_files/aias/n1.png)\n',
+      '01-intro/_files/local.png': 'module-local bytes',
+      '_files/logo.png': 'shared bytes',
+      '_files/aias/n1.png': 'nested shared bytes',
+    };
+    for (const [relative, contents] of Object.entries(tree)) {
+      const full = path.join(courseDir, relative);
+      fs.mkdirSync(path.dirname(full), { recursive: true });
+      fs.writeFileSync(full, contents, 'utf8');
+    }
+
+    // Icons already uploaded under the current theme, so the push at hand is
+    // the only upload traffic in the route table.
+    const fingerprint = themeFingerprint(loadTheme());
+    const state = stateWithModule();
+    for (const type of Object.keys(ICON_FILES)) {
+      state.icons[type] = {
+        canvas_file_id: 900,
+        preview_url: `https://canvas.example.com/recorded/${type}`,
+        theme: fingerprint,
+      };
+    }
+    state.modules = {};
+
+    mockCanvas([{ method: 'GET', path: '/modules', body: [] }]);
+    const canvas = await gatherCanvas({ courseId: COURSE_ID, base: state });
+    const planned = plan({
+      base: state,
+      local: gatherLocal({ courseDir, gitDirty: CLEAN }),
+      canvas,
+    });
+    assert.deepEqual(
+      planned.actions.map((action) => action.type),
+      ['create-canvas-module', 'create-canvas-item'],
+    );
+
+    mock.restoreAll();
+    silence();
+    const uploads = [];
+    for (const [index, name] of ['local', 'logo', 'n1'].entries()) {
+      uploads.push({
+        method: 'POST',
+        path: `/api/v1/courses/${COURSE_ID}/files`,
+        body: {
+          upload_url: `https://canvas.example.com/upload/${name}`,
+          upload_params: {},
+        },
+      });
+      uploads.push({
+        method: 'POST',
+        path: `/upload/${name}`,
+        body: { id: 700 + index, display_name: `${name}.png` },
+      });
+    }
+    const item = {
+      id: 91,
+      type: 'Page',
+      title: 'Welcome',
+      page_url: 'welcome',
+      content_id: 501,
+      position: 1,
+      indent: 0,
+    };
+    const calls = mockCanvas([
+      { method: 'POST', path: '/modules/10/items', body: item },
+      {
+        method: 'POST',
+        path: '/modules',
+        body: { id: 10, name: 'Intro', position: 1 },
+      },
+      ...uploads,
+      {
+        method: 'POST',
+        path: '/pages',
+        body: {
+          page_id: 501,
+          url: 'welcome',
+          title: 'Welcome',
+          body: '<p>rendered</p>',
+          updated_at: '2026-08-20T11:00:00.000Z',
+        },
+      },
+    ]);
+
+    const outcome = await run(planned.actions, {
+      courseDir,
+      state,
+      gitDirty: CLEAN,
+      canvasContent: canvas.content,
+    });
+    assert.deepEqual(outcome.errors, []);
+
+    // The grant names the destination folder; one per binary, in page order.
+    const grants = calls.filter(
+      (call) =>
+        call.method === 'POST' &&
+        call.url.includes(`/courses/${COURSE_ID}/files`) &&
+        call.body &&
+        call.body.parent_folder_path,
+    );
+    assert.deepEqual(
+      grants.map((call) => call.body.parent_folder_path),
+      ['01-intro', '/shared', '/shared/aias'],
+    );
+
+    // And the rows are keyed by the paths the pages resolve, module-less for
+    // the shared pair.
+    assert.deepEqual(Object.keys(state.files).sort(), [
+      '01-intro/_files/local.png',
+      '_files/aias/n1.png',
+      '_files/logo.png',
+    ]);
   });
 });

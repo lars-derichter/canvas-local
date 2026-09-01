@@ -108,8 +108,11 @@ function strandedBy(itemPath, row) {
  *
  * The `state.files` sweep is not confined to the module branch, though it is
  * only a module that can have rows under it today: `_files/` sits at module
- * level, and a `_` prefix keeps it out of `getItems`, so no item path is ever a
- * prefix of one. Sweeping unconditionally costs a loop over a small map and
+ * level or at the root of `course/`, and a `_` prefix keeps both out of
+ * `getItems`, so no item path is ever a prefix of one — and no module path is
+ * a prefix of a shared `_files/…` row, which is exactly why renaming or
+ * deleting a module leaves the shared files alone.
+ * Sweeping unconditionally costs a loop over a small map and
  * means a state that has lost a module row while keeping its file rows — hand
  * edited, half restored from a bad merge — is still cleared rather than left
  * with a row `renameFolder` would silently overwrite while rebuilding that map.

@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+- A file reused across modules gets a home: `course/_files/`, a shared assets
+  folder at the root of the course tree, with subfolders welcome
+  (`course/_files/aias/`). Reference it from a module page as `../_files/…` and
+  from a page inside a subfolder as `../../_files/…`; the preview, both exports,
+  `validate` and the Canvas sync all resolve it, one upload and one Canvas file
+  however many pages embed it. On Canvas such a file lands in a `shared/` folder
+  mirroring the tree under `course/_files/`, taken from the file's own path
+  rather than from whichever module's page happened to push first — the old rule
+  left a re-upload triggered from another module in another folder, where
+  overwrite-on-name could not see the previous file, so Canvas minted a new id
+  and stranded the old file beyond any prune. Pull preserves shared files but
+  never creates one: a binary first met on Canvas still lands in the referencing
+  module's own `_files/`.
+
 ## 1.0.3 (2026-09-01)
 
 - A pull no longer downloads the alert icons into a module's `_files/`. The scan
