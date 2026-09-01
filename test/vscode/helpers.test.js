@@ -2233,10 +2233,11 @@ describe('helpers: validatePoints', () => {
 describe('helpers: newItemTypes', () => {
   const typesOf = (options) => newItemTypes(options).map((row) => row.type);
 
-  it('offers all five at module root', () => {
+  it('offers all six at module root', () => {
     assert.deepEqual(typesOf(), [
       'page',
       'assignment',
+      'discussion',
       'url',
       'subsection',
       'file',
@@ -2250,6 +2251,7 @@ describe('helpers: newItemTypes', () => {
     assert.deepEqual(typesOf({ inSubsection: true }), [
       'page',
       'assignment',
+      'discussion',
       'url',
       'file',
     ]);

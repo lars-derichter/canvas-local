@@ -451,3 +451,78 @@ describe('npx course new-item --points on a type that has none', () => {
     assert.match(run.stdout, /assignment/);
   });
 });
+
+describe('npx course new-item --type discussion', () => {
+  /** Create one discussion called "Week 3 Reading", and read it back. */
+  function discussion(dir) {
+    const run = newItem(dir, [
+      '--module',
+      '01-intro',
+      '--type',
+      'discussion',
+      '--name',
+      'Week 3 Reading',
+    ]);
+    assert.equal(run.status, 0, run.stderr);
+    return {
+      run,
+      file: matter(
+        fs.readFileSync(
+          path.join(dir, 'course', '01-intro', '01-week-3-reading.md'),
+          'utf8',
+        ),
+      ),
+    };
+  }
+
+  it('writes the type it was asked for, not the page it falls back to', () => {
+    // The type chain in `createEntry` ends in an `else` that writes a page, so
+    // a type listed in VALID_TYPES with no branch of its own scaffolds a page
+    // under a discussion's name and says nothing about it. That is the failure
+    // this pins: a wrong canvas_type reads as deliberate, and the first sign of
+    // it is a push creating the wrong kind of Canvas object.
+    const dir = project();
+
+    const { file } = discussion(dir);
+
+    assert.equal(file.data.canvas_type, 'discussion');
+  });
+
+  it('writes the title and nothing else', () => {
+    // A page's scaffold and a discussion's are the same shape on purpose:
+    // `discussion_type`, `require_initial_post` and the two dates are optional
+    // in Canvas, and a value nobody chose written into a new file reads exactly
+    // like one that was.
+    const dir = project();
+
+    const { file } = discussion(dir);
+
+    assert.deepEqual(Object.keys(file.data), ['title', 'canvas_type']);
+    assert.equal(file.data.title, 'Week 3 Reading');
+    assert.equal(file.content.trim(), '# Week 3 Reading');
+  });
+
+  it('takes no points, the way every non-assignment does', () => {
+    const dir = project();
+    const run = newItem(dir, [
+      '--module',
+      '01-intro',
+      '--type',
+      'discussion',
+      '--name',
+      'Week 3 Reading',
+      '--points',
+      '40',
+    ]);
+
+    assert.equal(run.status, 0, run.stderr);
+    const { data } = matter(
+      fs.readFileSync(
+        path.join(dir, 'course', '01-intro', '01-week-3-reading.md'),
+        'utf8',
+      ),
+    );
+    assert.equal(data.points_possible, undefined);
+    assert.match(run.stdout, /--points/);
+  });
+});

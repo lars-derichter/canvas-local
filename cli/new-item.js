@@ -12,7 +12,14 @@ const { writeMarkdown } = require('../lib/convert/format-markdown');
 const { serializeFrontmatter } = require('../lib/convert/frontmatter');
 const { recordRenames } = require('./sync-renames');
 
-const VALID_TYPES = ['page', 'assignment', 'url', 'subsection', 'file'];
+const VALID_TYPES = [
+  'page',
+  'assignment',
+  'discussion',
+  'url',
+  'subsection',
+  'file',
+];
 
 /** What an assignment is worth when nothing usable says otherwise. */
 const DEFAULT_POINTS = 100;
@@ -197,6 +204,14 @@ async function createEntry(
   } else if (type === 'url') {
     frontmatterData.canvas_type = 'external_url';
     frontmatterData.external_url = url;
+  } else if (type === 'discussion') {
+    // A branch of its own rather than a fall-through, because the `else` below
+    // writes a page for anything it does not recognise: a type added to
+    // VALID_TYPES and left out here scaffolds a page under the name of
+    // something else, and says nothing about it. The title is all it writes.
+    // `discussion_type`, `require_initial_post` and the two dates are added by
+    // hand afterwards, the way a page's own optional fields are.
+    frontmatterData.canvas_type = 'discussion';
   } else {
     frontmatterData.canvas_type = 'page';
   }

@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- **Course: New Item** and `npx course new-item` create a discussion. The list
+  of types the two offer was five long while push and pull handled eight, so the
+  one content type they left out was the one a course actually writes: a
+  discussion had to be hand-written or copied off another file and edited. It
+  now sits second in the list, after an assignment, and scaffolds the same shape
+  a page does — a title, `canvas_type: discussion` and a heading.
+  `discussion_type`, `require_initial_post` and the two dates stay optional and
+  are added by hand, because a value nobody chose written into a new file reads
+  exactly like one that was.
+
 ## 1.1.0 (2026-09-01)
 
 - A file reused across modules gets a home: `course/_files/`, a shared assets

@@ -173,7 +173,7 @@ program
 program
   .command('new-item')
   .description(
-    'Create a new item (page, assignment, url, subsection, file) in a module',
+    'Create a new item (page, assignment, discussion, url, subsection, file) in a module',
   )
   .option(
     '-m, --module <folder>',
@@ -185,7 +185,7 @@ program
   )
   .option(
     '-t, --type <type>',
-    'Item type: page, assignment, url, subsection, file',
+    'Item type: page, assignment, discussion, url, subsection, file',
   )
   .option('-n, --name <name>', 'Item name (required unless --type is file)')
   .option('-p, --position <number>', 'Position (default: after the last item)')

@@ -935,7 +935,7 @@ describe('VS Code extension: activated, and run', () => {
     assert.equal(of('quickpick').length, 1, 'the type pick is the first ask');
     assert.deepEqual(
       of('quickpick')[0].items.map((item) => item.type),
-      ['page', 'assignment', 'url', 'file'],
+      ['page', 'assignment', 'discussion', 'url', 'file'],
     );
     assert.deepEqual(of('error'), [], 'nothing to refuse afterwards');
   });
@@ -948,7 +948,7 @@ describe('VS Code extension: activated, and run', () => {
 
     assert.deepEqual(
       of('quickpick')[0].items.map((item) => item.type),
-      ['page', 'assignment', 'url', 'subsection', 'file'],
+      ['page', 'assignment', 'discussion', 'url', 'subsection', 'file'],
     );
   });
 

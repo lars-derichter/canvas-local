@@ -1296,6 +1296,7 @@ function newItemTypes({ inSubsection = false } = {}) {
   return [
     { label: 'Page', type: 'page' },
     { label: 'Assignment', type: 'assignment' },
+    { label: 'Discussion', type: 'discussion' },
     { label: 'External URL', type: 'url' },
     ...(inSubsection
       ? []
