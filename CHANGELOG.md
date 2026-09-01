@@ -16,6 +16,15 @@
   never creates one: a binary first met on Canvas still lands in the referencing
   module's own `_files/`.
 
+- `npx course validate` reads the `_files/` folders themselves, which nothing
+  else does: the scanner skips `_`-prefixed names, sync knows a binary only once
+  markdown references it, and prune reads only `state.files` rows, so what sits
+  in a `_files/` folder unreferenced is invisible to every command. Two new
+  warnings, neither of which fails the run: a binary no markdown references (a
+  pull once left twelve orphaned alert icons that way, and nothing could ever
+  notice them), and a group of byte-identical copies in more than one `_files/`
+  folder, which one shared file under `course/_files/` would replace.
+
 ## 1.0.3 (2026-09-01)
 
 - A pull no longer downloads the alert icons into a module's `_files/`. The scan

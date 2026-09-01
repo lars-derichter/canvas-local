@@ -186,8 +186,20 @@ describe('validateModules — raw HTML file references', () => {
     moduleDir = path.join(tmpDir, '01-module');
     fs.mkdirSync(moduleDir, { recursive: true });
     fs.mkdirSync(path.join(moduleDir, '_files'), { recursive: true });
-    fs.writeFileSync(path.join(moduleDir, '_files', 'diagram.png'), 'binary');
-    fs.writeFileSync(path.join(moduleDir, '_files', 'handout.pdf'), 'binary');
+    // Distinct bytes, and one page referencing both inline, so the _files
+    // folder checks stay quiet and these tests stay about syntax alone.
+    fs.writeFileSync(
+      path.join(moduleDir, '_files', 'diagram.png'),
+      'png bytes',
+    );
+    fs.writeFileSync(
+      path.join(moduleDir, '_files', 'handout.pdf'),
+      'pdf bytes',
+    );
+    writeItem(
+      '00-refs.md',
+      '---\ntitle: Refs\n---\n\n![D](./_files/diagram.png)\n\n[H](./_files/handout.pdf)\n',
+    );
   });
 
   afterEach(() => {
@@ -387,8 +399,20 @@ describe('validateModules — reference-style file references', () => {
     moduleDir = path.join(tmpDir, '01-module');
     fs.mkdirSync(moduleDir, { recursive: true });
     fs.mkdirSync(path.join(moduleDir, '_files'), { recursive: true });
-    fs.writeFileSync(path.join(moduleDir, '_files', 'diagram.png'), 'binary');
-    fs.writeFileSync(path.join(moduleDir, '_files', 'handout.pdf'), 'binary');
+    // Distinct bytes, and one page referencing both inline, so the _files
+    // folder checks stay quiet and these tests stay about syntax alone.
+    fs.writeFileSync(
+      path.join(moduleDir, '_files', 'diagram.png'),
+      'png bytes',
+    );
+    fs.writeFileSync(
+      path.join(moduleDir, '_files', 'handout.pdf'),
+      'pdf bytes',
+    );
+    writeItem(
+      '00-refs.md',
+      '---\ntitle: Refs\n---\n\n![D](./_files/diagram.png)\n\n[H](./_files/handout.pdf)\n',
+    );
   });
 
   afterEach(() => {
@@ -514,6 +538,118 @@ describe('validateModules — reference-style file references', () => {
 
     const { errors } = run();
     assert.deepEqual(errors, []);
+  });
+});
+
+describe('validateModules — the _files folders', () => {
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'validate-files-'));
+    moduleDir = path.join(tmpDir, '01-module');
+    fs.mkdirSync(moduleDir, { recursive: true });
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  /** Write a file anywhere under the course root. */
+  function write(relativePath, content) {
+    const target = path.join(tmpDir, relativePath);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, content);
+  }
+
+  it('says nothing about a shared file referenced across modules', () => {
+    write('_files/logo.png', 'the one logo');
+    write(
+      '01-module/01-page.md',
+      '---\ntitle: Page\n---\n\n![Logo](../_files/logo.png)\n',
+    );
+
+    const { errors, warnings } = run();
+    assert.deepEqual(errors, []);
+    assert.deepEqual(warnings, []);
+  });
+
+  it('warns once about byte-identical copies, naming every path', () => {
+    write('01-module/_files/logo.png', 'same bytes');
+    write('02-module/_files/emblem.png', 'same bytes');
+    write(
+      '01-module/01-page.md',
+      '---\ntitle: Page\n---\n\n![Logo](./_files/logo.png)\n',
+    );
+    write(
+      '02-module/01-page.md',
+      '---\ntitle: Page\n---\n\n![Emblem](./_files/emblem.png)\n',
+    );
+
+    const { errors, warnings } = run();
+    assert.deepEqual(errors, []);
+    assert.deepEqual(warnings, [
+      '01-module/_files/logo.png: byte-identical to 02-module/_files/emblem.png. One shared copy under course/_files/ can serve every module.',
+    ]);
+  });
+
+  it('warns about a binary nothing references', () => {
+    write('01-module/_files/leftover.svg', 'stray icon');
+    write('01-module/01-page.md', '---\ntitle: Page\n---\n\nNo images.\n');
+
+    const { errors, warnings } = run();
+    assert.deepEqual(errors, []);
+    assert.deepEqual(warnings, [
+      '01-module/_files/leftover.svg: nothing references this file. It is never synced, exported or shown; reference it or delete it.',
+    ]);
+  });
+
+  it('counts a file_ref as a reference', () => {
+    write('01-module/_files/syllabus.pdf', 'binary');
+    write(
+      '01-module/01-syllabus.md',
+      '---\ntitle: Syllabus\ncanvas_type: file\nfile_ref: _files/syllabus.pdf\n---\n',
+    );
+
+    const { errors, warnings } = run();
+    assert.deepEqual(errors, []);
+    assert.deepEqual(warnings, []);
+  });
+
+  it('counts a raw HTML mention, and leaves that to its own warning', () => {
+    // The raw-HTML tag already gets a warning of its own; the basename
+    // fallback keeps the same file from also being reported as an orphan.
+    write('01-module/_files/diagram.png', 'binary');
+    write(
+      '01-module/01-page.md',
+      '---\ntitle: Page\n---\n\n<img src="_files/diagram.png" alt="D">\n',
+    );
+
+    const { warnings } = run();
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /raw HTML/);
+  });
+
+  it('counts a reference from loose markdown outside any module', () => {
+    // course/index.md is not a scanned item, but an image it embeds is still
+    // shown on the site's landing page — that file is no orphan.
+    write('_files/hero.png', 'binary');
+    write('index.md', '# Course\n\n![Hero](_files/hero.png)\n');
+    write('01-module/01-page.md', '---\ntitle: Page\n---\n\nText.\n');
+
+    const { errors, warnings } = run();
+    assert.deepEqual(errors, []);
+    assert.deepEqual(warnings, []);
+  });
+
+  it('ignores dotfiles in a _files folder', () => {
+    write('01-module/_files/.DS_Store', 'finder litter');
+    write('01-module/_files/photo.png', 'binary');
+    write(
+      '01-module/01-page.md',
+      '---\ntitle: Page\n---\n\n![Photo](./_files/photo.png)\n',
+    );
+
+    const { errors, warnings } = run();
+    assert.deepEqual(errors, []);
+    assert.deepEqual(warnings, []);
   });
 });
 

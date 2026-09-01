@@ -8,6 +8,7 @@ const {
   extractFileReferences,
   maskCodeRegions,
 } = require('../lib/convert/link-resolver');
+const { hashBinaryFile } = require('../lib/sync/fingerprint');
 const { COURSE_DIR } = require('./module-utils');
 const { PROJECT_ROOT } = require('./project-root');
 
@@ -337,7 +338,127 @@ function validateModules(modules, courseDir, projectRoot = PROJECT_ROOT) {
     }
   }
 
+  for (const warning of filesFolderWarnings(courseDir)) {
+    warnings.push(warning);
+  }
+
   return { errors, warnings };
+}
+
+/**
+ * Whole-course checks over the `_files/` folders themselves.
+ *
+ * Nothing else ever enumerates a `_files/` directory: the scanner skips every
+ * `_`-prefixed name, sync only knows a binary once markdown references it, and
+ * prune only reads `state.files` rows. A binary nothing points at is therefore
+ * invisible to every command and sits in the tree for good — twelve
+ * theme-painted alert icons a pull left behind once did exactly that. These
+ * two warnings are the one place the folders are read as folders: a file no
+ * markdown names, and a group of byte-identical copies that one shared file
+ * under `course/_files/` would replace.
+ *
+ * Loose markdown outside the scanned modules — `course/index.md`, a page in
+ * another `_`-prefixed folder — still counts as referencing: the question is
+ * whether anything in the tree names the file, not whether a sync would push
+ * the namer. And a bare mention of the basename counts too, so a file held by
+ * a raw HTML tag or a reference-style definition — each already warned about
+ * above — is not reported as an orphan on top of it.
+ */
+function filesFolderWarnings(courseDir) {
+  const warnings = [];
+  const binaries = [];
+  const pages = [];
+
+  const walk = (dir, rel, inFiles) => {
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (entry.name.startsWith('.')) continue;
+      const childRel = rel ? `${rel}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        walk(
+          path.join(dir, entry.name),
+          childRel,
+          inFiles || entry.name === '_files',
+        );
+      } else if (inFiles) {
+        binaries.push(childRel);
+      } else if (entry.name.endsWith('.md')) {
+        pages.push(childRel);
+      }
+    }
+  };
+  walk(courseDir, '', false);
+  if (binaries.length === 0) return warnings;
+  binaries.sort();
+  pages.sort();
+
+  // Everything the markdown names, however it names it: inline references are
+  // the resolved paths push uploads, `file_ref` is the file-item route, and
+  // the raw text backs the basename fallback above.
+  const referenced = new Set();
+  const texts = [];
+  for (const page of pages) {
+    let raw;
+    try {
+      raw = fs.readFileSync(path.resolve(courseDir, page), 'utf8');
+    } catch {
+      continue;
+    }
+    texts.push(raw);
+    try {
+      for (const ref of extractFileReferences(raw, page)) {
+        referenced.add(ref);
+      }
+    } catch {
+      // extractFileReferences may fail on unusual content
+    }
+    try {
+      const { data } = parseFrontmatter(raw);
+      if (data && data.file_ref && typeof data.file_ref === 'string') {
+        referenced.add(
+          path.posix.normalize(
+            path.posix.join(path.posix.dirname(page), data.file_ref),
+          ),
+        );
+      }
+    } catch {
+      // Invalid frontmatter is already an error above
+    }
+  }
+
+  const byHash = new Map();
+  for (const binary of binaries) {
+    let hash;
+    try {
+      hash = hashBinaryFile(path.resolve(courseDir, binary));
+    } catch {
+      continue;
+    }
+    if (!byHash.has(hash)) byHash.set(hash, []);
+    byHash.get(hash).push(binary);
+
+    if (referenced.has(binary)) continue;
+    const basename = path.posix.basename(binary);
+    if (texts.some((text) => text.includes(basename))) continue;
+    warnings.push(
+      `${binary}: nothing references this file. It is never synced, exported or shown; reference it or delete it.`,
+    );
+  }
+
+  for (const copies of byHash.values()) {
+    if (copies.length < 2) continue;
+    const [first, ...rest] = copies;
+    warnings.push(
+      `${first}: byte-identical to ${rest.join(', ')}. One shared copy under course/_files/ can serve every module.`,
+    );
+  }
+
+  return warnings;
 }
 
 async function validate() {
