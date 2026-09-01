@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.3 (2026-09-01)
 
 - A pull no longer downloads the alert icons into a module's `_files/`. The scan
   for embedded binaries reads the raw Canvas HTML, so it saw the icon `<img>` in
