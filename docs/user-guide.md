@@ -260,7 +260,7 @@ run with an error rather than hanging, so a script has to pass the flags. See
 ### Managing Items
 
 Right-click a module or a subsection and choose **Course: New Item**. It asks
-which of five types it is and a name; an assignment also asks for its points, an
+which of six types it is and a name; an assignment also asks for its points, an
 external URL for its address, and a file item opens a file picker. The new item
 lands at the end, so reorder it afterwards if it belongs elsewhere.
 
@@ -283,20 +283,20 @@ None of this touches Canvas either. An item you delete or merge away stays on
 Canvas until a prune removes it, and every sync run names it under
 `Orphaned on Canvas` until one does.
 
-A discussion, a quiz and an LTI link carry only the inline **Open in Canvas**
-button in the tree: they have no rename, move, delete or export entry in their
-right-click menu. **Course: New Item** does not create them either: it creates a
-page, an assignment, an external URL, a subsection or a file. A discussion, a
-quiz or an LTI link is a file you write yourself, following
-[Frontmatter](frontmatter.md#discussion). The command palette reaches all three
-regardless: its pickers list a module's items by filename, whatever type each
-one declares, so **Course: Rename Item** run from the palette works on a
-discussion or a quiz the same as it does on a page.
+A quiz and an LTI link carry only the inline **Open in Canvas** button in the
+tree: they have no rename, move, delete or export entry in their right-click
+menu. **Course: New Item** does not create them either: it creates a page, an
+assignment, a discussion, an external URL, a subsection or a file. A quiz or an
+LTI link is a file you write yourself, following
+[Frontmatter](frontmatter.md#quiz). The command palette reaches both regardless:
+its pickers list a module's items by filename, whatever type each one declares,
+so **Course: Rename Item** run from the palette works on a quiz the same as it
+does on a page.
 
 #### From the Terminal
 
 ```bash
-npx course new-item           # create a page, assignment, url, subsection, or add a file
+npx course new-item           # create a page, assignment, discussion, url, subsection, or add a file
 npx course move-item          # reorder an item within its module
 npx course movetomodule-item  # move an item to a different module
 npx course rename-item        # rename an item

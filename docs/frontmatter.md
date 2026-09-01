@@ -7,7 +7,7 @@ Four types hold their content here: a page, an assignment and a discussion are
 written in the markdown body, and a file item wraps a binary. Three do not: a
 quiz and an external tool are references to something that lives in Canvas, and
 an external URL is a link. `npx course new-item` creates pages, assignments,
-external URLs, subsections and file items; for a discussion, a quiz or an
+discussions, external URLs, subsections and file items; for a quiz or an
 external tool, write the file yourself with the frontmatter below.
 
 ## Common Fields

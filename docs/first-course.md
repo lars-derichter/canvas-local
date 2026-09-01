@@ -242,9 +242,9 @@ Click **Course: New Module** in the panel's title bar. It asks for a name and
 adds the module after the last one; move it afterwards if it belongs somewhere
 else.
 
-Right-click the new module and choose **Course: New Item**. It asks which of
-five types you want and a name; a page is the one to pick for a first try. The
-item lands at the end of the module too.
+Right-click the new module and choose **Course: New Item**. It asks which of six
+types you want and a name; a page is the one to pick for a first try. The item
+lands at the end of the module too.
 
 Write in the file that appears and watch it change in the preview.
 

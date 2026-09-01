@@ -142,11 +142,14 @@ would make Course Copy a first-class rollover path.
 
 ### More Item Types for `new-item`
 
-`VALID_TYPES` in `cli/new-item.js` lists the five things the command can
-scaffold: `page`, `assignment`, `url`, `subsection` and `file`. That list is the
-single place deciding what `new-item` creates, and it is three types behind what
-push and pull handle: a `discussion`, a `quiz` reference and an `external_tool`
-have to be written by hand today. One inconsistency belongs in the same change:
+`VALID_TYPES` in `cli/new-item.js` lists the six things the command can
+scaffold: `page`, `assignment`, `discussion`, `url`, `subsection` and `file`.
+That list is the single place deciding what `new-item` creates, and it is two
+types behind what push and pull handle: a `quiz` reference and an
+`external_tool` have to be written by hand today. Both are references to a
+Canvas object rather than content, so scaffolding one means asking for the thing
+it points at, `quiz_ref` or a launch URL, and neither is much use until the
+object exists in Canvas. One inconsistency belongs in the same change:
 `new-item -t file` copies a raw binary into the module folder rather than
 generating the markdown wrapper with `file_ref` that pull writes, so the wrapper
 form is currently pull-only or hand-written.

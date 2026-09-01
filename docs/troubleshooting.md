@@ -31,7 +31,7 @@ with no terminal, or an AI assistant driving the CLI. The message names the
 question, the command and the flags that answer for you.
 
 ```text
-[new-item] Error: "Item type (page/assignment/url/subsection/file)" got no answer — the input stream ended before one arrived. Run `npx course new-item` in a terminal, or pass --module and --type to answer from flags.
+[new-item] Error: "Item type (page/assignment/discussion/url/subsection/file)" got no answer — the input stream ended before one arrived. Run `npx course new-item` in a terminal, or pass --module and --type to answer from flags.
 ```
 
 Run it in a terminal, or pass the flags it names. The run exits non-zero rather

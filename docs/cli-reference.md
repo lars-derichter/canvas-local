@@ -212,7 +212,8 @@ folder.
 
 ### `new-item`
 
-Create a new item (page, assignment, url, subsection, file) in a module.
+Create a new item (page, assignment, discussion, url, subsection, file) in a
+module.
 
 ```bash
 npx course new-item [options]
@@ -222,7 +223,7 @@ npx course new-item [options]
 | --------------------------- | ----------------------------------------------------------------- |
 | `-m, --module <folder>`     | Module folder name (with `--type`, skips the interactive prompts) |
 | `-s, --subsection <folder>` | Subsection folder name within the module                          |
-| `-t, --type <type>`         | Item type: page, assignment, url, subsection, file                |
+| `-t, --type <type>`         | Item type: page, assignment, discussion, url, subsection, file    |
 | `-n, --name <name>`         | Item name (required unless `--type` is file)                      |
 | `-p, --position <number>`   | Position (default: after the last item)                           |
 | `--url <url>`               | External URL (for type url)                                       |

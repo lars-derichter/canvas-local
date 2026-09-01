@@ -60,6 +60,10 @@ require_initial_post: true
 ---
 ```
 
+**Course: New Item** creates one, and so does
+`npx course new-item --type discussion`. Both write the title and the
+`canvas_type` line; add the settings above yourself when you want them.
+
 Replies stay in Canvas and never come back into your files. That does not put
 them out of reach: delete the local file and run `push --prune-canvas`, and the
 topic goes with every reply in it.
@@ -152,10 +156,9 @@ external_url: https://tool.example.com/lti/launch
 
 > [!NOTE]
 >
-> **Course: New Item** and `npx course new-item` offer five types. A discussion,
-> a quiz and an external tool are the three they do not create: write the file
-> yourself with the frontmatter above, or copy an existing item and change its
-> `canvas_type`.
+> **Course: New Item** and `npx course new-item` offer six types. A quiz and an
+> external tool are the two they do not create: write the file yourself with the
+> frontmatter above, or copy an existing item and change its `canvas_type`.
 
 ## Try It
 

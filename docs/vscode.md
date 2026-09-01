@@ -83,8 +83,8 @@ subheader row has no button: the Canvas text header it becomes has no URL of its
 own. An item with no row yet is reported as not pushed rather than guessed at; a
 module with no id yet opens the modules page unanchored.
 
-The sidebar's **Course: New Item** creates pages, assignments, external URLs,
-subsections and file items. A discussion, a quiz or an LTI link is a file you
+The sidebar's **Course: New Item** creates pages, assignments, discussions,
+external URLs, subsections and file items. A quiz or an LTI link is a file you
 write yourself: see [Frontmatter](frontmatter.md).
 
 ### Context Menu
@@ -131,13 +131,15 @@ the `npx course` CLI does the work, so renumbering and the sync state behave
 exactly as they do in the terminal, and the full output of a background command
 is in the **Coursewright** output channel (View > Output).
 
-Three row types carry less than the rest. Rename, move and delete are
-contributed for pages, assignments, external URLs, files and subheaders, and
-export for the same set minus subheaders, so a discussion, a quiz or an LTI link
-offers the **Open in Canvas** button and no menu entry of its own. The two merge
-halves are narrower still: pages and assignments only. The palette reaches all
-of them: its pickers list a module's entries by filename, whatever type each one
-declares.
+Two row types carry less than the rest. Rename, move and delete are contributed
+for pages, assignments, discussions, external URLs, files and subheaders, and
+export for the same set minus subheaders, so a quiz or an LTI link offers the
+**Open in Canvas** button and no menu entry of its own: the file names a Canvas
+object rather than holding anything to rename or export. The two merge halves
+are narrower still: pages and assignments only, since a merge deletes the source
+item, and on a discussion that takes the Canvas topic and its replies with it.
+The palette reaches all of them: its pickers list a module's entries by
+filename, whatever type each one declares.
 
 One command sits in the editor's right-click menu instead of the tree's:
 **Course: Split Item at Cursor**, offered on any markdown file inside `course/`.
@@ -224,15 +226,15 @@ Choosing the TOC option opens the generated list for editing and reveals
 
 ### Item Management
 
-| Command                      | Description                                               |
-| ---------------------------- | --------------------------------------------------------- |
-| Course: New Item             | Create a page, assignment, url, subsection, or add a file |
-| Course: Move Item            | Reorder an item within its module                         |
-| Course: Move Item to Module  | Move an item to a different module                        |
-| Course: Rename Item          | Rename an item                                            |
-| Course: Delete Item          | Delete an item and renumber remaining                     |
-| Course: Merge Items          | Merge two items into one                                  |
-| Course: Split Item at Cursor | Split the active file at the cursor into two files        |
+| Command                      | Description                                                           |
+| ---------------------------- | --------------------------------------------------------------------- |
+| Course: New Item             | Create a page, assignment, discussion, url, subsection, or add a file |
+| Course: Move Item            | Reorder an item within its module                                     |
+| Course: Move Item to Module  | Move an item to a different module                                    |
+| Course: Rename Item          | Rename an item                                                        |
+| Course: Delete Item          | Delete an item and renumber remaining                                 |
+| Course: Merge Items          | Merge two items into one                                              |
+| Course: Split Item at Cursor | Split the active file at the cursor into two files                    |
 
 ### Search
 

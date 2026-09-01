@@ -16,7 +16,7 @@ adds the module after the last one, writing the folder with the right numeric
 prefix and a `_category_.json` inside it.
 
 For an item, right-click the module or subsection you want it in and choose
-**Course: New Item**. It asks which of the five types it is and a name; an
+**Course: New Item**. It asks which of the six types it is and a name; an
 assignment also asks for its points, an external URL for its address, and a file
 opens a file picker. The new item lands at the end of that module or subsection.
 
