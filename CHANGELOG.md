@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+- A pull no longer downloads the alert icons into a module's `_files/`. The scan
+  for embedded binaries reads the raw Canvas HTML, so it saw the icon `<img>` in
+  every alert title — the one thing the markdown conversion throws away — and
+  the guard against that was a list of the icon ids the sync state currently
+  holds. That list is empty on a first pull, holds the wrong generation for a
+  page not pushed since a theme change, and can never hold the ids in content
+  copied from another Canvas course, so each of those wrote a set of SVGs
+  nothing would ever reference or clean up: no markdown names them, no
+  `state.files` row records them, and the scanner does not look inside
+  `_files/`. The icons are now recognised by their place in the markup instead.
+  Copies already on disk are not removed; delete them by hand, and note that a
+  foreign-course one is the only thing in `_files/` with no row of its own.
+
 ## 1.0.2 (2026-08-31)
 
 - Frontmatter is written with the emoji intact. `gray-matter` bundles a js-yaml

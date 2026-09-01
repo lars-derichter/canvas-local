@@ -447,6 +447,17 @@ URLs, fragment-only links, and non-`.md` links pass through unchanged.
 - Uses `turndown` with atx headings and fenced code blocks
 - Custom rules convert alert divs back to GFM alert syntax
 - Custom rules resolve Canvas internal links and file URLs
+- The alert's icon does not survive the trip, by design: the rule skips the
+  title paragraph the icon sits in, so the markdown names no icon and the next
+  push renders a fresh one from `state.icons`. `downloadReferencedFiles` in
+  `lib/sync/local-write.js` cuts those paragraphs out of the HTML before it
+  scans for embedded binaries, for the same reason — a downloaded icon would be
+  an orphan the moment it landed, referenced by no markdown and recorded in no
+  `state.files` row. It excludes them by that shape rather than by id, because
+  the ids in `state.icons` are only this course's current generation: a first
+  pull has none, a page not pushed since a theme change still carries the
+  previous ones, and content copied from another Canvas course carries that
+  course's, which this state can never hold
 
 ## Docusaurus Content Filtering
 
