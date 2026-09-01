@@ -260,9 +260,9 @@ file_ref: _files/syllabus.pdf
 ---
 ```
 
-| Field      | Type   | Description                                                                                                   |
-| ---------- | ------ | ------------------------------------------------------------------------------------------------------------- |
-| `file_ref` | string | **Required.** Path to the binary, relative to the wrapper file, usually inside the module's `_files/` folder. |
+| Field      | Type   | Description                                                                                                                                                                                                                                                                                                              |
+| ---------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `file_ref` | string | **Required.** Path to the binary, relative to the wrapper file, usually inside the module's `_files/` folder. A `../_files/…` path into the shared folder renders and pushes, but a pull that rewrites the wrapper repoints it at a module-local copy — see [Limitations](limitations.md#push-and-pull-are-not-a-merge). |
 
 On Canvas the item links straight to the uploaded file; in the local preview the
 wrapper renders as a download card, with the media itself embedded above the

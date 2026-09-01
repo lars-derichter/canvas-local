@@ -63,6 +63,8 @@ and each file becomes one Canvas item when you sync.
 
 ```
 course/
+  _files/                    # Assets shared across modules
+    logo.png
   01-module-name/
     _category_.json          # Docusaurus sidebar label/order
     _files/                  # Embedded assets and file item binaries
@@ -108,6 +110,9 @@ course/
 - Images and files in `_files/` can also be referenced from markdown content
   (`![Alt](_files/image.png)`): these are embedded in page content, not added as
   separate module items
+- A file more than one module embeds lives in `course/_files/` at the root of
+  the tree, referenced as `../_files/…` from a module page; see
+  [Shared Files](markdown.md#shared-files)
 
 ### Evaluations (Private)
 

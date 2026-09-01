@@ -279,8 +279,10 @@ Files area, and `--prune-canvas` clears those out along with the items. On a
 scoped run it does not, and it does not list them either, because "no item
 references this file" is a question about the whole course and `-m` is you
 saying which modules this run may touch: a Canvas file belonging to a module you
-did not name is not that run's to delete. Run the prune over the whole course
-when you want the orphaned binaries gone.
+did not name is not that run's to delete, and a shared binary under the root
+`course/_files/` belongs to no module at all, which is the same answer taken
+further. Run the prune over the whole course when you want the orphaned binaries
+gone.
 
 ### Deleting a Module Folder Is Safer Than Deleting an Assignment File
 
@@ -522,6 +524,19 @@ to merge against even in principle.
   that URL belongs to a course this one cannot vouch for. The next push of the
   page that embeds it uploads the file into this course and takes ownership,
   rather than leaving the embed pointing across courses.
+- **A pull never creates a shared file.** Push, the preview and the exports all
+  resolve a binary under the root `course/_files/`
+  ([Shared Files](markdown.md#shared-files)), but a binary first met on Canvas
+  is always downloaded into the referencing module's own `_files/`, because pull
+  cannot know the file is meant to be shared. One that already has a row is
+  preserved: later pulls link every page to it rather than downloading a second
+  copy. To share a file pull brought down, move it under `course/_files/` and
+  repoint the references yourself.
+- **A pull that rewrites a file-item wrapper repoints its `file_ref` at a
+  module-local copy.** The wrapper is regenerated with `file_ref: _files/<name>`
+  and the binary downloaded beside it, so a hand-written
+  `file_ref: ../_files/shared.pdf` does not survive such a pull. Shared binaries
+  are for embedding in pages; give a file item its own copy in the module.
 - **Pull does not rename your files.** A Canvas title lands in the file's
   frontmatter as `title:` and a Canvas module name lands in the folder's
   `_category_.json`, while the filename stays as you wrote it, because that path

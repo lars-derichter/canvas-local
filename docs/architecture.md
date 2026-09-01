@@ -131,10 +131,14 @@ Key properties:
   so a theme change re-uploads the icons and an unchanged theme does not.
 - **files**: one row per embedded binary (an image, a PDF) with its Canvas file
   id and URL and a SHA-256 of its content, so a changed file is re-uploaded and
-  an unchanged one is not. A row vouches that the file lives in this course, so
-  a pull that meets a file embedded from another course downloads the binary
-  without writing one; the next push of the embedding page uploads the file into
-  this course and records it then.
+  an unchanged one is not. A key normally opens with its module folder; one for
+  a shared binary under the root `course/_files/` carries no module segment, and
+  its upload goes into a Canvas `shared/` folder mirroring the tree under
+  `course/_files/`, taken from the file's own path so every push resolves the
+  same destination. A row vouches that the file lives in this course, so a pull
+  that meets a file embedded from another course downloads the binary without
+  writing one; the next push of the embedding page uploads the file into this
+  course and records it then.
 - **last_sync**: stamped at the end of any `sync`, `push` or `pull` that ran to
   completion, including one that found nothing to do. A `--dry-run` and a
   `status` never write it, and a run that stopped before the end leaves the

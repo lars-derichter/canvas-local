@@ -68,6 +68,32 @@ An image can also be its own module item instead of part of a page: a file-item
 wrapper with `file_ref` (see [Frontmatter](frontmatter.md#file-item)) renders
 the image above its download card in the preview.
 
+### Shared Files
+
+A file that more than one module uses goes in `course/_files/`, a shared assets
+folder at the root of the course tree; subfolders are welcome
+(`course/_files/aias/`). Reference it the same way, one step further up:
+
+```md
+![AIAS level 1](../_files/aias/n1.png)
+```
+
+Every output resolves it exactly as a module's own `_files/`: one upload and one
+Canvas file, however many pages embed it. On Canvas the file lands in a
+`shared/` folder that mirrors the tree under `course/_files/`.
+
+Mind the ambiguity: from a page directly in a module folder, `../_files/` is the
+shared folder; from a page inside a subfolder, `../_files/` is the module's own
+`_files/` and the shared folder is `../../_files/`. The path is always relative
+to the file that writes it, and `npm run build` fails on an image path that
+resolves to nothing, so a slip does not reach students.
+
+One asymmetry to know about: push, the preview and the exports understand shared
+files fully, but a pull never creates one — a binary first met on Canvas is
+downloaded into the referencing module's own `_files/`. Move it to
+`course/_files/` and repoint the references when you want it shared. See
+[Limitations](limitations.md#push-and-pull-are-not-a-merge) for the details.
+
 ### Linking to `.html` Files
 
 Inline links to `.html` files are a special case. Docusaurus treats `.html`
@@ -109,7 +135,8 @@ the tree without it appearing in any output. It does not keep sync out of them,
 because two of them are where a local write puts things. Examples:
 
 - `_files/`: embedded assets (images, PDFs), and where sync and pull download
-  the binaries a Canvas page embeds
+  the binaries a Canvas page embeds. The same folder at the root of `course/`
+  holds the [files shared across modules](#shared-files)
 - `_category_.json`: Docusaurus sidebar configuration, and where sync and pull
   write the Canvas module name
 - `_draft-notes.md`: any file you want to keep local-only, which nothing here
